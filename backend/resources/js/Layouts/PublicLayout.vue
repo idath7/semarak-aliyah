@@ -546,15 +546,16 @@ onUnmounted(() => {
       :class="[
         kustomisasi.floating_wa_position === 'bottom-left' ? 'pos-left' : 'pos-right',
         kustomisasi.floating_wa_animation === 'pulse' ? 'anim-pulse' :
-        kustomisasi.floating_wa_animation === 'bounce' ? 'anim-bounce' : ''
+        kustomisasi.floating_wa_animation === 'bounce' ? 'anim-bounce' : '',
+        kustomisasi.floating_wa_label ? 'has-label' : 'icon-only'
       ]"
       target="_blank" 
       rel="noopener" 
       aria-label="Hubungi WhatsApp Panitia"
       :title="kustomisasi.floating_wa_label || 'Chat WhatsApp Panitia'"
     >
+      <i class="ri-whatsapp-fill"></i>
       <span v-if="kustomisasi.floating_wa_label" class="floating-wa-label-chip">{{ kustomisasi.floating_wa_label }}</span>
-      <i class="ri-whatsapp-line"></i>
     </a>
   </div>
 </template>

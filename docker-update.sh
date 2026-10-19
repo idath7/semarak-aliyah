@@ -98,7 +98,7 @@ case "$MODE" in
         ;;
     *)
         echo "======================================================================"
-        echo "    SEMARAK ALIYAH XIV 2026 - PUSAT KONTROL PEMBARUAN DOCKER          "
+        echo "         SEMARAK ALIYAH - PUSAT KONTROL PEMBARUAN DOCKER              "
         echo "======================================================================"
         echo " Pilih mode pembaruan:"
         echo "   1) Hot-Update Cepat (Git Pull + Build + Migrate + Reload Octane)"

@@ -67,15 +67,32 @@ cp backend/.env.example backend/.env
 nano backend/.env
 ```
 
-### Konfigurasi Kunci yang Wajib Diubah di `backend/.env`:
+### Konfigurasi Kunci yang Wajib Diatur di `backend/.env`:
 
 ```dotenv
 APP_NAME="SEMARAK ALIYAH XIV 2026"
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=http://your-domain.com
+APP_URL=https://semarak.maswahas.sch.id
 
-# Database Connection (Terhubung ke Container PostgreSQL 18)
+# ==============================================================================
+# MULTI-PORTAL & MULTI-DOMAIN ARCHITECTURE (PORT & DOMAIN BERBEDA)
+# ==============================================================================
+# 1. Konfigurasi Domain / Subdomain Berbeda (Rekomendasi Produksi dengan Nginx/SSL):
+PUBLIC_DOMAIN=semarak.maswahas.sch.id
+ADMIN_DOMAIN=admin-semarak.maswahas.sch.id
+
+PUBLIC_URL=https://semarak.maswahas.sch.id
+ADMIN_URL=https://admin-semarak.maswahas.sch.id
+
+# 2. Konfigurasi Port Berbeda (Digunakan oleh Container FrankenPHP):
+# FrankenPHP di container mendengarkan langsung di 2 port terpisah:
+PUBLIC_PORT=8000
+ADMIN_PORT=8001
+
+# ==============================================================================
+# DATABASE CONNECTION (Terhubung ke Container PostgreSQL 18)
+# ==============================================================================
 DB_CONNECTION=pgsql
 DB_HOST=database
 DB_PORT=5432
@@ -83,7 +100,9 @@ DB_DATABASE=semarak_db
 DB_USERNAME=semarak_user
 DB_PASSWORD=GantiPasswordDatabaseYangKuat123!
 
-# Cache, Session, & Queue (Terhubung ke Container Redis Alpine)
+# ==============================================================================
+# CACHE, SESSION, & QUEUE (Terhubung ke Container Redis Alpine)
+# ==============================================================================
 CACHE_STORE=redis
 CACHE_PREFIX=semarak_cache_
 SESSION_DRIVER=redis
@@ -92,15 +111,19 @@ REDIS_CLIENT=phpredis
 REDIS_HOST=redis
 REDIS_PORT=6379
 
-# Octane Server Setting
+# ==============================================================================
+# OCTANE RUNTIME SERVER (FrankenPHP)
+# ==============================================================================
 OCTANE_SERVER=frankenphp
 
-# WebSocket Reverb Settings
+# ==============================================================================
+# WEBSOCKET REVERB REALTIME SETTINGS
+# ==============================================================================
 BROADCAST_CONNECTION=reverb
 REVERB_APP_ID=semarak-app
 REVERB_APP_KEY=semarak-key-2026
 REVERB_APP_SECRET=semarak-secret-super-secure
-REVERB_HOST=your-domain.com
+REVERB_HOST=ws.maswahas.sch.id
 REVERB_PORT=8085
 REVERB_SCHEME=https
 

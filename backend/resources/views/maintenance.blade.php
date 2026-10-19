@@ -259,25 +259,96 @@
             color: #ffffff;
         }
 
-        .btn-login-panitia {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            color: #cbd5e1;
-            font-weight: 600;
-            font-size: 0.86rem;
-            border-radius: 9999px;
-            text-decoration: none;
-            transition: all 0.25s ease;
+        /* Countdown Component Styling */
+        .countdown-container {
+            margin: 24px auto 26px;
+            max-width: 480px;
+            width: 100%;
         }
 
-        .btn-login-panitia:hover {
-            background: rgba(255, 255, 255, 0.15);
-            color: #ffffff;
-            border-color: rgba(255, 255, 255, 0.3);
+        .countdown-heading {
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 700;
+            color: #94a3b8;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .countdown-heading i {
+            color: #f97316;
+            font-size: 0.95rem;
+        }
+
+        .countdown-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .countdown-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 14px 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .countdown-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #ec4899, #f97316, #8b5cf6);
+            opacity: 0.85;
+        }
+
+        .countdown-value {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: clamp(1.5rem, 3.8vw, 2.1rem);
+            line-height: 1.1;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .countdown-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #f97316;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        .countdown-ended-message {
+            display: none;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            border-radius: 14px;
+            padding: 12px 18px;
+            color: #34d399;
+            font-size: 0.85rem;
+            font-weight: 700;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 8px;
         }
 
         .footer-note {
@@ -291,11 +362,24 @@
                 padding: 30px 20px;
                 border-radius: 20px;
             }
+            .countdown-grid {
+                gap: 8px;
+            }
+            .countdown-card {
+                padding: 10px 4px;
+                border-radius: 12px;
+            }
+            .countdown-value {
+                font-size: 1.35rem;
+            }
+            .countdown-label {
+                font-size: 0.58rem;
+            }
             .btn-group-action {
                 flex-direction: column;
                 width: 100%;
             }
-            .btn-wa-hotline, .btn-login-panitia {
+            .btn-wa-hotline {
                 width: 100%;
                 justify-content: center;
             }
@@ -310,7 +394,7 @@
         <!-- Brand Badge -->
         <div class="brand-badge">
             <img src="/assets/img/logo.png" alt="Logo Semarak Aliyah">
-            <span class="brand-text">SEMARAK ALIYAH <span class="edition-badge">XII</span></span>
+            <span class="brand-text">SEMARAK ALIYAH <span class="edition-badge">XIV</span></span>
         </div>
 
         <!-- Animated Maintenance Illustration -->
@@ -327,6 +411,36 @@
         <h1 class="maintenance-title">{{ $title }}</h1>
         <p class="maintenance-desc">{{ $message }}</p>
 
+        <!-- Real-Time Countdown Timer Component -->
+        <div class="countdown-container" id="countdownSection">
+            <div class="countdown-heading">
+                <i class="ri-timer-flash-line"></i>
+                <span>Hitung Mundur Selesai Pemeliharaan</span>
+            </div>
+            <div class="countdown-grid" id="countdownGrid">
+                <div class="countdown-card">
+                    <span class="countdown-value" id="cdDays">00</span>
+                    <span class="countdown-label">Hari</span>
+                </div>
+                <div class="countdown-card">
+                    <span class="countdown-value" id="cdHours">00</span>
+                    <span class="countdown-label">Jam</span>
+                </div>
+                <div class="countdown-card">
+                    <span class="countdown-value" id="cdMinutes">00</span>
+                    <span class="countdown-label">Menit</span>
+                </div>
+                <div class="countdown-card">
+                    <span class="countdown-value" id="cdSeconds">00</span>
+                    <span class="countdown-label">Detik</span>
+                </div>
+            </div>
+            <div class="countdown-ended-message" id="cdEndedMsg">
+                <i class="ri-refresh-line" style="animation: rotateGear 2s linear infinite;"></i>
+                <span>Waktu estimasi selesai. Sistem sedang sinkronisasi akhir untuk segera dibuka kembali.</span>
+            </div>
+        </div>
+
         @if(!empty($estimatedEnd))
             <div class="estimate-box">
                 <i class="ri-time-line"></i>
@@ -336,7 +450,7 @@
 
         <div class="btn-group-action">
             @php
-                $cleanWa = preg_replace('/[^0-9]/', '', $emergencyWa);
+                $cleanWa = preg_replace('/[^0-9]/', '', $emergencyWa ?? '');
                 if (str_starts_with($cleanWa, '0')) {
                     $cleanWa = '62' . substr($cleanWa, 1);
                 }
@@ -352,16 +466,73 @@
                     <span>Hubungi Hotline Panitia</span>
                 </a>
             @endif
-
-            <a href="/login" class="btn-login-panitia">
-                <i class="ri-lock-2-line"></i>
-                <span>Masuk Panel Panitia</span>
-            </a>
         </div>
 
         <div class="footer-note">
-            {{ $schoolName }} • Semarak Aliyah XII 2026
+            {{ $schoolName }} • {{ $eventName }}
         </div>
     </div>
+
+    <script>
+    (function() {
+        var rawTarget = "{{ $countdownTarget ?? '' }}";
+        var cdEnded = document.getElementById('cdEndedMsg');
+        var cdGrid = document.getElementById('countdownGrid');
+        var daysEl = document.getElementById('cdDays');
+        var hoursEl = document.getElementById('cdHours');
+        var minsEl = document.getElementById('cdMinutes');
+        var secsEl = document.getElementById('cdSeconds');
+
+        var targetTime = null;
+        if (rawTarget && rawTarget.trim() !== '') {
+            var parsed = new Date(rawTarget).getTime();
+            if (!isNaN(parsed)) {
+                targetTime = parsed;
+            }
+        }
+
+        // Fallback target: jika belum diatur, gunakan 2 jam ke depan dari sesi pertama
+        if (!targetTime) {
+            var saved = localStorage.getItem('semarak_mt_target_ts');
+            if (saved && !isNaN(parseInt(saved)) && parseInt(saved) > Date.now()) {
+                targetTime = parseInt(saved);
+            } else {
+                targetTime = Date.now() + (2 * 60 * 60 * 1000);
+                try { localStorage.setItem('semarak_mt_target_ts', targetTime); } catch(e) {}
+            }
+        }
+
+        function padZero(num) {
+            return num < 10 ? '0' + num : num;
+        }
+
+        function updateCountdown() {
+            var now = Date.now();
+            var diff = targetTime - now;
+
+            if (diff <= 0) {
+                daysEl.innerText = '00';
+                hoursEl.innerText = '00';
+                minsEl.innerText = '00';
+                secsEl.innerText = '00';
+                if (cdEnded) cdEnded.style.display = 'inline-flex';
+                return;
+            }
+
+            var d = Math.floor(diff / (1000 * 60 * 60 * 24));
+            var h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            var m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            var s = Math.floor((diff % (1000 * 60)) / 1000);
+
+            daysEl.innerText = padZero(d);
+            hoursEl.innerText = padZero(h);
+            minsEl.innerText = padZero(m);
+            secsEl.innerText = padZero(s);
+        }
+
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+    })();
+    </script>
 </body>
 </html>

@@ -18,9 +18,21 @@ const form = useForm({
   maintenance_title: props.settings.maintenance_title || 'Situs Sedang Dalam Pemeliharaan Berkala',
   maintenance_message: props.settings.maintenance_message || 'Mohon maaf atas ketidaknyamanan ini. Saat ini sistem Semarak Aliyah XIV 2026 sedang dalam proses peningkatan performa dan sinkronisasi data teknis. Website publik akan segera kembali online.',
   maintenance_estimated_end: props.settings.maintenance_estimated_end || '19 Oktober 2026, 12:00 WIB',
+  maintenance_countdown_target: props.settings.maintenance_countdown_target || '',
   maintenance_emergency_wa: props.settings.maintenance_emergency_wa || '0838 5007 0767',
   maintenance_secret_key: props.settings.maintenance_secret_key || 'semarak2026bypass',
 });
+
+function setCountdownHours(hours) {
+  const target = new Date(Date.now() + hours * 3600 * 1000);
+  const offset = target.getTimezoneOffset();
+  const local = new Date(target.getTime() - offset * 60 * 1000);
+  form.maintenance_countdown_target = local.toISOString().slice(0, 16);
+}
+
+function clearCountdownTarget() {
+  form.maintenance_countdown_target = '';
+}
 
 const bypassUrl = computed(() => {
   return `${window.location.protocol}//${window.location.hostname}:8000/?bypass=${form.maintenance_secret_key}`;
@@ -227,7 +239,31 @@ function submitForm() {
                   </div>
 
                   <div class="col-md-6">
-                    <label class="form-label fs-12 fw-semibold text-dark-emphasis">Estimasi Selesai / Jadwal Online Kembali</label>
+                    <label class="form-label fs-12 fw-semibold text-dark-emphasis d-flex align-items-center justify-content-between">
+                      <span>Target Waktu Hitung Mundur (Countdown)</span>
+                      <span class="badge bg-warning-subtle text-warning fs-10">Live Timer</span>
+                    </label>
+                    <div class="input-group">
+                      <span class="input-group-text bg-warning-subtle text-warning border-0"><i class="ri-timer-flash-line"></i></span>
+                      <input
+                        v-model="form.maintenance_countdown_target"
+                        type="datetime-local"
+                        class="form-control"
+                      />
+                    </div>
+                    <!-- Quick Duration Buttons -->
+                    <div class="d-flex align-items-center gap-1 mt-2 flex-wrap">
+                      <span class="fs-11 text-muted me-1">Atur Cepat:</span>
+                      <button type="button" class="btn btn-xs btn-outline-warning rounded-pill py-0 px-2 fs-11" @click="setCountdownHours(1)">+1 Jam</button>
+                      <button type="button" class="btn btn-xs btn-outline-warning rounded-pill py-0 px-2 fs-11" @click="setCountdownHours(3)">+3 Jam</button>
+                      <button type="button" class="btn btn-xs btn-outline-warning rounded-pill py-0 px-2 fs-11" @click="setCountdownHours(6)">+6 Jam</button>
+                      <button type="button" class="btn btn-xs btn-outline-warning rounded-pill py-0 px-2 fs-11" @click="setCountdownHours(24)">Besok (24j)</button>
+                      <button v-if="form.maintenance_countdown_target" type="button" class="btn btn-xs btn-link text-danger p-0 ms-1 fs-11 text-decoration-none" @click="clearCountdownTarget">Reset</button>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label fs-12 fw-semibold text-dark-emphasis">Teks Estimasi Selesai (Label Tambahan)</label>
                     <div class="input-group">
                       <span class="input-group-text bg-dark-subtle border-secondary/20 text-muted"><i class="ri-time-line"></i></span>
                       <input
@@ -237,9 +273,10 @@ function submitForm() {
                         placeholder="Contoh: 19 Oktober 2026, 12:00 WIB"
                       />
                     </div>
+                    <small class="text-muted fs-11 mt-1 d-block">Teks deskriptif yang tampil di bawah countdown timer</small>
                   </div>
 
-                  <div class="col-md-6">
+                  <div class="col-12">
                     <label class="form-label fs-12 fw-semibold text-dark-emphasis">Nomor WhatsApp Darurat / Hotline Panitia</label>
                     <div class="input-group">
                       <span class="input-group-text bg-success-subtle text-success border-0"><i class="ri-whatsapp-line"></i></span>
@@ -364,6 +401,32 @@ function submitForm() {
                     {{ form.maintenance_message || 'Mohon maaf atas ketidaknyamanan ini. Sistem sedang disinkronkan.' }}
                   </p>
 
+                  <!-- Mock Dynamic Countdown Timer Component -->
+                  <div class="my-3 px-1">
+                    <div class="d-flex align-items-center justify-content-center gap-1 text-warning fs-10 fw-bold text-uppercase mb-2">
+                      <i class="ri-timer-flash-line"></i>
+                      <span>Hitung Mundur Selesai</span>
+                    </div>
+                    <div class="d-grid" style="grid-template-columns: repeat(4, 1fr); gap: 6px;">
+                      <div class="p-2 rounded-3 bg-white/5 border border-white/10 text-center">
+                        <div class="fs-15 fw-bold text-white lh-1">00</div>
+                        <div class="fs-9 text-warning font-semibold text-uppercase mt-1">Hari</div>
+                      </div>
+                      <div class="p-2 rounded-3 bg-white/5 border border-white/10 text-center">
+                        <div class="fs-15 fw-bold text-white lh-1">02</div>
+                        <div class="fs-9 text-warning font-semibold text-uppercase mt-1">Jam</div>
+                      </div>
+                      <div class="p-2 rounded-3 bg-white/5 border border-white/10 text-center">
+                        <div class="fs-15 fw-bold text-white lh-1">45</div>
+                        <div class="fs-9 text-warning font-semibold text-uppercase mt-1">Menit</div>
+                      </div>
+                      <div class="p-2 rounded-3 bg-white/5 border border-white/10 text-center">
+                        <div class="fs-15 fw-bold text-white lh-1">12</div>
+                        <div class="fs-9 text-warning font-semibold text-uppercase mt-1">Detik</div>
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Dynamic Estimated End -->
                   <div v-if="form.maintenance_estimated_end" class="p-2 rounded-3 bg-white/5 border border-white/10 d-inline-flex align-items-center gap-2 text-slate-200 fs-11 mb-3">
                     <i class="ri-time-line text-info"></i>
@@ -375,9 +438,6 @@ function submitForm() {
                     <button type="button" class="btn btn-success btn-sm rounded-pill fw-bold fs-11 py-2 d-flex align-items-center justify-content-center gap-2 shadow">
                       <i class="ri-whatsapp-line fs-14"></i>
                       <span>Hubungi Hotline Panitia ({{ form.maintenance_emergency_wa || '-' }})</span>
-                    </button>
-                    <button type="button" class="btn btn-outline-light btn-sm rounded-pill fs-11 py-1.5 opacity-70">
-                      <i class="ri-lock-2-line me-1"></i> Masuk Panel Panitia
                     </button>
                   </div>
 

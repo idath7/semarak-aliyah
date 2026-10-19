@@ -85,8 +85,9 @@ class SettingsController extends Controller
         $settings = [
             'maintenance_mode' => Setting::get('maintenance_mode', '0') === '1',
             'maintenance_title' => Setting::get('maintenance_title', 'Situs Sedang Dalam Pemeliharaan Berkala'),
-            'maintenance_message' => Setting::get('maintenance_message', 'Mohon maaf atas ketidaknyamanan ini. Saat ini sistem Semarak Aliyah XII 2026 sedang dalam proses peningkatan performa dan sinkronisasi data teknis. Website publik akan segera kembali online.'),
+            'maintenance_message' => Setting::get('maintenance_message', 'Mohon maaf atas ketidaknyamanan ini. Saat ini sistem Semarak Aliyah XIV 2026 sedang dalam proses peningkatan performa dan sinkronisasi data teknis. Website publik akan segera kembali online.'),
             'maintenance_estimated_end' => Setting::get('maintenance_estimated_end', '19 Oktober 2026, 12:00 WIB'),
+            'maintenance_countdown_target' => Setting::get('maintenance_countdown_target', ''),
             'maintenance_emergency_wa' => Setting::get('maintenance_emergency_wa', '0838 5007 0767'),
             'maintenance_secret_key' => Setting::get('maintenance_secret_key', 'semarak2026bypass'),
         ];
@@ -101,6 +102,7 @@ class SettingsController extends Controller
             'maintenance_title' => 'required|string|max:255',
             'maintenance_message' => 'required|string|max:1000',
             'maintenance_estimated_end' => 'nullable|string|max:150',
+            'maintenance_countdown_target' => 'nullable|string|max:100',
             'maintenance_emergency_wa' => 'nullable|string|max:50',
             'maintenance_secret_key' => 'nullable|string|max:100',
         ]);
@@ -109,6 +111,7 @@ class SettingsController extends Controller
         Setting::set('maintenance_title', (string)$validated['maintenance_title']);
         Setting::set('maintenance_message', (string)$validated['maintenance_message']);
         Setting::set('maintenance_estimated_end', (string)($validated['maintenance_estimated_end'] ?? ''));
+        Setting::set('maintenance_countdown_target', (string)($validated['maintenance_countdown_target'] ?? ''));
         Setting::set('maintenance_emergency_wa', (string)($validated['maintenance_emergency_wa'] ?? ''));
         Setting::set('maintenance_secret_key', (string)($validated['maintenance_secret_key'] ?? 'semarak2026bypass'));
 

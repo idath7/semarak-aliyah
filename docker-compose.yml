@@ -214,11 +214,9 @@ services:
     working_dir: /app
     volumes:
       - ./backend:/app
-    ports:
-      - "5173:5173"   # Vite Dev Server & HMR
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    command: sh -c "npm install && rm -f /app/public/hot && npm run build -- --watch"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
     networks:
       - semarak_net
 

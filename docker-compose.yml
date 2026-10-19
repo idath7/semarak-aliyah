@@ -214,7 +214,7 @@ services:
     working_dir: /app
     volumes:
       - ./backend:/app
-    command: sh -c "npm install --include=dev && rm -f /app/public/hot && npx vite build --watch"
+    command: sh -c "npm install -g npm@latest && npm install --include=dev && rm -f /app/public/hot && npx vite build --watch"
     environment:
       - NODE_ENV=development
     networks:

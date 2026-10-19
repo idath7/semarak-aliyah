@@ -45,10 +45,10 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
             ],
             'reverb' => [
-                'key' => config('reverb.apps.apps.0.key') ?? env('REVERB_APP_KEY'),
-                'host' => (env('REVERB_HOST') && !in_array(env('REVERB_HOST'), ['localhost', '127.0.0.1', '0.0.0.0'])) ? env('REVERB_HOST') : $request->getHost(),
-                'port' => (int) (config('reverb.apps.apps.0.options.port') ?? env('REVERB_PORT', $request->isSecure() ? 443 : 8085)),
-                'scheme' => config('reverb.apps.apps.0.options.scheme') ?? env('REVERB_SCHEME', $request->isSecure() ? 'https' : 'http'),
+                'key' => config('reverb.apps.apps.0.key') ?? env('REVERB_APP_KEY', 'semarak-key-2026'),
+                'host' => $request->getHost(),
+                'port' => $request->isSecure() ? 443 : (int) env('REVERB_PORT', 8085),
+                'scheme' => $request->isSecure() ? 'https' : 'http',
             ],
             'portal' => [
                 'publicUrl' => config('portal.public_url', 'http://localhost:8000'),

@@ -18,7 +18,7 @@ export function initEcho(reverbConfig = {}) {
         host = window.location.hostname;
     }
 
-    const port = reverbConfig.port || serverReverb.port || (isHttps ? 443 : 8085);
+    const port = isHttps ? 443 : (reverbConfig.port || serverReverb.port || 8085);
     const scheme = isHttps ? 'https' : (reverbConfig.scheme || serverReverb.scheme || 'http');
 
     window.Echo = new Echo({

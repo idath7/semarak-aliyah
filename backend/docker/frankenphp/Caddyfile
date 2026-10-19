@@ -24,6 +24,10 @@
 	# Header penanda portal untuk PortalSeparationMiddleware Laravel tanpa merusak port URL generator
 	request_header X-Portal-Type "public"
 
+	# Reverse proxy WebSocket Reverb (/app/* dan /apps/*) melalui port HTTPS standar
+	@reverb path /app/* /apps/*
+	reverse_proxy @reverb reverb:8085
+
 	# Cache aset statis selama 30 hari untuk performa tinggi
 	@static {
 		file
@@ -48,6 +52,10 @@
 
 	# Header penanda portal untuk PortalSeparationMiddleware Laravel
 	request_header X-Portal-Type "admin"
+
+	# Reverse proxy WebSocket Reverb (/app/* dan /apps/*) melalui port HTTPS standar
+	@reverb path /app/* /apps/*
+	reverse_proxy @reverb reverb:8085
 
 	# Cache aset statis
 	@static {

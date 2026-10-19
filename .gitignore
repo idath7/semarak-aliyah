@@ -18,7 +18,8 @@ vendor/
 .env.*
 !.env.example
 !backend/.env.example
-_legacy_express/.env
+# Legacy prototype
+_legacy_express/
 
 # Laravel Framework and Runtime Caches
 backend/storage/*.key

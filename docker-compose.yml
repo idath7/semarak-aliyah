@@ -214,9 +214,9 @@ services:
     working_dir: /app
     volumes:
       - ./backend:/app
-    command: sh -c "npm install && rm -f /app/public/hot && npm run build -- --watch"
+    command: sh -c "npm install --include=dev && rm -f /app/public/hot && npx vite build --watch"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
     networks:
       - semarak_net
 

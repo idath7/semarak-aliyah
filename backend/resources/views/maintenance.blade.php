@@ -141,6 +141,7 @@
             font-size: 2.8rem;
             background: linear-gradient(135deg, #f97316 0%, #ec4899 50%, #8b5cf6 100%);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             animation: rotateGear 12s linear infinite;
         }
@@ -323,6 +324,7 @@
             line-height: 1.1;
             background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             font-variant-numeric: tabular-nums;
         }

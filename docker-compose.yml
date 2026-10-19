@@ -20,6 +20,7 @@ services:
       dockerfile: Dockerfile
       args:
         PHP_VERSION: "8.4.26"
+        FRANKENPHP_VERSION: "latest"
     container_name: semarak_frankenphp_octane
     restart: unless-stopped
     ports:
@@ -98,6 +99,7 @@ services:
       dockerfile: Dockerfile
       args:
         PHP_VERSION: "8.4.26"
+        FRANKENPHP_VERSION: "latest"
     container_name: semarak_reverb_ws
     restart: unless-stopped
     command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8085"]

@@ -12,10 +12,10 @@ COPY . .
 RUN npm run build
 
 ARG PHP_VERSION=8.4.26
-ARG FRANKENPHP_VERSION=1
+ARG FRANKENPHP_VERSION=latest
 
 # ==============================================================================
-# STAGE 2: PRODUCTION RUNTIME (FRANKENPHP 1.x + PHP 8.4.26 ALPINE + LARAVEL OCTANE)
+# STAGE 2: PRODUCTION RUNTIME (FRANKENPHP LATEST + PHP 8.4 ALPINE + LARAVEL OCTANE)
 # ==============================================================================
 FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php8.4-alpine
 

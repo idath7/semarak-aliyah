@@ -1,4 +1,4 @@
-# SEMARAK ALIYAH XII 2026 🏆
+# SEMARAK ALIYAH 🏆
 **Laman Official Semarak Aliyah XII 2026 • MA Unggulan Wahid Hasyim Balung, Jember**  
 *Ajang Kompetisi Bergengsi Tingkat Pelajar SMP/MTs Sederajat Se-Kabupaten Jember*
 

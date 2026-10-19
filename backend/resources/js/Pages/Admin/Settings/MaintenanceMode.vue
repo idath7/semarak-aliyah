@@ -31,8 +31,13 @@ const INDO_MONTHS = [
 
 function formatIndoDateTime(val) {
   if (!val) return '';
-  const d = typeof val === 'string' ? new Date(val.replace(' ', 'T')) : val;
-  if (isNaN(d.getTime())) return '';
+  let d;
+  if (val instanceof Date) {
+    d = val;
+  } else {
+    d = new Date(String(val).replace(' ', 'T'));
+  }
+  if (!d || isNaN(d.getTime())) return '';
   const day = d.getDate();
   const month = INDO_MONTHS[d.getMonth()];
   const year = d.getFullYear();
@@ -316,7 +321,7 @@ function submitForm() {
                     <div class="input-group">
                       <span class="input-group-text bg-success-subtle text-success border-0"><i class="ri-time-line"></i></span>
                       <input
-                        :value="form.maintenance_estimated_end"
+                        v-model="form.maintenance_estimated_end"
                         type="text"
                         class="form-control bg-dark-subtle fw-bold text-warning"
                         readonly

@@ -24,8 +24,13 @@ const INDO_MONTHS = [
 
 function formatIndoDateTime(val) {
   if (!val) return '';
-  const d = new Date(String(val).replace(' ', 'T'));
-  if (isNaN(d.getTime())) return '';
+  let d;
+  if (val instanceof Date) {
+    d = val;
+  } else {
+    d = new Date(String(val).replace(' ', 'T'));
+  }
+  if (!d || isNaN(d.getTime())) return '';
   const day = d.getDate();
   const month = INDO_MONTHS[d.getMonth()];
   const year = d.getFullYear();
@@ -50,19 +55,29 @@ onMounted(() => {
       defaultDate: props.modelValue || undefined,
       onChange: (selectedDates, dateStr) => {
         emit('update:modelValue', dateStr);
-        if (selectedDates.length > 0) {
+        if (selectedDates && selectedDates.length > 0) {
           emit('formatted', formatIndoDateTime(selectedDates[0]));
         } else {
           emit('formatted', '');
         }
       },
+      onValueUpdate: (selectedDates, dateStr) => {
+        emit('update:modelValue', dateStr);
+        if (selectedDates && selectedDates.length > 0) {
+          emit('formatted', formatIndoDateTime(selectedDates[0]));
+        }
+      },
       onClose: (selectedDates, dateStr) => {
         emit('update:modelValue', dateStr);
-        if (selectedDates.length > 0) {
+        if (selectedDates && selectedDates.length > 0) {
           emit('formatted', formatIndoDateTime(selectedDates[0]));
         }
       }
     });
+
+    if (props.modelValue) {
+      emit('formatted', formatIndoDateTime(props.modelValue));
+    }
   }
 });
 

@@ -182,9 +182,9 @@ Jika Anda menggunakan **Nginx Proxy Manager (NPM)**, Anda cukup menambahkan 3 bu
 ### A. Host 1: Web Publik
 - **Domain Names**: `semarak.maswahas.sch.id` *(sesuaikan domain Anda)*
 - **Scheme**: `http`
-- **Forward Hostname / IP**: IP server Anda (atau gateway docker `172.17.0.1` jika NPM dalam docker yang sama)
+- **Forward Hostname / IP**: IP server Anda (atau gateway docker `172.17.0.1` jika NPM dalam satu server)
 - **Forward Port**: `8000`
-- **Toggles**: Centang `Block Common Exploits`
+- **Toggles**: Biarkan default (tidak perlu centang Block Common Exploits agar tidak memicu false-positive 403 pada payload Vue/Inertia)
 - **Tab SSL**: Pilih *Request a new SSL Certificate*, centang `Force SSL`, `HTTP/2 Support`.
 
 ### B. Host 2: Portal Admin & Operasional
@@ -192,8 +192,8 @@ Jika Anda menggunakan **Nginx Proxy Manager (NPM)**, Anda cukup menambahkan 3 bu
 - **Scheme**: `http`
 - **Forward Hostname / IP**: IP server Anda (atau `172.17.0.1`)
 - **Forward Port**: `8001`
-- **Toggles**: Centang `Block Common Exploits`
-- **Tab Advanced** (Penting untuk izin upload berkas besar):
+- **Toggles**: Biarkan default (tidak perlu centang Block Common Exploits)
+- **Tab Advanced** (Penting untuk izin upload berkas lampiran besar):
   ```nginx
   client_max_body_size 50M;
   ```
@@ -204,7 +204,7 @@ Jika Anda menggunakan **Nginx Proxy Manager (NPM)**, Anda cukup menambahkan 3 bu
 - **Scheme**: `http`
 - **Forward Hostname / IP**: IP server Anda (atau `172.17.0.1`)
 - **Forward Port**: `8085`
-- **Toggles**: **WAJIB CENTANG `Websockets Support`**
+- **Toggles**: **WAJIB AKTIFKAN `Websockets Support`** (sakelar switch aktif)
 - **Tab SSL**: Pilih *Request a new SSL Certificate*, centang `Force SSL`, `HTTP/2 Support`.
 
 ---

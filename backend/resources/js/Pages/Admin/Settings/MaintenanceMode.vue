@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import IndoDateTimePicker from '@/Components/IndoDateTimePicker.vue';
@@ -18,7 +18,7 @@ const form = useForm({
   maintenance_mode: Boolean(props.settings.maintenance_mode),
   maintenance_title: props.settings.maintenance_title || 'Situs Sedang Dalam Pemeliharaan Berkala',
   maintenance_message: props.settings.maintenance_message || 'Mohon maaf atas ketidaknyamanan ini. Saat ini sistem Semarak Aliyah XIV 2026 sedang dalam proses peningkatan performa dan sinkronisasi data teknis. Website publik akan segera kembali online.',
-  maintenance_estimated_end: props.settings.maintenance_estimated_end || '19 Oktober 2026, 12:00 WIB',
+  maintenance_estimated_end: props.settings.maintenance_estimated_end || '',
   maintenance_countdown_target: props.settings.maintenance_countdown_target || '',
   maintenance_emergency_wa: props.settings.maintenance_emergency_wa || '0838 5007 0767',
   maintenance_secret_key: props.settings.maintenance_secret_key || 'semarak2026bypass',
@@ -40,6 +40,22 @@ function formatIndoDateTime(val) {
   const minute = String(d.getMinutes()).padStart(2, '0');
   return `${day} ${month} ${year}, ${hour}:${minute} WIB`;
 }
+
+// Otomatis sinkronisasi teks estimasi selesai seketika target berubah
+watch(
+  () => form.maintenance_countdown_target,
+  (newVal) => {
+    if (newVal) {
+      const formatted = formatIndoDateTime(newVal);
+      if (formatted) {
+        form.maintenance_estimated_end = formatted;
+      }
+    } else {
+      form.maintenance_estimated_end = '';
+    }
+  },
+  { immediate: true }
+);
 
 function setCountdownHours(hours) {
   const target = new Date(Date.now() + hours * 3600 * 1000);
@@ -298,15 +314,16 @@ function submitForm() {
                       <span class="text-success fs-10 fw-semibold"><i class="ri-check-line"></i> Auto-Format WIB</span>
                     </label>
                     <div class="input-group">
-                      <span class="input-group-text bg-dark-subtle border-secondary/20 text-muted"><i class="ri-time-line"></i></span>
+                      <span class="input-group-text bg-success-subtle text-success border-0"><i class="ri-time-line"></i></span>
                       <input
-                        v-model="form.maintenance_estimated_end"
+                        :value="form.maintenance_estimated_end"
                         type="text"
-                        class="form-control"
-                        placeholder="Otomatis terkalkulasi dari pilihan tanggal & jam di samping..."
+                        class="form-control bg-dark-subtle fw-bold text-warning"
+                        readonly
+                        placeholder="Otomatis terkalkulasi dari target hitung mundur di samping..."
                       />
                     </div>
-                    <small class="text-muted fs-11 mt-1 d-block">Terisi otomatis dalam bahasa Indonesia (WIB) tanpa perlu diketik manual.</small>
+                    <small class="text-muted fs-11 mt-1 d-block">Terisi otomatis dalam format 24 Jam WIB tanpa perlu diketik manual.</small>
                   </div>
 
                   <div class="col-12">

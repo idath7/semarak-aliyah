@@ -49,11 +49,21 @@ class CheckMaintenanceMode
         $isMaintenance = Setting::get('maintenance_mode', '0') === '1';
 
         if ($isMaintenance) {
+            $countdownTarget = Setting::get('maintenance_countdown_target', '');
+            $estimatedEnd = Setting::get('maintenance_estimated_end', '');
+
+            if (!empty($countdownTarget)) {
+                try {
+                    $carbonDate = \Carbon\Carbon::parse(str_replace('T', ' ', $countdownTarget))->locale('id');
+                    $estimatedEnd = $carbonDate->translatedFormat('d F Y, H:i') . ' WIB';
+                } catch (\Exception $e) {}
+            }
+
             $data = [
                 'title' => Setting::get('maintenance_title', 'Situs Sedang Dalam Pemeliharaan Berkala'),
                 'message' => Setting::get('maintenance_message', 'Mohon maaf atas ketidaknyamanan ini. Saat ini sistem Semarak Aliyah XIV 2026 sedang dalam proses peningkatan performa dan sinkronisasi data teknis. Website publik akan segera kembali online.'),
-                'estimatedEnd' => Setting::get('maintenance_estimated_end', '19 Oktober 2026, 12:00 WIB'),
-                'countdownTarget' => Setting::get('maintenance_countdown_target', ''),
+                'estimatedEnd' => $estimatedEnd,
+                'countdownTarget' => $countdownTarget,
                 'emergencyWa' => Setting::get('maintenance_emergency_wa', '0838 5007 0767'),
                 'schoolName' => Setting::get('school_name', 'MA Unggulan Wahid Hasyim Balung'),
                 'eventName' => Setting::get('event_name', 'SEMARAK ALIYAH XIV 2026'),

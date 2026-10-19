@@ -82,12 +82,20 @@ class SettingsController extends Controller
     // =========================================================================
     public function maintenanceMode(Request $request)
     {
+        $countdownTarget = Setting::get('maintenance_countdown_target', '');
+        $estimatedEnd = Setting::get('maintenance_estimated_end', '');
+        if (!empty($countdownTarget)) {
+            try {
+                $estimatedEnd = \Carbon\Carbon::parse(str_replace('T', ' ', $countdownTarget))->locale('id')->translatedFormat('d F Y, H:i') . ' WIB';
+            } catch (\Exception $e) {}
+        }
+
         $settings = [
             'maintenance_mode' => Setting::get('maintenance_mode', '0') === '1',
             'maintenance_title' => Setting::get('maintenance_title', 'Situs Sedang Dalam Pemeliharaan Berkala'),
             'maintenance_message' => Setting::get('maintenance_message', 'Mohon maaf atas ketidaknyamanan ini. Saat ini sistem Semarak Aliyah XIV 2026 sedang dalam proses peningkatan performa dan sinkronisasi data teknis. Website publik akan segera kembali online.'),
-            'maintenance_estimated_end' => Setting::get('maintenance_estimated_end', '19 Oktober 2026, 12:00 WIB'),
-            'maintenance_countdown_target' => Setting::get('maintenance_countdown_target', ''),
+            'maintenance_estimated_end' => $estimatedEnd,
+            'maintenance_countdown_target' => $countdownTarget,
             'maintenance_emergency_wa' => Setting::get('maintenance_emergency_wa', '0838 5007 0767'),
             'maintenance_secret_key' => Setting::get('maintenance_secret_key', 'semarak2026bypass'),
         ];
@@ -107,11 +115,21 @@ class SettingsController extends Controller
             'maintenance_secret_key' => 'nullable|string|max:100',
         ]);
 
+        $target = $validated['maintenance_countdown_target'] ?? '';
+        $estimatedEnd = $validated['maintenance_estimated_end'] ?? '';
+
+        if (!empty($target)) {
+            try {
+                $carbonDate = \Carbon\Carbon::parse(str_replace('T', ' ', $target))->locale('id');
+                $estimatedEnd = $carbonDate->translatedFormat('d F Y, H:i') . ' WIB';
+            } catch (\Exception $e) {}
+        }
+
         Setting::set('maintenance_mode', $request->boolean('maintenance_mode') ? '1' : '0');
         Setting::set('maintenance_title', (string)$validated['maintenance_title']);
         Setting::set('maintenance_message', (string)$validated['maintenance_message']);
-        Setting::set('maintenance_estimated_end', (string)($validated['maintenance_estimated_end'] ?? ''));
-        Setting::set('maintenance_countdown_target', (string)($validated['maintenance_countdown_target'] ?? ''));
+        Setting::set('maintenance_estimated_end', (string)$estimatedEnd);
+        Setting::set('maintenance_countdown_target', (string)$target);
         Setting::set('maintenance_emergency_wa', (string)($validated['maintenance_emergency_wa'] ?? ''));
         Setting::set('maintenance_secret_key', (string)($validated['maintenance_secret_key'] ?? 'semarak2026bypass'));
 

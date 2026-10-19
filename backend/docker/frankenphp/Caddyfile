@@ -23,7 +23,6 @@
 
 	# Forwarded port header untuk PortalSeparationMiddleware Laravel
 	request_header X-Forwarded-Port 8000
-	request_header X-Forwarded-Proto {scheme}
 
 	# Cache aset statis selama 30 hari untuk performa tinggi
 	@static {
@@ -49,7 +48,6 @@
 
 	# Forwarded port header untuk PortalSeparationMiddleware Laravel
 	request_header X-Forwarded-Port 8001
-	request_header X-Forwarded-Proto {scheme}
 
 	# Cache aset statis
 	@static {

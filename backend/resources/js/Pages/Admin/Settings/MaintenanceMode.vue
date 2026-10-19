@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
+import IndoDateTimePicker from '@/Components/IndoDateTimePicker.vue';
 import { useToast } from '@/Composables/useToast';
 
 const props = defineProps({
@@ -23,15 +24,47 @@ const form = useForm({
   maintenance_secret_key: props.settings.maintenance_secret_key || 'semarak2026bypass',
 });
 
+const INDO_MONTHS = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
+function formatIndoDateTime(val) {
+  if (!val) return '';
+  const d = typeof val === 'string' ? new Date(val.replace(' ', 'T')) : val;
+  if (isNaN(d.getTime())) return '';
+  const day = d.getDate();
+  const month = INDO_MONTHS[d.getMonth()];
+  const year = d.getFullYear();
+  const hour = String(d.getHours()).padStart(2, '0');
+  const minute = String(d.getMinutes()).padStart(2, '0');
+  return `${day} ${month} ${year}, ${hour}:${minute} WIB`;
+}
+
 function setCountdownHours(hours) {
   const target = new Date(Date.now() + hours * 3600 * 1000);
-  const offset = target.getTimezoneOffset();
-  const local = new Date(target.getTime() - offset * 60 * 1000);
-  form.maintenance_countdown_target = local.toISOString().slice(0, 16);
+  const coeff = 1000 * 60 * 5;
+  const rounded = new Date(Math.round(target.getTime() / coeff) * coeff);
+
+  const y = rounded.getFullYear();
+  const m = String(rounded.getMonth() + 1).padStart(2, '0');
+  const d = String(rounded.getDate()).padStart(2, '0');
+  const h = String(rounded.getHours()).padStart(2, '0');
+  const min = String(rounded.getMinutes()).padStart(2, '0');
+
+  form.maintenance_countdown_target = `${y}-${m}-${d} ${h}:${min}`;
+  form.maintenance_estimated_end = formatIndoDateTime(rounded);
+}
+
+function onCountdownFormatted(text) {
+  if (text) {
+    form.maintenance_estimated_end = text;
+  }
 }
 
 function clearCountdownTarget() {
   form.maintenance_countdown_target = '';
+  form.maintenance_estimated_end = '';
 }
 
 const bypassUrl = computed(() => {
@@ -240,17 +273,14 @@ function submitForm() {
 
                   <div class="col-md-6">
                     <label class="form-label fs-12 fw-semibold text-dark-emphasis d-flex align-items-center justify-content-between">
-                      <span>Target Waktu Hitung Mundur (Countdown)</span>
-                      <span class="badge bg-warning-subtle text-warning fs-10">Live Timer</span>
+                      <span>Target Waktu Hitung Mundur (Flatpickr Indonesia 24 Jam)</span>
+                      <span class="badge bg-warning-subtle text-warning fs-10">24 Jam WIB</span>
                     </label>
-                    <div class="input-group">
-                      <span class="input-group-text bg-warning-subtle text-warning border-0"><i class="ri-timer-flash-line"></i></span>
-                      <input
-                        v-model="form.maintenance_countdown_target"
-                        type="datetime-local"
-                        class="form-control"
-                      />
-                    </div>
+                    <IndoDateTimePicker
+                      v-model="form.maintenance_countdown_target"
+                      placeholder="Pilih tanggal & jam selesai (24 Jam WIB)..."
+                      @formatted="onCountdownFormatted"
+                    />
                     <!-- Quick Duration Buttons -->
                     <div class="d-flex align-items-center gap-1 mt-2 flex-wrap">
                       <span class="fs-11 text-muted me-1">Atur Cepat:</span>
@@ -263,17 +293,20 @@ function submitForm() {
                   </div>
 
                   <div class="col-md-6">
-                    <label class="form-label fs-12 fw-semibold text-dark-emphasis">Teks Estimasi Selesai (Label Tambahan)</label>
+                    <label class="form-label fs-12 fw-semibold text-dark-emphasis d-flex align-items-center justify-content-between">
+                      <span>Estimasi Selesai (Otomatis Terkalkulasi)</span>
+                      <span class="text-success fs-10 fw-semibold"><i class="ri-check-line"></i> Auto-Format WIB</span>
+                    </label>
                     <div class="input-group">
                       <span class="input-group-text bg-dark-subtle border-secondary/20 text-muted"><i class="ri-time-line"></i></span>
                       <input
                         v-model="form.maintenance_estimated_end"
                         type="text"
                         class="form-control"
-                        placeholder="Contoh: 19 Oktober 2026, 12:00 WIB"
+                        placeholder="Otomatis terkalkulasi dari pilihan tanggal & jam di samping..."
                       />
                     </div>
-                    <small class="text-muted fs-11 mt-1 d-block">Teks deskriptif yang tampil di bawah countdown timer</small>
+                    <small class="text-muted fs-11 mt-1 d-block">Terisi otomatis dalam bahasa Indonesia (WIB) tanpa perlu diketik manual.</small>
                   </div>
 
                   <div class="col-12">

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import IndoDateTimePicker from '@/Components/IndoDateTimePicker.vue';
@@ -46,7 +46,64 @@ function formatIndoDateTime(val) {
   return `${day} ${month} ${year}, ${hour}:${minute} WIB`;
 }
 
-// Otomatis sinkronisasi teks estimasi selesai seketika target berubah
+// Live reactive preview countdown state
+const previewTimer = ref({
+  days: '00',
+  hours: '00',
+  minutes: '00',
+  seconds: '00',
+  ended: false
+});
+
+let previewTimerInterval = null;
+
+function updatePreviewCountdown() {
+  if (!form.maintenance_countdown_target) {
+    previewTimer.value = { days: '00', hours: '00', minutes: '00', seconds: '00', ended: false };
+    return;
+  }
+
+  const targetStr = String(form.maintenance_countdown_target).trim().replace(' ', 'T');
+  const targetTime = new Date(targetStr).getTime();
+  if (isNaN(targetTime)) {
+    previewTimer.value = { days: '00', hours: '00', minutes: '00', seconds: '00', ended: false };
+    return;
+  }
+
+  const now = Date.now();
+  const diff = targetTime - now;
+
+  if (diff <= 0) {
+    previewTimer.value = { days: '00', hours: '00', minutes: '00', seconds: '00', ended: true };
+    return;
+  }
+
+  const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const s = Math.floor((diff % (1000 * 60)) / 1000);
+
+  previewTimer.value = {
+    days: String(d).padStart(2, '0'),
+    hours: String(h).padStart(2, '0'),
+    minutes: String(m).padStart(2, '0'),
+    seconds: String(s).padStart(2, '0'),
+    ended: false
+  };
+}
+
+onMounted(() => {
+  updatePreviewCountdown();
+  previewTimerInterval = setInterval(updatePreviewCountdown, 1000);
+});
+
+onBeforeUnmount(() => {
+  if (previewTimerInterval) {
+    clearInterval(previewTimerInterval);
+  }
+});
+
+// Otomatis sinkronisasi teks estimasi selesai & preview timer seketika target berubah
 watch(
   () => form.maintenance_countdown_target,
   (newVal) => {
@@ -58,6 +115,7 @@ watch(
     } else {
       form.maintenance_estimated_end = '';
     }
+    updatePreviewCountdown();
   },
   { immediate: true }
 );
@@ -464,21 +522,25 @@ function submitForm() {
                     </div>
                     <div class="d-grid" style="grid-template-columns: repeat(4, 1fr); gap: 6px;">
                       <div class="p-2 rounded-3 bg-white/5 border border-white/10 text-center">
-                        <div class="fs-15 fw-bold text-white lh-1">00</div>
+                        <div class="fs-15 fw-bold text-white lh-1">{{ previewTimer.days }}</div>
                         <div class="fs-9 text-warning font-semibold text-uppercase mt-1">Hari</div>
                       </div>
                       <div class="p-2 rounded-3 bg-white/5 border border-white/10 text-center">
-                        <div class="fs-15 fw-bold text-white lh-1">02</div>
+                        <div class="fs-15 fw-bold text-white lh-1">{{ previewTimer.hours }}</div>
                         <div class="fs-9 text-warning font-semibold text-uppercase mt-1">Jam</div>
                       </div>
                       <div class="p-2 rounded-3 bg-white/5 border border-white/10 text-center">
-                        <div class="fs-15 fw-bold text-white lh-1">45</div>
+                        <div class="fs-15 fw-bold text-white lh-1">{{ previewTimer.minutes }}</div>
                         <div class="fs-9 text-warning font-semibold text-uppercase mt-1">Menit</div>
                       </div>
                       <div class="p-2 rounded-3 bg-white/5 border border-white/10 text-center">
-                        <div class="fs-15 fw-bold text-white lh-1">12</div>
+                        <div class="fs-15 fw-bold text-white lh-1">{{ previewTimer.seconds }}</div>
                         <div class="fs-9 text-warning font-semibold text-uppercase mt-1">Detik</div>
                       </div>
+                    </div>
+                    <div v-if="previewTimer.ended && form.maintenance_countdown_target" class="mt-2 p-1.5 rounded-2 bg-success/20 border border-success/40 text-success fs-10 fw-bold d-flex align-items-center justify-content-center gap-1">
+                      <i class="ri-check-double-line"></i>
+                      <span>Target waktu pemeliharaan tercapai</span>
                     </div>
                   </div>
 

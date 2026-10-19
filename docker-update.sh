@@ -34,9 +34,9 @@ backup_database() {
 
 build_frontend() {
     echo "======================================================================"
-    echo " [3/5] Mengompilasi Aset Frontend (Node.js 22 + NPM Terbaru + Vite)..."
+    echo " [3/5] Mengompilasi Aset Frontend (Node.js 22 + Vite - Cepat)..."
     echo "======================================================================"
-    docker compose run --rm -e NPM_CONFIG_UPDATE_NOTIFIER=false node sh -c "npm install -g npm@latest >/dev/null 2>&1 && npm run build"
+    docker compose run --rm node npm run build
 }
 
 update_dependencies() {
@@ -51,6 +51,8 @@ apply_app_update() {
     echo " [5/5] Migrasi Database, Optimasi Cache & Reload FrankenPHP Octane..."
     echo "======================================================================"
     docker compose exec -T frankenphp php artisan app:update
+    echo "• Me-refresh kontainer web service..."
+    docker compose restart frankenphp >/dev/null 2>&1 || true
 }
 
 quick_update() {

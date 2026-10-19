@@ -81,6 +81,8 @@ services:
       - ./docker/frankenphp/Caddyfile:/etc/caddy/Caddyfile:ro
       # Persistent Storage Volume untuk berkas unggahan, sesi, dan log
       - app_storage:/var/www/html/storage
+    networks:
+      - semarak_net
     depends_on:
       database:
         condition: service_healthy
@@ -120,6 +122,8 @@ services:
     volumes:
       - ./backend:/var/www/html
       - ./docker/php/custom-optimasi.ini:/usr/local/etc/php/conf.d/custom-optimasi.ini:ro
+    networks:
+      - semarak_net
     depends_on:
       database:
         condition: service_healthy
@@ -149,6 +153,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/optimasi-postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    networks:
+      semarak_net:
+        aliases:
+          - database
+          - semarak_postgres_db
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-semarak_user} -d ${DB_DATABASE:-semarak_db}"]
       interval: 10s
@@ -175,6 +184,11 @@ services:
       - "${REDIS_HOST_PORT:-6380}:6379"
     volumes:
       - redis_data:/data
+    networks:
+      semarak_net:
+        aliases:
+          - redis
+          - semarak_redis
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -196,6 +210,8 @@ services:
     command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
     environment:
       - NODE_ENV=development
+    networks:
+      - semarak_net
 
 # ------------------------------------------------------------------------------
 # PERSISTENT VOLUMES DEFINITION
@@ -207,3 +223,11 @@ volumes:
     driver: local
   app_storage:
     driver: local
+
+# ------------------------------------------------------------------------------
+# DEDICATED BRIDGE NETWORK DEFINITION
+# ------------------------------------------------------------------------------
+networks:
+  semarak_net:
+    name: semarak_net
+    driver: bridge

@@ -30,9 +30,16 @@ class PortalSeparationMiddleware
         $adminDomain = config('portal.admin_domain');
         $publicDomain = config('portal.public_domain');
 
-        // Check channel based on domain (in production) or port (in local)
-        $isAdminChannel = ($adminDomain && str_contains($host, $adminDomain)) || ($port === $adminPort);
-        $isPublicChannel = ($publicDomain && str_contains($host, $publicDomain)) || ($port === $publicPort);
+        $portalType = $request->header('X-Portal-Type');
+
+        // Check channel based on header X-Portal-Type, domain (in production), or port (in local)
+        $isAdminChannel = ($portalType === 'admin')
+            || ($adminDomain && str_contains($host, $adminDomain))
+            || ($port === $adminPort);
+
+        $isPublicChannel = ($portalType === 'public')
+            || ($publicDomain && str_contains($host, $publicDomain))
+            || ($port === $publicPort);
 
         $isAdminRoute = $request->is('login', 'logout', 'admin', 'admin/*', 'operasional', 'operasional/*');
         $isPublicOnlyRoute = $request->is('layanan-registrasi', 'layanan-registrasi/*');

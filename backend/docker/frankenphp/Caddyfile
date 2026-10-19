@@ -21,8 +21,8 @@
 	root * "{$APP_PUBLIC_PATH:/var/www/html/public}"
 	encode zstd br gzip
 
-	# Forwarded port header untuk PortalSeparationMiddleware Laravel
-	request_header X-Forwarded-Port 8000
+	# Header penanda portal untuk PortalSeparationMiddleware Laravel tanpa merusak port URL generator
+	request_header X-Portal-Type "public"
 
 	# Cache aset statis selama 30 hari untuk performa tinggi
 	@static {
@@ -46,8 +46,8 @@
 	root * "{$APP_PUBLIC_PATH:/var/www/html/public}"
 	encode zstd br gzip
 
-	# Forwarded port header untuk PortalSeparationMiddleware Laravel
-	request_header X-Forwarded-Port 8001
+	# Header penanda portal untuk PortalSeparationMiddleware Laravel
+	request_header X-Portal-Type "admin"
 
 	# Cache aset statis
 	@static {

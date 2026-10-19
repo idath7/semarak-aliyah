@@ -1,6 +1,6 @@
 # SEMARAK ALIYAH XIV 2026 - BACKEND & CORE APPLICATION
 
-Aplikasi inti dan sistem informasi manajemen **SEMARAK ALIYAH XIV 2026** di MA Unggulan Wahid Hasyim Balung, Jember. Dibangun dengan arsitektur modern **Laravel 11**, **Inertia.js v2**, **Vue 3**, **TailwindCSS v4**, serta didukung oleh runtime berkinerja tinggi **FrankenPHP Octane (PHP 8.4.26)**.
+Aplikasi inti dan sistem informasi manajemen **SEMARAK ALIYAH XIV 2026** di MA Unggulan Wahid Hasyim Balung, Jember. Dibangun dengan arsitektur modern **Laravel 13**, **Inertia.js v2**, **Vue 3**, **TailwindCSS v4**, serta didukung oleh runtime berkinerja tinggi **FrankenPHP Octane (PHP 8.4.26)**.
 
 ---
 
@@ -8,7 +8,7 @@ Aplikasi inti dan sistem informasi manajemen **SEMARAK ALIYAH XIV 2026** di MA U
 
 | Lapisan | Teknologi | Keterangan |
 | :--- | :--- | :--- |
-| **Backend Framework** | **Laravel 11.x** | PHP 8.4.26 dengan arsitektur modular, Eloquent ORM, dan Reverb Real-Time. |
+| **Backend Framework** | **Laravel 13.x** | PHP 8.4.26 dengan arsitektur modular, Eloquent ORM, dan Reverb Real-Time. |
 | **Web Server & Runtime** | **FrankenPHP 1.x + Laravel Octane** | Server berbasis Caddy Engine dengan in-memory persistent workers, JIT compiler, dan dual-port native routing. |
 | **Frontend SPA & UI** | **Inertia.js v2 + Vue 3 (Composition API)** | Single Page Application tanpa REST API overhead, reactive state, dan transisi mulus. |
 | **Styling & Theme** | **TailwindCSS v4 + Themesbrand Velzon** | Portal admin berbasis Velzon Dashboard dengan mode Dark/Light dan responsif mobile. |

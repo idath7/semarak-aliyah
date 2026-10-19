@@ -18,7 +18,7 @@ Sistem SEMARAK ALIYAH XIV 2026 dibangun menggunakan arsitektur modern berbasis *
   - Server in-memory berbasis Caddy Engine dengan persistent worker.
   - Menangani routing dual-port secara native (Port 8000 dan Port 8001) tanpa reverse proxy terpisah.
   - PHP 8.4 JIT Compiler (`tracing`), Realpath Cache 4096k, memori 512M, serta ekstensi **`imagick`**.
-- **Backend Core**: **Laravel 11.x**
+- **Backend Core**: **Laravel 13.x**
   - Pemisahan portal ketat via `PortalSeparationMiddleware`.
   - Eloquent ORM, migrasi database terindeks, dan event broadcasting real-time.
 - **Frontend SPA**: **Inertia.js v2 + Vue 3 (Composition API)**
@@ -133,7 +133,7 @@ d:\wp\semarak\
 │   ├── schema.sql              # Skema awal database PostgreSQL
 │   └── backups/                # Folder penyimpanan dump cadangan database otomatis
 │
-└── backend/                    # Inti aplikasi (Laravel 11 + Inertia + Vue 3)
+└── backend/                    # Inti aplikasi (Laravel 13 + Inertia + Vue 3)
     ├── app/                    # Controller, Middleware, Models
     ├── config/                 # Konfigurasi Octane, Portal, Reverb, Database
     ├── database/               # Migrasi tabel terindeks dan data seeder
@@ -143,7 +143,7 @@ d:\wp\semarak\
     ├── routes/                 # Routing web.php, api.php, console.php
     ├── Dockerfile              # Multi-stage image build FrankenPHP Octane
     ├── package.json            # Dependensi Vue 3, Inertia, TailwindCSS v4
-    └── composer.json           # Dependensi Laravel 11, Octane, Reverb
+    └── composer.json           # Dependensi Laravel 13, Octane, Reverb
 ```
 
 ---

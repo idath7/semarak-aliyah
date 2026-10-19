@@ -175,79 +175,15 @@ docker compose exec frankenphp php artisan optimize
 
 ---
 
-## 🌐 7. Langkah 6: Konfigurasi Domain & HTTPS Gratis (SSL Let's Encrypt)
+## 🌐 7. Pemetaan Port untuk Reverse Proxy / Nginx Anda
 
-Agar pengguna dapat mengakses melalui domain resmi tanpa mengetik nomor port (misalnya `semarak.maswahas.sch.id` untuk Web Publik dan `admin-semarak.maswahas.sch.id` untuk Portal Admin), gunakan Nginx Host sebagai Reverse Proxy.
+Karena Anda sudah memiliki konfigurasi Nginx sendiri di server host, Anda cukup mengarahkan (proxy_pass) virtual host domain Anda ke port-port kontainer Docker berikut:
 
-### 1. Pasang Nginx & Certbot di Server Host:
-```bash
-sudo apt install -y nginx certbot python3-certbot-nginx
-```
-
-### 2. Konfigurasi Virtual Host Nginx:
-Buat file konfigurasi `/etc/nginx/sites-available/semarak.conf`:
-```bash
-sudo nano /etc/nginx/sites-available/semarak.conf
-```
-
-Isi dengan konfigurasi berikut:
-
-```nginx
-# 1. Web Publik (Port 8000)
-server {
-    server_name semarak.maswahas.sch.id;
-
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-
-# 2. Portal Admin & Operasional (Port 8001)
-server {
-    server_name admin-semarak.maswahas.sch.id;
-
-    client_max_body_size 50M;
-
-    location / {
-        proxy_pass http://127.0.0.1:8001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-
-# 3. WebSocket Reverb Gateway (Port 8085)
-server {
-    server_name ws.maswahas.sch.id;
-
-    location / {
-        proxy_pass http://127.0.0.1:8085;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "Upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_read_timeout 600s;
-        proxy_send_timeout 600s;
-    }
-}
-```
-
-### 3. Aktifkan Konfigurasi & Pasang SSL Let's Encrypt:
-```bash
-sudo ln -s /etc/nginx/sites-available/semarak.conf /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-
-# Pasang Sertifikat SSL Otomatis
-sudo certbot --nginx -d semarak.maswahas.sch.id -d admin-semarak.maswahas.sch.id -d ws.maswahas.sch.id
-```
+| Kanal Layanan | Target Upstream Docker | Catatan Konfigurasi Nginx |
+| :--- | :--- | :--- |
+| **Web Publik** | `http://127.0.0.1:8000` | Melayani Landing Page, Registrasi Peserta, & Live Scoreboard |
+| **Portal Admin & Operasional** | `http://127.0.0.1:8001` | Tambahkan directive `client_max_body_size 50M;` untuk upload berkas lomba |
+| **WebSocket Reverb (Realtime)** | `http://127.0.0.1:8085` | Wajib sertakan header `Upgrade $http_upgrade;` dan `Connection "Upgrade";` |
 
 ---
 

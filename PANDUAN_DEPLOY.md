@@ -175,15 +175,37 @@ docker compose exec frankenphp php artisan optimize
 
 ---
 
-## 🌐 7. Pemetaan Port untuk Reverse Proxy / Nginx Anda
+## 🌐 7. Konfigurasi di Nginx Proxy Manager (NPM)
 
-Karena Anda sudah memiliki konfigurasi Nginx sendiri di server host, Anda cukup mengarahkan (proxy_pass) virtual host domain Anda ke port-port kontainer Docker berikut:
+Jika Anda menggunakan **Nginx Proxy Manager (NPM)**, Anda cukup menambahkan 3 buah **Proxy Host** melalui dashboard NPM:
 
-| Kanal Layanan | Target Upstream Docker | Catatan Konfigurasi Nginx |
-| :--- | :--- | :--- |
-| **Web Publik** | `http://127.0.0.1:8000` | Melayani Landing Page, Registrasi Peserta, & Live Scoreboard |
-| **Portal Admin & Operasional** | `http://127.0.0.1:8001` | Tambahkan directive `client_max_body_size 50M;` untuk upload berkas lomba |
-| **WebSocket Reverb (Realtime)** | `http://127.0.0.1:8085` | Wajib sertakan header `Upgrade $http_upgrade;` dan `Connection "Upgrade";` |
+### A. Host 1: Web Publik
+- **Domain Names**: `semarak.maswahas.sch.id` *(sesuaikan domain Anda)*
+- **Scheme**: `http`
+- **Forward Hostname / IP**: IP server Anda (atau gateway docker `172.17.0.1` jika NPM dalam docker yang sama)
+- **Forward Port**: `8000`
+- **Toggles**: Centang `Block Common Exploits`
+- **Tab SSL**: Pilih *Request a new SSL Certificate*, centang `Force SSL`, `HTTP/2 Support`.
+
+### B. Host 2: Portal Admin & Operasional
+- **Domain Names**: `admin-semarak.maswahas.sch.id`
+- **Scheme**: `http`
+- **Forward Hostname / IP**: IP server Anda (atau `172.17.0.1`)
+- **Forward Port**: `8001`
+- **Toggles**: Centang `Block Common Exploits`
+- **Tab Advanced** (Penting untuk izin upload berkas besar):
+  ```nginx
+  client_max_body_size 50M;
+  ```
+- **Tab SSL**: Pilih *Request a new SSL Certificate*, centang `Force SSL`, `HTTP/2 Support`.
+
+### C. Host 3: WebSocket Reverb (Realtime)
+- **Domain Names**: `ws.maswahas.sch.id`
+- **Scheme**: `http`
+- **Forward Hostname / IP**: IP server Anda (atau `172.17.0.1`)
+- **Forward Port**: `8085`
+- **Toggles**: **WAJIB CENTANG `Websockets Support`**
+- **Tab SSL**: Pilih *Request a new SSL Certificate*, centang `Force SSL`, `HTTP/2 Support`.
 
 ---
 

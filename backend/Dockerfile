@@ -11,13 +11,10 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-ARG PHP_VERSION=8.4.26
-ARG FRANKENPHP_VERSION=latest
-
 # ==============================================================================
-# STAGE 2: PRODUCTION RUNTIME (FRANKENPHP LATEST + PHP 8.4 ALPINE + LARAVEL OCTANE)
+# STAGE 2: PRODUCTION RUNTIME (FRANKENPHP 1.x LATEST + PHP 8.4.26 ALPINE + OCTANE)
 # ==============================================================================
-FROM dunglas/frankenphp:${FRANKENPHP_VERSION}-php8.4-alpine
+FROM dunglas/frankenphp:1-php8.4-alpine
 
 LABEL maintainer="SEMARAK ALIYAH XIV"
 LABEL php.version="8.4.26"

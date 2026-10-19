@@ -18,6 +18,12 @@ mkdir -p /var/www/html/storage/framework/cache/data \
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache 2>/dev/null || true
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache 2>/dev/null || true
 
+# 2.5 Pastikan paket vendor Composer tersedia (jika host volume belum memiliki vendor)
+if [ ! -f /var/www/html/vendor/autoload.php ]; then
+    echo "[Entrypoint] Folder vendor belum ditemukan di host mount. Menginstal dependensi Composer..."
+    composer install --no-dev --optimize-autoloader --no-interaction
+fi
+
 # 3. Hubungkan symlink storage publik jika belum terhubung
 php artisan storage:link --force 2>/dev/null || true
 

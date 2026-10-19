@@ -52,3 +52,11 @@ Thumbs.db
 # Temporary scripts & media
 check_page.js
 .tempmediaStorage/
+
+# AI Assistant Guidelines (Not part of app runtime)
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+*/CLAUDE.md
+*/AGENTS.md
+

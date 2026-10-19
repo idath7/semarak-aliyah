@@ -1,0 +1,74 @@
+{
+	{$CADDY_GLOBAL_OPTIONS}
+
+	# Admin API endpoint for FrankenPHP worker telemetry
+	admin {$CADDY_SERVER_ADMIN_HOST:0.0.0.0}:{$CADDY_SERVER_ADMIN_PORT:2019}
+
+	frankenphp {
+		worker {
+			file "{$APP_PUBLIC_PATH:/var/www/html/public}/frankenphp-worker.php"
+			num {$OCTANE_WORKERS:4}
+			{$CADDY_SERVER_WATCH_DIRECTIVES}
+		}
+	}
+}
+
+# ==============================================================================
+# 1. WEB PUBLIK PORTAL (PORT 8000)
+# Landing page, informasi lomba, dan registrasi peserta
+# ==============================================================================
+:8000 {
+	root * "{$APP_PUBLIC_PATH:/var/www/html/public}"
+	encode zstd br gzip
+
+	# Forwarded port header untuk PortalSeparationMiddleware Laravel
+	request_header X-Forwarded-Port 8000
+	request_header X-Forwarded-Proto {scheme}
+
+	# Cache aset statis selama 30 hari untuk performa tinggi
+	@static {
+		file
+		path *.ico *.css *.js *.gif *.jpg *.jpeg *.png *.svg *.woff *.woff2 *.ttf *.webp
+	}
+	header @static Cache-Control "public, max-age=2592000, immutable"
+
+	php_server {
+		index frankenphp-worker.php
+		try_files {path} frankenphp-worker.php
+		resolve_root_symlink
+	}
+}
+
+# ==============================================================================
+# 2. PORTAL ADMIN & OPERASIONAL (PORT 8001)
+# Panel Administrasi, Kustomisasi Web, Manajemen Peserta & Penjurian
+# ==============================================================================
+:8001 {
+	root * "{$APP_PUBLIC_PATH:/var/www/html/public}"
+	encode zstd br gzip
+
+	# Forwarded port header untuk PortalSeparationMiddleware Laravel
+	request_header X-Forwarded-Port 8001
+	request_header X-Forwarded-Proto {scheme}
+
+	# Cache aset statis
+	@static {
+		file
+		path *.ico *.css *.js *.gif *.jpg *.jpeg *.png *.svg *.woff *.woff2 *.ttf *.webp
+	}
+	header @static Cache-Control "public, max-age=2592000, immutable"
+
+	php_server {
+		index frankenphp-worker.php
+		try_files {path} frankenphp-worker.php
+		resolve_root_symlink
+	}
+}
+
+# ==============================================================================
+# 3. LARAVEL REVERB WEBSOCKET REVERSE PROXY (PORT 8085)
+# Proxy otomatis untuk koneksi WebSocket realtime
+# ==============================================================================
+:8085 {
+	reverse_proxy reverb:8085
+}

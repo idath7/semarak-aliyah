@@ -27,6 +27,7 @@ Homestead.yaml
 Thumbs.db
 
 **/caddy
-frankenphp
+/frankenphp
 /frankenphp-worker.php
 !/public/frankenphp-worker.php
+!docker/**

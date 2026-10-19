@@ -16,31 +16,31 @@
 /* Velzon Official HK Grotesk Web Fonts (Official Themesbrand Assets) */
 @font-face {
     font-family: hkgrotesk;
-    src: local("hkgrotesk light"), url("/assets/fonts/hkgrotesk-light.woff") format("woff");
+    src: local("hkgrotesk light"), url("../fonts/hkgrotesk-light.woff") format("woff");
     font-weight: 300;
     font-style: normal;
 }
 @font-face {
     font-family: hkgrotesk;
-    src: local("hkgrotesk regular"), url("/assets/fonts/hkgrotesk-regular.woff") format("woff");
+    src: local("hkgrotesk regular"), url("../fonts/hkgrotesk-regular.woff") format("woff");
     font-weight: 400;
     font-style: normal;
 }
 @font-face {
     font-family: hkgrotesk;
-    src: local("hkgrotesk medium"), url("/assets/fonts/hkgrotesk-medium.woff") format("woff");
+    src: local("hkgrotesk medium"), url("../fonts/hkgrotesk-medium.woff") format("woff");
     font-weight: 500;
     font-style: normal;
 }
 @font-face {
     font-family: hkgrotesk;
-    src: local("hkgrotesk semibold"), url("/assets/fonts/hkgrotesk-semibold.woff") format("woff");
+    src: local("hkgrotesk semibold"), url("../fonts/hkgrotesk-semibold.woff") format("woff");
     font-weight: 600;
     font-style: normal;
 }
 @font-face {
     font-family: hkgrotesk;
-    src: local("hkgrotesk bold"), url("/assets/fonts/hkgrotesk-bold.woff") format("woff");
+    src: local("hkgrotesk bold"), url("../fonts/hkgrotesk-bold.woff") format("woff");
     font-weight: 700;
     font-style: normal;
 }

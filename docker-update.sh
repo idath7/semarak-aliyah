@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# SEMARAK ALIYAH XIV 2026 - DOCKER UPDATE & GIT PULL AUTOMATION SCRIPT
+# SEMARAK ALIYAH - DOCKER UPDATE & GIT PULL AUTOMATION SCRIPT
 # ==============================================================================
 set -e
 
@@ -36,7 +36,7 @@ build_frontend() {
     echo "======================================================================"
     echo " [3/5] Mengompilasi Aset Frontend (Node.js 22 + NPM Terbaru + Vite)..."
     echo "======================================================================"
-    docker compose run --rm node npm run build
+    docker compose run --rm -e NPM_CONFIG_UPDATE_NOTIFIER=false node sh -c "npm install -g npm@latest >/dev/null 2>&1 && npm run build"
 }
 
 update_dependencies() {

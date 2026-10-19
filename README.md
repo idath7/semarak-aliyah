@@ -1,6 +1,6 @@
 # SEMARAK ALIYAH XIV 2026 🏆
 **Laman Resmi & Sistem Operasional Terpadu SEMARAK ALIYAH XIV 2026**  
-*MA Unggulan Wahid Hasyim Balung, Jember • Ajang Kompetisi Bergengsi Tingkat Pelajar SMP/MTs Sederajat Se-Kabupaten Jember*
+*MAS Wahid Hasyim Balung, Jember • Ajang Kompetisi Bergengsi Tingkat Pelajar SMP/MTs Sederajat Se-Kabupaten Jember*
 
 ---
 

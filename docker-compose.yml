@@ -21,20 +21,22 @@ services:
     container_name: semarak_frankenphp_octane
     restart: unless-stopped
     ports:
-      - "${PUBLIC_PORT:-8000}:8000"   # Portal Web Publik (Landing & Registrasi)
+      - "${PUBLIC_PORT:-8002}:8000"   # Portal Web Publik (Landing & Registrasi)
       - "${ADMIN_PORT:-8001}:8001"    # Portal Admin & Operasional
       - "${REVERB_HOST_PORT:-8085}:8085" # Laravel Reverb WebSocket Gateway (Port Host ke NPM)
       - "2019:2019"                   # FrankenPHP / Caddy Admin & Metrics API
+    env_file:
+      - ./backend/.env
     environment:
       # --- Laravel Application Settings ---
       - APP_NAME="SEMARAK ALIYAH XIV 2026"
       - APP_ENV=${APP_ENV:-production}
       - APP_KEY=${APP_KEY:-base64:lceKHIY36eCrRMMiQ9wGICH4PJlaBt7/3VXDVPE5/vw=}
       - APP_DEBUG=${APP_DEBUG:-false}
-      - APP_URL=${APP_URL:-http://localhost:8000}
-      - PUBLIC_PORT=${PUBLIC_PORT:-8000}
+      - APP_URL=${APP_URL:-http://localhost:8002}
+      - PUBLIC_PORT=${PUBLIC_PORT:-8002}
       - ADMIN_PORT=${ADMIN_PORT:-8001}
-      - PUBLIC_URL=${PUBLIC_URL:-http://localhost:8000}
+      - PUBLIC_URL=${PUBLIC_URL:-http://localhost:8002}
       - ADMIN_URL=${ADMIN_URL:-http://localhost:8001}
 
       # --- FrankenPHP & Laravel Octane Settings ---
@@ -99,6 +101,8 @@ services:
     container_name: semarak_reverb_ws
     restart: unless-stopped
     command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8085"]
+    env_file:
+      - ./backend/.env
     environment:
       - APP_NAME="SEMARAK ALIYAH XIV 2026"
       - APP_ENV=${APP_ENV:-production}

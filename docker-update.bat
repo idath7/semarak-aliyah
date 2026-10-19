@@ -1,11 +1,11 @@
 @echo off
 setlocal enabledelayedexpansion
-title Semarak Aliyah XIV 2026 - Pusat Pembaruan Docker
+title Semarak Aliyah - Pusat Pembaruan Docker
 
 :MENU
 cls
 echo ==============================================================================
-echo       SEMARAK ALIYAH XIV 2026 - PUSAT KONTROL PEMBARUAN DOCKER               
+echo       SEMARAK ALIYAH - PUSAT KONTROL PEMBARUAN DOCKER               
 echo ==============================================================================
 echo.
 echo   Pilih jenis pembaruan yang ingin Anda jalankan:

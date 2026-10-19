@@ -160,4 +160,4 @@ d:\wp\semarak\
 
 ---
 
-© 2026 **SEMARAK ALIYAH XIV** • MA Unggulan Wahid Hasyim Balung, Jember.
+© 2026 **SEMARAK ALIYAH XIV** • MAS WAHID HASYIM BALUNG, Jember.

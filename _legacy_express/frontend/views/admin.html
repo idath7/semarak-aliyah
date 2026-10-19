@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="id" data-layout="vertical" data-topbar="light" data-sidebar="dark" data-sidebar-size="lg">
+<head>
+    <meta charset="utf-8" />
+    <title>Dashboard Panitia | Velzon - Semarak Aliyah XII 2026</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta content="Panel Admin Panitia Semarak Aliyah XII 2026 - MA Unggulan Wahid Hasyim Balung" name="description" />
+    <meta content="MA Wahid Hasyim" name="author" />
+
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="/assets/img/logo.png">
+
+    <!-- Google Fonts (Poppins & Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5.3 Css -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Remix Icons Css -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <!-- Boxicons Css -->
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --vz-body-bg: #f3f3f9;
+            --vz-card-bg: #ffffff;
+            --vz-sidebar-bg: #111827;
+            --vz-sidebar-menu-item-color: #abb9e8;
+            --vz-sidebar-menu-item-active-color: #ffffff;
+            --vz-sidebar-menu-item-active-bg: rgba(255, 255, 255, 0.08);
+            --vz-primary: #405189;
+            --vz-primary-rgb: 64, 81, 137;
+            --vz-success: #0ab39c;
+            --vz-warning: #f7b84b;
+            --vz-danger: #f06548;
+            --vz-info: #299cdb;
+            --vz-header-height: 70px;
+            --vz-sidebar-width: 250px;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--vz-body-bg);
+            color: #495057;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        #layout-wrapper {
+            display: flex;
+            width: 100%;
+            min-height: 100vh;
+        }
+
+        /* Topbar Header */
+        #page-topbar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: var(--vz-sidebar-width);
+            z-index: 1002;
+            background-color: #ffffff;
+            height: var(--vz-header-height);
+            box-shadow: 0 1px 2px rgba(56, 65, 74, 0.15);
+            transition: all 0.3s ease;
+        }
+
+        .navbar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+            padding: 0 24px;
+        }
+
+        /* Vertical Sidebar (Dark Velzon Theme) */
+        .app-menu {
+            width: var(--vz-sidebar-width);
+            background: var(--vz-sidebar-bg);
+            position: fixed;
+            bottom: 0;
+            top: 0;
+            left: 0;
+            z-index: 1004;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-brand-box {
+            padding: 0 1.3rem;
+            text-align: center;
+            height: var(--vz-header-height);
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 12px;
+            background: #0d131f;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .navbar-brand-box img {
+            height: 38px;
+        }
+
+        .brand-text {
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 1.05rem;
+            letter-spacing: 0.03em;
+            text-align: left;
+            line-height: 1.2;
+        }
+
+        .brand-text small {
+            display: block;
+            font-size: 0.7rem;
+            color: #f7b84b;
+            font-weight: 500;
+        }
+
+        .sidebar-menu-wrapper {
+            padding: 20px 0;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .menu-title {
+            letter-spacing: 0.05em;
+            padding: 12px 20px;
+            color: #5c6873;
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .nav-item {
+            list-style: none;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: #9ca3af;
+            font-weight: 500;
+            font-size: 0.92rem;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link i {
+            font-size: 1.25rem;
+            width: 24px;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.08);
+            border-left: 3px solid #f7b84b;
+        }
+
+        /* Main Content Wrapper */
+        .main-content {
+            margin-left: var(--vz-sidebar-width);
+            width: calc(100% - var(--vz-sidebar-width));
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .page-content {
+            padding: calc(var(--vz-header-height) + 24px) 24px 40px;
+            flex-grow: 1;
+        }
+
+        /* Velzon Cards & Animation */
+        .card {
+            background-color: var(--vz-card-bg);
+            border: none;
+            box-shadow: 0 1px 2px rgba(56, 65, 74, 0.15);
+            border-radius: 0.5rem;
+            margin-bottom: 24px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card-animate:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 5px 15px rgba(56, 65, 74, 0.15);
+        }
+
+        .card-header {
+            background-color: transparent;
+            border-bottom: 1px solid #e9ebec;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .avatar-sm {
+            height: 3rem;
+            width: 3rem;
+        }
+
+        .avatar-title {
+            align-items: center;
+            display: flex;
+            height: 100%;
+            justify-content: center;
+            width: 100%;
+            font-size: 1.5rem;
+            border-radius: 0.35rem;
+        }
+
+        /* Velzon Badges */
+        .bg-success-subtle { background-color: rgba(10, 179, 156, 0.12) !important; }
+        .text-success { color: #0ab39c !important; }
+        .bg-warning-subtle { background-color: rgba(247, 184, 75, 0.15) !important; }
+        .text-warning { color: #e09b13 !important; }
+        .bg-primary-subtle { background-color: rgba(64, 81, 137, 0.12) !important; }
+        .text-primary { color: #405189 !important; }
+        .bg-danger-subtle { background-color: rgba(240, 101, 72, 0.12) !important; }
+        .text-danger { color: #f06548 !important; }
+
+        .btn-whatsapp {
+            background-color: #25d366;
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 0.8rem;
+            border: none;
+        }
+        .btn-whatsapp:hover {
+            background-color: #20b858;
+            color: #ffffff;
+        }
+
+        @media (max-width: 991px) {
+            #page-topbar { left: 0; }
+            .app-menu { left: -100%; }
+            .app-menu.show { left: 0; }
+            .main-content { margin-left: 0; width: 100%; }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="layout-wrapper">
+
+        <!-- Top Header Navigation -->
+        <header id="page-topbar">
+            <div class="navbar-header">
+                <div class="d-flex align-items-center gap-3">
+                    <button type="button" class="btn btn-sm px-2 fs-20 text-muted d-lg-none" id="sidebar-toggle" aria-label="Toggle Menu">
+                        <i class="ri-menu-2-line"></i>
+                    </button>
+                    <div class="d-none d-md-block">
+                        <span class="badge bg-primary-subtle text-primary fs-12 px-2 py-1">
+                            <i class="ri-flashlight-line align-middle me-1"></i> Edisi XII • 2026
+                        </span>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-3">
+                    <a href="/" class="btn btn-sm btn-outline-primary d-none d-sm-inline-flex align-items-center gap-1">
+                        <i class="ri-external-link-line"></i> Buka Website Publik
+                    </a>
+
+                    <a href="/api/admin/export" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1">
+                        <i class="ri-file-excel-2-line"></i> Export Excel (CSV)
+                    </a>
+
+                    <div class="dropdown">
+                        <button class="btn btn-sm p-0 d-flex align-items-center gap-2 border-0 bg-transparent" type="button">
+                            <img src="/assets/img/logo.png" alt="Admin Avatar" class="rounded-circle" style="width: 36px; height: 36px; object-fit: contain; background: #111827; padding: 2px;">
+                            <div class="d-none d-md-block text-start">
+                                <span class="d-block fw-semibold text-dark fs-13">Panitia Semarak</span>
+                                <span class="d-block text-muted fs-11">Superadmin</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar Navigation (Velzon Dark Theme) -->
+        <aside class="app-menu navbar-menu" id="app-sidebar">
+            <div class="navbar-brand-box">
+                <img src="/assets/img/logo.png" alt="Semarak Aliyah">
+                <div class="brand-text">
+                    SEMARAK ALIYAH
+                    <small>MA WAHID HASYIM</small>
+                </div>
+            </div>
+
+            <div class="sidebar-menu-wrapper">
+                <div class="menu-title">Menu Utama</div>
+                <ul class="p-0 m-0">
+                    <li class="nav-item">
+                        <a href="/admin" class="nav-link active">
+                            <i class="ri-dashboard-2-line"></i>
+                            <span>Dashboard Panel</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#pendaftar-section" class="nav-link">
+                            <i class="ri-user-star-line"></i>
+                            <span>Pendaftar Delegasi</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#kuota-section" class="nav-link">
+                            <i class="ri-trophy-line"></i>
+                            <span>Manajemen Kuota</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="menu-title mt-3">Operasional Lapangan</div>
+                <ul class="p-0 m-0">
+                    <li class="nav-item">
+                        <a href="/operasional" class="nav-link text-success fw-bold" style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; margin: 4px 12px; padding: 10px 14px;">
+                            <i class="ri-flashlight-line text-warning"></i>
+                            <span>Panel Operasional Hari-H</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="menu-title mt-3">Link Cepat</div>
+                <ul class="p-0 m-0">
+                    <li class="nav-item">
+                        <a href="/layanan-registrasi" class="nav-link">
+                            <i class="ri-file-list-3-line"></i>
+                            <span>Portal Registrasi</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/api/admin/export" class="nav-link">
+                            <i class="ri-file-excel-2-line"></i>
+                            <span>Download Laporan CSV</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="https://wa.me/6283850070767" target="_blank" class="nav-link">
+                            <i class="ri-whatsapp-line"></i>
+                            <span>Helpdesk WhatsApp</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <div class="page-content">
+                <div class="container-fluid">
+
+                    <!-- Page Title & Breadcrumb -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-flex align-items-center justify-content-between mb-4">
+                                <h4 class="mb-0 text-dark fw-bold">Dashboard Panitia Semarak Aliyah XII 2026</h4>
+                                <nav aria-label="breadcrumb">
+                                    <ol class="breadcrumb m-0 fs-13">
+                                        <li class="breadcrumb-item"><a href="#" class="text-decoration-none">Velzon</a></li>
+                                        <li class="breadcrumb-item active" aria-current="page">Dashboard Panel</li>
+                                    </ol>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Velzon 4 Stat Cards Row -->
+                    <div class="row">
+                        <!-- Total Pendaftar -->
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-semibold text-muted text-truncate mb-0 fs-12">Total Pendaftar</p>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <h5 class="text-success fs-13 mb-0">
+                                                <i class="ri-arrow-right-up-line fs-13 align-middle"></i> 100% Realtime
+                                            </h5>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-end justify-content-between mt-3">
+                                        <div>
+                                            <h4 class="fs-22 fw-bold text-dark mb-0" id="velzon-stat-total">0 <small class="text-muted fs-13">Sekolah</small></h4>
+                                        </div>
+                                        <div class="avatar-sm flex-shrink-0">
+                                            <span class="avatar-title bg-primary-subtle rounded fs-3">
+                                                <i class="ri-team-line text-primary"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Terverifikasi -->
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-semibold text-muted text-truncate mb-0 fs-12">Terverifikasi</p>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <span class="badge bg-success-subtle text-success fs-11">Siap Tanding</span>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-end justify-content-between mt-3">
+                                        <div>
+                                            <h4 class="fs-22 fw-bold text-dark mb-0" id="velzon-stat-verified">0 <small class="text-muted fs-13">Tim</small></h4>
+                                        </div>
+                                        <div class="avatar-sm flex-shrink-0">
+                                            <span class="avatar-title bg-success-subtle rounded fs-3">
+                                                <i class="ri-checkbox-circle-line text-success"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Menunggu Verifikasi -->
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-semibold text-muted text-truncate mb-0 fs-12">Menunggu Verifikasi</p>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <span class="badge bg-warning-subtle text-warning fs-11">Perlu Konfirmasi</span>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-end justify-content-between mt-3">
+                                        <div>
+                                            <h4 class="fs-22 fw-bold text-dark mb-0" id="velzon-stat-pending">0 <small class="text-muted fs-13">Antrean</small></h4>
+                                        </div>
+                                        <div class="avatar-sm flex-shrink-0">
+                                            <span class="avatar-title bg-warning-subtle rounded fs-3">
+                                                <i class="ri-time-line text-warning"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Total Dana -->
+                        <div class="col-xl-3 col-md-6">
+                            <div class="card card-animate">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <p class="text-uppercase fw-semibold text-muted text-truncate mb-0 fs-12">Total Dana Masuk</p>
+                                        </div>
+                                        <div class="flex-shrink-0">
+                                            <span class="badge bg-primary-subtle text-primary fs-11">Pembinaan</span>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex align-items-end justify-content-between mt-3">
+                                        <div>
+                                            <h4 class="fs-20 fw-bold text-dark mb-0" id="velzon-stat-dana">Rp 0</h4>
+                                        </div>
+                                        <div class="avatar-sm flex-shrink-0">
+                                            <span class="avatar-title bg-info-subtle rounded fs-3">
+                                                <i class="ri-money-dollar-circle-line text-info"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quota Management Section -->
+                    <div class="row" id="kuota-section">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <div>
+                                        <h5 class="card-title mb-0 fw-semibold text-dark">
+                                            <i class="ri-shield-check-line align-middle me-1 text-primary"></i> Manajemen Kuota Cabang Lomba (Realtime)
+                                        </h5>
+                                        <p class="text-muted fs-12 mb-0">Klik tombol Buka/Tutup untuk langsung mengubah status kuota di halaman depan</p>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3" id="velzon-quota-grid">
+                                        <!-- Rendered via JS -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Registrations Datatable Section -->
+                    <div class="row" id="pendaftar-section">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0 fw-semibold text-dark">
+                                        <i class="ri-list-check align-middle me-1 text-primary"></i> Data Pendaftaran Delegasi Sekolah / Madrasah
+                                    </h5>
+                                    <div>
+                                        <span class="badge bg-primary-subtle text-primary fs-12" id="velzon-count-badge">0 Pendaftar Ditemukan</span>
+                                    </div>
+                                </div>
+
+                                <div class="card-body">
+                                    <!-- Filter Toolbar -->
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-md-5">
+                                            <div class="input-group">
+                                                <span class="input-group-text bg-transparent border-end-0"><i class="ri-search-line text-muted"></i></span>
+                                                <input type="text" id="velzon-search" class="form-control border-start-0" placeholder="Cari nama sekolah, guru, atau kode ID...">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <select id="velzon-filter-status" class="form-select">
+                                                <option value="">Semua Status Pembayaran</option>
+                                                <option value="Terverifikasi">Terverifikasi</option>
+                                                <option value="Menunggu Verifikasi">Menunggu Verifikasi</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-primary w-100" onclick="applyFilter()">Filter Data</button>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-light w-100" onclick="resetFilter()">Reset</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Table -->
+                                    <div class="table-responsive">
+                                        <table class="table table-hover align-middle table-nowrap mb-0">
+                                            <thead class="table-light text-muted">
+                                                <tr>
+                                                    <th scope="col">ID Registrasi</th>
+                                                    <th scope="col">Asal Sekolah</th>
+                                                    <th scope="col">Guru Pendamping & WA</th>
+                                                    <th scope="col">Cabang Kompetisi</th>
+                                                    <th scope="col">Nama Peserta / Tim</th>
+                                                    <th scope="col">Biaya</th>
+                                                    <th scope="col">Status</th>
+                                                    <th scope="col" class="text-center">Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="velzon-table-body">
+                                                <tr>
+                                                    <td colspan="8" class="text-center py-5 text-muted">Memuat data dari Laravel API...</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Velzon Footer -->
+            <footer class="footer bg-white py-3 border-top text-center text-muted fs-13">
+                <div class="container-fluid">
+                    <div>
+                        Copyright © 2026 <strong>SEMARAK ALIYAH XII</strong> • MA Unggulan Wahid Hasyim Balung, Jember.
+                        <span class="ms-1 d-none d-sm-inline">All Rights Reserved.</span>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allRegistrations = [];
+
+        async function fetchVelzonData() {
+            try {
+                const res = await fetch('/api/admin/overview');
+                const json = await res.json();
+                if (json.status !== 'success') throw new Error(json.message);
+
+                const data = json.data;
+
+                // Stats
+                document.getElementById('velzon-stat-total').innerHTML = `${data.stats.totalPendaftar} <small class="text-muted fs-13">Sekolah</small>`;
+                document.getElementById('velzon-stat-verified').innerHTML = `${data.stats.terverifikasi} <small class="text-muted fs-13">Tim</small>`;
+                document.getElementById('velzon-stat-pending').innerHTML = `${data.stats.pending} <small class="text-muted fs-13">Antrean</small>`;
+                document.getElementById('velzon-stat-dana').textContent = 'Rp ' + Number(data.stats.totalDana).toLocaleString('id-ID');
+
+                // Quotas
+                renderQuotas(data.competitions);
+
+                // Table
+                allRegistrations = data.registrations;
+                renderTable(allRegistrations);
+
+            } catch (err) {
+                console.error('Failed to load Velzon data:', err);
+            }
+        }
+
+        function renderQuotas(comps) {
+            const grid = document.getElementById('velzon-quota-grid');
+            grid.innerHTML = comps.map(c => {
+                const pct = c.max_quota > 0 ? Math.round((c.current_quota / c.max_quota) * 100) : 0;
+                const barColor = pct >= 90 ? 'bg-danger' : (pct >= 60 ? 'bg-warning' : 'bg-success');
+                return `
+                <div class="col-xl-3 col-md-6">
+                    <div class="border rounded p-3 bg-light bg-opacity-50 h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="fw-bold text-dark fs-14">
+                                    <span class="me-1">${c.icon || '🎯'}</span> ${c.title}
+                                </div>
+                                <span class="badge ${c.status === 'open' ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'} fs-11">
+                                    ${c.status === 'open' ? 'Buka' : 'Tutup'}
+                                </span>
+                            </div>
+
+                            <div class="text-muted fs-12 mb-2">
+                                Terisi: <strong>${c.current_quota}</strong> / ${c.max_quota} Kuota
+                            </div>
+
+                            <div class="progress progress-sm mb-3" style="height: 6px;">
+                                <div class="progress-bar ${barColor}" role="progressbar" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            ${c.status === 'open'
+                                ? `<button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="toggleQuota('${c.id}', 'closed')"><i class="ri-close-circle-line me-1"></i> Tutup Kuota</button>`
+                                : `<button type="button" class="btn btn-sm btn-outline-success w-100" onclick="toggleQuota('${c.id}', 'open')"><i class="ri-checkbox-circle-line me-1"></i> Buka Kuota</button>`
+                            }
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderTable(items) {
+            const tbody = document.getElementById('velzon-table-body');
+            document.getElementById('velzon-count-badge').textContent = `${items.length} Pendaftar Ditemukan`;
+
+            if (items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-5 text-muted"><i class="ri-inbox-line fs-36 d-block mb-2"></i>Belum ada data pendaftar yang cocok.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = items.map(r => {
+                let waNum = (r.mentor_wa || '').replace(/[^0-9]/g, '');
+                if (waNum.startsWith('0')) waNum = '62' + waNum.slice(1);
+                const waText = encodeURIComponent(`Halo ${r.mentor_name} dari ${r.school_name}, kami dari Panitia Semarak Aliyah 2026 mengonfirmasi pendaftaran ID ${r.reg_code}.`);
+
+                return `
+                <tr>
+                    <td><span class="fw-bold text-primary">${r.reg_code}</span></td>
+                    <td>
+                        <h6 class="fs-13 fw-semibold text-dark mb-0">${escapeHtml(r.school_name)}</h6>
+                        <small class="text-muted">${escapeHtml(r.package_type)}</small>
+                    </td>
+                    <td>
+                        <div class="fw-medium text-dark">${escapeHtml(r.mentor_name)}</div>
+                        <small class="text-muted"><i class="ri-phone-line align-middle"></i> ${escapeHtml(r.mentor_wa)}</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary-subtle text-secondary fs-12">${escapeHtml(r.competition_title)}</span>
+                    </td>
+                    <td>
+                        <div class="text-wrap" style="max-width: 220px; font-size: 12px;">
+                            ${escapeHtml(r.participants_names)}
+                        </div>
+                    </td>
+                    <td>
+                        <span class="fw-bold text-dark">Rp ${Number(r.total_fee || 0).toLocaleString('id-ID')}</span>
+                    </td>
+                    <td>
+                        ${r.payment_status === 'Terverifikasi'
+                            ? `<span class="badge bg-success-subtle text-success fs-12"><i class="ri-check-line align-middle me-1"></i> Terverifikasi</span>`
+                            : `<span class="badge bg-warning-subtle text-warning fs-12"><i class="ri-time-line align-middle me-1"></i> Menunggu Verifikasi</span>`
+                        }
+                    </td>
+                    <td class="text-center">
+                        <div class="d-flex align-items-center justify-content-center gap-1">
+                            <a href="https://wa.me/${waNum}?text=${waText}" target="_blank" class="btn btn-sm btn-whatsapp px-2" title="Chat WhatsApp Pembina">
+                                <i class="ri-whatsapp-line"></i> WA
+                            </a>
+
+                            ${r.payment_status === 'Terverifikasi'
+                                ? `<button class="btn btn-sm btn-outline-danger" onclick="updateStatus(${r.id}, 'Menunggu Verifikasi')" title="Batalkan"><i class="ri-close-line"></i> Batal</button>`
+                                : `<button class="btn btn-sm btn-success" onclick="updateStatus(${r.id}, 'Terverifikasi')" title="Verifikasi"><i class="ri-check-line"></i> Verifikasi</button>`
+                            }
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function toggleQuota(id, status) {
+            try {
+                const res = await fetch('/api/admin/toggle-quota', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, status })
+                });
+                const json = await res.json();
+                if (json.status === 'success') {
+                    fetchVelzonData();
+                } else {
+                    alert(json.message);
+                }
+            } catch (err) {
+                alert('Gagal mengubah kuota: ' + err.message);
+            }
+        }
+
+        async function updateStatus(id, status) {
+            try {
+                const res = await fetch('/api/admin/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, status })
+                });
+                const json = await res.json();
+                if (json.status === 'success') {
+                    fetchVelzonData();
+                } else {
+                    alert(json.message);
+                }
+            } catch (err) {
+                alert('Gagal mengubah status: ' + err.message);
+            }
+        }
+
+        function applyFilter() {
+            const q = document.getElementById('velzon-search').value.toLowerCase().trim();
+            const status = document.getElementById('velzon-filter-status').value;
+
+            const filtered = allRegistrations.filter(r => {
+                const matchesQ = !q || 
+                    (r.school_name && r.school_name.toLowerCase().includes(q)) ||
+                    (r.mentor_name && r.mentor_name.toLowerCase().includes(q)) ||
+                    (r.reg_code && r.reg_code.toLowerCase().includes(q)) ||
+                    (r.competition_title && r.competition_title.toLowerCase().includes(q));
+
+                const matchesStatus = !status || r.payment_status === status;
+                return matchesQ && matchesStatus;
+            });
+
+            renderTable(filtered);
+        }
+
+        function resetFilter() {
+            document.getElementById('velzon-search').value = '';
+            document.getElementById('velzon-filter-status').value = '';
+            renderTable(allRegistrations);
+        }
+
+        document.getElementById('sidebar-toggle')?.addEventListener('click', function () {
+            document.getElementById('app-sidebar').classList.toggle('show');
+        });
+
+        document.getElementById('velzon-search')?.addEventListener('input', applyFilter);
+        document.getElementById('velzon-filter-status')?.addEventListener('change', applyFilter);
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        fetchVelzonData();
+    </script>
+</body>
+</html>

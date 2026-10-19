@@ -1,0 +1,213 @@
+# ==============================================================================
+# SEMARAK ALIYAH XIV 2026 - HIGH-PERFORMANCE DOCKER COMPOSE RECIPE
+# ==============================================================================
+# Arsitektur Enterprise:
+# 1. Webservis    : FrankenPHP 1.x + Laravel Octane (PHP 8.4 + Imagick + JIT)
+# 2. Database     : PostgreSQL 18.6 dengan Custom Performance Tuning
+# 3. Cache & Queue: Redis Terbaru (Alpine) dengan LRU Memory Eviction
+# 4. Frontend Dev : Node.js 22 LTS (Alpine) dengan Hot Module Replacement (Vite)
+# 5. Real-Time    : Laravel Reverb WebSocket Server (Port 8085)
+# 6. Folder Sync  : Live Bind Mount Mapping (./backend:/var/www/html)
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. FRANKENPHP OCTANE WEBSERVICE (DUAL-PORT: 8000 PUBLIK, 8001 ADMIN, 8085 WS)
+  # ----------------------------------------------------------------------------
+  frankenphp:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        PHP_VERSION: "8.4.26"
+    container_name: semarak_frankenphp_octane
+    restart: unless-stopped
+    ports:
+      - "${PUBLIC_PORT:-8000}:8000"   # Portal Web Publik (Landing & Registrasi)
+      - "${ADMIN_PORT:-8001}:8001"    # Portal Admin & Operasional
+      - "${REVERB_PORT:-8085}:8085"   # Laravel Reverb WebSocket Gateway
+      - "2019:2019"                   # FrankenPHP / Caddy Admin & Metrics API
+    environment:
+      # --- Laravel Application Settings ---
+      - APP_NAME="SEMARAK ALIYAH XIV 2026"
+      - APP_ENV=${APP_ENV:-production}
+      - APP_KEY=${APP_KEY:-base64:lceKHIY36eCrRMMiQ9wGICH4PJlaBt7/3VXDVPE5/vw=}
+      - APP_DEBUG=${APP_DEBUG:-false}
+      - APP_URL=${APP_URL:-http://localhost:8000}
+      - PUBLIC_PORT=${PUBLIC_PORT:-8000}
+      - ADMIN_PORT=${ADMIN_PORT:-8001}
+      - PUBLIC_URL=${PUBLIC_URL:-http://localhost:8000}
+      - ADMIN_URL=${ADMIN_URL:-http://localhost:8001}
+
+      # --- FrankenPHP & Laravel Octane Settings ---
+      - OCTANE_SERVER=frankenphp
+      - OCTANE_WORKERS=${OCTANE_WORKERS:-4}
+      - OCTANE_MAX_REQUESTS=${OCTANE_MAX_REQUESTS:-1000}
+      - MAGICK_THREAD_LIMIT=1         # Mencegah thread conflict ImageMagick OpenMP vs Goroutines
+
+      # --- Database Connection (PostgreSQL 18.6) ---
+      - DB_CONNECTION=pgsql
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-semarak_db}
+      - DB_USERNAME=${DB_USERNAME:-semarak_user}
+      - DB_PASSWORD=${DB_PASSWORD:-semarak_secure_password}
+
+      # --- High-Performance Cache & Session (Redis) ---
+      - CACHE_STORE=redis
+      - SESSION_DRIVER=redis
+      - QUEUE_CONNECTION=redis
+      - REDIS_CLIENT=phpredis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=null
+
+      # --- Real-Time Reverb WebSocket Settings ---
+      - BROADCAST_CONNECTION=reverb
+      - REVERB_APP_ID=${REVERB_APP_ID:-729921}
+      - REVERB_APP_KEY=${REVERB_APP_KEY:-kbgn25duevwvkfklwuum}
+      - REVERB_APP_SECRET=${REVERB_APP_SECRET:-dojiybstjc8nwkyohqpv}
+      - REVERB_HOST=0.0.0.0
+      - REVERB_PORT=8085
+      - REVERB_SCHEME=http
+      - VITE_REVERB_APP_KEY=${REVERB_APP_KEY:-kbgn25duevwvkfklwuum}
+      - VITE_REVERB_HOST=${VITE_REVERB_HOST:-localhost}
+      - VITE_REVERB_PORT=8085
+      - VITE_REVERB_SCHEME=http
+    volumes:
+      # Live code mapping (Perubahan kode di folder host langsung aktif seketika)
+      - ./backend:/var/www/html
+      # Custom PHP 8.4 optimization configuration (dapat diubah tanpa rebuild)
+      - ./docker/php/custom-optimasi.ini:/usr/local/etc/php/conf.d/custom-optimasi.ini:ro
+      # Custom FrankenPHP Caddyfile configuration
+      - ./docker/frankenphp/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Persistent Storage Volume untuk berkas unggahan, sesi, dan log
+      - app_storage:/var/www/html/storage
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ----------------------------------------------------------------------------
+  # 2. LARAVEL REVERB WEBSOCKET SERVER (REAL-TIME BROADCAST ENGINE)
+  # ----------------------------------------------------------------------------
+  reverb:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        PHP_VERSION: "8.4.26"
+    container_name: semarak_reverb_ws
+    restart: unless-stopped
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8085"]
+    environment:
+      - APP_NAME="SEMARAK ALIYAH XIV 2026"
+      - APP_ENV=${APP_ENV:-production}
+      - APP_KEY=${APP_KEY:-base64:lceKHIY36eCrRMMiQ9wGICH4PJlaBt7/3VXDVPE5/vw=}
+      - DB_CONNECTION=pgsql
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-semarak_db}
+      - DB_USERNAME=${DB_USERNAME:-semarak_user}
+      - DB_PASSWORD=${DB_PASSWORD:-semarak_secure_password}
+      - CACHE_STORE=redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - BROADCAST_CONNECTION=reverb
+      - REVERB_APP_ID=${REVERB_APP_ID:-729921}
+      - REVERB_APP_KEY=${REVERB_APP_KEY:-kbgn25duevwvkfklwuum}
+      - REVERB_APP_SECRET=${REVERB_APP_SECRET:-dojiybstjc8nwkyohqpv}
+      - REVERB_HOST=0.0.0.0
+      - REVERB_PORT=8085
+      - REVERB_SCHEME=http
+    volumes:
+      - ./backend:/var/www/html
+      - ./docker/php/custom-optimasi.ini:/usr/local/etc/php/conf.d/custom-optimasi.ini:ro
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ----------------------------------------------------------------------------
+  # 3. DATABASE: POSTGRESQL 18.6 DENGAN CUSTOM PERFORMANCE TUNING
+  # ----------------------------------------------------------------------------
+  database:
+    image: postgres:18-alpine
+    container_name: semarak_postgres_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-semarak_db}
+      POSTGRES_USER: ${DB_USERNAME:-semarak_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-semarak_secure_password}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    command:
+      - "postgres"
+      - "-c"
+      - "listen_addresses=*"
+      - "-c"
+      - "config_file=/etc/postgresql/postgresql.conf"
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/optimasi-postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-semarak_user} -d ${DB_DATABASE:-semarak_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ----------------------------------------------------------------------------
+  # 4. IN-MEMORY CACHE & SESSION STORE: REDIS TERBARU (ALPINE)
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:alpine
+    container_name: semarak_redis
+    restart: unless-stopped
+    command:
+      - "redis-server"
+      - "--appendonly"
+      - "yes"
+      - "--maxmemory"
+      - "256mb"
+      - "--maxmemory-policy"
+      - "allkeys-lru"
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # 5. NODE.JS 22 TERBARU (ASSET BUILDER & VITE HOT RELOAD)
+  # ----------------------------------------------------------------------------
+  node:
+    image: node:22-alpine
+    container_name: semarak_node_dev
+    restart: "no"
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    ports:
+      - "5173:5173"   # Vite Dev Server & HMR
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    environment:
+      - NODE_ENV=development
+
+# ------------------------------------------------------------------------------
+# PERSISTENT VOLUMES DEFINITION
+# ------------------------------------------------------------------------------
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  app_storage:
+    driver: local

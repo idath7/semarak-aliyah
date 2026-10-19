@@ -1,0 +1,1349 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+@import "tailwindcss";
+
+/* ==========================================================================
+   Semarak Aliyah XII 2026 Admin Dashboard & Operational Center
+   Laravel + Vite + Inertia.js + Vue 3 + Tailwind CSS
+   ========================================================================== */
+
+/* Import Vendor Assets */
+@import 'bootstrap/dist/css/bootstrap.min.css';
+@import 'remixicon/fonts/remixicon.css';
+@import 'boxicons/css/boxicons.min.css';
+@import 'simplebar/dist/simplebar.min.css';
+
+/* Velzon Official HK Grotesk Web Fonts (Official Themesbrand Assets) */
+@font-face {
+    font-family: hkgrotesk;
+    src: local("hkgrotesk light"), url("/assets/fonts/hkgrotesk-light.woff") format("woff");
+    font-weight: 300;
+    font-style: normal;
+}
+@font-face {
+    font-family: hkgrotesk;
+    src: local("hkgrotesk regular"), url("/assets/fonts/hkgrotesk-regular.woff") format("woff");
+    font-weight: 400;
+    font-style: normal;
+}
+@font-face {
+    font-family: hkgrotesk;
+    src: local("hkgrotesk medium"), url("/assets/fonts/hkgrotesk-medium.woff") format("woff");
+    font-weight: 500;
+    font-style: normal;
+}
+@font-face {
+    font-family: hkgrotesk;
+    src: local("hkgrotesk semibold"), url("/assets/fonts/hkgrotesk-semibold.woff") format("woff");
+    font-weight: 600;
+    font-style: normal;
+}
+@font-face {
+    font-family: hkgrotesk;
+    src: local("hkgrotesk bold"), url("/assets/fonts/hkgrotesk-bold.woff") format("woff");
+    font-weight: 700;
+    font-style: normal;
+}
+
+/* Velzon Root CSS Variables */
+:root {
+    --vz-body-bg: #f3f3f9;
+    --vz-card-bg: #ffffff;
+    --vz-card-cap-bg: #ffffff;
+    --vz-border-color: #e9ebec;
+    --vz-body-color: #495057;
+    --vz-heading-color: #495057;
+    --vz-muted-color: #878a99;
+    
+    /* Typography matching Velzon Official ("Poppins" & "HK Grotesk") */
+    --vz-font-sans-serif: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --vz-font-secondary: hkgrotesk, "Hanken Grotesk", sans-serif;
+    --vz-body-font-family: var(--vz-font-sans-serif);
+    --vz-body-font-size: 0.8125rem;
+    --vz-body-font-weight: 400;
+    --vz-body-line-height: 1.5;
+
+    /* Override Bootstrap 5 defaults */
+    --bs-font-sans-serif: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --bs-body-font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --bs-body-font-size: 0.8125rem;
+    --bs-body-font-weight: 400;
+    --bs-body-line-height: 1.5;
+    
+    /* Primary brand colors matching Velzon standard */
+    --vz-primary: #405189;
+    --vz-primary-rgb: 64, 81, 137;
+    --vz-primary-hover: #364574;
+    --vz-secondary: #3577f1;
+    --vz-success: #0ab39c;
+    --vz-success-rgb: 10, 179, 156;
+    --vz-info: #299cdb;
+    --vz-info-rgb: 41, 156, 219;
+    --vz-warning: #f7b84b;
+    --vz-warning-rgb: 247, 184, 75;
+    --vz-danger: #f06548;
+    --vz-danger-rgb: 240, 101, 72;
+    --vz-dark: #212529;
+    --vz-light: #f3f6f9;
+
+    /* Sidebar Variables (Velzon Official Vertical Menu) */
+    --vz-sidebar-width: 250px;
+    --vz-sidebar-width-sm: 70px;
+    --vz-vertical-menu-width: 250px;
+    --vz-vertical-menu-width-sm: 70px;
+    --vz-vertical-menu-bg: #111827;
+    --vz-vertical-menu-border: rgba(255, 255, 255, 0.05);
+    --vz-vertical-menu-item-color: #abb9e8;
+    --vz-vertical-menu-item-hover-color: #ffffff;
+    --vz-vertical-menu-item-active-color: #ffffff;
+    --vz-vertical-menu-item-active-bg: rgba(255, 255, 255, 0.08);
+    --vz-vertical-menu-sub-item-color: #abb9e8;
+    --vz-vertical-menu-sub-item-hover-color: #ffffff;
+    --vz-vertical-menu-sub-item-active-color: #ffffff;
+    --vz-vertical-menu-title-color: #838fb9;
+    --vz-sidebar-bg: var(--vz-vertical-menu-bg);
+    --vz-sidebar-menu-item-color: var(--vz-vertical-menu-item-color);
+    --vz-sidebar-menu-item-hover-color: var(--vz-vertical-menu-item-hover-color);
+    --vz-sidebar-menu-item-active-color: var(--vz-vertical-menu-item-active-color);
+    --vz-sidebar-menu-item-active-bg: var(--vz-vertical-menu-item-active-bg);
+
+    /* Header Variables */
+    --vz-header-height: 70px;
+    --vz-header-bg: #ffffff;
+    --vz-header-item-color: #6d7080;
+}
+
+[data-bs-theme="dark"] {
+    --vz-body-bg: #0b0f19;
+    --vz-card-bg: #111827;
+    --vz-card-cap-bg: #162032;
+    --vz-border-color: rgba(255, 255, 255, 0.15);
+    --vz-body-color: #f1f5f9;
+    --vz-heading-color: #ffffff;
+    --vz-muted-color: #cbd5e1;
+    --vz-header-bg: #111827;
+    --vz-header-item-color: #f8fafc;
+    --bs-body-color: #f1f5f9;
+    --bs-body-bg: #0b0f19;
+}
+
+/* High-Contrast Readability Overrides for Dark Mode & Dark Sidebar */
+[data-bs-theme="dark"] .text-dark,
+.navbar-menu .text-dark,
+[data-sidebar="dark"] .text-dark {
+    color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .text-muted,
+.navbar-menu .text-muted,
+[data-sidebar="dark"] .text-muted {
+    color: #cbd5e1 !important;
+}
+
+[data-bs-theme="dark"] .text-secondary,
+.navbar-menu .text-secondary,
+[data-sidebar="dark"] .text-secondary {
+    color: #cbd5e1 !important;
+}
+
+[data-bs-theme="dark"] label,
+[data-bs-theme="dark"] .form-label {
+    color: #f1f5f9 !important;
+    font-weight: 600;
+}
+
+[data-bs-theme="dark"] p {
+    color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .card {
+    background-color: #111827 !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+[data-bs-theme="dark"] .card-header {
+    background-color: #162032 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-bs-theme="dark"] .table {
+    --bs-table-color: #f1f5f9;
+    --bs-table-bg: #111827;
+    --bs-table-border-color: rgba(255, 255, 255, 0.1);
+    color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] .table th,
+[data-bs-theme="dark"] .table-light th {
+    background-color: #162032 !important;
+    color: #f1f5f9 !important;
+    font-weight: 700;
+    border-bottom: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+}
+
+[data-bs-theme="dark"] .table td {
+    color: #f8fafc !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-bs-theme="dark"] .table tr:hover td {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-bs-theme="dark"] .bg-light,
+.navbar-menu .bg-light {
+    background-color: #1e293b !important;
+    color: #f8fafc !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+[data-bs-theme="dark"] .dropdown-menu {
+    background-color: #162032 !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #f1f5f9 !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-bs-theme="dark"] .dropdown-item {
+    color: #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .dropdown-item:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .dropdown-item .text-muted {
+    color: #cbd5e1 !important;
+}
+
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
+    background-color: #0b1120 !important;
+    border-color: rgba(255, 255, 255, 0.22) !important;
+    color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25) !important;
+    background-color: #080d19 !important;
+}
+
+.navbar-menu {
+    background: #0d1322 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.navbar-menu .navbar-nav .nav-link {
+    color: #cbd5e1 !important;
+    font-weight: 500;
+}
+.navbar-menu .navbar-nav .nav-link i {
+    color: #94a3b8 !important;
+}
+.navbar-menu .navbar-nav .nav-link:hover {
+    color: #ffffff !important;
+}
+.navbar-menu .navbar-nav .nav-link:hover i {
+    color: #ffffff !important;
+}
+.navbar-menu .navbar-nav .nav-link.active {
+    color: #ffffff !important;
+    background: rgba(64, 81, 137, 0.25) !important;
+}
+.navbar-menu .navbar-nav .nav-link.active i {
+    color: #60a5fa !important;
+}
+.navbar-menu .menu-title {
+    color: #94a3b8 !important;
+    font-weight: 700 !important;
+    letter-spacing: 1px !important;
+}
+
+*, ::after, ::before {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    position: relative;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    font-family: var(--vz-body-font-family) !important;
+    font-size: var(--vz-body-font-size); /* 0.8125rem = 13px */
+    font-weight: var(--vz-body-font-weight);
+    line-height: var(--vz-body-line-height);
+    background-color: var(--vz-body-bg);
+    color: var(--vz-body-color);
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Velzon Headings & Elements */
+h1, h2, h3, h4, h5, h6, 
+.h1, .h2, .h3, .h4, .h5, .h6 {
+    font-family: var(--vz-font-sans-serif) !important;
+    color: var(--vz-heading-color);
+    margin-top: 0;
+    margin-bottom: .5rem;
+    line-height: 1.2;
+}
+
+h1, .h1 { font-size: 1.625rem; font-weight: 600; }
+h2, .h2 { font-size: 1.375rem; font-weight: 600; }
+h3, .h3 { font-size: 1.21875rem; font-weight: 600; }
+h4, .h4 { font-size: 1.05625rem; font-weight: 600; }
+h5, .h5 { font-size: 0.9375rem; font-weight: 600; }
+h6, .h6 { font-size: 0.8125rem; font-weight: 600; }
+
+.card-title, .brand-text,
+button, input, optgroup, select, textarea,
+.btn, .form-control, .form-select, .table, .nav, .dropdown-menu,
+.navbar-nav, .menu-title, .nav-link, .badge, .page-title-box,
+.breadcrumb, .breadcrumb-item, .modal, .toast, .alert, .popover, .tooltip,
+.nav-tabs, .accordion, .pagination, .list-group {
+    font-family: var(--vz-font-sans-serif) !important;
+}
+
+p, span, a, label, li, td, th {
+    font-family: inherit;
+}
+
+/* ==========================================================================
+   Velzon Font Size Utilities (.fs-10 to .fs-48)
+   Official Themesbrand Velzon Typography Scale
+   ========================================================================== */
+.fs-10 { font-size: 10px !important; }
+.fs-11 { font-size: 11px !important; }
+.fs-12 { font-size: 12px !important; }
+.fs-13 { font-size: 13px !important; }
+.fs-14 { font-size: 14px !important; }
+.fs-15 { font-size: 15px !important; }
+.fs-16 { font-size: 16px !important; }
+.fs-17 { font-size: 17px !important; }
+.fs-18 { font-size: 18px !important; }
+.fs-19 { font-size: 19px !important; }
+.fs-20 { font-size: 20px !important; }
+.fs-21 { font-size: 21px !important; }
+.fs-22 { font-size: 22px !important; }
+.fs-23 { font-size: 23px !important; }
+.fs-24 { font-size: 24px !important; }
+.fs-28 { font-size: 28px !important; }
+.fs-32 { font-size: 32px !important; }
+.fs-36 { font-size: 36px !important; }
+.fs-40 { font-size: 40px !important; }
+.fs-48 { font-size: 48px !important; }
+
+/* ==========================================================================
+   Velzon Font Weight Utilities
+   ========================================================================== */
+.fw-light { font-weight: 300 !important; }
+.fw-normal { font-weight: 400 !important; }
+.fw-medium { font-weight: 500 !important; }
+.fw-semibold { font-weight: 600 !important; }
+.fw-bold { font-weight: 700 !important; }
+.fw-bolder { font-weight: 800 !important; }
+
+/* ==========================================================================
+   Velzon Typography & Element Styles
+   ========================================================================== */
+.tracking-wider { letter-spacing: 0.05em !important; }
+.tracking-widest { letter-spacing: 0.1em !important; }
+
+/* Badges typography matching Velzon */
+.badge {
+    font-family: var(--vz-font-sans-serif) !important;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+}
+
+/* Page Title Box */
+.page-title-box {
+    padding: 10px 0;
+}
+.page-title-box h4 {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    margin-bottom: 0;
+}
+.page-title-box .breadcrumb {
+    font-size: 13px !important;
+    margin-bottom: 0;
+}
+.breadcrumb-item a {
+    color: var(--vz-muted-color);
+    text-decoration: none;
+}
+.breadcrumb-item.active {
+    color: var(--vz-heading-color);
+    font-weight: 500;
+}
+
+/* Form Controls & Labels */
+.form-label {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: var(--vz-heading-color);
+}
+.form-control, .form-select {
+    font-family: var(--vz-font-sans-serif) !important;
+    font-size: 0.8125rem; /* 13px */
+}
+.form-control-sm, .form-select-sm {
+    font-size: 0.71875rem !important; /* 11.5px */
+}
+.form-control-lg, .form-select-lg {
+    font-size: 0.9375rem !important; /* 15px */
+}
+
+/* Buttons */
+.btn {
+    font-family: var(--vz-font-sans-serif) !important;
+    font-size: 0.8125rem; /* 13px */
+    font-weight: 500;
+}
+.btn-sm {
+    font-size: 0.71875rem !important; /* 11.5px */
+}
+.btn-xs {
+    font-size: 10px !important;
+    padding: 0.15rem 0.5rem !important;
+}
+.btn-lg {
+    font-size: 0.9375rem !important; /* 15px */
+}
+
+/* ==========================================================================
+   Layout Wrapper
+   ========================================================================== */
+#layout-wrapper {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+}
+
+/* ==========================================================================
+   Page Topbar Header
+   ========================================================================== */
+#page-topbar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: var(--vz-sidebar-width);
+    z-index: 1002;
+    background-color: var(--vz-header-bg);
+    height: var(--vz-header-height);
+    box-shadow: 0 1px 2px rgba(56, 65, 74, 0.12);
+    border-bottom: 1px solid var(--vz-border-color);
+    transition: all 0.3s ease;
+}
+
+.navbar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 100%;
+    padding: 0 24px;
+}
+
+.topbar-badge {
+    top: 6px;
+    right: 4px;
+}
+
+.btn-topbar {
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: var(--vz-header-item-color);
+    position: relative;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    transition: all 0.2s ease;
+}
+
+.btn-topbar:hover, .btn-topbar:focus {
+    color: var(--vz-primary);
+    background-color: rgba(64, 81, 137, 0.08);
+}
+
+.app-search {
+    position: relative;
+}
+
+.app-search .form-control {
+    border: none;
+    height: 38px;
+    padding-left: 40px;
+    padding-right: 45px;
+    background-color: var(--vz-body-bg);
+    box-shadow: none;
+    border-radius: 30px;
+    font-size: 13px;
+    width: 240px;
+    transition: all 0.3s ease;
+}
+
+.app-search .form-control:focus {
+    width: 300px;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 2px rgba(64, 81, 137, 0.2);
+}
+
+.app-search .search-widget-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 17px;
+    color: var(--vz-muted-color);
+}
+
+.app-search .search-shortcut {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    background: rgba(0,0,0,0.06);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--vz-muted-color);
+}
+
+/* ==========================================================================
+   Sidebar (App Menu - Official Themesbrand Velzon Match)
+   ========================================================================== */
+.app-menu.navbar-menu,
+.app-menu {
+    width: var(--vz-sidebar-width);
+    background: #111827; /* Velzon Dark Sidebar */
+    position: fixed;
+    bottom: 0;
+    top: 0;
+    left: 0;
+    z-index: 1004;
+    box-shadow: 0 0 calc(70px + 25px) 0 rgba(0, 0, 0, 0.12);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+}
+
+.navbar-brand-box {
+    padding: 0 1.3rem;
+    height: var(--vz-header-height);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0f172a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all .1s ease-out;
+}
+
+.navbar-brand-box img {
+    height: 36px !important;
+    max-height: 36px !important;
+    max-width: 36px !important;
+    width: auto !important;
+    object-fit: contain !important;
+}
+
+.navbar-brand-box a {
+    text-decoration: none;
+}
+
+.brand-text {
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: 0.05em;
+    line-height: 1.2;
+    font-family: 'Poppins', sans-serif;
+}
+
+.brand-text small {
+    display: block;
+    font-size: 0.65rem;
+    color: var(--vz-warning);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.sidebar-menu-wrapper {
+    height: calc(100vh - var(--vz-header-height));
+    padding: 12px 0 24px;
+    flex-grow: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* Velzon Sleek Thin Webkit Scrollbar */
+.sidebar-menu-wrapper::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-menu-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-menu-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.sidebar-menu-wrapper::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.38);
+}
+
+/* Velzon SimpleBar Official Rules */
+.app-menu [data-simplebar] {
+    position: relative;
+    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-content: flex-start;
+    align-items: flex-start;
+}
+
+.app-menu .simplebar-content-wrapper {
+    direction: inherit;
+    box-sizing: border-box !important;
+    position: relative;
+    display: block;
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    max-height: 100%;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.app-menu .simplebar-content-wrapper::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+}
+
+.app-menu .simplebar-track.simplebar-vertical {
+    width: 7px;
+    background: transparent;
+    right: 2px;
+}
+
+.app-menu .simplebar-scrollbar {
+    position: absolute;
+    right: 1px;
+    width: 5px;
+    min-height: 10px;
+}
+
+.app-menu .simplebar-scrollbar:before {
+    background: rgba(255, 255, 255, 0.25) !important;
+    border-radius: 4px;
+    left: 0;
+    right: 0;
+    opacity: 0;
+    transition: opacity 0.2s linear;
+}
+
+.app-menu:hover .simplebar-scrollbar:before,
+.app-menu .simplebar-scrollbar.simplebar-visible:before {
+    opacity: 0.7 !important;
+}
+
+.app-menu .simplebar-scrollbar:hover:before {
+    background: rgba(255, 255, 255, 0.45) !important;
+    opacity: 1 !important;
+}
+
+.navbar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.navbar-nav .nav-item {
+    position: relative;
+    list-style: none;
+}
+
+/* Category Section Titles in Sidebar (Official Velzon: 11px / 600 weight / uppercase / Poppins / padding: 12px 24px) */
+.navbar-menu .navbar-nav .menu-title,
+.menu-title {
+    letter-spacing: .05em !important;
+    cursor: default;
+    font-size: 11px !important;
+    line-height: 16.5px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    color: var(--vz-vertical-menu-title-color) !important;
+    padding: 12px 24px 6px !important;
+    list-style: none;
+    font-family: 'Poppins', sans-serif !important;
+}
+
+.navbar-menu .navbar-nav .menu-title span,
+.menu-title span {
+    display: inline-block;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+}
+
+/* Main Navigation Links (Official Velzon: hkgrotesk / 15px / 500 weight / line-height 22.5px) */
+.navbar-menu .navbar-nav .nav-link.menu-link,
+.navbar-menu .navbar-nav .nav-link,
+.nav-link-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 18px !important;
+    margin: 2px 10px;
+    border-radius: 4px;
+    color: var(--vz-vertical-menu-item-color) !important;
+    font-size: 15px !important;
+    line-height: 22.5px !important;
+    font-family: hkgrotesk, "Hanken Grotesk", sans-serif !important;
+    font-weight: 500 !important;
+    text-decoration: none;
+    position: relative;
+    transition: all .15s ease-in-out;
+}
+
+.navbar-menu .navbar-nav .nav-link.menu-link > span,
+.navbar-menu .navbar-nav .nav-link > span,
+.nav-link-item > span {
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    font-family: hkgrotesk, "Hanken Grotesk", sans-serif !important;
+    white-space: nowrap;
+}
+
+.navbar-menu .navbar-nav .nav-link.menu-link i,
+.navbar-menu .navbar-nav .nav-link i,
+.nav-link-item i {
+    display: inline-block;
+    min-width: 1.75rem !important; /* 28px */
+    font-size: 18px !important;
+    line-height: 18px !important;
+    margin-right: 0;
+    color: var(--vz-vertical-menu-title-color);
+    transition: color .15s ease;
+}
+
+.navbar-menu .navbar-nav .nav-link.menu-link:hover,
+.navbar-menu .navbar-nav .nav-link:hover,
+.nav-link-item:hover {
+    color: var(--vz-vertical-menu-item-hover-color) !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.navbar-menu .navbar-nav .nav-link.menu-link:hover i,
+.navbar-menu .navbar-nav .nav-link:hover i,
+.nav-link-item:hover i {
+    color: var(--vz-vertical-menu-item-hover-color);
+}
+
+/* Active & Focused Main Navigation Link (Velzon Official Polish) */
+.navbar-menu .navbar-nav .nav-link.menu-link.active,
+.navbar-menu .navbar-nav .nav-link.active,
+.navbar-menu .navbar-nav .nav-link.menu-link:focus,
+.navbar-menu .navbar-nav .nav-link.menu-link:focus-visible,
+.nav-link-item.active {
+    color: var(--vz-vertical-menu-item-active-color) !important;
+    font-weight: 600 !important;
+    background-color: rgba(255, 255, 255, 0.09) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.navbar-menu .navbar-nav .nav-link.menu-link.active > span,
+.navbar-menu .navbar-nav .nav-link.active > span,
+.nav-link-item.active > span {
+    font-weight: 600 !important;
+}
+
+.navbar-menu .navbar-nav .nav-link.menu-link.active i,
+.navbar-menu .navbar-nav .nav-link.active i,
+.navbar-menu .navbar-nav .nav-link.menu-link:focus i,
+.nav-link-item.active i {
+    color: var(--vz-vertical-menu-item-active-color) !important;
+}
+
+/* Collapse Arrow Indicator (Remixicon downward chevron) */
+.navbar-menu .navbar-nav .nav-link[data-bs-toggle="collapse"]:after {
+    display: block;
+    content: "\ea4e";
+    font-family: 'remixicon';
+    margin-left: auto;
+    font-size: 1.05rem;
+    position: absolute;
+    right: 14px;
+    color: inherit;
+    transition: transform .2s ease-in-out;
+}
+
+.navbar-menu .navbar-nav .nav-link[data-bs-toggle="collapse"][aria-expanded="true"]:after,
+.navbar-menu .navbar-nav .nav-link[data-bs-toggle="collapse"].active:after {
+    transform: rotate(180deg);
+    color: var(--vz-vertical-menu-item-active-color);
+}
+
+/* Sidebar Badges (Themesbrand Velzon Official Standard) */
+.navbar-menu .navbar-nav .badge,
+.navbar-menu .navbar-nav .badge-pill,
+.navbar-menu .navbar-nav .nav-link .badge {
+    margin-left: auto !important;
+    margin-right: -2px !important;
+    z-index: 1;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 18px !important;
+    padding: 0 6px !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    font-family: var(--vz-font-sans-serif) !important;
+    color: #ffffff !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    vertical-align: middle !important;
+    border-radius: 4px !important; /* 0.25rem - Exact Velzon rounded rectangle */
+    box-shadow: none !important;
+    border: none !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+}
+
+/* In Velzon, when a menu item has a badge, the badge sits at the end and replaces the chevron */
+.navbar-menu .navbar-nav .nav-link:has(.badge):after {
+    display: none !important;
+}
+
+/* Solid badge colors in sidebar matching Velzon */
+.navbar-menu .navbar-nav .badge.bg-success {
+    background-color: #0ab39c !important;
+    color: #ffffff !important;
+}
+
+.navbar-menu .navbar-nav .badge.bg-danger {
+    background-color: #f06548 !important;
+    color: #ffffff !important;
+}
+
+.navbar-menu .navbar-nav .badge.bg-warning {
+    background-color: #f7b84b !important;
+    color: #ffffff !important;
+}
+
+.navbar-menu .navbar-nav .badge.bg-info {
+    background-color: #299cdb !important;
+    color: #ffffff !important;
+}
+
+/* Submenu dropdowns (Official Velzon: Poppins / 13px / 400 weight / line-height 19.5px / padding: 8px 24px) */
+.menu-dropdown {
+    padding-left: 0;
+}
+
+.menu-dropdown .nav-sm,
+.navbar-menu .navbar-nav .nav-sm {
+    padding-left: 1.75rem;
+    list-style: none;
+    margin: 0;
+    padding-bottom: 6px;
+    padding-top: 2px;
+}
+
+.menu-dropdown .nav-sm .nav-link,
+.navbar-menu .navbar-nav .nav-sm .nav-link {
+    padding: 8px 16px 8px 1.5rem !important;
+    margin: 1px 10px 1px 0;
+    border-radius: 4px;
+    font-size: 13px !important;
+    line-height: 19.5px !important;
+    font-family: 'Poppins', sans-serif !important;
+    font-weight: 400 !important;
+    color: var(--vz-vertical-menu-sub-item-color, #abb9e8) !important;
+    text-decoration: none;
+    position: relative;
+    display: block;
+    white-space: nowrap;
+    transition: all .15s ease-in-out;
+}
+
+.menu-dropdown .nav-sm .nav-link::before,
+.navbar-menu .navbar-nav .nav-sm .nav-link:before {
+    content: "";
+    width: 6px;
+    height: 1.5px;
+    background-color: var(--vz-vertical-menu-sub-item-color, #abb9e8);
+    position: absolute;
+    left: 2px;
+    top: 16.5px;
+    transition: all .2s ease-in-out;
+    opacity: .5;
+}
+
+.menu-dropdown .nav-sm .nav-link:hover,
+.navbar-menu .navbar-nav .nav-sm .nav-link:hover {
+    color: var(--vz-vertical-menu-sub-item-hover-color, #ffffff) !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.menu-dropdown .nav-sm .nav-link:hover::before,
+.navbar-menu .navbar-nav .nav-sm .nav-link:hover:before {
+    background-color: var(--vz-vertical-menu-sub-item-hover-color, #ffffff) !important;
+    width: 10px;
+    opacity: 1;
+}
+
+.menu-dropdown .nav-sm .nav-link.active,
+.navbar-menu .navbar-nav .nav-sm .nav-link.active,
+.menu-dropdown .nav-sm .nav-link:focus,
+.navbar-menu .navbar-nav .nav-sm .nav-link:focus {
+    color: var(--vz-vertical-menu-sub-item-active-color, #ffffff) !important;
+    font-weight: 600 !important;
+    background-color: rgba(64, 81, 237, 0.25) !important;
+}
+
+.menu-dropdown .nav-sm .nav-link.active::before,
+.navbar-menu .navbar-nav .nav-sm .nav-link.active:before,
+.menu-dropdown .nav-sm .nav-link:focus::before,
+.navbar-menu .navbar-nav .nav-sm .nav-link:focus:before {
+    background-color: var(--vz-vertical-menu-sub-item-active-color, #ffffff) !important;
+    width: 10px !important;
+    opacity: 1 !important;
+}
+
+/* ==========================================================================
+   Main Content
+   ========================================================================== */
+.main-content {
+    margin-left: var(--vz-sidebar-width);
+    width: calc(100% - var(--vz-sidebar-width));
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+}
+
+.page-content {
+    padding: calc(var(--vz-header-height) + 24px) 24px 40px;
+    flex-grow: 1;
+}
+
+/* Velzon Cards & Animation */
+.card {
+    background-color: var(--vz-card-bg);
+    border: none;
+    box-shadow: 0 1px 2px rgba(56, 65, 74, 0.15);
+    border-radius: 0.5rem;
+    margin-bottom: 24px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-animate:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 5px 15px rgba(56, 65, 74, 0.15);
+}
+
+.card-header {
+    background-color: transparent;
+    border-bottom: 1px solid #e9ebec;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+.card-footer {
+    background-color: transparent;
+    border-top: 1px solid #e9ebec;
+    padding: 14px 20px;
+}
+
+/* Avatar Components */
+.avatar-xs {
+    height: 1.8rem;
+    width: 1.8rem;
+}
+
+.avatar-sm {
+    height: 3rem;
+    width: 3rem;
+}
+
+.avatar-md {
+    height: 4.5rem;
+    width: 4.5rem;
+}
+
+.avatar-title {
+    align-items: center;
+    display: flex;
+    height: 100%;
+    justify-content: center;
+    width: 100%;
+    font-size: 1.5rem;
+    border-radius: 0.35rem;
+}
+
+/* Velzon Badges & Subtles */
+.bg-success-subtle { background-color: rgba(10, 179, 156, 0.12) !important; }
+.text-success { color: #0ab39c !important; }
+.bg-warning-subtle { background-color: rgba(247, 184, 75, 0.15) !important; }
+.text-warning { color: #e09b13 !important; }
+.bg-primary-subtle { background-color: rgba(64, 81, 137, 0.12) !important; }
+.text-primary { color: #405189 !important; }
+.bg-danger-subtle { background-color: rgba(240, 101, 72, 0.12) !important; }
+.text-danger { color: #f06548 !important; }
+.bg-info-subtle { background-color: rgba(41, 156, 219, 0.12) !important; }
+.text-info { color: #299cdb !important; }
+.bg-dark-subtle { background-color: rgba(33, 37, 41, 0.12) !important; }
+.text-dark { color: #212529 !important; }
+
+/* Font size utilities (fs-*) */
+.fs-10 { font-size: 10px !important; }
+.fs-11 { font-size: 11px !important; }
+.fs-12 { font-size: 12px !important; }
+.fs-13 { font-size: 13px !important; }
+.fs-14 { font-size: 14px !important; }
+.fs-15 { font-size: 15px !important; }
+.fs-16 { font-size: 16px !important; }
+.fs-18 { font-size: 18px !important; }
+.fs-20 { font-size: 20px !important; }
+.fs-22 { font-size: 22px !important; }
+.fs-24 { font-size: 24px !important; }
+.fs-28 { font-size: 28px !important; }
+
+/* Buttons & Special Styles */
+.btn-whatsapp {
+    background-color: #25d366;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.8rem;
+    border: none;
+}
+.btn-whatsapp:hover {
+    background-color: #20b858;
+    color: #ffffff;
+}
+
+.btn-topbar {
+    color: #495057;
+    background: transparent;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+.btn-topbar:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+}
+
+.search-shortcut {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #f3f3f9;
+    border: 1px solid #e2e5e8;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11px;
+    color: #878a99;
+}
+
+.search-widget-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 15px;
+    color: #878a99;
+}
+
+.app-search .form-control {
+    padding-left: 40px;
+    padding-right: 40px;
+    background-color: #f3f3f9;
+    border-color: #f3f3f9;
+    font-size: 13px;
+    border-radius: 30px;
+}
+
+/* Footer (Velzon Layout) */
+.footer {
+    border-top: 1px solid #e9ebec;
+    padding: 20px 24px;
+    background-color: #ffffff;
+    color: #878a99;
+    font-size: 13px;
+    margin-top: auto;
+}
+
+/* Electronic Scoreboard Digital Font */
+.font-digital {
+    font-family: 'Orbitron', monospace, sans-serif !important;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -1px;
+}
+
+.live-pulse-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #ef4444;
+    display: inline-block;
+    animation: livePulse 1.5s infinite;
+}
+
+@keyframes livePulse {
+    0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* Responsive Rules */
+@media (max-width: 991px) {
+    #page-topbar { left: 0 !important; }
+    .app-menu { left: -100% !important; }
+    .app-menu.show { left: 0 !important; }
+    .main-content { margin-left: 0 !important; width: 100% !important; }
+}
+
+/* ==========================================================================
+   Velzon Official Recent Activity & Timeline
+   ========================================================================== */
+.avatar-xs {
+    height: 2rem !important;
+    width: 2rem !important;
+}
+
+.avatar-sm {
+    height: 2.5rem !important;
+    width: 2.5rem !important;
+}
+
+.avatar-title {
+    align-items: center;
+    display: flex;
+    font-weight: 500;
+    height: 100%;
+    justify-content: center;
+    width: 100%;
+    font-size: 1rem;
+}
+
+.acitivity-timeline {
+    position: relative;
+    padding-left: 0.25rem;
+}
+
+.acitivity-timeline::before {
+    content: "";
+    position: absolute;
+    left: 17px;
+    top: 20px;
+    bottom: 24px;
+    width: 2px;
+    border-left: 2px dashed #e9ebec;
+    z-index: 1;
+}
+
+[data-bs-theme="dark"] .acitivity-timeline::before {
+    border-left-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.acitivity-timeline .acitivity-item {
+    position: relative;
+    z-index: 2;
+    padding-bottom: 1.15rem;
+}
+
+.acitivity-timeline .acitivity-item:last-child {
+    padding-bottom: 0;
+}
+
+.acitivity-timeline .acitivity-avatar {
+    background-color: var(--vz-card-bg, #ffffff);
+    box-shadow: 0 0 0 4px var(--vz-card-bg, #ffffff);
+    border-radius: 50%;
+    z-index: 3;
+    position: relative;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+}
+
+[data-bs-theme="dark"] .acitivity-timeline .acitivity-avatar {
+    background-color: var(--vz-card-bg, #111827);
+    box-shadow: 0 0 0 4px var(--vz-card-bg, #111827);
+}
+
+.activity-scroll-feed {
+    max-height: 480px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+}
+
+[data-bs-theme="dark"] .activity-scroll-feed {
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.activity-scroll-feed::-webkit-scrollbar {
+    width: 5px;
+}
+
+.activity-scroll-feed::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 4px;
+}
+
+[data-bs-theme="dark"] .activity-scroll-feed::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+/* ==========================================================================
+   Velzon Flatpickr Customization (Indonesian Calendar Theme)
+   ========================================================================== */
+.flatpickr-calendar {
+    font-family: var(--vz-font-sans-serif, 'Poppins', sans-serif);
+    border: 1px solid var(--vz-border-color, #e9ebec);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
+    border-radius: 8px;
+    background: #ffffff;
+    z-index: 9999 !important;
+}
+.flatpickr-calendar .flatpickr-months {
+    background: #405189;
+    border-radius: 8px 8px 0 0;
+    color: #ffffff;
+    padding: 6px 0;
+}
+.flatpickr-calendar .flatpickr-months .flatpickr-month {
+    color: #ffffff;
+}
+.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months {
+    color: #ffffff;
+    font-weight: 600;
+}
+.flatpickr-calendar .flatpickr-current-month input.cur-year {
+    color: #ffffff;
+    font-weight: 600;
+}
+.flatpickr-calendar .flatpickr-months .flatpickr-prev-month,
+.flatpickr-calendar .flatpickr-months .flatpickr-next-month {
+    color: #ffffff;
+    fill: #ffffff;
+}
+.flatpickr-calendar .flatpickr-months .flatpickr-prev-month:hover svg,
+.flatpickr-calendar .flatpickr-months .flatpickr-next-month:hover svg {
+    fill: #f7b84b;
+}
+.flatpickr-day.selected, 
+.flatpickr-day.startRange, 
+.flatpickr-day.endRange {
+    background: #405189 !important;
+    border-color: #405189 !important;
+    color: #ffffff !important;
+}
+.flatpickr-day:hover {
+    background: #eef0f7;
+}
+
+/* ==========================================================================
+   Velzon Toast Transitions
+   ========================================================================== */
+.toast-slide-enter-active,
+.toast-slide-leave-active {
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.toast-slide-enter-from {
+    opacity: 0;
+    transform: translateX(60px) scale(0.95);
+}
+.toast-slide-leave-to {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.9);
+}
+
+/* ==========================================================================
+   Velzon Modal In/Out Animations
+   ========================================================================== */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+    opacity: 0;
+}
+
+.modal-fade-enter-active .modal-dialog-animate {
+    animation: modalSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.modal-fade-leave-active .modal-dialog-animate {
+    animation: modalSlideOut 0.2s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes modalSlideOut {
+    from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.95) translateY(-20px);
+    }
+}
+
+/* ==========================================================================
+   Table Header Typography & Spacing (Lighter & Refined, not overly thick)
+   ========================================================================== */
+.table thead th {
+    font-weight: 600 !important;
+    font-size: 0.73rem !important;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #212529 !important;
+    border-top: none;
+    border-bottom: 1px solid #e9ebec !important;
+    padding-top: 9px !important;
+    padding-bottom: 9px !important;
+}
+

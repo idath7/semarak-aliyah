@@ -298,6 +298,17 @@ onMounted(() => {
             </Link>
           </li>
 
+          <li class="nav-item">
+            <Link 
+              href="/admin/pengguna" 
+              class="nav-link menu-link"
+              :class="{ 'active': currentUrl.startsWith('/admin/pengguna') }"
+            >
+              <i class="ri-user-settings-line text-primary"></i>
+              <span v-show="!isSidebarCollapsed">Pengguna & Panitia</span>
+            </Link>
+          </li>
+
           <!-- 2. Administrasi Pendaftaran -->
           <li class="menu-title"><span>Administrasi Pendaftaran</span></li>
 

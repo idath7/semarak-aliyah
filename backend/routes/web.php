@@ -51,6 +51,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/toggle-quota/{id}', [AdminPanelController::class, 'toggleQuota'])->name('toggle-quota');
     Route::get('/export', [AdminPanelController::class, 'export'])->name('export');
 
+    // Manajemen Pengguna & Panitia (Users & Committee Management)
+    Route::get('/pengguna', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
+    Route::post('/pengguna', [\App\Http\Controllers\Admin\UserController::class, 'store'])->name('users.store');
+    Route::put('/pengguna/{id}', [\App\Http\Controllers\Admin\UserController::class, 'update'])->name('users.update');
+    Route::post('/pengguna/{id}/toggle-status', [\App\Http\Controllers\Admin\UserController::class, 'toggleStatus'])->name('users.toggle-status');
+    Route::delete('/pengguna/{id}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
+
     // Manajemen Kelola Biaya Registrasi & Paket Pembayaran
     Route::get('/biaya', [AdminPanelController::class, 'biayaIndex'])->name('biaya.index');
     Route::post('/biaya/competition/{id}', [AdminPanelController::class, 'updateCompetitionFee'])->name('biaya.competition.update');

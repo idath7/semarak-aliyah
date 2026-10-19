@@ -35,6 +35,14 @@ class AuthController extends Controller
 
         $remember = $request->boolean('remember');
 
+        // Periksa status aktif pengguna
+        $targetUser = \App\Models\User::where('email', $credentials['email'])->first();
+        if ($targetUser && !$targetUser->is_active) {
+            return back()->withErrors([
+                'email' => 'Akun Anda dinonaktifkan oleh Administrator. Silakan hubungi koordinator panitia.',
+            ])->onlyInput('email');
+        }
+
         if (Auth::attempt($credentials, $remember)) {
             $request->session()->regenerate();
 

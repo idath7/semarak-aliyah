@@ -1,136 +1,163 @@
-# SEMARAK ALIYAH 🏆
-**Laman Official Semarak Aliyah XII 2026 • MA Unggulan Wahid Hasyim Balung, Jember**  
-*Ajang Kompetisi Bergengsi Tingkat Pelajar SMP/MTs Sederajat Se-Kabupaten Jember*
+# SEMARAK ALIYAH XIV 2026 🏆
+**Laman Resmi & Sistem Operasional Terpadu SEMARAK ALIYAH XIV 2026**  
+*MA Unggulan Wahid Hasyim Balung, Jember • Ajang Kompetisi Bergengsi Tingkat Pelajar SMP/MTs Sederajat Se-Kabupaten Jember*
 
 ---
 
-## 🏛️ Arsitektur Sistem: Fullstack Microservices
+## 🏛️ 1. Arsitektur Sistem Terpadu (Unified Modern Stack)
 
-Sistem ini dibangun dengan arsitektur decoupled modern:
-1. **Frontend Server (Express.js - Node.js v24)**:
-   - Berjalan di port `8080`.
-   - Mengelola routing tampilan UI (`index.html`, `layanan-registrasi.html`, `admin.html`).
-   - Menyajikan asset statis (`assets/css`, `assets/js`, `assets/img`, `JUKNIS`).
-   - Bertindak sebagai API Gateway yang meneruskan request ke Laravel Backend.
-2. **Backend & Admin Panel (Laravel + Vite - PHP 8.4)**:
-   - Berjalan di port `8000`.
-   - **Template Panel Admin**: **Themesbrand Velzon** (`https://themesbrand.com/velzon/html/default/index.html`) menggunakan integrasi **Laravel & Vite** (`@vite`).
-   - Asset bundler Vite: Bootstrap 5, RemixIcon, Boxicons, SimpleBar, dan ApexCharts.
-   - Menyediakan REST API: `/api/competitions`, `/api/register`, `/api/admin/*`.
-   - Web Routes: `/admin`, `/admin/verify/{id}`, `/admin/toggle-quota/{id}`, `/admin/export`.
-   - Menggunakan Eloquent ORM, migrasi tabel database, seeder data, dan validasi formulir.
-3. **Database (MariaDB Wamp64 / Docker)**:
-   - Terhubung ke database `semarak_db` di **MariaDB 11.4 WampServer** pada port `3307` (port default MariaDB Wamp64).
-   - Dilengkapi fallback SQLite otomatis jika Wamp sedang belum aktif.
+Sistem SEMARAK ALIYAH XIV 2026 dibangun menggunakan arsitektur modern berbasis **Single Page Application (SPA)** yang terintegrasi secara penuh:
 
----
-
-## 🚀 Cara Menjalankan di Komputer Lokal
-
-### 1. Cara Paling Praktis (1-Klik Launcher)
-Cukup **klik dua kali (double-click)** file:
 ```
+                                 ┌───► [Port 8000] Web Publik (Landing Page, Pendaftaran, Scoreboard)
+  Browser / Pengguna ────────────┼───► [Port 8001] Portal Admin (Velzon Panel, Kustomisasi, Operasional)
+                                 └───► [Port 8085] Real-Time Gateway (Laravel Reverb WebSocket)
+```
+
+- **Runtime & Web Server**: **FrankenPHP 1.x + Laravel Octane (PHP 8.4.26 Alpine)**
+  - Server in-memory berbasis Caddy Engine dengan persistent worker.
+  - Menangani routing dual-port secara native (Port 8000 dan Port 8001) tanpa reverse proxy terpisah.
+  - PHP 8.4 JIT Compiler (`tracing`), Realpath Cache 4096k, memori 512M, serta ekstensi **`imagick`**.
+- **Backend Core**: **Laravel 11.x**
+  - Pemisahan portal ketat via `PortalSeparationMiddleware`.
+  - Eloquent ORM, migrasi database terindeks, dan event broadcasting real-time.
+- **Frontend SPA**: **Inertia.js v2 + Vue 3 (Composition API)**
+  - Navigasi instan tanpa refresh halaman (SPA).
+  - UI Web Publik interaktif dan Portal Admin berbasis template modern **Themesbrand Velzon**.
+  - Styling canggih dengan **TailwindCSS v4**, Bootstrap 5 utilities, dan ApexCharts.
+- **Database Engine**: **PostgreSQL 18.6**
+  - Konfigurasi khusus performa tinggi (SSD/NVMe optimization, `shared_buffers = 512MB`, autovacuum agresif).
+- **Cache & Message Queue**: **Redis Terbaru (Alpine)**
+  - In-memory cache, session store, dan task queue dengan eviction policy `allkeys-lru`.
+- **Real-Time Engine**: **Laravel Reverb WebSocket (Port 8085)**
+  - Sinkronisasi data skor panggung, check-in, dan kuota peserta secara langsung.
+
+---
+
+## 🌐 2. Panduan Port & Kanal Akses
+
+| Kanal | Port | URL Akses | Deskripsi & Konten Utama |
+| :--- | :--- | :--- | :--- |
+| **Web Publik** | `8000` | [http://localhost:8000](http://localhost:8000) | Landing page, sambutan kepala madrasah, countdown acara, unduh Juknis PDF resmi. |
+| **Layanan Pendaftaran** | `8000` | [http://localhost:8000/layanan-registrasi](http://localhost:8000/layanan-registrasi) | Formulir dinamis registrasi delegasi sekolah per cabang lomba. |
+| **Live Scoreboard** | `8000` | [http://localhost:8000/scoreboard](http://localhost:8000/scoreboard) | Papan skor panggung langsung untuk penonton dan suporter. |
+| **Portal Admin Velzon** | `8001` | [http://localhost:8001/admin](http://localhost:8001/admin) | Dashboard analitik pendaftar, monitoring kuota, dan verifikasi berkas. |
+| **Kustomisasi Lanjutan** | `8001` | [http://localhost:8001/admin/kustomisasi](http://localhost:8001/admin/kustomisasi) | Kelola teks berjalan (marquee), biaya & rekening, maintenance mode, SEO, FAQ, sponsor. |
+| **Pusat Operasional** | `8001` | [http://localhost:8001/operasional](http://localhost:8001/operasional) | Pusat komando panitia hari pelaksanaan event. |
+| **Gate Check-in** | `8001` | [http://localhost:8001/admin/gate-checkin](http://localhost:8001/admin/gate-checkin) | Scanner barcode / QR code kehadiran delegasi di pintu venue. |
+| **Studio Cetak** | `8001` | [http://localhost:8001/admin/print-studio](http://localhost:8001/admin/print-studio) | Generator dan cetak massal ID Card peserta serta sertifikat/piagam. |
+| **Arena Wasit & Juri** | `8001` | [http://localhost:8001/admin/jury/arena](http://localhost:8001/admin/jury/arena) | Input nilai juri dengan stopwatch otomatis dan bagan gugur turnamen. |
+| **WebSocket Reverb** | `8085` | `ws://localhost:8085` | Engine push realtime update data pertandingan dan pendaftaran. |
+
+---
+
+## 🚀 3. Cara Menjalankan Aplikasi
+
+### OPSI A: Menggunakan Docker (Standar Produksi & Staging)
+Seluruh stack layanan sudah dikonfigurasi dalam berkas `docker-compose.yml`:
+
+```bash
+# Menjalankan seluruh container di background
+docker compose up -d
+
+# Menjalankan build image pertama kali
+docker compose up -d --build
+
+# Memantau log server FrankenPHP Octane
+docker compose logs -f frankenphp
+```
+
+#### 🔄 Fitur Pembaruan Satu-Klik (Update & Hot-Reload):
+Jika ada perbaikan kode bugfix atau penambahan fitur baru:
+- **Di Windows**: Cukup klik dua kali berkas **`docker-update.bat`**.
+- **Di Linux / Server**: Jalankan perintah **`./docker-update.sh --quick`**.
+- Skrip ini otomatis mencadangkan database PostgreSQL, mengompilasi aset frontend Vite, menjalankan migrasi database, menyegarkan cache, dan me-reload worker FrankenPHP Octane (**Zero Downtime**).
+
+---
+
+### OPSI B: Menjalankan Secara Native (Pengembangan Lokal Tanpa Docker)
+
+#### 1. Launcher Praktis 1-Klik (Windows):
+Cukup klik dua kali berkas:
+```cmd
 start_all.bat
 ```
-File batch ini akan otomatis membuka 2 terminal di jendela terpisah:
-- Terminal 1: Backend Laravel + Velzon Admin (`php artisan serve --port=8000`)
-- Terminal 2: Frontend Express.js (`node server.js` di port `8080`)
+Skrip ini otomatis meluncurkan 4 jendela terminal:
+- Server Web Publik (Port 8000)
+- Server Portal Admin (Port 8001)
+- Server WebSocket Reverb (Port 8085)
+- Server Vite Dev Hot-Reload (Port 5173)
 
-### 2. Cara Manual (Melalui Terminal)
-
-**Buka Terminal 1 (Backend Laravel & Vite):**
+#### 2. Manual via Terminal:
 ```bash
+# Masuk ke direktori aplikasi
 cd backend
-npm run build      # atau npm run dev untuk live reload Vite
+
+# Instalasi dependency
+composer install
+npm install
+
+# Kompilasi frontend
+npm run build
+
+# Inisialisasi database
+php artisan migrate --seed
+php artisan storage:link
+
+# Jalankan server
 php artisan serve --port=8000
 ```
 
-**Buka Terminal 2 (Frontend Express.js):**
-```bash
-cd frontend
-node server.js
-```
-
-### 3. Akses Website di Browser
-- 🏠 **Beranda Website (Express.js):** [http://localhost:8080](http://localhost:8080)
-- 📋 **Layanan Registrasi:** [http://localhost:8080/layanan-registrasi](http://localhost:8080/layanan-registrasi)
-- 🔐 **Panel Admin Velzon (Laravel + Vite):** [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin)
-- 🔐 **Panel Admin Panitia (Express.js Gateway):** [http://localhost:8080/admin](http://localhost:8080/admin)
-- 🔗 **Backend API Laravel:** [http://127.0.0.1:8000/api/competitions](http://127.0.0.1:8000/api/competitions)
-
 ---
 
-## 🎨 Fitur Dashboard Velzon Admin (Laravel + Vite)
+## 📁 4. Struktur Direktori Repositori
 
-Panel admin mengadaptasi template **Themesbrand Velzon** (`https://themesbrand.com/velzon/html/default/index.html`):
-- **Layout & Topbar**:
-  - Dark vertical sidebar menu (`data-sidebar="dark"`, `data-topbar="light"`).
-  - Topbar search dengan shortcut keyboard `/`.
-  - Fullscreen toggle dan Dark/Light mode theme switch.
-  - Dropdown Web Apps & User Profile.
-- **Statistik & Metrik**:
-  - 4 Kartu Metrik Animatif: Total Pendaftar, Total Dana Masuk, Keterisian Kuota, dan Menunggu Verifikasi.
-- **Grafik Interaktif (ApexCharts)**:
-  - Grafik tren pendaftaran harian (Smooth Area Chart dengan gradient).
-  - Grafik distribusi kategori lomba (Donut Chart).
-- **Manajemen Kuota 8 Cabang Lomba**:
-  - Progress bar kapasitas kuota setiap cabang lomba.
-  - Tombol 1-klik untuk Buka / Tutup pendaftaran lomba secara real-time.
-- **Tabel Pendaftar & Tindakan Cepat**:
-  - Filter status (Semua, Terverifikasi, Menunggu Verifikasi) dan filter cabang lomba.
-  - Live search nama peserta, asal sekolah, dan kode registrasi.
-  - Tombol Verifikasi / Batalkan Verifikasi 1-klik.
-  - Tombol Direct WhatsApp dengan pesan salam dan konfirmasi otomatis kepada guru pendamping.
-  - Export data pendaftar format Excel (CSV).
-
----
-
-## 🐳 Cara Deploy ke Production Menggunakan Docker
-
-Proyek ini telah siap untuk produksi dengan **Docker Compose** multi-container:
-
-```bash
-docker compose up -d --build
-```
-
-Container yang akan berjalan:
-1. `semarak_frontend_express` (Express.js UI di port `8080`)
-2. `semarak_backend_laravel` (Laravel API & Velzon Admin di port `8000`)
-3. `semarak_mysql_db` (MySQL 8.4 Database di port `3306`)
-
----
-
-## 📁 Struktur Direktori Proyek
-
-```
+```text
 d:\wp\semarak\
-├── start_all.bat               # Launcher 1-klik untuk Windows (Express + Laravel)
-├── docker-compose.yml          # Konfigurasi container produksi (Express + Laravel + MySQL)
+├── docker-compose.yml          # Konfigurasi orkestrasi multi-container Docker
+├── docker-update.bat           # Skrip otomatisasi pembaruan & hot-reload Windows
+├── docker-update.sh            # Skrip otomatisasi pembaruan & hot-reload Linux/Server
+├── start_all.bat               # Launcher 1-klik development lokal Windows
+├── README.md                   # Dokumentasi master proyek Semarak Aliyah
 │
-├── frontend/                   # Frontend Express.js
-│   ├── server.js               # Server Express & API gateway proxy
-│   ├── package.json            # Dependensi Express, CORS, Dotenv
-│   ├── Dockerfile              # Container image Express
-│   ├── views/                  # File HTML tampilan (index.html, layanan-registrasi.html, admin.html)
-│   └── public/                 # File statis (CSS, JS, Gambar, Pamflet, Juknis)
+├── docker/                     # Konfigurasi container engine
+│   ├── frankenphp/
+│   │   └── Caddyfile           # Konfigurasi Caddy routing dual-port & WebSocket
+│   ├── php/
+│   │   └── custom-optimasi.ini # Konfigurasi performa PHP 8.4.26, JIT, dan Imagick
+│   ├── postgres/
+│   │   └── optimasi-postgresql.conf # Konfigurasi performa database PostgreSQL 18.6
+│   └── entrypoint.sh           # Skrip boot container otomatis
 │
-└── backend/                    # Backend Laravel + Vite
-    ├── vite.config.js          # Konfigurasi Vite asset bundling
-    ├── package.json            # Dependensi Vite, Bootstrap 5, ApexCharts, RemixIcon, Boxicons
+├── database/
+│   ├── schema.sql              # Skema awal database PostgreSQL
+│   └── backups/                # Folder penyimpanan dump cadangan database otomatis
+│
+└── backend/                    # Inti aplikasi (Laravel 11 + Inertia + Vue 3)
+    ├── app/                    # Controller, Middleware, Models
+    ├── config/                 # Konfigurasi Octane, Portal, Reverb, Database
+    ├── database/               # Migrasi tabel terindeks dan data seeder
     ├── resources/
-    │   ├── css/app.css         # Velzon CSS theme & Bootstrap styling
-    │   ├── js/app.js           # Velzon JS (ApexCharts, theme toggle, filters, SimpleBar)
-    │   └── views/admin/        # Blade view: dashboard.blade.php (Velzon layout)
-    ├── app/Http/Controllers/   # AdminPanelController, Api Controllers
-    ├── app/Models/             # Eloquent Model: Competition, Registration
-    ├── database/migrations/    # Migrasi tabel MySQL
-    ├── database/seeders/       # Seeder 8 cabang lomba resmi
-    ├── routes/web.php          # Route Admin Panel Velzon
-    ├── routes/api.php          # Route REST API
-    ├── Dockerfile              # Container image Laravel
-    └── .env                    # Konfigurasi database MySQL Wamp64
+    │   ├── js/                 # Halaman Vue 3 (Pages/Public, Pages/Admin)
+    │   └── views/              # Template Blade (app.blade.php, cetak ID Card)
+    ├── routes/                 # Routing web.php, api.php, console.php
+    ├── Dockerfile              # Multi-stage image build FrankenPHP Octane
+    ├── package.json            # Dependensi Vue 3, Inertia, TailwindCSS v4
+    └── composer.json           # Dependensi Laravel 11, Octane, Reverb
 ```
 
 ---
 
-© 2026 **SEMARAK ALIYAH XII** • MA Unggulan Wahid Hasyim Balung, Jember.
+## 🔒 5. Kredensial Administrator Bawaan
+
+| Parameter | Akun Super Admin |
+| :--- | :--- |
+| **URL Login** | [http://localhost:8001/login](http://localhost:8001/login) |
+| **Email** | `admin@semarak.id` |
+| **Password** | `password` (atau `admin123`) |
+
+> ⚠️ **Catatan Keamanan**: Pastikan untuk mengubah kredensial default di atas sebelum mendeploy ke server publik yang terhubung ke internet.
+
+---
+
+© 2026 **SEMARAK ALIYAH XIV** • MA Unggulan Wahid Hasyim Balung, Jember.

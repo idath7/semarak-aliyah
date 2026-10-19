@@ -25,7 +25,7 @@ services:
     ports:
       - "${PUBLIC_PORT:-8000}:8000"   # Portal Web Publik (Landing & Registrasi)
       - "${ADMIN_PORT:-8001}:8001"    # Portal Admin & Operasional
-      - "${REVERB_PORT:-8085}:8085"   # Laravel Reverb WebSocket Gateway
+      - "${REVERB_HOST_PORT:-8085}:8085" # Laravel Reverb WebSocket Gateway (Port Host ke NPM)
       - "2019:2019"                   # FrankenPHP / Caddy Admin & Metrics API
     environment:
       # --- Laravel Application Settings ---
@@ -64,16 +64,16 @@ services:
 
       # --- Real-Time Reverb WebSocket Settings ---
       - BROADCAST_CONNECTION=reverb
-      - REVERB_APP_ID=${REVERB_APP_ID:-729921}
-      - REVERB_APP_KEY=${REVERB_APP_KEY:-kbgn25duevwvkfklwuum}
-      - REVERB_APP_SECRET=${REVERB_APP_SECRET:-dojiybstjc8nwkyohqpv}
-      - REVERB_HOST=0.0.0.0
-      - REVERB_PORT=8085
-      - REVERB_SCHEME=http
-      - VITE_REVERB_APP_KEY=${REVERB_APP_KEY:-kbgn25duevwvkfklwuum}
-      - VITE_REVERB_HOST=${VITE_REVERB_HOST:-localhost}
-      - VITE_REVERB_PORT=8085
-      - VITE_REVERB_SCHEME=http
+      - REVERB_APP_ID=${REVERB_APP_ID:-semarak-app}
+      - REVERB_APP_KEY=${REVERB_APP_KEY:-semarak-key-2026}
+      - REVERB_APP_SECRET=${REVERB_APP_SECRET:-semarak-secret-super-secure}
+      - REVERB_HOST=${REVERB_HOST:-localhost}
+      - REVERB_PORT=${REVERB_PORT:-8085}
+      - REVERB_SCHEME=${REVERB_SCHEME:-http}
+      - VITE_REVERB_APP_KEY=${REVERB_APP_KEY:-semarak-key-2026}
+      - VITE_REVERB_HOST=${REVERB_HOST:-localhost}
+      - VITE_REVERB_PORT=${REVERB_PORT:-8085}
+      - VITE_REVERB_SCHEME=${REVERB_SCHEME:-http}
     volumes:
       # Live code mapping (Perubahan kode di folder host langsung aktif seketika)
       - ./backend:/var/www/html

@@ -205,13 +205,13 @@ services:
   node:
     image: node:22-alpine
     container_name: semarak_node_dev
-    restart: "no"
+    restart: unless-stopped
     working_dir: /app
     volumes:
       - ./backend:/app
     ports:
       - "5173:5173"   # Vite Dev Server & HMR
-    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     environment:
       - NODE_ENV=development
     networks:

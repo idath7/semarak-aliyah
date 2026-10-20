@@ -1299,6 +1299,7 @@ ul {
 .konfer-ticker-content .ticker-text.filled.gradient-text {
   background: linear-gradient(135deg, var(--theme-purple) 0%, var(--theme-pink) 50%, var(--theme-orange) 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -6810,6 +6811,7 @@ section[id] {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

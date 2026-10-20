@@ -81,13 +81,11 @@
             $customCss = \App\Models\Setting::get('custom_css');
             $customHeadScript = \App\Models\Setting::get('custom_head_script');
             $customBodyScript = \App\Models\Setting::get('custom_body_script');
-        @endphp
 
-        @if(!empty($customCss))
-            <style id="custom-portal-css">
-                {!! $customCss !!}
-            </style>
-        @endif
+            if (!empty($customCss)) {
+                echo '<' . 'style id="custom-portal-css">' . $customCss . '</' . 'style>';
+            }
+        @endphp
 
         @if(!empty($customHeadScript))
             {!! $customHeadScript !!}

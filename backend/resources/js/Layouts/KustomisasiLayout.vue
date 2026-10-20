@@ -129,11 +129,33 @@ const kustomisasi = computed(() => page.props.kustomisasiWeb || {});
                 </span>
               </Link>
 
-              <!-- Extensibility Slot: Future Features Placeholder -->
-              <div class="d-none d-xl-flex align-items-center gap-2 px-3 py-2 rounded-3 border border-dashed border-secondary-subtle text-muted fs-12 bg-light-subtle">
-                <i class="ri-add-circle-line text-secondary"></i>
-                <span class="fst-italic">Slot Fitur Kustomisasi Siap Ditambahkan</span>
-              </div>
+              <!-- Sub-Menu 3: Seksi & Panduan TM -->
+              <Link 
+                href="/admin/tm?modal=panduan" 
+                class="kustomisasi-nav-btn d-flex align-items-center gap-2 px-3 py-2 rounded-3 text-decoration-none"
+                :class="activeMenu === 'tm' ? 'active-kustomisasi-nav' : 'text-muted'"
+              >
+                <div 
+                  class="kustomisasi-icon-box rounded-2 d-flex align-items-center justify-content-center"
+                  :class="activeMenu === 'tm' ? 'bg-info text-white shadow-sm' : 'bg-light text-info'"
+                >
+                  <i class="ri-calendar-todo-line fs-16"></i>
+                </div>
+                <div>
+                  <div class="fw-bold fs-13 lh-sm" :class="activeMenu === 'tm' ? 'text-info' : 'text-dark'">
+                    Seksi & Panduan TM
+                  </div>
+                  <div class="fs-11 text-muted">
+                    Header Jadwal, Banner 4 Poin, Tata Tertib
+                  </div>
+                </div>
+                <span 
+                  class="badge rounded-pill ms-1 fs-10" 
+                  :class="activeMenu === 'tm' ? 'bg-info-subtle text-info border border-info-subtle' : 'bg-light text-muted'"
+                >
+                  Landing
+                </span>
+              </Link>
             </div>
 
             <!-- Right: Quick Portal Sync Status -->

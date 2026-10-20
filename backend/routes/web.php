@@ -67,6 +67,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
 
     // Manajemen Technical Meeting (TM) & Pengundian Nomor Urut
     Route::get('/tm', [AdminPanelController::class, 'tmIndex'])->name('tm.index');
+    Route::post('/tm-settings', [AdminPanelController::class, 'updateTmSectionSettings'])->name('tm.section-settings');
     Route::post('/tm/{competitionId}', [AdminPanelController::class, 'updateTmSettings'])->name('tm.update');
     Route::post('/tm/{competitionId}/draw', [AdminPanelController::class, 'randomizeDraw'])->name('tm.draw');
     Route::post('/tm/{competitionId}/order', [AdminPanelController::class, 'updateParticipantOrder'])->name('tm.order');

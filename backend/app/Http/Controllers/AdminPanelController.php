@@ -1391,13 +1391,95 @@ class AdminPanelController extends Controller
             'total_participants' => $totalParticipants,
         ];
 
+        $rawTmGuidelines = Setting::get('tm_guidelines_items', null);
+        $tmGuidelines = $rawTmGuidelines ? json_decode($rawTmGuidelines, true) : null;
+        if (empty($tmGuidelines) || !is_array($tmGuidelines)) {
+            $tmGuidelines = self::getDefaultTmGuidelines();
+        }
+
+        $sectionSettings = [
+            'tag' => Setting::get('tm_section_tag', 'Agenda Pelaksanaan'),
+            'title' => Setting::get('tm_section_title', 'Jadwal Technical Meeting & Pelaksanaan'),
+            'desc' => Setting::get('tm_section_desc', 'Harap diperhatikan oleh guru pendamping dan ketua delegasi sekolah mengenai tanggal, jam, ruangan, serta agenda pelaksanaan TM tiap cabang lomba.'),
+            'guidelines_active' => Setting::get('tm_guidelines_active', '1') === '1',
+            'guidelines' => $tmGuidelines,
+            'is_active' => Setting::get('tm_section_active', '1') === '1',
+        ];
+
         return \Inertia\Inertia::render('Admin/TechnicalMeeting', [
             'competitions' => $competitions,
             'activeComp' => $activeComp,
             'participants' => $participants,
             'stats' => $stats,
             'selectedCompId' => $activeCompId,
+            'sectionSettings' => $sectionSettings,
         ]);
+    }
+
+    public static function getDefaultTmGuidelines(): array
+    {
+        return [
+            [
+                'title' => 'Delegasi Resmi',
+                'desc' => 'Setiap madrasah/sekolah wajib mengutus minimal 1 guru pembina atau kapten/ketua tim.',
+                'icon' => 'ri-user-star-line',
+                'color' => '#8b5cf6',
+                'bg' => 'rgba(139, 92, 246, 0.1)',
+                'border' => 'rgba(139, 92, 246, 0.25)',
+            ],
+            [
+                'title' => 'Verifikasi Berkas',
+                'desc' => 'Membawa cetak bukti registrasi & Kartu Tanda Siswa (KTS) / delegasi resmi untuk validasi.',
+                'icon' => 'ri-file-shield-line',
+                'color' => '#f97316',
+                'bg' => 'rgba(249, 115, 22, 0.1)',
+                'border' => 'rgba(249, 115, 22, 0.25)',
+            ],
+            [
+                'title' => 'Akses Hybrid (Zoom)',
+                'desc' => 'Tersedia tautan Zoom Meeting khusus bagi delegasi luar daerah yang berhalangan hadir offline.',
+                'icon' => 'ri-vidicon-line',
+                'color' => '#10b981',
+                'bg' => 'rgba(16, 185, 129, 0.1)',
+                'border' => 'rgba(16, 185, 129, 0.25)',
+            ],
+            [
+                'title' => 'Tepat Waktu & Tertib',
+                'desc' => 'Hadir 15 menit sebelum pembukaan dimulai, mengenakan seragam rapi atau jas almamater.',
+                'icon' => 'ri-time-line',
+                'color' => '#ec4899',
+                'bg' => 'rgba(236, 72, 153, 0.1)',
+                'border' => 'rgba(236, 72, 153, 0.25)',
+            ],
+        ];
+    }
+
+    public function updateTmSectionSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'tag' => 'required|string|max:100',
+            'title' => 'required|string|max:150',
+            'desc' => 'nullable|string|max:500',
+            'guidelines_active' => 'nullable',
+            'is_active' => 'nullable',
+            'guidelines' => 'nullable|array',
+            'guidelines.*.title' => 'required|string|max:100',
+            'guidelines.*.desc' => 'required|string|max:300',
+            'guidelines.*.icon' => 'nullable|string|max:50',
+            'guidelines.*.color' => 'nullable|string|max:30',
+        ]);
+
+        Setting::set('tm_section_tag', $validated['tag']);
+        Setting::set('tm_section_title', $validated['title']);
+        Setting::set('tm_section_desc', $validated['desc'] ?? '');
+        Setting::set('tm_guidelines_active', !empty($validated['guidelines_active']) ? '1' : '0');
+        Setting::set('tm_section_active', !empty($validated['is_active']) ? '1' : '0');
+
+        if (isset($validated['guidelines'])) {
+            Setting::set('tm_guidelines_items', json_encode($validated['guidelines']));
+        }
+
+        return back()->with('success', 'Pengaturan teks & panduan jadwal Technical Meeting berhasil disimpan.');
     }
 
     public function updateTmSettings(Request $request, $competitionId)

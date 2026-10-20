@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { useToast } from '@/Composables/useToast';
@@ -10,6 +10,17 @@ const props = defineProps({
   participants: { type: Array, default: () => [] },
   stats: { type: Object, default: () => ({}) },
   selectedCompId: { type: String, default: '' },
+  sectionSettings: { 
+    type: Object, 
+    default: () => ({
+      tag: 'Agenda Pelaksanaan',
+      title: 'Jadwal Technical Meeting & Pelaksanaan',
+      desc: 'Harap diperhatikan oleh guru pendamping dan ketua delegasi sekolah mengenai tanggal, jam, ruangan, serta agenda pelaksanaan TM tiap cabang lomba.',
+      guidelines_active: true,
+      guidelines: [],
+      is_active: true,
+    }) 
+  },
 });
 
 const toast = useToast();
@@ -224,6 +235,145 @@ const showPrintModal = ref(false);
 function printDrawSheet() {
   window.print();
 }
+
+// Section & Guidelines Customization Modal State
+const showSectionModal = ref(false);
+
+const defaultGuidelinesPresets = [
+  {
+    title: 'Delegasi Resmi',
+    desc: 'Setiap madrasah/sekolah wajib mengutus minimal 1 guru pembina atau kapten/ketua tim.',
+    icon: 'ri-user-star-line',
+    color: '#8b5cf6',
+  },
+  {
+    title: 'Verifikasi Berkas',
+    desc: 'Membawa cetak bukti registrasi & Kartu Tanda Siswa (KTS) / delegasi resmi untuk validasi.',
+    icon: 'ri-file-shield-line',
+    color: '#f97316',
+  },
+  {
+    title: 'Akses Hybrid (Zoom)',
+    desc: 'Tersedia tautan Zoom Meeting khusus bagi delegasi luar daerah yang berhalangan hadir offline.',
+    icon: 'ri-vidicon-line',
+    color: '#10b981',
+  },
+  {
+    title: 'Tepat Waktu & Tertib',
+    desc: 'Hadir 15 menit sebelum pembukaan dimulai, mengenakan seragam rapi atau jas almamater.',
+    icon: 'ri-time-line',
+    color: '#ec4899',
+  },
+];
+
+const sectionForm = useForm({
+  tag: props.sectionSettings?.tag || 'Agenda Pelaksanaan',
+  title: props.sectionSettings?.title || 'Jadwal Technical Meeting & Pelaksanaan',
+  desc: props.sectionSettings?.desc || 'Harap diperhatikan oleh guru pendamping dan ketua delegasi sekolah mengenai tanggal, jam, ruangan, serta agenda pelaksanaan TM tiap cabang lomba.',
+  guidelines_active: props.sectionSettings?.guidelines_active ?? true,
+  is_active: props.sectionSettings?.is_active ?? true,
+  guidelines: (props.sectionSettings?.guidelines && props.sectionSettings.guidelines.length > 0)
+    ? JSON.parse(JSON.stringify(props.sectionSettings.guidelines))
+    : JSON.parse(JSON.stringify(defaultGuidelinesPresets)),
+});
+
+// Watch sectionSettings updates from server
+watch(() => props.sectionSettings, (newVal) => {
+  if (newVal) {
+    sectionForm.tag = newVal.tag || 'Agenda Pelaksanaan';
+    sectionForm.title = newVal.title || 'Jadwal Technical Meeting & Pelaksanaan';
+    sectionForm.desc = newVal.desc || '';
+    sectionForm.guidelines_active = newVal.guidelines_active ?? true;
+    sectionForm.is_active = newVal.is_active ?? true;
+    if (newVal.guidelines && Array.isArray(newVal.guidelines) && newVal.guidelines.length > 0) {
+      sectionForm.guidelines = JSON.parse(JSON.stringify(newVal.guidelines));
+    }
+  }
+}, { deep: true });
+
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('modal') === 'panduan' || params.get('kustomisasi') === '1') {
+      showSectionModal.value = true;
+    }
+  }
+});
+
+function addGuidelineCard() {
+  sectionForm.guidelines.push({
+    title: 'Poin Baru',
+    desc: 'Keterangan atau panduan pelaksanaan...',
+    icon: 'ri-information-line',
+    color: '#0ea5e9',
+  });
+}
+
+function removeGuidelineCard(index) {
+  sectionForm.guidelines.splice(index, 1);
+}
+
+function moveGuidelineCard(index, direction) {
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= sectionForm.guidelines.length) return;
+  const temp = sectionForm.guidelines[index];
+  sectionForm.guidelines[index] = sectionForm.guidelines[targetIndex];
+  sectionForm.guidelines[targetIndex] = temp;
+}
+
+function resetGuidelinesToDefault() {
+  sectionForm.guidelines = JSON.parse(JSON.stringify(defaultGuidelinesPresets));
+  toast.info('Daftar kartu panduan telah di-reset ke pengaturan standar.');
+}
+
+function submitSectionSettings() {
+  sectionForm.post('/admin/tm-settings', {
+    preserveScroll: true,
+    onSuccess: () => {
+      toast.success('Pengaturan seksi & panduan TM berhasil disimpan!');
+      showSectionModal.value = false;
+    },
+    onError: () => {
+      toast.error('Gagal menyimpan pengaturan. Silakan periksa isian formulir.');
+    }
+  });
+}
+
+const colorPresets = [
+  '#8b5cf6', // purple
+  '#f97316', // orange
+  '#10b981', // green
+  '#ec4899', // pink
+  '#0ea5e9', // blue
+  '#6366f1', // indigo
+  '#f59e0b', // amber
+  '#ef4444', // red
+];
+
+const iconPresets = [
+  { icon: 'ri-user-star-line', label: 'Delegasi' },
+  { icon: 'ri-file-shield-line', label: 'Berkas' },
+  { icon: 'ri-vidicon-line', label: 'Zoom/Video' },
+  { icon: 'ri-time-line', label: 'Waktu' },
+  { icon: 'ri-shield-check-line', label: 'Tata Tertib' },
+  { icon: 'ri-map-pin-line', label: 'Lokasi' },
+  { icon: 'ri-award-line', label: 'Juara' },
+  { icon: 'ri-information-line', label: 'Info' },
+];
+
+function hexToRgbaPreview(hex, alpha = 0.15) {
+  if (!hex) return '';
+  if (hex.startsWith('rgb')) return hex;
+  let c = hex.replace('#', '');
+  if (c.length === 3) {
+    c = c.split('').map(x => x + x).join('');
+  }
+  if (c.length === 6) {
+    const num = parseInt(c, 16);
+    return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
+  }
+  return hex;
+}
 </script>
 
 <template>
@@ -245,6 +395,14 @@ function printDrawSheet() {
             </div>
           </div>
           <div class="page-title-right mt-3 mt-sm-0 d-flex align-items-center gap-2">
+            <button 
+              type="button" 
+              class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+              @click="showSectionModal = true"
+              title="Kustomisasi Judul, Deskripsi & Banner Panduan TM di Halaman Depan Web"
+            >
+              <i class="ri-palette-line"></i> Kustomisasi Seksi & Panduan Web
+            </button>
             <Link 
               href="/admin/lomba" 
               class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 shadow-sm"
@@ -1167,6 +1325,428 @@ function printDrawSheet() {
             <button type="button" class="btn btn-sm btn-secondary" @click="showPrintModal = false">Tutup</button>
             <button type="button" class="btn btn-sm btn-info text-white d-inline-flex align-items-center gap-1" @click="printDrawSheet">
               <i class="ri-printer-line"></i> Cetak Lembar Ini
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL: KUSTOMISASI SEKSI & PANDUAN TM WEB PUBLIK               -->
+    <!-- ============================================================== -->
+    <div 
+      v-if="showSectionModal" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      role="dialog"
+      style="background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); z-index: 1060;"
+    >
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-3">
+          <!-- Modal Header -->
+          <div class="modal-header bg-light border-bottom py-3 px-4">
+            <div class="d-flex align-items-center gap-2">
+              <div class="avatar-xs flex-shrink-0">
+                <span class="avatar-title bg-primary-subtle text-primary rounded-circle fs-16">
+                  <i class="ri-settings-4-line"></i>
+                </span>
+              </div>
+              <div>
+                <h5 class="modal-title fw-bold fs-16 mb-0 text-dark">
+                  Kustomisasi Seksi & Banner Panduan TM (Web Publik)
+                </h5>
+                <p class="fs-12 text-muted mb-0">
+                  Sesuaikan badge, judul, deskripsi, serta kartu panduan penting jadwal TM di halaman depan.
+                </p>
+              </div>
+            </div>
+            <button 
+              type="button" 
+              class="btn-close" 
+              @click="showSectionModal = false"
+              :disabled="sectionForm.processing"
+            ></button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body p-4">
+            <!-- Notice Banner -->
+            <div class="alert alert-info-subtle border-info-subtle d-flex align-items-center justify-content-between p-3 mb-4 rounded-3">
+              <div class="d-flex align-items-center gap-3">
+                <i class="ri-information-fill fs-22 text-info"></i>
+                <div>
+                  <div class="fw-bold fs-13 text-info">Pengaturan Tampilan Live Portal</div>
+                  <div class="fs-12 text-muted">
+                    Semua perubahan teks dan kartu panduan di bawah ini akan langsung tampil secara dinamis pada landing page tanpa perlu edit file code.
+                  </div>
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge" :class="sectionForm.is_active ? 'bg-success' : 'bg-secondary'">
+                  Seksi: {{ sectionForm.is_active ? 'Aktif' : 'Non-Aktif' }}
+                </span>
+                <span class="badge" :class="sectionForm.guidelines_active ? 'bg-primary' : 'bg-secondary'">
+                  Banner: {{ sectionForm.guidelines_active ? 'Aktif' : 'Non-Aktif' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- SECTION 1: HEADER & TOGGLES -->
+            <div class="card border border-light-subtle shadow-none rounded-3 mb-4">
+              <div class="card-header bg-light-subtle py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
+                <span class="fw-bold fs-13 text-dark">
+                  <i class="ri-text me-1 text-primary"></i> 1. Pengaturan Teks Header & Visibilitas Seksi
+                </span>
+                <span class="fs-11 text-muted">Bagian atas sebelum jadwal cabang lomba</span>
+              </div>
+              <div class="card-body p-3">
+                <div class="row g-3">
+                  <!-- Toggles -->
+                  <div class="col-md-6">
+                    <div class="p-3 border rounded-3 bg-white h-100 d-flex align-items-center justify-content-between">
+                      <div>
+                        <div class="fw-bold fs-13 text-dark mb-0.5">Tampilkan Seksi Jadwal & TM</div>
+                        <div class="fs-11 text-muted">Jika dinonaktifkan, seluruh seksi jadwal tidak akan muncul di web publik</div>
+                      </div>
+                      <div class="form-check form-switch form-switch-md mb-0">
+                        <input 
+                          type="checkbox" 
+                          class="form-check-input cursor-pointer" 
+                          id="tmSectionActiveSwitch" 
+                          v-model="sectionForm.is_active"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <div class="p-3 border rounded-3 bg-white h-100 d-flex align-items-center justify-content-between">
+                      <div>
+                        <div class="fw-bold fs-13 text-dark mb-0.5">Tampilkan Banner Kartu Panduan</div>
+                        <div class="fs-11 text-muted">Banner 4 kartu poin penting (Delegasi Resmi, Verifikasi, dll.)</div>
+                      </div>
+                      <div class="form-check form-switch form-switch-md mb-0">
+                        <input 
+                          type="checkbox" 
+                          class="form-check-input cursor-pointer" 
+                          id="tmGuidelinesActiveSwitch" 
+                          v-model="sectionForm.guidelines_active"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Tag & Title -->
+                  <div class="col-md-4">
+                    <label class="form-label fs-12 fw-semibold text-muted mb-1">
+                      Badge / Tag Seksi <span class="text-danger">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      class="form-control form-control-sm" 
+                      v-model="sectionForm.tag" 
+                      placeholder="Contoh: Agenda Pelaksanaan"
+                    />
+                    <div class="form-text fs-11">Teks kecil di pill atas judul seksi.</div>
+                  </div>
+
+                  <div class="col-md-8">
+                    <label class="form-label fs-12 fw-semibold text-muted mb-1">
+                      Judul Utama Seksi <span class="text-danger">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      class="form-control form-control-sm" 
+                      v-model="sectionForm.title" 
+                      placeholder="Contoh: Jadwal Technical Meeting & Pelaksanaan"
+                    />
+                    <div class="form-text fs-11">Judul besar seksi jadwal TM di portal.</div>
+                  </div>
+
+                  <!-- Description -->
+                  <div class="col-12">
+                    <label class="form-label fs-12 fw-semibold text-muted mb-1">
+                      Deskripsi Pengantar Seksi
+                    </label>
+                    <textarea 
+                      class="form-control form-control-sm" 
+                      rows="2" 
+                      v-model="sectionForm.desc" 
+                      placeholder="Tuliskan petunjuk atau catatan pengantar untuk peserta dan guru pendamping..."
+                    ></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 2: LIVE PREVIEW -->
+            <div class="card border border-light-subtle shadow-none rounded-3 mb-4 overflow-hidden">
+              <div class="card-header bg-dark text-white py-2 px-3 d-flex align-items-center justify-content-between">
+                <span class="fs-12 fw-bold">
+                  <i class="ri-eye-line me-1 text-warning"></i> Pratinjau Langsung (Live Preview di Halaman Depan)
+                </span>
+                <span class="badge bg-white-subtle text-white fs-10">Realtime</span>
+              </div>
+              <div class="card-body p-4 bg-light text-center">
+                <!-- If section hidden -->
+                <div v-if="!sectionForm.is_active" class="alert alert-secondary py-3 mb-0">
+                  <i class="ri-eye-off-line me-1"></i> Seksi Jadwal & TM dinonaktifkan (disembunyikan dari web publik).
+                </div>
+
+                <div v-else>
+                  <!-- Section Tag -->
+                  <div class="mb-2">
+                    <span class="badge rounded-pill px-3 py-1.5 fw-bold" style="background: rgba(245, 158, 11, 0.12); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.25); font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase;">
+                      <i class="ri-calendar-event-fill text-warning me-1"></i> {{ sectionForm.tag || 'AGENDA PELAKSANAAN' }}
+                    </span>
+                  </div>
+
+                  <!-- Section Title -->
+                  <h3 class="fw-bold fs-20 text-dark mb-1">
+                    {{ sectionForm.title || 'Jadwal Technical Meeting & Pelaksanaan' }}
+                  </h3>
+                  <p class="text-muted fs-12 mb-4 mx-auto" style="max-width: 650px;">
+                    {{ sectionForm.desc || 'Harap diperhatikan oleh guru pendamping dan ketua delegasi sekolah mengenai tanggal, jam, ruangan, serta agenda pelaksanaan TM tiap cabang lomba.' }}
+                  </p>
+
+                  <!-- Guidelines Banner Preview -->
+                  <div v-if="sectionForm.guidelines_active && sectionForm.guidelines.length > 0" class="p-3 rounded-4 bg-white shadow-sm border position-relative overflow-hidden text-start">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #ec4899, #8b5cf6, #3b82f6, #10b981);"></div>
+                    <div class="row g-3">
+                      <div 
+                        v-for="(item, idx) in sectionForm.guidelines" 
+                        :key="idx" 
+                        class="col-12 col-md-6 col-lg-3"
+                      >
+                        <div class="d-flex align-items-start gap-2.5">
+                          <div 
+                            class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+                            :style="{
+                              width: '38px',
+                              height: '38px',
+                              color: item.color || '#8b5cf6',
+                              background: hexToRgbaPreview(item.color || '#8b5cf6', 0.12),
+                              border: `1px solid ${hexToRgbaPreview(item.color || '#8b5cf6', 0.28)}`,
+                              fontSize: '18px'
+                            }"
+                          >
+                            <i :class="item.icon || 'ri-information-line'"></i>
+                          </div>
+                          <div>
+                            <h6 class="fw-bold fs-13 text-dark mb-1">{{ item.title || 'Judul Kartu' }}</h6>
+                            <p class="text-muted fs-11 mb-0 lh-sm">{{ item.desc || 'Keterangan ringkas...' }}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-else-if="!sectionForm.guidelines_active" class="alert alert-secondary py-2 mb-0 fs-12">
+                    <i class="ri-eye-off-line me-1"></i> Banner kartu panduan disembunyikan. Hanya daftar jadwal per cabang yang tampil.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 3: GUIDELINES CARDS REPEATER -->
+            <div class="card border border-light-subtle shadow-none rounded-3 mb-0">
+              <div class="card-header bg-light-subtle py-2.5 px-3 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="fw-bold fs-13 text-dark">
+                    <i class="ri-layout-grid-line me-1 text-primary"></i> 2. Kartu Panduan TM (Important Notice Cards)
+                  </span>
+                  <span class="badge bg-primary-subtle text-primary fs-11">
+                    {{ sectionForm.guidelines.length }} Kartu
+                  </span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-outline-danger d-inline-flex align-items-center gap-1"
+                    @click="resetGuidelinesToDefault"
+                    title="Kembalikan ke susunan 4 kartu standar awal"
+                  >
+                    <i class="ri-refresh-line"></i> Reset Standar (4 Kartu)
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-primary d-inline-flex align-items-center gap-1 shadow-sm"
+                    @click="addGuidelineCard"
+                  >
+                    <i class="ri-add-line"></i> Tambah Kartu
+                  </button>
+                </div>
+              </div>
+              <div class="card-body p-3">
+                <div v-if="sectionForm.guidelines.length === 0" class="text-center py-4 text-muted">
+                  <i class="ri-inbox-line fs-32 text-secondary mb-2 d-block"></i>
+                  <p class="fs-13 mb-2">Belum ada kartu panduan yang ditambahkan.</p>
+                  <button type="button" class="btn btn-sm btn-outline-primary" @click="resetGuidelinesToDefault">
+                    Gunakan 4 Kartu Standar
+                  </button>
+                </div>
+
+                <div v-else class="row g-3">
+                  <div 
+                    v-for="(card, cIdx) in sectionForm.guidelines" 
+                    :key="cIdx" 
+                    class="col-12 col-md-6"
+                  >
+                    <div class="p-3 border rounded-3 bg-white shadow-none position-relative h-100">
+                      <!-- Card Header Actions -->
+                      <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
+                        <div class="d-flex align-items-center gap-2">
+                          <span class="badge bg-dark text-white fs-10 font-mono">#{{ cIdx + 1 }}</span>
+                          <span class="fw-bold fs-12 text-dark text-truncate" style="max-width: 140px;">
+                            {{ card.title || 'Tanpa Judul' }}
+                          </span>
+                        </div>
+                        <div class="d-flex align-items-center gap-1">
+                          <button 
+                            type="button" 
+                            class="btn btn-xs btn-light text-dark p-1" 
+                            :disabled="cIdx === 0"
+                            @click="moveGuidelineCard(cIdx, -1)" 
+                            title="Geser ke Kiri/Atas"
+                          >
+                            <i class="ri-arrow-up-line"></i>
+                          </button>
+                          <button 
+                            type="button" 
+                            class="btn btn-xs btn-light text-dark p-1" 
+                            :disabled="cIdx === sectionForm.guidelines.length - 1"
+                            @click="moveGuidelineCard(cIdx, 1)" 
+                            title="Geser ke Kanan/Bawah"
+                          >
+                            <i class="ri-arrow-down-line"></i>
+                          </button>
+                          <button 
+                            type="button" 
+                            class="btn btn-xs btn-outline-danger p-1" 
+                            @click="removeGuidelineCard(cIdx)" 
+                            title="Hapus Kartu Ini"
+                          >
+                            <i class="ri-delete-bin-line"></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Card Fields -->
+                      <div class="row g-2">
+                        <div class="col-12">
+                          <label class="form-label fs-11 text-muted fw-semibold mb-0.5">Judul Kartu</label>
+                          <input 
+                            type="text" 
+                            class="form-control form-control-sm" 
+                            v-model="card.title" 
+                            placeholder="Contoh: Delegasi Resmi"
+                          />
+                        </div>
+
+                        <!-- Icon Field & Quick Presets -->
+                        <div class="col-12">
+                          <label class="form-label fs-11 text-muted fw-semibold mb-0.5 d-flex justify-content-between">
+                            <span>Icon RemixIcon</span>
+                            <span class="fs-10 text-muted">Contoh: ri-user-star-line</span>
+                          </label>
+                          <div class="input-group input-group-sm mb-1">
+                            <span class="input-group-text bg-light text-primary">
+                              <i :class="card.icon || 'ri-information-line'"></i>
+                            </span>
+                            <input 
+                              type="text" 
+                              class="form-control" 
+                              v-model="card.icon" 
+                              placeholder="ri-user-star-line"
+                            />
+                          </div>
+                          <!-- Quick Icon Suggestions -->
+                          <div class="d-flex align-items-center gap-1 flex-wrap pt-0.5">
+                            <span class="fs-10 text-muted me-1">Pilihan Cepat:</span>
+                            <button 
+                              v-for="ico in iconPresets" 
+                              :key="ico.icon" 
+                              type="button" 
+                              class="btn btn-xs py-0 px-1.5 rounded"
+                              :class="card.icon === ico.icon ? 'btn-primary' : 'btn-light border text-muted'"
+                              @click="card.icon = ico.icon"
+                              :title="ico.label"
+                            >
+                              <i :class="ico.icon"></i>
+                            </button>
+                          </div>
+                        </div>
+
+                        <!-- Color Field & Swatches -->
+                        <div class="col-12">
+                          <label class="form-label fs-11 text-muted fw-semibold mb-0.5 d-flex justify-content-between">
+                            <span>Aksen Warna</span>
+                            <span class="font-mono fs-10">{{ card.color || '#8b5cf6' }}</span>
+                          </label>
+                          <div class="d-flex align-items-center gap-2">
+                            <input 
+                              type="color" 
+                              class="form-control form-control-color form-control-sm border-0 p-0 rounded-circle flex-shrink-0 cursor-pointer" 
+                              v-model="card.color" 
+                              style="width: 28px; height: 28px;"
+                              title="Pilih warna custom"
+                            />
+                            <div class="d-flex align-items-center gap-1 flex-wrap">
+                              <button 
+                                v-for="clr in colorPresets" 
+                                :key="clr" 
+                                type="button" 
+                                class="rounded-circle border-0 p-0 cursor-pointer"
+                                :style="{
+                                  width: '20px',
+                                  height: '20px',
+                                  backgroundColor: clr,
+                                  outline: card.color === clr ? '2px solid #000' : 'none',
+                                  outlineOffset: '1px'
+                                }"
+                                @click="card.color = clr"
+                              ></button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="col-12">
+                          <label class="form-label fs-11 text-muted fw-semibold mb-0.5">Keterangan / Panduan</label>
+                          <textarea 
+                            class="form-control form-control-sm" 
+                            rows="2" 
+                            v-model="card.desc" 
+                            placeholder="Tuliskan petunjuk ringkas kartu ini..."
+                          ></textarea>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="modal-footer bg-light border-0 py-3 px-4 d-flex align-items-center justify-content-between">
+            <button 
+              type="button" 
+              class="btn btn-sm btn-secondary" 
+              @click="showSectionModal = false"
+              :disabled="sectionForm.processing"
+            >
+              Batal
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 px-3 shadow-sm"
+              @click="submitSectionSettings"
+              :disabled="sectionForm.processing"
+            >
+              <i class="ri-save-line" v-if="!sectionForm.processing"></i>
+              <span class="spinner-border spinner-border-sm" role="status" v-else></span>
+              {{ sectionForm.processing ? 'Menyimpan...' : 'Simpan Kustomisasi' }}
             </button>
           </div>
         </div>

@@ -54,6 +54,17 @@ const props = defineProps({
   pricingSettings: {
     type: Object,
     default: () => ({})
+  },
+  tmScheduleSettings: {
+    type: Object,
+    default: () => ({
+      tag: 'Agenda Pelaksanaan',
+      title: 'Jadwal Technical Meeting & Pelaksanaan',
+      desc: 'Harap diperhatikan oleh guru pendamping dan ketua delegasi sekolah mengenai tanggal, jam, ruangan, serta agenda pelaksanaan TM tiap cabang lomba.',
+      guidelines_active: true,
+      guidelines: [],
+      is_active: true
+    })
   }
 });
 
@@ -759,6 +770,55 @@ function getCompWaLink(comp) {
   }
   return `https://wa.me/6283850070767?text=${encodeURIComponent(msg)}`;
 }
+
+// Helper function for converting hex colors to rgba
+function hexToRgba(hex, alpha = 0.15) {
+  if (!hex) return '';
+  if (hex.startsWith('rgb')) return hex;
+  let c = hex.replace('#', '');
+  if (c.length === 3) {
+    c = c.split('').map(x => x + x).join('');
+  }
+  if (c.length === 6) {
+    const num = parseInt(c, 16);
+    return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
+  }
+  return hex;
+}
+
+const defaultTmGuidelinesList = [
+  {
+    title: 'Delegasi Resmi',
+    desc: 'Setiap madrasah/sekolah wajib mengutus minimal 1 guru pembina atau kapten/ketua tim.',
+    icon: 'ri-user-star-line',
+    color: '#8b5cf6',
+  },
+  {
+    title: 'Verifikasi Berkas',
+    desc: 'Membawa cetak bukti registrasi & Kartu Tanda Siswa (KTS) / delegasi resmi untuk validasi.',
+    icon: 'ri-file-shield-line',
+    color: '#f97316',
+  },
+  {
+    title: 'Akses Hybrid (Zoom)',
+    desc: 'Tersedia tautan Zoom Meeting khusus bagi delegasi luar daerah yang berhalangan hadir offline.',
+    icon: 'ri-vidicon-line',
+    color: '#10b981',
+  },
+  {
+    title: 'Tepat Waktu & Tertib',
+    desc: 'Hadir 15 menit sebelum pembukaan dimulai, mengenakan seragam rapi atau jas almamater.',
+    icon: 'ri-time-line',
+    color: '#ec4899',
+  },
+];
+
+const effectiveTmGuidelines = computed(() => {
+  if (props.tmScheduleSettings?.guidelines && Array.isArray(props.tmScheduleSettings.guidelines) && props.tmScheduleSettings.guidelines.length > 0) {
+    return props.tmScheduleSettings.guidelines;
+  }
+  return defaultTmGuidelinesList;
+});
 
 // Technical Meeting (TM) Filter & Helper States
 const activeTmFilter = ref('all');
@@ -2015,56 +2075,33 @@ function handleLightboxKey(e) {
     <!-- ==========================================================================
          TECHNICAL MEETING & JADWAL
          ========================================================================== -->
-    <section class="section-padding section-jadwal" id="jadwal">
+    <section v-if="tmScheduleSettings?.is_active !== false" class="section-padding section-jadwal" id="jadwal">
       <div class="container">
         <div class="section-header">
           <span class="section-tag">
-            <i class="ri-calendar-event-fill text-gold"></i> Agenda Pelaksanaan
+            <i class="ri-calendar-event-fill text-gold"></i> {{ tmScheduleSettings?.tag || 'Agenda Pelaksanaan' }}
           </span>
-          <h2 class="section-title">Jadwal Technical Meeting & Pelaksanaan</h2>
-          <p class="section-desc">Harap diperhatikan oleh guru pendamping dan ketua delegasi sekolah mengenai tanggal, jam, ruangan, serta agenda pelaksanaan TM tiap cabang lomba.</p>
+          <h2 class="section-title">{{ tmScheduleSettings?.title || 'Jadwal Technical Meeting & Pelaksanaan' }}</h2>
+          <p class="section-desc">{{ tmScheduleSettings?.desc || 'Harap diperhatikan oleh guru pendamping dan ketua delegasi sekolah mengenai tanggal, jam, ruangan, serta agenda pelaksanaan TM tiap cabang lomba.' }}</p>
         </div>
 
         <!-- TM Guidelines / Important Notice Banner -->
-        <div class="tm-guide-banner">
+        <div v-if="tmScheduleSettings?.guidelines_active !== false && effectiveTmGuidelines && effectiveTmGuidelines.length > 0" class="tm-guide-banner">
           <div class="tm-guide-grid">
-            <div class="tm-guide-item">
-              <div class="tm-guide-icon">
-                <i class="ri-user-star-line"></i>
+            <div 
+              v-for="(guide, gIdx) in effectiveTmGuidelines" 
+              :key="gIdx" 
+              class="tm-guide-item"
+            >
+              <div 
+                class="tm-guide-icon"
+                :style="guide.color ? { color: guide.color, background: hexToRgba(guide.color, 0.12), borderColor: hexToRgba(guide.color, 0.28) } : {}"
+              >
+                <i :class="guide.icon || 'ri-information-line'"></i>
               </div>
               <div class="tm-guide-content">
-                <h4>Delegasi Resmi</h4>
-                <p>Setiap madrasah/sekolah wajib mengutus minimal 1 guru pembina atau kapten/ketua tim.</p>
-              </div>
-            </div>
-
-            <div class="tm-guide-item">
-              <div class="tm-guide-icon">
-                <i class="ri-file-shield-line"></i>
-              </div>
-              <div class="tm-guide-content">
-                <h4>Verifikasi Berkas</h4>
-                <p>Membawa cetak bukti registrasi & Kartu Tanda Siswa (KTS) / delegasi resmi untuk validasi.</p>
-              </div>
-            </div>
-
-            <div class="tm-guide-item">
-              <div class="tm-guide-icon">
-                <i class="ri-vidicon-line"></i>
-              </div>
-              <div class="tm-guide-content">
-                <h4>Akses Hybrid (Zoom)</h4>
-                <p>Tersedia tautan Zoom Meeting khusus bagi delegasi luar daerah yang berhalangan hadir offline.</p>
-              </div>
-            </div>
-
-            <div class="tm-guide-item">
-              <div class="tm-guide-icon">
-                <i class="ri-time-line"></i>
-              </div>
-              <div class="tm-guide-content">
-                <h4>Tepat Waktu & Tertib</h4>
-                <p>Hadir 15 menit sebelum pembukaan dimulai, mengenakan seragam rapi atau jas almamater.</p>
+                <h4>{{ guide.title }}</h4>
+                <p>{{ guide.desc }}</p>
               </div>
             </div>
           </div>

@@ -152,7 +152,22 @@ class PublicPortalController extends Controller
             'cash_enabled' => Setting::get('payment_cash_enabled', '1') === '1',
         ];
 
-        return Inertia::render('Public/Home', compact('competitions', 'sponsors', 'sponsorSettings', 'galleries', 'gallerySettings', 'tickerSettings', 'faqs', 'faqSettings', 'pricingSettings'));
+        $rawTmGuidelines = Setting::get('tm_guidelines_items', null);
+        $tmGuidelines = $rawTmGuidelines ? json_decode($rawTmGuidelines, true) : null;
+        if (empty($tmGuidelines) || !is_array($tmGuidelines)) {
+            $tmGuidelines = AdminPanelController::getDefaultTmGuidelines();
+        }
+
+        $tmScheduleSettings = [
+            'tag' => Setting::get('tm_section_tag', 'Agenda Pelaksanaan'),
+            'title' => Setting::get('tm_section_title', 'Jadwal Technical Meeting & Pelaksanaan'),
+            'desc' => Setting::get('tm_section_desc', 'Harap diperhatikan oleh guru pendamping dan ketua delegasi sekolah mengenai tanggal, jam, ruangan, serta agenda pelaksanaan TM tiap cabang lomba.'),
+            'guidelines_active' => Setting::get('tm_guidelines_active', '1') === '1',
+            'guidelines' => $tmGuidelines,
+            'is_active' => Setting::get('tm_section_active', '1') === '1',
+        ];
+
+        return Inertia::render('Public/Home', compact('competitions', 'sponsors', 'sponsorSettings', 'galleries', 'gallerySettings', 'tickerSettings', 'faqs', 'faqSettings', 'pricingSettings', 'tmScheduleSettings'));
     }
 
     public function register(Request $request)

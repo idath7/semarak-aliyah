@@ -31,11 +31,19 @@ const form = useForm({
 const activePreviewTab = ref('google'); // 'google', 'whatsapp', 'facebook'
 const imagePreviewUrl = ref(props.settings.seo_og_image || '/assets/img/og-thumbnail.jpg');
 
+const ogHostname = computed(() => {
+  try {
+    return new window.URL(form.seo_canonical_url).hostname;
+  } catch {
+    return 'localhost';
+  }
+});
+
 function onImageFileChange(e) {
   const file = e.target.files[0];
   if (file) {
     form.seo_og_image_file = file;
-    imagePreviewUrl.value = URL.createObjectURL(file);
+    imagePreviewUrl.value = window.URL.createObjectURL(file);
   }
 }
 
@@ -434,7 +442,7 @@ function submitForm() {
                   </div>
                   <div class="p-2.5" style="background: rgba(0,0,0,0.25);">
                     <div class="text-slate-300 fs-10 text-uppercase fw-semibold mb-0.5">
-                      {{ form.seo_canonical_url ? new URL(form.seo_canonical_url).hostname : 'localhost' }}
+                      {{ ogHostname }}
                     </div>
                     <h6 class="fs-12 fw-bold text-white mb-1 lh-sm">{{ form.seo_og_title || 'SEMARAK ALIYAH XIV' }}</h6>
                     <p class="fs-11 text-slate-200 lh-sm mb-1 line-clamp-2">
@@ -464,7 +472,7 @@ function submitForm() {
                 </div>
                 <div class="p-3" style="background: #242526;">
                   <div class="text-slate-400 fs-10 text-uppercase fw-semibold tracking-wide">
-                    {{ form.seo_canonical_url ? new URL(form.seo_canonical_url).hostname : 'localhost' }}
+                    {{ ogHostname }}
                   </div>
                   <h6 class="fs-13 fw-bold text-white mt-1 mb-1 lh-sm">{{ form.seo_og_title }}</h6>
                   <p class="fs-11 text-slate-300 lh-sm mb-0">

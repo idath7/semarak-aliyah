@@ -206,6 +206,24 @@ body::after {
   transform: translateZ(0);
 }
 
+/* Guard: Disable ambient glows and white background completely on dark mode or admin screens */
+[data-bs-theme="dark"] body::before,
+[data-bs-theme="dark"] body::after,
+body:has(#layout-wrapper)::before,
+body:has(#layout-wrapper)::after,
+body:has(#app-sidebar)::before,
+body:has(#app-sidebar)::after {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+[data-bs-theme="dark"] body,
+body:has(#layout-wrapper) {
+  background-color: #0b0f19 !important;
+  color: #f1f5f9 !important;
+}
+
 .container {
   width: 100%;
   max-width: 1240px;

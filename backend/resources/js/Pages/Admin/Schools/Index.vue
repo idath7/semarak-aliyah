@@ -1271,109 +1271,112 @@ const allJemberKecamatan = [
   color: #1e293b;
 }
 
+</style>
+
+<style>
 /* Dark Mode Support for Schools Management Page & Modals */
-:global([data-bs-theme="dark"]) .custom-modal-content,
-:global([data-bs-theme="dark"]) .modal-content {
+[data-bs-theme="dark"] .custom-modal-content,
+[data-bs-theme="dark"] .modal-content {
   background-color: #1e2227 !important;
   color: #f1f5f9 !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7) !important;
 }
 
-:global([data-bs-theme="dark"]) .modal-header {
+[data-bs-theme="dark"] .modal-header {
   background-color: #16191d !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-:global([data-bs-theme="dark"]) .modal-footer {
+[data-bs-theme="dark"] .modal-footer {
   background-color: #16191d !important;
   border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-:global([data-bs-theme="dark"]) .custom-modal-title,
-:global([data-bs-theme="dark"]) .modal-title {
+[data-bs-theme="dark"] .custom-modal-title,
+[data-bs-theme="dark"] .modal-title {
   color: #f8fafc !important;
 }
 
-:global([data-bs-theme="dark"]) .custom-modal-subtitle {
+[data-bs-theme="dark"] .custom-modal-subtitle {
   color: #94a3b8 !important;
 }
 
-:global([data-bs-theme="dark"]) .custom-modal-label,
-:global([data-bs-theme="dark"]) .form-label,
-:global([data-bs-theme="dark"]) .form-check-label {
+[data-bs-theme="dark"] .custom-modal-label,
+[data-bs-theme="dark"] .form-label,
+[data-bs-theme="dark"] .form-check-label {
   color: #cbd5e1 !important;
 }
 
-:global([data-bs-theme="dark"]) .custom-modal-card {
+[data-bs-theme="dark"] .custom-modal-card {
   background-color: #16191d !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-:global([data-bs-theme="dark"]) .custom-modal-cancel {
+[data-bs-theme="dark"] .custom-modal-cancel {
   background-color: #292e34 !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
   color: #cbd5e1 !important;
 }
 
-:global([data-bs-theme="dark"]) .custom-modal-cancel:hover {
+[data-bs-theme="dark"] .custom-modal-cancel:hover {
   background-color: #343a40 !important;
   color: #ffffff !important;
 }
 
-:global([data-bs-theme="dark"]) .form-control,
-:global([data-bs-theme="dark"]) .form-select {
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
   background-color: #14171a !important;
   border-color: rgba(255, 255, 255, 0.15) !important;
   color: #f8fafc !important;
 }
 
-:global([data-bs-theme="dark"]) .form-control:focus,
-:global([data-bs-theme="dark"]) .form-select:focus {
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus {
   background-color: #1a1e23 !important;
   border-color: #3b82f6 !important;
   color: #ffffff !important;
   box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.2) !important;
 }
 
-:global([data-bs-theme="dark"]) .input-group-text {
+[data-bs-theme="dark"] .input-group-text {
   background-color: #1a1e23 !important;
   border-color: rgba(255, 255, 255, 0.15) !important;
   color: #94a3b8 !important;
 }
 
-:global([data-bs-theme="dark"]) .card {
+[data-bs-theme="dark"] .card {
   background-color: #1e2227 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-:global([data-bs-theme="dark"]) .card-header,
-:global([data-bs-theme="dark"]) .card-footer {
+[data-bs-theme="dark"] .card-header,
+[data-bs-theme="dark"] .card-footer {
   background-color: #1e2227 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-:global([data-bs-theme="dark"]) .table-light {
+[data-bs-theme="dark"] .table-light {
   background-color: #24292f !important;
   color: #94a3b8 !important;
 }
 
-:global([data-bs-theme="dark"]) .table-hover tbody tr:hover {
+[data-bs-theme="dark"] .table-hover tbody tr:hover {
   background-color: rgba(255, 255, 255, 0.03) !important;
 }
 
-:global([data-bs-theme="dark"]) .btn-light {
+[data-bs-theme="dark"] .btn-light {
   background-color: #292e34 !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
   color: #cbd5e1 !important;
 }
 
-:global([data-bs-theme="dark"]) .btn-light:hover {
+[data-bs-theme="dark"] .btn-light:hover {
   background-color: #343a40 !important;
   color: #ffffff !important;
 }
 
-:global([data-bs-theme="dark"]) .btn-close {
+[data-bs-theme="dark"] .btn-close {
   filter: invert(1) grayscale(100%) brightness(200%);
 }
 </style>

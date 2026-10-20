@@ -97,7 +97,7 @@
         <script>
             (function() {
                 try {
-                    var t = localStorage.getItem('velzon_theme') || 'dark';
+                    var t = localStorage.getItem('velzon_theme_v2') || 'dark';
                     document.documentElement.setAttribute('data-bs-theme', t);
                     document.documentElement.style.colorScheme = t;
                     if (t === 'dark') {
@@ -111,8 +111,17 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Orbitron:wght@600;700;800;900&family=Syne:wght@700;800;900&family=Oswald:wght@600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
-        <link href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" rel="stylesheet" />
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        <style>
+            [data-bs-theme="dark"] body {
+                background-color: #0b0f19 !important;
+                color: #f1f5f9 !important;
+            }
+            [data-bs-theme="dark"] body::before,
+            [data-bs-theme="dark"] body::after {
+                display: none !important;
+            }
+        </style>
     @else
         <!-- Public Portal Fonts & Stylesheets (Synchronous in head to eliminate FOUC and page transition flash) -->
         <script>

@@ -126,9 +126,14 @@ function toggleTheme() {
   document.documentElement.style.colorScheme = theme;
   if (theme === 'dark') {
     document.documentElement.style.backgroundColor = '#0b0f19';
+    document.body.style.backgroundColor = '#0b0f19';
+    document.body.style.color = '#f1f5f9';
   } else {
     document.documentElement.style.backgroundColor = '#f3f3f9';
+    document.body.style.backgroundColor = '#f3f3f9';
+    document.body.style.color = '#495057';
   }
+  localStorage.setItem('velzon_theme_v2', theme);
   localStorage.setItem('velzon_theme', theme);
 }
 
@@ -149,35 +154,45 @@ function logout() {
 }
 
 onMounted(() => {
-  const currentTheme = document.documentElement.getAttribute('data-bs-theme');
-  const savedTheme = localStorage.getItem('velzon_theme');
-  const effectiveTheme = savedTheme || currentTheme || 'dark';
+  const savedTheme = localStorage.getItem('velzon_theme_v2');
+  const effectiveTheme = savedTheme || 'dark';
 
   isDarkTheme.value = (effectiveTheme === 'dark');
   document.documentElement.setAttribute('data-bs-theme', effectiveTheme);
   document.documentElement.style.colorScheme = effectiveTheme;
   if (effectiveTheme === 'dark') {
     document.documentElement.style.backgroundColor = '#0b0f19';
+    document.body.style.backgroundColor = '#0b0f19';
+    document.body.style.color = '#f1f5f9';
   } else {
     document.documentElement.style.backgroundColor = '#f3f3f9';
+    document.body.style.backgroundColor = '#f3f3f9';
+    document.body.style.color = '#495057';
   }
-  if (!savedTheme) {
-    localStorage.setItem('velzon_theme', effectiveTheme);
-  }
+  localStorage.setItem('velzon_theme_v2', effectiveTheme);
+  localStorage.setItem('velzon_theme', effectiveTheme);
 });
 </script>
 
 <template>
   <div 
     id="layout-wrapper" 
-    :class="{ 'sidebar-enable': isMobileSidebarOpen, 'vertical-collpsed': isSidebarCollapsed }"
+    :class="{ 'sidebar-enable': isMobileSidebarOpen, 'vertical-collpsed': isSidebarCollapsed, 'dark': isDarkTheme }"
     class="min-h-screen flex flex-col font-sans"
-    style="background-color: var(--vz-body-bg, #f3f3f9);"
+    :style="{ backgroundColor: isDarkTheme ? '#0b0f19' : '#f3f3f9', color: isDarkTheme ? '#f1f5f9' : '#495057' }"
   >
     <!-- ============================================================== -->
     <!-- TOPBAR HEADER (Velzon Official Header)                         -->
     <!-- ============================================================== -->
-    <header id="page-topbar" :style="{ left: isSidebarCollapsed ? '70px' : '' }">
+    <header 
+      id="page-topbar" 
+      :style="{ 
+        backgroundColor: isDarkTheme ? '#111827' : '#ffffff', 
+        borderBottom: isDarkTheme ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e9ebec',
+        color: isDarkTheme ? '#f8fafc' : '#495057',
+        left: isSidebarCollapsed ? '70px' : '' 
+      }"
+    >
       <div class="navbar-header">
         <div class="d-flex align-items-center gap-3">
           <!-- Hamburger Sidebar Toggle Button -->
@@ -294,6 +309,7 @@ onMounted(() => {
           <!-- Theme Toggle (Dark / Light) -->
           <button 
             type="button" 
+            id="theme-toggle-btn"
             class="btn btn-topbar" 
             @click="toggleTheme" 
             title="Ganti Tema"
@@ -364,10 +380,20 @@ onMounted(() => {
       class="app-menu navbar-menu" 
       id="app-sidebar"
       :class="{ 'show': isMobileSidebarOpen }"
-      :style="{ width: isSidebarCollapsed ? '70px' : '' }"
+      :style="{ 
+        backgroundColor: '#111827', 
+        borderRight: '1px solid rgba(255, 255, 255, 0.1)',
+        width: isSidebarCollapsed ? '70px' : '' 
+      }"
     >
       <!-- Brand Logo Box -->
-      <div class="navbar-brand-box">
+      <div 
+        class="navbar-brand-box"
+        :style="{ 
+          backgroundColor: '#0f172a', 
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)' 
+        }"
+      >
         <Link href="/admin" class="d-flex align-items-center justify-content-center gap-2 text-decoration-none">
           <img src="/assets/img/logo.png" alt="Logo" style="height: 36px; max-height: 36px; width: auto; max-width: 36px; object-fit: contain;" />
           <div v-show="!isSidebarCollapsed" class="d-flex flex-column text-start">
@@ -952,104 +978,255 @@ onMounted(() => {
   color: #1e293b;
 }
 
+</style>
+
+<style>
 /* ============================================================== */
-/* DARK MODE OVERRIDES (data-bs-theme="dark")                     */
+/* BULLETPROOF ADMIN DARK MODE COMPREHENSIVE RULES                 */
 /* ============================================================== */
-:global([data-bs-theme="dark"]) .edition-badge-btn {
+[data-bs-theme="dark"] .edition-badge-btn {
   background: linear-gradient(135deg, rgba(30, 58, 138, 0.45) 0%, rgba(37, 99, 235, 0.25) 100%) !important;
   border: 1px solid rgba(96, 165, 250, 0.4) !important;
   color: #93c5fd !important;
   box-shadow: 0 0 14px rgba(59, 130, 246, 0.25) !important;
 }
-:global([data-bs-theme="dark"]) .edition-badge-btn:hover {
+[data-bs-theme="dark"] .edition-badge-btn:hover {
   background: linear-gradient(135deg, rgba(30, 58, 138, 0.7) 0%, rgba(37, 99, 235, 0.45) 100%) !important;
   border-color: rgba(147, 197, 253, 0.65) !important;
   color: #bfdbfe !important;
   box-shadow: 0 0 22px rgba(59, 130, 246, 0.45) !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-modal-content {
+[data-bs-theme="dark"] .edition-modal-content {
   background-color: #1e2227 !important;
   color: #f1f5f9 !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7) !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-modal-title {
+[data-bs-theme="dark"] .edition-modal-title {
   color: #f8fafc !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-modal-subtitle {
+[data-bs-theme="dark"] .edition-modal-subtitle {
   color: #94a3b8 !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-modal-label {
+[data-bs-theme="dark"] .edition-modal-label {
   color: #cbd5e1 !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-header-avatar {
+[data-bs-theme="dark"] .edition-header-avatar {
   background-color: rgba(245, 158, 11, 0.2) !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-preview-box {
+[data-bs-theme="dark"] .edition-preview-box {
   background-color: #14171a !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-preview-surface {
+[data-bs-theme="dark"] .edition-preview-surface {
   background-color: #1a1d21 !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-chip {
+[data-bs-theme="dark"] .edition-chip {
   background-color: #292e34 !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
   color: #cbd5e1 !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-chip:hover {
+[data-bs-theme="dark"] .edition-chip:hover {
   background-color: #343a40 !important;
   color: #ffffff !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-chip.active {
+[data-bs-theme="dark"] .edition-chip.active {
   background-color: #3b82f6 !important;
   border-color: #60a5fa !important;
   color: #ffffff !important;
   box-shadow: 0 0 10px rgba(59, 130, 246, 0.5) !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-input {
+[data-bs-theme="dark"] .edition-input {
   background-color: #14171a !important;
   border-color: rgba(255, 255, 255, 0.15) !important;
   color: #f8fafc !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-input:focus {
+[data-bs-theme="dark"] .edition-input:focus {
   background-color: #1a1e23 !important;
   border-color: #3b82f6 !important;
   color: #ffffff !important;
   box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.2) !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-btn-cancel {
+[data-bs-theme="dark"] .edition-btn-cancel {
   background-color: #292e34 !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
   color: #cbd5e1 !important;
 }
 
-:global([data-bs-theme="dark"]) .edition-btn-cancel:hover {
+[data-bs-theme="dark"] .edition-btn-cancel:hover {
   background-color: #343a40 !important;
   color: #ffffff !important;
 }
 
-:global([data-bs-theme="dark"]) .toast {
+[data-bs-theme="dark"] .toast {
   background-color: #1e2227 !important;
   color: #f1f5f9 !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
-:global([data-bs-theme="dark"]) .btn-close {
+[data-bs-theme="dark"] .btn-close {
   filter: invert(1) grayscale(100%) brightness(200%);
+}
+[data-bs-theme="dark"] body,
+[data-bs-theme="dark"] #layout-wrapper,
+[data-bs-theme="dark"] .main-content,
+[data-bs-theme="dark"] .page-content {
+  background-color: #0b0f19 !important;
+  color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] body::before,
+[data-bs-theme="dark"] body::after {
+  display: none !important;
+}
+
+[data-bs-theme="dark"] #page-topbar {
+  background-color: #111827 !important;
+  background: #111827 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] #app-sidebar,
+[data-bs-theme="dark"] .navbar-menu,
+[data-bs-theme="dark"] .app-menu {
+  background-color: #111827 !important;
+  background: #111827 !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-bs-theme="dark"] .navbar-brand-box {
+  background-color: #0f172a !important;
+  background: #0f172a !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-bs-theme="dark"] .navbar-menu .navbar-nav .nav-link {
+  color: #cbd5e1 !important;
+}
+
+[data-bs-theme="dark"] .navbar-menu .navbar-nav .nav-link:hover,
+[data-bs-theme="dark"] .navbar-menu .navbar-nav .nav-link.active {
+  color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .card,
+[data-bs-theme="dark"] .card-body {
+  background-color: #111827 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] .card-header,
+[data-bs-theme="dark"] .card-footer {
+  background-color: #162032 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .bg-white {
+  background-color: #111827 !important;
+  color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] .bg-light {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .text-dark {
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .text-muted {
+  color: #94a3b8 !important;
+}
+
+[data-bs-theme="dark"] .text-secondary {
+  color: #cbd5e1 !important;
+}
+
+[data-bs-theme="dark"] .border,
+[data-bs-theme="dark"] .border-top,
+[data-bs-theme="dark"] .border-bottom,
+[data-bs-theme="dark"] .border-start,
+[data-bs-theme="dark"] .border-end {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-bs-theme="dark"] .footer {
+  background-color: #111827 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #94a3b8 !important;
+}
+
+[data-bs-theme="dark"] .table {
+  --bs-table-color: #f1f5f9;
+  --bs-table-bg: #111827;
+  --bs-table-border-color: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] .table th,
+[data-bs-theme="dark"] .table-light,
+[data-bs-theme="dark"] .table-light th {
+  background-color: #162032 !important;
+  color: #f1f5f9 !important;
+  font-weight: 700;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+}
+
+[data-bs-theme="dark"] .table td {
+  background-color: #111827 !important;
+  color: #f8fafc !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-bs-theme="dark"] .table tr:hover td {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
+  background-color: #0b1120 !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25) !important;
+  background-color: #080d19 !important;
+}
+
+[data-bs-theme="dark"] .progress {
+  background-color: #1e293b !important;
+}
+
+[data-bs-theme="dark"] .btn-light {
+  background-color: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .btn-light:hover {
+  background-color: #334155 !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
 }
 </style>

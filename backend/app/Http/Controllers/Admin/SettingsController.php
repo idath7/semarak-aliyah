@@ -225,8 +225,63 @@ class SettingsController extends Controller
         ]);
 
         if ($request->hasFile('seo_og_image_file')) {
-            $path = $request->file('seo_og_image_file')->store('seo', 'public');
-            $validated['seo_og_image'] = '/storage/' . $path;
+            $file = $request->file('seo_og_image_file');
+            $filename = 'og_' . time() . '.jpg';
+            $dir = storage_path('app/public/seo');
+            if (!file_exists($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            $targetPath = $dir . DIRECTORY_SEPARATOR . $filename;
+            
+            $optimized = false;
+            if (extension_loaded('gd')) {
+                $srcImg = null;
+                $mime = $file->getMimeType();
+                $realPath = $file->getRealPath();
+
+                if ($mime === 'image/jpeg' || $mime === 'image/jpg') {
+                    $srcImg = @imagecreatefromjpeg($realPath);
+                } elseif ($mime === 'image/png') {
+                    $srcImg = @imagecreatefrompng($realPath);
+                } elseif ($mime === 'image/webp') {
+                    $srcImg = @imagecreatefromwebp($realPath);
+                }
+
+                if ($srcImg) {
+                    $origW = imagesx($srcImg);
+                    $origH = imagesy($srcImg);
+                    $targetW = 1200;
+                    $targetH = 630;
+                    $dstImg = imagecreatetruecolor($targetW, $targetH);
+
+                    // Smooth crop to 1200x630 (standard OG aspect ratio 1.91:1)
+                    $srcAspect = $origW / $origH;
+                    $targetAspect = $targetW / $targetH;
+                    if ($srcAspect > $targetAspect) {
+                        $newH = $origH;
+                        $newW = (int)($origH * $targetAspect);
+                        $srcX = (int)(($origW - $newW) / 2);
+                        $srcY = 0;
+                    } else {
+                        $newW = $origW;
+                        $newH = (int)($origW / $targetAspect);
+                        $srcX = 0;
+                        $srcY = (int)(($origH - $newH) / 2);
+                    }
+
+                    imagecopyresampled($dstImg, $srcImg, 0, 0, $srcX, $srcY, $targetW, $targetH, $newW, $newH);
+                    imagejpeg($dstImg, $targetPath, 85);
+                    imagedestroy($srcImg);
+                    imagedestroy($dstImg);
+                    $optimized = true;
+                }
+            }
+
+            if (!$optimized) {
+                $file->storeAs('seo', $filename, 'public');
+            }
+
+            $validated['seo_og_image'] = '/storage/seo/' . $filename;
         }
 
         foreach ($validated as $key => $value) {

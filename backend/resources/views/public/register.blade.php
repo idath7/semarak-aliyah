@@ -10,12 +10,19 @@
   <meta name="description" content="Portal Layanan Pendaftaran Resmi Peserta Semarak Aliyah XII 2026. Daftarkan delegasi SMP/MTs Anda di Olimpiade MIPA, IPS, Storytelling, Albanjari, Singer, dan Turnamen Olahraga.">
   <meta name="author" content="MA Unggulan Wahid Hasyim Balung">
 
-  <!-- Open Graph -->
+  <!-- Open Graph / Facebook / WhatsApp -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://semarak.maswahas.sch.id/layanan-registrasi/">
-  <meta property="og:title" content="Layanan Registrasi - SEMARAK ALIYAH XII 2026">
-  <meta property="og:description" content="Pendaftaran Peserta Semarak Aliyah XII 2026 - MA Unggulan Wahid Hasyim Balung, Jember.">
-  <meta property="og:image" content="/assets/img/pamflet.jpg">
+  <meta property="og:locale" content="id_ID">
+  <meta property="og:site_name" content="SEMARAK ALIYAH XIV 2026">
+  <meta property="og:url" content="https://semarak.maswahas.sch.id/layanan-registrasi">
+  <meta property="og:title" content="Layanan Registrasi - SEMARAK ALIYAH XIV 2026">
+  <meta property="og:description" content="Pendaftaran Peserta Semarak Aliyah XIV 2026 - MA Unggulan Wahid Hasyim Balung, Jember.">
+  <meta property="og:image" content="https://semarak.maswahas.sch.id/assets/img/og-thumbnail.jpg">
+  <meta property="og:image:secure_url" content="https://semarak.maswahas.sch.id/assets/img/og-thumbnail.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Pendaftaran SEMARAK ALIYAH XIV 2026">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="/assets/img/logo.png">

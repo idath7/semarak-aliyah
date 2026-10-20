@@ -11,12 +11,19 @@
   <meta name="keywords" content="Semarak Aliyah, Semarak Aliyah 2026, maswahas, MA Wahid Hasyim Balung, lomba jember, olimpiade smp jember, turnamen mobile legends jember">
   <meta name="author" content="MA Unggulan Wahid Hasyim Balung">
 
-  <!-- Open Graph / Facebook -->
+  <!-- Open Graph / Facebook / WhatsApp -->
   <meta property="og:type" content="website">
+  <meta property="og:locale" content="id_ID">
+  <meta property="og:site_name" content="SEMARAK ALIYAH XIV 2026">
   <meta property="og:url" content="https://semarak.maswahas.sch.id/">
-  <meta property="og:title" content="SEMARAK ALIYAH XII 2026 - Ajang Kompetisi Pelajar Bergengsi">
-  <meta property="og:description" content="Daftarkan sekolah dan madrasah Anda di Semarak Aliyah XII 2026. Raih piala juara, uang pembinaan, dan beasiswa pendidikan!">
-  <meta property="og:image" content="/assets/img/pamflet.jpg">
+  <meta property="og:title" content="SEMARAK ALIYAH XIV 2026 - Panggung Prestasi Pelajar SMP/MTs">
+  <meta property="og:description" content="Ajang kompetisi tahunan bergengsi siswa/i SMP/MTs sederajat se-Kabupaten Jember. Raih piala juara, piagam resmi, uang pembinaan jutaan rupiah, dan beasiswa pendidikan.">
+  <meta property="og:image" content="https://semarak.maswahas.sch.id/assets/img/og-thumbnail.jpg">
+  <meta property="og:image:secure_url" content="https://semarak.maswahas.sch.id/assets/img/og-thumbnail.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="SEMARAK ALIYAH XIV 2026">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="/assets/img/logo.png">

@@ -15,14 +15,51 @@
         $seoKeywords = \App\Models\Setting::get('seo_meta_keywords', 'semarak aliyah, ma wahid hasyim balung, olimpiade mipa jember, olimpiade ips jember, storytelling, festival albanjari, singer lagu islami, voli jember, mobile legends');
         $seoAuthor = \App\Models\Setting::get('seo_author', 'Panitia ' . $eventName . ' • ' . $schoolName);
         $seoRobots = \App\Models\Setting::get('seo_robots', 'index, follow');
-        $seoCanonical = \App\Models\Setting::get('seo_canonical_url', url()->current());
         $seoThemeColor = \App\Models\Setting::get('seo_theme_color', '#8b5cf6');
+
+        $isHttps = request()->isSecure() || request()->header('x-forwarded-proto') === 'https' || str_starts_with(config('app.url'), 'https://');
+        
+        $currentUrl = url()->current();
+        if ($isHttps && str_starts_with($currentUrl, 'http://')) {
+            $currentUrl = 'https://' . substr($currentUrl, 7);
+        }
+
+        $seoCanonical = \App\Models\Setting::get('seo_canonical_url', $currentUrl);
+        if ($isHttps && str_starts_with($seoCanonical, 'http://')) {
+            $seoCanonical = 'https://' . substr($seoCanonical, 7);
+        }
+
         $ogTitle = \App\Models\Setting::get('seo_og_title', $seoTitle);
         $ogDesc = \App\Models\Setting::get('seo_og_description', $seoDesc);
-        $ogImage = \App\Models\Setting::get('seo_og_image', '/assets/img/og-thumbnail.jpg');
+        
+        $rawOgImage = \App\Models\Setting::get('seo_og_image', '/assets/img/og-thumbnail.jpg');
+        $ogImage = $rawOgImage;
         if (!str_starts_with($ogImage, 'http')) {
             $ogImage = url($ogImage);
         }
+        if ($isHttps && str_starts_with($ogImage, 'http://')) {
+            $ogImage = 'https://' . substr($ogImage, 7);
+        }
+        $ogImageSecure = str_replace('http://', 'https://', $ogImage);
+
+        // Specs image untuk card WhatsApp & Facebook
+        $parsedPath = parse_url($rawOgImage, PHP_URL_PATH) ?: $rawOgImage;
+        $localFilePath = public_path(ltrim($parsedPath, '/'));
+        $ogImageWidth = '1200';
+        $ogImageHeight = '630';
+        $ogImageType = 'image/jpeg';
+        $ogImageVersion = '';
+
+        if (file_exists($localFilePath)) {
+            $imgInfo = @getimagesize($localFilePath);
+            if ($imgInfo && !empty($imgInfo[0]) && !empty($imgInfo[1])) {
+                $ogImageWidth = (string)$imgInfo[0];
+                $ogImageHeight = (string)$imgInfo[1];
+                $ogImageType = $imgInfo['mime'] ?? 'image/jpeg';
+            }
+            $ogImageVersion = '?v=' . filemtime($localFilePath);
+        }
+
         $twitterCard = \App\Models\Setting::get('seo_twitter_card', 'summary_large_image');
     @endphp
 
@@ -36,18 +73,24 @@
 
     <!-- Open Graph / Facebook / WhatsApp -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="{{ url()->current() }}" />
+    <meta property="og:locale" content="id_ID" />
+    <meta property="og:site_name" content="{{ $eventName }}" />
+    <meta property="og:url" content="{{ $currentUrl }}" />
     <meta property="og:title" content="{{ $ogTitle }}" />
     <meta property="og:description" content="{{ $ogDesc }}" />
-    <meta property="og:image" content="{{ $ogImage }}" />
-    <meta property="og:site_name" content="{{ $eventName }}" />
+    <meta property="og:image" content="{{ $ogImage . $ogImageVersion }}" />
+    <meta property="og:image:secure_url" content="{{ $ogImageSecure . $ogImageVersion }}" />
+    <meta property="og:image:type" content="{{ $ogImageType }}" />
+    <meta property="og:image:width" content="{{ $ogImageWidth }}" />
+    <meta property="og:image:height" content="{{ $ogImageHeight }}" />
+    <meta property="og:image:alt" content="{{ $ogTitle }}" />
 
     <!-- Twitter / X -->
     <meta name="twitter:card" content="{{ $twitterCard }}" />
-    <meta name="twitter:url" content="{{ url()->current() }}" />
+    <meta name="twitter:url" content="{{ $currentUrl }}" />
     <meta name="twitter:title" content="{{ $ogTitle }}" />
     <meta name="twitter:description" content="{{ $ogDesc }}" />
-    <meta name="twitter:image" content="{{ $ogImage }}" />
+    <meta name="twitter:image" content="{{ $ogImage . $ogImageVersion }}" />
 
     @if(request()->is('admin*') || request()->is('operasional*') || request()->is('login*'))
         <!-- Admin & Operasional Command Center Fonts & Assets -->

@@ -311,7 +311,10 @@ function submitForm() {
                       class="form-control"
                       placeholder="/assets/img/og-thumbnail.jpg"
                     />
-                    <small class="text-muted fs-11 d-block mt-1">Ukuran ideal: 1200 x 630 px (Rasio 1.91:1) format JPG/PNG/WebP.</small>
+                    <small class="text-muted fs-11 d-block mt-1">
+                      <i class="ri-information-line text-info me-1"></i>
+                      Rekomendasi rasio: 1.91:1 (1200 x 630 px). WhatsApp mewajibkan ukuran file di bawah 300 KB. Sistem otomatis mengompresi gambar yang diunggah.
+                    </small>
                   </div>
 
                   <div class="col-md-5">

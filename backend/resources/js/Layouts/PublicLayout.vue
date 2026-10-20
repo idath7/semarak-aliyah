@@ -337,12 +337,8 @@ onUnmounted(() => {
       <div class="drawer-actions">
         <Link href="/layanan-registrasi" class="btn-primary drawer-btn-cta" @click="closeMobileMenu">
           <i class="ri-flashlight-fill"></i>
-          <span>Layanan Registrasi Online</span>
+          <span>Layanan Registrasi</span>
         </Link>
-        <a :href="($page.props.portal?.adminUrl || 'http://localhost:8001') + '/login'" class="btn-secondary drawer-btn-panitia" @click="closeMobileMenu">
-          <i class="ri-lock-2-line"></i>
-          <span>Masuk Panel Panitia</span>
-        </a>
       </div>
     </div>
 
@@ -807,15 +803,106 @@ onUnmounted(() => {
 }
 
 /* Floating WA Positioning & Animations */
+.floating-wa-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 990;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px;
+  text-decoration: none !important;
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 24px rgba(37, 211, 102, 0.45), 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.3) !important;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.floating-wa-btn.has-label {
+  width: auto !important;
+  height: auto !important;
+  min-height: 48px !important;
+  padding: 10px 18px 10px 14px !important;
+  border-radius: 9999px !important;
+}
+
+.floating-wa-btn.icon-only {
+  width: 50px !important;
+  height: 50px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+}
+
+.floating-wa-btn i {
+  font-size: 1.5rem !important;
+  line-height: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #ffffff !important;
+  flex-shrink: 0;
+}
+
+.floating-wa-label-chip {
+  font-size: 0.84rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2px;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+  color: #ffffff !important;
+}
+
+.floating-wa-btn:hover {
+  transform: translateY(-2px) scale(1.03) !important;
+  box-shadow: 0 12px 28px rgba(37, 211, 102, 0.6), 0 4px 10px rgba(0, 0, 0, 0.25) !important;
+  color: #ffffff !important;
+}
+
 .floating-wa-btn.pos-left {
   left: 24px !important;
   right: auto !important;
 }
 
-.floating-wa-label-chip {
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding-right: 4px;
+.floating-wa-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit !important;
+  background: #25D366;
+  opacity: 0.45;
+  animation: waPulse 2s infinite;
+  z-index: -1;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .floating-wa-btn {
+    bottom: 18px !important;
+    right: 16px !important;
+  }
+  .floating-wa-btn.pos-left {
+    left: 16px !important;
+    right: auto !important;
+  }
+  .floating-wa-btn.has-label {
+    min-height: 42px !important;
+    padding: 8px 14px 8px 12px !important;
+  }
+  .floating-wa-btn.icon-only {
+    width: 44px !important;
+    height: 44px !important;
+  }
+  .floating-wa-btn i {
+    font-size: 1.35rem !important;
+  }
+  .floating-wa-label-chip {
+    font-size: 0.78rem !important;
+  }
 }
 
 .anim-pulse {

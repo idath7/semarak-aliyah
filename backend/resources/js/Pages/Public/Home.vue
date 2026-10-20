@@ -2106,64 +2106,67 @@ function handleLightboxKey(e) {
           </button>
         </div>
 
-        <!-- Dynamic Schedule Grid -->
-        <div class="schedule-grid">
+        <!-- Dynamic Schedule List (Elegant Agenda List) -->
+        <div class="schedule-list">
           <div 
             v-for="comp in filteredTmCompetitions" 
             :key="'tm-' + comp.id"
-            class="schedule-card"
+            class="schedule-list-item"
           >
-            <div>
-              <!-- Card Top Header -->
-              <div class="schedule-card-header">
-                <div class="schedule-card-cat-wrap">
-                  <div class="schedule-comp-icon">
-                    <i :class="getCompIconClass(comp)"></i>
-                  </div>
-                  <span class="comp-card-category" style="margin: 0;">
-                    {{ comp.category_label || comp.category || 'Kompetisi' }}
-                  </span>
-                </div>
-
-                <span class="schedule-badge-time">
-                  <i class="ri-time-line"></i>
-                  <span>{{ comp.tm_date && comp.tm_date !== '-' ? comp.tm_date : '26 Oktober 2026 • 08:00 WIB' }}</span>
-                </span>
+            <!-- Left: Time & Icon Column -->
+            <div class="schedule-list-time-col">
+              <div class="schedule-list-icon">
+                <i :class="getCompIconClass(comp)"></i>
               </div>
-
-              <!-- Title -->
-              <h3 class="schedule-title">
-                TM {{ comp.title }}
-              </h3>
-
-              <!-- Structured Info Box -->
-              <div class="schedule-info-box">
-                <!-- Location -->
-                <div class="schedule-info-row">
-                  <i class="ri-map-pin-2-fill" style="color: var(--accent-gold-light);"></i>
-                  <div>
-                    <span class="schedule-info-label">Tempat / Ruangan TM</span>
-                    <span class="schedule-info-val">{{ getCompTmLocation(comp) }}</span>
-                  </div>
-                </div>
-
-                <!-- Agenda -->
-                <div class="schedule-info-row">
-                  <i class="ri-calendar-check-fill" style="color: var(--primary-blue-light);"></i>
-                  <div>
-                    <span class="schedule-info-label">Agenda Utama TM</span>
-                    <span class="schedule-info-val">{{ getCompTmAgenda(comp) }}</span>
-                  </div>
-                </div>
-
+              <div class="schedule-list-time-badge">
+                <i class="ri-calendar-event-line"></i>
+                <span>{{ comp.tm_date && comp.tm_date !== '-' ? comp.tm_date : '26 Oktober 2026 • 08:00 WIB' }}</span>
               </div>
             </div>
 
-            <!-- Card Actions -->
-            <div class="schedule-card-actions">
+            <!-- Center: Title & Meta Info -->
+            <div class="schedule-list-body">
+              <div class="schedule-list-tags">
+                <span class="comp-card-category" style="margin: 0;">
+                  {{ comp.category_label || comp.category || 'Kompetisi' }}
+                </span>
+                <span 
+                  class="schedule-status-pill"
+                  :class="getCompStatusInfo(comp).isClosed ? 'status-closed' : 'status-open'"
+                >
+                  <span class="status-dot"></span>
+                  {{ getCompStatusInfo(comp).isClosed ? (getCompStatusInfo(comp).isManuallyClosed ? 'Ditutup' : 'Waiting List') : 'Pendaftaran Dibuka' }}
+                </span>
+              </div>
+
+              <h3 class="schedule-list-title">
+                Technical Meeting {{ comp.title }}
+              </h3>
+
+              <div class="schedule-list-meta-grid">
+                <div class="schedule-meta-item">
+                  <i class="ri-map-pin-2-fill text-warning"></i>
+                  <div>
+                    <span class="meta-label">Tempat / Ruangan TM</span>
+                    <span class="meta-val">{{ getCompTmLocation(comp) }}</span>
+                  </div>
+                </div>
+
+                <div class="schedule-meta-item">
+                  <i class="ri-calendar-check-fill text-primary"></i>
+                  <div>
+                    <span class="meta-label">Agenda Utama TM</span>
+                    <span class="meta-val">{{ getCompTmAgenda(comp) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Action Buttons -->
+            <div class="schedule-list-actions">
               <button 
                 type="button" 
-                class="btn-card-detail"
+                class="btn-tm-detail"
                 @click="openDetailModal(comp)"
               >
                 <i class="ri-information-line"></i>
@@ -2172,8 +2175,7 @@ function handleLightboxKey(e) {
               <Link 
                 v-if="!getCompStatusInfo(comp).isClosed"
                 :href="`/layanan-registrasi?lomba=${comp.id}`" 
-                class="btn-card-register"
-                style="text-align: center;"
+                class="btn-tm-register"
               >
                 <i class="ri-flashlight-line"></i>
                 <span>Daftar</span>
@@ -2182,8 +2184,7 @@ function handleLightboxKey(e) {
                 v-else
                 type="button"
                 disabled
-                class="btn-card-register btn-card-disabled" 
-                style="background: #334155; color: #94a3b8; font-size: 0.8rem; text-align: center; border: 1px solid #475569;"
+                class="btn-tm-register btn-tm-disabled" 
                 :title="getCompStatusInfo(comp).isManuallyClosed ? 'Pendaftaran ditutup oleh panitia' : 'Kuota telah penuh (Waiting List)'"
               >
                 <i :class="getCompStatusInfo(comp).isManuallyClosed ? 'ri-lock-line' : 'ri-time-line'"></i>

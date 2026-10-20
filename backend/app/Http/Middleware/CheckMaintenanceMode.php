@@ -90,18 +90,86 @@ class CheckMaintenanceMode
                 ];
             }
 
+            // SEO & OpenGraph settings for rich preview (WhatsApp, Facebook, Twitter, Telegram, etc.)
+            $schoolName = Setting::get('school_name', 'MA Unggulan Wahid Hasyim Balung');
+            $eventName = Setting::get('event_name', 'SEMARAK ALIYAH XIV 2026');
+            $title = Setting::get('maintenance_title', 'Situs Sedang Dalam Pemeliharaan Berkala');
+            $message = Setting::get('maintenance_message', 'Mohon maaf atas ketidaknyamanan ini. Saat ini sistem Semarak Aliyah XIV 2026 sedang dalam proses peningkatan performa dan sinkronisasi data teknis. Website publik akan segera kembali online.');
+
+            $seoTitle = Setting::get('seo_meta_title', $eventName . ' - ' . $schoolName);
+            $seoDesc = Setting::get('seo_meta_description', 'Ajang kompetisi tahunan bergengsi siswa/i SMP/MTs sederajat se-Kabupaten Jember. Raih piala juara, piagam resmi, uang pembinaan jutaan rupiah, dan beasiswa pendidikan.');
+            $ogTitle = Setting::get('seo_og_title', $seoTitle);
+            $ogDesc = Setting::get('seo_og_description', $seoDesc);
+
+            $isHttps = $request->isSecure() || $request->header('x-forwarded-proto') === 'https' || str_starts_with(config('app.url'), 'https://');
+            $currentUrl = url()->current();
+            if ($isHttps && str_starts_with($currentUrl, 'http://')) {
+                $currentUrl = 'https://' . substr($currentUrl, 7);
+            }
+
+            $rawOgImage = Setting::get('seo_og_image', '/assets/img/og-thumbnail.jpg');
+            $ogImage = $rawOgImage;
+            if (!str_starts_with($ogImage, 'http')) {
+                $ogImage = url($ogImage);
+            }
+            if ($isHttps && str_starts_with($ogImage, 'http://')) {
+                $ogImage = 'https://' . substr($ogImage, 7);
+            }
+            $ogImageSecure = str_replace('http://', 'https://', $ogImage);
+
+            $parsedPath = parse_url($rawOgImage, PHP_URL_PATH) ?: $rawOgImage;
+            $localFilePath = public_path(ltrim($parsedPath, '/'));
+            $ogImageWidth = '1200';
+            $ogImageHeight = '630';
+            $ogImageType = 'image/jpeg';
+            $ogImageVersion = '';
+
+            if (file_exists($localFilePath)) {
+                $imgInfo = @getimagesize($localFilePath);
+                if ($imgInfo && !empty($imgInfo[0]) && !empty($imgInfo[1])) {
+                    $ogImageWidth = (string)$imgInfo[0];
+                    $ogImageHeight = (string)$imgInfo[1];
+                    $ogImageType = $imgInfo['mime'] ?? 'image/jpeg';
+                }
+                $ogImageVersion = '?v=' . filemtime($localFilePath);
+            }
+
+            $twitterCard = Setting::get('seo_twitter_card', 'summary_large_image');
+
             $data = [
-                'title' => Setting::get('maintenance_title', 'Situs Sedang Dalam Pemeliharaan Berkala'),
-                'message' => Setting::get('maintenance_message', 'Mohon maaf atas ketidaknyamanan ini. Saat ini sistem Semarak Aliyah XIV 2026 sedang dalam proses peningkatan performa dan sinkronisasi data teknis. Website publik akan segera kembali online.'),
+                'title' => $title,
+                'message' => $message,
                 'estimatedEnd' => $estimatedEnd,
                 'countdownTarget' => $countdownTarget,
                 'emergencyWa' => $waContacts[0]['number'] ?? '0838 5007 0767',
                 'waContacts' => $waContacts,
-                'schoolName' => Setting::get('school_name', 'MA Unggulan Wahid Hasyim Balung'),
-                'eventName' => Setting::get('event_name', 'SEMARAK ALIYAH XIV 2026'),
+                'schoolName' => $schoolName,
+                'eventName' => $eventName,
+                'currentUrl' => $currentUrl,
+                'ogTitle' => $ogTitle,
+                'ogDesc' => $ogDesc,
+                'ogImage' => $ogImage,
+                'ogImageSecure' => $ogImageSecure,
+                'ogImageWidth' => $ogImageWidth,
+                'ogImageHeight' => $ogImageHeight,
+                'ogImageType' => $ogImageType,
+                'ogImageVersion' => $ogImageVersion,
+                'twitterCard' => $twitterCard,
             ];
 
-            return response()->view('maintenance', $data, 503);
+            // Deteksi bot / scraper media sosial (WhatsApp, Facebook, Twitter, Telegram, LinkedIn, Pinterest, Discord, dll.)
+            // Scraper media sosial WAJIB menerima HTTP status 200 OK agar dapat memproses OpenGraph meta tag dan memunculkan thumbnail preview.
+            $userAgent = $request->header('User-Agent', '');
+            $isSocialBot = (bool) preg_match('/(facebookexternalhit|WhatsApp|Facebot|Twitterbot|TelegramBot|LinkedInBot|Pinterest|Slackbot|Discordbot)/i', $userAgent);
+
+            $statusCode = $isSocialBot ? 200 : 503;
+            $response = response()->view('maintenance', $data, $statusCode);
+
+            if ($statusCode === 503) {
+                $response->header('Retry-After', '3600');
+            }
+
+            return $response;
         }
 
         return $next($request);

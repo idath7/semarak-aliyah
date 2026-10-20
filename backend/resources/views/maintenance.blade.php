@@ -5,6 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $title }} | {{ $eventName }}</title>
     <link rel="icon" type="image/png" href="/assets/img/logo.png">
+
+    <!-- Primary Meta Tags -->
+    <meta name="title" content="{{ $ogTitle ?? ($title . ' | ' . $eventName) }}">
+    <meta name="description" content="{{ $ogDesc ?? $message }}">
+    <meta name="theme-color" content="#8b5cf6">
+    <link rel="canonical" href="{{ $currentUrl ?? url()->current() }}">
+
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="id_ID">
+    <meta property="og:site_name" content="{{ $eventName }}">
+    <meta property="og:url" content="{{ $currentUrl ?? url()->current() }}">
+    <meta property="og:title" content="{{ $ogTitle ?? ($title . ' | ' . $eventName) }}">
+    <meta property="og:description" content="{{ $ogDesc ?? $message }}">
+    <meta property="og:image" content="{{ ($ogImage ?? url('/assets/img/og-thumbnail.jpg')) . ($ogImageVersion ?? '') }}">
+    <meta property="og:image:secure_url" content="{{ ($ogImageSecure ?? url('/assets/img/og-thumbnail.jpg')) . ($ogImageVersion ?? '') }}">
+    <meta property="og:image:type" content="{{ $ogImageType ?? 'image/jpeg' }}">
+    <meta property="og:image:width" content="{{ $ogImageWidth ?? '1200' }}">
+    <meta property="og:image:height" content="{{ $ogImageHeight ?? '630' }}">
+    <meta property="og:image:alt" content="{{ $ogTitle ?? $eventName }}">
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="{{ $twitterCard ?? 'summary_large_image' }}">
+    <meta name="twitter:url" content="{{ $currentUrl ?? url()->current() }}">
+    <meta name="twitter:title" content="{{ $ogTitle ?? ($title . ' | ' . $eventName) }}">
+    <meta name="twitter:description" content="{{ $ogDesc ?? $message }}">
+    <meta name="twitter:image" content="{{ ($ogImage ?? url('/assets/img/og-thumbnail.jpg')) . ($ogImageVersion ?? '') }}">
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

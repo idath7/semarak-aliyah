@@ -11,18 +11,78 @@ const flashError = computed(() => page.props.flash?.error);
 const currentUrl = computed(() => page.url || window.location.pathname);
 const school = computed(() => page.props.schoolProfile || {});
 const eventInfo = computed(() => {
-  const name = (school.value.event_name || 'SEMARAK ALIYAH XIV 2026').trim();
-  const match = name.match(/^(.*?)\s+([IVXLCDM]+|\d+)(?:\s+(\d{4}))?$/i);
-  if (match) {
-    return {
-      base: match[1],
-      edition: match[2].toUpperCase(),
-      year: match[3] || '2026',
-      full: name
-    };
-  }
-  return { base: name, edition: 'XIV', year: '2026', full: name };
+  const edition = school.value.event_edition || 'XIV';
+  const year = school.value.event_year || '2026';
+  const name = school.value.event_name || `SEMARAK ALIYAH ${edition} ${year}`;
+  return {
+    edition,
+    year,
+    full: name,
+    badge: `Edisi ${edition} • ${year}`
+  };
 });
+
+// Quick Edition Master Modal State
+const isEditionModalOpen = ref(false);
+const isSubmittingEdition = ref(false);
+const editionForm = ref({
+  event_edition: 'XIV',
+  event_year: '2026',
+  event_name: 'SEMARAK ALIYAH XIV 2026',
+});
+
+const quickEditions = ['XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
+const quickYears = ['2025', '2026', '2027', '2028', '2029', '2030'];
+
+watch(eventInfo, (val) => {
+  editionForm.value.event_edition = val.edition;
+  editionForm.value.event_year = val.year;
+  editionForm.value.event_name = val.full;
+}, { immediate: true });
+
+function openEditionModal() {
+  editionForm.value.event_edition = eventInfo.value.edition;
+  editionForm.value.event_year = eventInfo.value.year;
+  editionForm.value.event_name = eventInfo.value.full;
+  isEditionModalOpen.value = true;
+}
+
+function closeEditionModal() {
+  isEditionModalOpen.value = false;
+}
+
+function setQuickEdition(ed) {
+  editionForm.value.event_edition = ed;
+  syncEventName();
+}
+
+function setQuickYear(yr) {
+  editionForm.value.event_year = yr;
+  syncEventName();
+}
+
+function syncEventName() {
+  const ed = (editionForm.value.event_edition || '').trim().toUpperCase();
+  const yr = (editionForm.value.event_year || '').trim();
+  editionForm.value.event_name = `SEMARAK ALIYAH ${ed} ${yr}`.trim();
+}
+
+function submitQuickEdition() {
+  isSubmittingEdition.value = true;
+  router.post('/admin/pengaturan/update-edisi', editionForm.value, {
+    preserveScroll: true,
+    onSuccess: () => {
+      closeEditionModal();
+      success(`Master Event Edisi ${editionForm.value.event_edition} (${editionForm.value.event_year}) berhasil diterapkan!`, 'Edisi Berubah');
+    },
+    onError: () => {
+      error('Gagal memperbarui master edisi event.');
+    },
+    onFinish: () => {
+      isSubmittingEdition.value = false;
+    }
+  });
+}
 
 const { toasts, removeToast, success, error } = useToast();
 
@@ -131,13 +191,30 @@ onMounted(() => {
           </form>
 
           <div class="d-none d-lg-block">
-            <span class="badge bg-primary-subtle text-primary fs-12 px-2 py-1">
-              <i class="ri-flashlight-line align-middle me-1"></i> Edisi {{ eventInfo.edition }} • {{ eventInfo.year }}
-            </span>
+            <button 
+              type="button" 
+              class="edition-badge-btn"
+              @click="openEditionModal"
+              title="Kunci Utama: Klik untuk kelola Master Edisi & Tahun Event"
+            >
+              <i class="ri-flashlight-line align-middle me-1.5 text-warning edition-badge-icon"></i>
+              <span class="edition-badge-text">Edisi {{ eventInfo.edition }} • {{ eventInfo.year }}</span>
+              <i class="ri-equalizer-line ms-1.5 opacity-70 edition-badge-tune"></i>
+            </button>
           </div>
         </div>
 
         <div class="d-flex align-items-center gap-2">
+          <!-- Mobile Edition Button -->
+          <button 
+            type="button" 
+            class="btn btn-topbar d-lg-none" 
+            @click="openEditionModal"
+            title="Kelola Master Edisi & Tahun Event"
+          >
+            <i class="ri-flashlight-line text-warning fs-18"></i>
+          </button>
+
           <!-- External Public Web Link -->
           <Link 
             href="/" 
@@ -621,6 +698,344 @@ onMounted(() => {
       </footer>
       <!-- Velzon Global Confirmation Modal -->
       <VelzonConfirmModal />
+
+      <!-- ============================================================== -->
+      <!-- MODAL: MASTER GELARAN EDISI & TAHUN EVENT                      -->
+      <!-- ============================================================== -->
+      <div 
+        v-if="isEditionModalOpen" 
+        class="modal fade show d-block" 
+        tabindex="-1" 
+        style="background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(3px); z-index: 1055;"
+        @click.self="closeEditionModal"
+      >
+        <div class="modal-dialog modal-dialog-centered" style="max-width: 490px;">
+          <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden edition-modal-content">
+            <div class="modal-header border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center gap-2.5">
+                <div class="avatar-xs rounded-2 d-flex align-items-center justify-content-center edition-header-avatar">
+                  <i class="ri-flashlight-line fs-18 text-warning"></i>
+                </div>
+                <div>
+                  <h5 class="modal-title fs-15 fw-bold mb-0 edition-modal-title">Master Gelaran Edisi Event</h5>
+                  <small class="edition-modal-subtitle fs-11">Kunci utama acuan seluruh sistem Semarak</small>
+                </div>
+              </div>
+              <button type="button" class="btn-close" @click="closeEditionModal"></button>
+            </div>
+
+            <form @submit.prevent="submitQuickEdition">
+              <div class="modal-body p-4">
+                <!-- Live Preview Card -->
+                <div class="p-3 rounded-3 mb-3 border edition-preview-box">
+                  <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="fs-11 fw-bold text-uppercase edition-modal-subtitle">Preview Badge Navbar</span>
+                    <span class="badge bg-success-subtle text-success fs-10 px-2 py-0.5">Live Real-time</span>
+                  </div>
+                  <div class="d-flex align-items-center justify-content-center p-3 rounded-3 edition-preview-surface">
+                    <span class="edition-badge-btn" style="pointer-events: none;">
+                      <i class="ri-flashlight-line align-middle me-1.5 text-warning edition-badge-icon"></i>
+                      <span class="edition-badge-text">Edisi {{ editionForm.event_edition || 'XIV' }} • {{ editionForm.event_year || '2026' }}</span>
+                      <i class="ri-equalizer-line ms-1.5 opacity-70 edition-badge-tune"></i>
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Input Edisi & Quick Chips -->
+                <div class="mb-3">
+                  <label class="form-label fs-12 fw-semibold mb-1 edition-modal-label">
+                    Pilih / Masukkan Angka Romawi Edisi <span class="text-danger">*</span>
+                  </label>
+                  <div class="d-flex flex-wrap gap-1.5 mb-2">
+                    <button 
+                      v-for="ed in quickEditions" 
+                      :key="ed" 
+                      type="button" 
+                      class="btn btn-xs rounded-pill edition-chip"
+                      :class="editionForm.event_edition === ed ? 'active' : ''"
+                      @click="setQuickEdition(ed)"
+                    >
+                      {{ ed }}
+                    </button>
+                  </div>
+                  <input 
+                    v-model="editionForm.event_edition" 
+                    type="text" 
+                    class="form-control form-control-sm text-uppercase fw-bold edition-input" 
+                    placeholder="Contoh: XIV, XV, XVI"
+                    required
+                    @input="syncEventName"
+                  />
+                </div>
+
+                <!-- Input Tahun & Quick Chips -->
+                <div class="mb-3">
+                  <label class="form-label fs-12 fw-semibold mb-1 edition-modal-label">
+                    Tahun Penyelenggaraan <span class="text-danger">*</span>
+                  </label>
+                  <div class="d-flex flex-wrap gap-1.5 mb-2">
+                    <button 
+                      v-for="yr in quickYears" 
+                      :key="yr" 
+                      type="button" 
+                      class="btn btn-xs rounded-pill edition-chip"
+                      :class="editionForm.event_year === yr ? 'active' : ''"
+                      @click="setQuickYear(yr)"
+                    >
+                      {{ yr }}
+                    </button>
+                  </div>
+                  <input 
+                    v-model="editionForm.event_year" 
+                    type="number" 
+                    class="form-control form-control-sm font-monospace edition-input" 
+                    placeholder="Contoh: 2026"
+                    min="2020"
+                    max="2040"
+                    required
+                    @input="syncEventName"
+                  />
+                </div>
+
+                <!-- Nama Acara Utama -->
+                <div class="mb-1">
+                  <div class="d-flex align-items-center justify-content-between mb-1">
+                    <label class="form-label fs-12 fw-semibold mb-0 edition-modal-label">
+                      Nama Resmi Event Lengkap
+                    </label>
+                    <button 
+                      type="button" 
+                      class="btn btn-xs text-primary p-0 border-0 bg-transparent"
+                      @click="syncEventName"
+                      title="Sinkronkan otomatis dari Edisi & Tahun"
+                    >
+                      <i class="ri-magic-line me-0.5"></i> Auto-Generate
+                    </button>
+                  </div>
+                  <input 
+                    v-model="editionForm.event_name" 
+                    type="text" 
+                    class="form-control form-control-sm edition-input" 
+                    placeholder="SEMARAK ALIYAH XIV 2026"
+                    required
+                  />
+                  <small class="edition-modal-subtitle fs-11 mt-1 d-block">
+                    Nama ini otomatis menjadi rujukan di Sertifikat, Header Publik, Formulir, dan Dokumen Juknis.
+                  </small>
+                </div>
+              </div>
+
+              <div class="modal-footer border-top py-2.5 px-4 d-flex align-items-center justify-content-between">
+                <Link 
+                  href="/admin/pengaturan/profil-sekolah" 
+                  class="btn btn-sm btn-link text-primary p-0 fs-12 text-decoration-none d-flex align-items-center gap-1"
+                  @click="closeEditionModal"
+                >
+                  <i class="ri-settings-4-line"></i> Buka Profil Lengkap
+                </Link>
+                <div class="d-flex gap-2">
+                  <button type="button" class="btn btn-sm edition-btn-cancel border px-3" @click="closeEditionModal">
+                    Batal
+                  </button>
+                  <button 
+                    type="submit" 
+                    class="btn btn-sm btn-primary px-3.5 shadow-sm d-flex align-items-center gap-1.5"
+                    :disabled="isSubmittingEdition"
+                  >
+                    <i class="ri-save-line" :class="{ 'ri-spin': isSubmittingEdition }"></i>
+                    <span>{{ isSubmittingEdition ? 'Menyimpan...' : 'Terapkan Edisi' }}</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 </template>
+
+<style scoped>
+/* ============================================================== */
+/* NAVBAR EDITION BADGE & MASTER MODAL STYLES                     */
+/* ============================================================== */
+.edition-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  background-color: #f0f7ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.edition-badge-btn:hover {
+  background-color: #e0f2fe;
+  border-color: #93c5fd;
+  color: #1e40af;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.18);
+}
+
+.edition-modal-content {
+  background-color: #ffffff;
+  color: #1e293b;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.edition-modal-title {
+  color: #0f172a;
+}
+.edition-modal-subtitle {
+  color: #64748b;
+}
+.edition-modal-label {
+  color: #334155;
+}
+.edition-header-avatar {
+  background-color: rgba(245, 158, 11, 0.15);
+  width: 32px;
+  height: 32px;
+}
+.edition-preview-box {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+}
+.edition-preview-surface {
+  background-color: #ffffff;
+  border: 1px dashed #cbd5e1;
+}
+.edition-chip {
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 2px 10px;
+  transition: all 0.15s ease;
+}
+.edition-chip:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+}
+.edition-chip.active {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.35);
+}
+.edition-btn-cancel {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+.edition-btn-cancel:hover {
+  background-color: #f1f5f9;
+  color: #1e293b;
+}
+
+/* ============================================================== */
+/* DARK MODE OVERRIDES (data-bs-theme="dark")                     */
+/* ============================================================== */
+:global([data-bs-theme="dark"]) .edition-badge-btn {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.45) 0%, rgba(37, 99, 235, 0.25) 100%) !important;
+  border: 1px solid rgba(96, 165, 250, 0.4) !important;
+  color: #93c5fd !important;
+  box-shadow: 0 0 14px rgba(59, 130, 246, 0.25) !important;
+}
+:global([data-bs-theme="dark"]) .edition-badge-btn:hover {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.7) 0%, rgba(37, 99, 235, 0.45) 100%) !important;
+  border-color: rgba(147, 197, 253, 0.65) !important;
+  color: #bfdbfe !important;
+  box-shadow: 0 0 22px rgba(59, 130, 246, 0.45) !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-modal-content {
+  background-color: #1e2227 !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7) !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-modal-title {
+  color: #f8fafc !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-modal-subtitle {
+  color: #94a3b8 !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-modal-label {
+  color: #cbd5e1 !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-header-avatar {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-preview-box {
+  background-color: #14171a !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-preview-surface {
+  background-color: #1a1d21 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-chip {
+  background-color: #292e34 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #cbd5e1 !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-chip:hover {
+  background-color: #343a40 !important;
+  color: #ffffff !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-chip.active {
+  background-color: #3b82f6 !important;
+  border-color: #60a5fa !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5) !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-input {
+  background-color: #14171a !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #f8fafc !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-input:focus {
+  background-color: #1a1e23 !important;
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.2) !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-btn-cancel {
+  background-color: #292e34 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #cbd5e1 !important;
+}
+
+:global([data-bs-theme="dark"]) .edition-btn-cancel:hover {
+  background-color: #343a40 !important;
+  color: #ffffff !important;
+}
+
+:global([data-bs-theme="dark"]) .toast {
+  background-color: #1e2227 !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+:global([data-bs-theme="dark"]) .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+</style>

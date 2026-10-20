@@ -16,6 +16,8 @@ const { success, error } = useToast();
 const form = useForm({
   school_name: props.settings.school_name || 'MA Unggulan Wahid Hasyim Balung',
   school_short_name: props.settings.school_short_name || 'MA Wahid Hasyim',
+  event_edition: props.settings.event_edition || 'XIV',
+  event_year: props.settings.event_year || '2026',
   event_name: props.settings.event_name || 'SEMARAK ALIYAH XIV 2026',
   school_tagline: props.settings.school_tagline || '',
   school_address: props.settings.school_address || '',
@@ -33,6 +35,25 @@ const form = useForm({
   social_tiktok: props.settings.social_tiktok || '',
   school_website: props.settings.school_website || '',
 });
+
+const quickEditions = ['XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX'];
+const quickYears = ['2025', '2026', '2027', '2028', '2029', '2030'];
+
+function setQuickEdition(ed) {
+  form.event_edition = ed;
+  syncEventName();
+}
+
+function setQuickYear(yr) {
+  form.event_year = yr;
+  syncEventName();
+}
+
+function syncEventName() {
+  const ed = (form.event_edition || '').trim().toUpperCase();
+  const yr = (form.event_year || '').trim();
+  form.event_name = `SEMARAK ALIYAH ${ed} ${yr}`.trim();
+}
 
 function submitForm() {
   form.post('/admin/pengaturan/profil-sekolah', {
@@ -126,15 +147,157 @@ function submitForm() {
         <div class="row g-4">
           <!-- Left Column: Form Fields -->
           <div class="col-lg-8">
-            <!-- 1. Identitas Lembaga & Acara -->
+            <!-- MASTER GELARAN EDISI & TAHUN EVENT (KUNCI UTAMA) -->
+            <div class="card border-0 shadow-sm mb-4 rounded-4 overflow-hidden" style="border: 1px solid rgba(59, 130, 246, 0.25) !important;">
+              <div class="card-header border-bottom bg-primary-subtle py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="avatar-xs rounded-2 bg-primary text-white d-flex align-items-center justify-content-center shadow-sm">
+                    <i class="ri-flashlight-line fs-18 text-warning"></i>
+                  </div>
+                  <div>
+                    <h6 class="card-title mb-0 fs-14 fw-bold text-primary">Master Gelaran Edisi & Tahun Event</h6>
+                    <small class="text-muted fs-11">Kunci utama acuan seluruh sistem Semarak (Navbar, Sertifikat, Juknis, Leaderboard & Web Publik)</small>
+                  </div>
+                </div>
+                <span class="badge bg-primary text-white px-2.5 py-1 fs-11 rounded-pill shadow-xs">
+                  Edisi Aktif: {{ form.event_edition || 'XIV' }} • {{ form.event_year || '2026' }}
+                </span>
+              </div>
+              <div class="card-body p-4">
+                <div class="row g-3">
+                  <!-- Live Preview Dual Theme (Light & Dark) -->
+                  <div class="col-12">
+                    <label class="form-label fs-12 fw-semibold text-dark-emphasis mb-2">
+                      Live Preview Tampilan Badge di Navbar Sistem
+                    </label>
+                    <div class="row g-2">
+                      <div class="col-md-6">
+                        <div class="p-3 rounded-3 border bg-white text-center">
+                          <small class="text-muted fs-11 d-block mb-2 fw-semibold text-uppercase">Mode Terang (Light Mode)</small>
+                          <div class="d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill shadow-xs border" style="background-color: #f0f7ff; border-color: #bfdbfe; color: #1d4ed8; font-size: 12px; font-weight: 600;">
+                            <i class="ri-flashlight-line text-warning"></i>
+                            <span>Edisi {{ form.event_edition || 'XIV' }} • {{ form.event_year || '2026' }}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="p-3 rounded-3 border text-center" style="background-color: #1a1d21; border-color: rgba(255,255,255,0.1) !important;">
+                          <small class="fs-11 d-block mb-2 fw-semibold text-uppercase" style="color: #94a3b8;">Mode Gelap (Dark Mode)</small>
+                          <div class="d-inline-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill shadow-xs border" style="background: linear-gradient(135deg, rgba(30, 58, 138, 0.45) 0%, rgba(37, 99, 235, 0.25) 100%); border-color: rgba(96, 165, 250, 0.45); color: #93c5fd; font-size: 12px; font-weight: 600; box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);">
+                            <i class="ri-flashlight-line text-warning"></i>
+                            <span>Edisi {{ form.event_edition || 'XIV' }} • {{ form.event_year || '2026' }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Kolom Edisi -->
+                  <div class="col-md-6">
+                    <label class="form-label fs-12 fw-semibold text-dark-emphasis">
+                      Angka Romawi Edisi <span class="text-danger">*</span>
+                    </label>
+                    <div class="d-flex flex-wrap gap-1.5 mb-2">
+                      <button 
+                        v-for="ed in quickEditions" 
+                        :key="ed" 
+                        type="button" 
+                        class="btn btn-xs rounded-pill"
+                        :class="form.event_edition === ed ? 'btn-primary' : 'btn-light border'"
+                        @click="setQuickEdition(ed)"
+                      >
+                        {{ ed }}
+                      </button>
+                    </div>
+                    <div class="input-group">
+                      <span class="input-group-text bg-dark-subtle border-secondary/20 text-muted"><i class="ri-flashlight-line"></i></span>
+                      <input
+                        v-model="form.event_edition"
+                        type="text"
+                        class="form-control text-uppercase fw-bold"
+                        placeholder="Contoh: XIV"
+                        required
+                        @input="syncEventName"
+                      />
+                    </div>
+                    <div v-if="form.errors.event_edition" class="text-danger fs-11 mt-1">{{ form.errors.event_edition }}</div>
+                  </div>
+
+                  <!-- Kolom Tahun -->
+                  <div class="col-md-6">
+                    <label class="form-label fs-12 fw-semibold text-dark-emphasis">
+                      Tahun Penyelenggaraan <span class="text-danger">*</span>
+                    </label>
+                    <div class="d-flex flex-wrap gap-1.5 mb-2">
+                      <button 
+                        v-for="yr in quickYears" 
+                        :key="yr" 
+                        type="button" 
+                        class="btn btn-xs rounded-pill"
+                        :class="form.event_year === yr ? 'btn-primary' : 'btn-light border'"
+                        @click="setQuickYear(yr)"
+                      >
+                        {{ yr }}
+                      </button>
+                    </div>
+                    <div class="input-group">
+                      <span class="input-group-text bg-dark-subtle border-secondary/20 text-muted"><i class="ri-calendar-event-line"></i></span>
+                      <input
+                        v-model="form.event_year"
+                        type="number"
+                        class="form-control font-monospace"
+                        placeholder="Contoh: 2026"
+                        min="2020"
+                        max="2040"
+                        required
+                        @input="syncEventName"
+                      />
+                    </div>
+                    <div v-if="form.errors.event_year" class="text-danger fs-11 mt-1">{{ form.errors.event_year }}</div>
+                  </div>
+
+                  <!-- Nama Acara Utama Lengkap -->
+                  <div class="col-12">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                      <label class="form-label fs-12 fw-semibold text-dark-emphasis mb-0">
+                        Nama Acara Resmi Lengkap <span class="text-danger">*</span>
+                      </label>
+                      <button 
+                        type="button" 
+                        class="btn btn-xs text-primary p-0 border-0 bg-transparent fw-semibold"
+                        @click="syncEventName"
+                      >
+                        <i class="ri-magic-line me-0.5"></i> Auto-Generate dari Edisi & Tahun
+                      </button>
+                    </div>
+                    <div class="input-group">
+                      <span class="input-group-text bg-dark-subtle border-secondary/20 text-muted"><i class="ri-trophy-line"></i></span>
+                      <input
+                        v-model="form.event_name"
+                        type="text"
+                        class="form-control"
+                        placeholder="Contoh: SEMARAK ALIYAH XIV 2026"
+                        required
+                      />
+                    </div>
+                    <div v-if="form.errors.event_name" class="text-danger fs-11 mt-1">{{ form.errors.event_name }}</div>
+                    <small class="text-muted fs-11 mt-1 d-block">
+                      Nama ini menjadi rujukan otomatis di seluruh portal publik, banner, formulir pendaftaran, juknis perlombaan, dan sertifikat juara.
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 1. Identitas Resmi Lembaga & Website -->
             <div class="card border-0 shadow-sm mb-4 rounded-4">
               <div class="card-header border-bottom bg-transparent py-3 d-flex align-items-center gap-2">
                 <div class="avatar-xs rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center">
                   <i class="ri-school-line fs-16"></i>
                 </div>
                 <div>
-                  <h6 class="card-title mb-0 fs-14 fw-bold text-dark-emphasis">Identitas Lembaga & Gelaran Event</h6>
-                  <small class="text-muted fs-11">Data utama yang ditampilkan pada banner, header, serta footer portal</small>
+                  <h6 class="card-title mb-0 fs-14 fw-bold text-dark-emphasis">Identitas Resmi Lembaga & Website</h6>
+                  <small class="text-muted fs-11">Data madrasah penyelenggara dan website resmi</small>
                 </div>
               </div>
               <div class="card-body p-4">
@@ -166,22 +329,7 @@ function submitForm() {
                     <div v-if="form.errors.school_short_name" class="text-danger fs-11 mt-1">{{ form.errors.school_short_name }}</div>
                   </div>
 
-                  <div class="col-md-6">
-                    <label class="form-label fs-12 fw-semibold text-dark-emphasis">Nama Acara / Event Utama <span class="text-danger">*</span></label>
-                    <div class="input-group">
-                      <span class="input-group-text bg-dark-subtle border-secondary/20 text-muted"><i class="ri-trophy-line"></i></span>
-                      <input
-                        v-model="form.event_name"
-                        type="text"
-                        class="form-control"
-                        placeholder="Contoh: SEMARAK ALIYAH XIV 2026"
-                        required
-                      />
-                    </div>
-                    <div v-if="form.errors.event_name" class="text-danger fs-11 mt-1">{{ form.errors.event_name }}</div>
-                  </div>
-
-                  <div class="col-md-6">
+                  <div class="col-12">
                     <label class="form-label fs-12 fw-semibold text-dark-emphasis">Website Utama Sekolah</label>
                     <div class="input-group">
                       <span class="input-group-text bg-dark-subtle border-secondary/20 text-muted"><i class="ri-global-line"></i></span>
@@ -471,6 +619,11 @@ function submitForm() {
                     <img src="/assets/img/logo.png" alt="Logo" style="height: 54px; width: auto;" />
                   </div>
                   <h5 class="fw-bold text-white mb-1 fs-15">{{ form.event_name || 'SEMARAK ALIYAH XIV' }}</h5>
+                  <div class="mb-2">
+                    <span class="badge rounded-pill px-3 py-1 fs-11" style="background: linear-gradient(135deg, rgba(30, 58, 138, 0.45) 0%, rgba(37, 99, 235, 0.25) 100%); border: 1px solid rgba(96, 165, 250, 0.45); color: #93c5fd; box-shadow: 0 0 10px rgba(59, 130, 246, 0.25);">
+                      <i class="ri-flashlight-line text-warning me-1"></i> Edisi {{ form.event_edition || 'XIV' }} • {{ form.event_year || '2026' }}
+                    </span>
+                  </div>
                   <p class="text-primary fs-12 fw-semibold mb-2">{{ form.school_name || 'MA Unggulan Wahid Hasyim' }}</p>
                   <p class="text-muted fs-11 lh-base px-2 mb-3">
                     {{ form.school_tagline || 'Pendidikan Islam Modern Terakreditasi A dengan Program Unggulan.' }}

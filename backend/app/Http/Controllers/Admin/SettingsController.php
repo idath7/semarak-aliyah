@@ -27,7 +27,9 @@ class SettingsController extends Controller
         $settings = [
             'school_name' => Setting::get('school_name', 'MA Unggulan Wahid Hasyim Balung'),
             'school_short_name' => Setting::get('school_short_name', 'MA Wahid Hasyim'),
-            'event_name' => Setting::get('event_name', 'SEMARAK ALIYAH XII 2026'),
+            'event_edition' => Setting::get('event_edition', 'XIV'),
+            'event_year' => Setting::get('event_year', '2026'),
+            'event_name' => Setting::get('event_name', 'SEMARAK ALIYAH XIV 2026'),
             'school_tagline' => Setting::get('school_tagline', 'Lembaga Pendidikan Islam Modern Terakreditasi A dengan Program Unggulan Plus Keterampilan, Riset, & Penguasaan Bahasa Asing'),
             'school_address' => Setting::get('school_address', 'Jl. Puger No. 20 Balung Kulon, Kec. Balung, Kabupaten Jember, Jawa Timur 68161'),
             'school_city' => Setting::get('school_city', 'Jember'),
@@ -53,6 +55,8 @@ class SettingsController extends Controller
         $validated = $request->validate([
             'school_name' => 'required|string|max:255',
             'school_short_name' => 'required|string|max:100',
+            'event_edition' => 'required|string|max:50',
+            'event_year' => 'required|string|max:10',
             'event_name' => 'required|string|max:150',
             'school_tagline' => 'nullable|string|max:500',
             'school_address' => 'required|string|max:500',
@@ -76,6 +80,25 @@ class SettingsController extends Controller
         }
 
         return redirect()->back()->with('success', 'Konfigurasi profil sekolah dan kontak resmi berhasil diperbarui.');
+    }
+
+    public function updateEdition(Request $request)
+    {
+        $validated = $request->validate([
+            'event_edition' => 'required|string|max:50',
+            'event_year' => 'required|string|max:10',
+            'event_name' => 'required|string|max:150',
+        ]);
+
+        $edition = strtoupper(trim($validated['event_edition']));
+        $year = trim($validated['event_year']);
+        $eventName = trim($validated['event_name']);
+
+        Setting::set('event_edition', $edition);
+        Setting::set('event_year', $year);
+        Setting::set('event_name', $eventName);
+
+        return redirect()->back()->with('success', "Master Event berhasil disetel ke Edisi {$edition} • {$year}!");
     }
 
     // =========================================================================

@@ -29,7 +29,7 @@ onUnmounted(() => {
       @click.self="handleCancel"
     >
       <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden bg-white">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden confirm-modal-content">
           <div class="modal-body p-4 text-center">
             <!-- Icon Avatar -->
             <div 
@@ -46,14 +46,14 @@ onUnmounted(() => {
             </div>
 
             <!-- Title & Message -->
-            <h5 class="fs-16 fw-bold text-dark mb-2">{{ dialogConfig.title }}</h5>
-            <p class="text-muted fs-13 mb-4 lh-base" style="white-space: pre-line;">{{ dialogConfig.message }}</p>
+            <h5 class="fs-16 fw-bold mb-2 confirm-modal-title">{{ dialogConfig.title }}</h5>
+            <p class="fs-13 mb-4 lh-base confirm-modal-message" style="white-space: pre-line;">{{ dialogConfig.message }}</p>
 
             <!-- Action Buttons -->
             <div class="d-flex gap-2 justify-content-center">
               <button 
                 type="button" 
-                class="btn btn-sm btn-light border px-3.5 py-1.5 rounded-3 d-inline-flex align-items-center gap-1 text-muted"
+                class="btn btn-sm px-3.5 py-1.5 rounded-3 d-inline-flex align-items-center gap-1 confirm-btn-cancel"
                 @click="handleCancel"
               >
                 <i class="ri-close-line"></i>
@@ -78,6 +78,79 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.confirm-modal-content {
+  background-color: #ffffff;
+  color: #1e293b;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+}
+
+.confirm-modal-title {
+  color: #0f172a;
+}
+
+.confirm-modal-message {
+  color: #64748b;
+}
+
+.confirm-btn-cancel {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+}
+.confirm-btn-cancel:hover {
+  background-color: #f1f5f9;
+  color: #334155;
+}
+
+/* Dark mode overrides */
+:global([data-bs-theme="dark"]) .confirm-modal-content {
+  background-color: #1e2227 !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+:global([data-bs-theme="dark"]) .confirm-modal-title {
+  color: #f8fafc !important;
+}
+
+:global([data-bs-theme="dark"]) .confirm-modal-message {
+  color: #94a3b8 !important;
+}
+
+:global([data-bs-theme="dark"]) .confirm-btn-cancel {
+  background-color: #292e34 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #cbd5e1 !important;
+}
+
+:global([data-bs-theme="dark"]) .confirm-btn-cancel:hover {
+  background-color: #343a40 !important;
+  color: #ffffff !important;
+}
+
+:global([data-bs-theme="dark"]) .bg-primary-subtle {
+  background-color: rgba(64, 81, 137, 0.28) !important;
+  color: #60a5fa !important;
+}
+:global([data-bs-theme="dark"]) .bg-info-subtle {
+  background-color: rgba(41, 156, 219, 0.28) !important;
+  color: #38bdf8 !important;
+}
+:global([data-bs-theme="dark"]) .bg-warning-subtle {
+  background-color: rgba(247, 184, 75, 0.22) !important;
+  color: #fbbf24 !important;
+}
+:global([data-bs-theme="dark"]) .bg-danger-subtle {
+  background-color: rgba(240, 101, 72, 0.22) !important;
+  color: #f87171 !important;
+}
+:global([data-bs-theme="dark"]) .bg-success-subtle {
+  background-color: rgba(10, 179, 156, 0.22) !important;
+  color: #34d399 !important;
+}
+
 .velzon-modal-enter-active,
 .velzon-modal-leave-active {
   transition: opacity 0.2s ease, transform 0.2s ease;

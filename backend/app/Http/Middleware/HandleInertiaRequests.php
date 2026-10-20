@@ -57,7 +57,10 @@ class HandleInertiaRequests extends Middleware
             'schoolProfile' => fn () => [
                 'school_name' => \App\Models\Setting::get('school_name', 'MA Unggulan Wahid Hasyim Balung'),
                 'school_short_name' => \App\Models\Setting::get('school_short_name', 'MA Wahid Hasyim'),
+                'event_edition' => \App\Models\Setting::get('event_edition', 'XIV'),
+                'event_year' => \App\Models\Setting::get('event_year', '2026'),
                 'event_name' => \App\Models\Setting::get('event_name', 'SEMARAK ALIYAH XIV 2026'),
+                'event_edition_badge' => 'Edisi ' . \App\Models\Setting::get('event_edition', 'XIV') . ' • ' . \App\Models\Setting::get('event_year', '2026'),
                 'school_tagline' => \App\Models\Setting::get('school_tagline', 'Lembaga Pendidikan Islam Modern Terakreditasi A dengan Program Unggulan Plus Keterampilan, Riset, & Penguasaan Bahasa Asing'),
                 'school_address' => \App\Models\Setting::get('school_address', 'Jl. Puger No. 20 Balung Kulon, Kec. Balung, Kabupaten Jember, Jawa Timur 68161'),
                 'school_city' => \App\Models\Setting::get('school_city', 'Jember'),

@@ -855,12 +855,12 @@ const allJemberKecamatan = [
       v-if="isFormModalOpen" 
       class="modal fade show d-block" 
       tabindex="-1" 
-      style="background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(2px);"
+      style="background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(3px); z-index: 1055;"
     >
       <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow-lg rounded-3">
-          <div class="modal-header bg-white border-bottom py-3">
-            <h5 class="modal-title fs-15 fw-bold text-dark d-flex align-items-center gap-2">
+        <div class="modal-content border-0 shadow-lg rounded-3 custom-modal-content">
+          <div class="modal-header border-bottom py-3 px-4">
+            <h5 class="modal-title fs-15 fw-bold custom-modal-title d-flex align-items-center gap-2">
               <i class="ri-building-4-line text-success"></i>
               {{ isEditing ? 'Edit Data Sekolah / Madrasah' : 'Tambah Sekolah / Madrasah Baru' }}
             </h5>
@@ -872,7 +872,7 @@ const allJemberKecamatan = [
               <div class="row g-3">
                 <!-- Nama Lembaga -->
                 <div class="col-12">
-                  <label class="form-label fs-12 fw-semibold text-dark">
+                  <label class="form-label fs-12 fw-semibold custom-modal-label">
                     Nama Sekolah / Madrasah <span class="text-danger">*</span>
                   </label>
                   <input 
@@ -886,7 +886,7 @@ const allJemberKecamatan = [
 
                 <!-- Jenjang -->
                 <div class="col-md-6">
-                  <label class="form-label fs-12 fw-semibold text-dark">
+                  <label class="form-label fs-12 fw-semibold custom-modal-label">
                     Jenjang Lembaga <span class="text-danger">*</span>
                   </label>
                   <select v-model="form.jenjang" class="form-select form-select-sm" required>
@@ -897,7 +897,7 @@ const allJemberKecamatan = [
 
                 <!-- Status -->
                 <div class="col-md-6">
-                  <label class="form-label fs-12 fw-semibold text-dark">
+                  <label class="form-label fs-12 fw-semibold custom-modal-label">
                     Status Sekolah <span class="text-danger">*</span>
                   </label>
                   <select v-model="form.status" class="form-select form-select-sm" required>
@@ -908,7 +908,7 @@ const allJemberKecamatan = [
 
                 <!-- Kecamatan -->
                 <div class="col-md-6">
-                  <label class="form-label fs-12 fw-semibold text-dark">
+                  <label class="form-label fs-12 fw-semibold custom-modal-label">
                     Kecamatan (Kabupaten Jember) <span class="text-danger">*</span>
                   </label>
                   <select v-model="form.kecamatan" class="form-select form-select-sm" required>
@@ -920,7 +920,7 @@ const allJemberKecamatan = [
 
                 <!-- NPSN -->
                 <div class="col-md-6">
-                  <label class="form-label fs-12 fw-semibold text-dark">NPSN (Nomor Pokok Sekolah Nasional)</label>
+                  <label class="form-label fs-12 fw-semibold custom-modal-label">NPSN (Nomor Pokok Sekolah Nasional)</label>
                   <input 
                     v-model="form.npsn" 
                     type="text" 
@@ -931,7 +931,7 @@ const allJemberKecamatan = [
 
                 <!-- Alamat Lengkap -->
                 <div class="col-12">
-                  <label class="form-label fs-12 fw-semibold text-dark">Alamat Lengkap</label>
+                  <label class="form-label fs-12 fw-semibold custom-modal-label">Alamat Lengkap</label>
                   <textarea 
                     v-model="form.alamat" 
                     rows="2" 
@@ -942,7 +942,7 @@ const allJemberKecamatan = [
 
                 <!-- No Telepon / WA -->
                 <div class="col-md-6">
-                  <label class="form-label fs-12 fw-semibold text-dark">Nomor Telepon / WhatsApp</label>
+                  <label class="form-label fs-12 fw-semibold custom-modal-label">Nomor Telepon / WhatsApp</label>
                   <div class="input-group input-group-sm">
                     <span class="input-group-text bg-light text-success"><i class="ri-whatsapp-line"></i></span>
                     <input 
@@ -956,7 +956,7 @@ const allJemberKecamatan = [
 
                 <!-- Email Resmi -->
                 <div class="col-md-6">
-                  <label class="form-label fs-12 fw-semibold text-dark">Email Resmi Sekolah</label>
+                  <label class="form-label fs-12 fw-semibold custom-modal-label">Email Resmi Sekolah</label>
                   <input 
                     v-model="form.email" 
                     type="email" 
@@ -974,7 +974,7 @@ const allJemberKecamatan = [
                       class="form-check-input" 
                       type="checkbox"
                     />
-                    <label class="form-check-label fs-12 text-dark" for="schoolIsActive">
+                    <label class="form-check-label fs-12 custom-modal-label" for="schoolIsActive">
                       Sekolah aktif (dapat dipilih pada saat pendaftaran online)
                     </label>
                   </div>
@@ -982,11 +982,11 @@ const allJemberKecamatan = [
               </div>
             </div>
 
-            <div class="modal-footer bg-light border-top py-2.5 px-4 d-flex justify-content-end gap-2">
-              <button type="button" class="btn btn-sm btn-light border" @click="closeFormModal">
+            <div class="modal-footer border-top py-2.5 px-4 d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-sm custom-modal-cancel border px-3" @click="closeFormModal">
                 Batal
               </button>
-              <button type="submit" class="btn btn-sm btn-success" :disabled="isSubmitting">
+              <button type="submit" class="btn btn-sm btn-success px-3.5" :disabled="isSubmitting">
                 <i class="ri-save-line me-1"></i>
                 {{ isSubmitting ? 'Menyimpan...' : (isEditing ? 'Simpan Perubahan' : 'Tambah Sekolah') }}
               </button>
@@ -1003,25 +1003,25 @@ const allJemberKecamatan = [
       v-if="isDeleteModalOpen" 
       class="modal fade show d-block" 
       tabindex="-1" 
-      style="background-color: rgba(15, 23, 42, 0.6); backdrop-filter: blur(2px);"
+      style="background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(3px); z-index: 1055;"
     >
       <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content border-0 shadow-lg rounded-3">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden custom-modal-content">
           <div class="modal-body p-4 text-center">
-            <div class="avatar-md bg-danger-subtle text-danger rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center fs-24">
+            <div class="avatar-md bg-danger-subtle text-danger rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center fs-24" style="width: 54px; height: 54px;">
               <i class="ri-delete-bin-line"></i>
             </div>
-            <h5 class="fs-15 fw-bold text-dark mb-1">Hapus Data Sekolah?</h5>
-            <p class="text-muted fs-12 mb-3">
+            <h5 class="fs-15 fw-bold custom-modal-title mb-1">Hapus Data Sekolah?</h5>
+            <p class="custom-modal-subtitle fs-12 mb-3">
               Apakah Anda yakin ingin menghapus <strong>{{ itemToDelete?.name }}</strong>? Tindakan ini tidak dapat dibatalkan.
             </p>
             <div class="d-flex gap-2 justify-content-center">
-              <button type="button" class="btn btn-sm btn-light border px-3" @click="closeDeleteModal">
+              <button type="button" class="btn btn-sm custom-modal-cancel border px-3" @click="closeDeleteModal">
                 Batal
               </button>
               <button 
                 type="button" 
-                class="btn btn-sm btn-danger px-3" 
+                class="btn btn-sm btn-danger px-3 shadow-sm" 
                 :disabled="isDeleting" 
                 @click="executeDelete"
               >
@@ -1040,17 +1040,17 @@ const allJemberKecamatan = [
       v-if="isImportModalOpen" 
       class="modal fade show d-block" 
       tabindex="-1" 
-      style="background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(3px);"
+      style="background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(3px); z-index: 1055;"
     >
       <div class="modal-dialog modal-dialog-centered modal-md">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-          <div class="modal-header bg-light border-bottom py-3 px-4">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden custom-modal-content">
+          <div class="modal-header border-bottom py-3 px-4">
             <div class="d-flex align-items-center gap-2">
               <div class="avatar-xs bg-primary-subtle text-primary rounded-2 d-flex align-items-center justify-content-center">
                 <i class="ri-file-upload-line fs-16"></i>
               </div>
               <div>
-                <h5 class="modal-title fs-15 fw-bold text-dark mb-0">Import Database Sekolah</h5>
+                <h5 class="modal-title fs-15 fw-bold custom-modal-title mb-0">Import Database Sekolah</h5>
                 <small class="text-muted fs-11">Unggah file spreadsheet CSV resmi Dispendik / Kemenag</small>
               </div>
             </div>
@@ -1060,9 +1060,9 @@ const allJemberKecamatan = [
           <form @submit.prevent="submitImport">
             <div class="modal-body p-4">
               <!-- Helper & Template Download -->
-              <div class="p-3 bg-light rounded-3 border mb-3">
+              <div class="p-3 custom-modal-card rounded-3 border mb-3">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                  <span class="fs-12 fw-bold text-dark">
+                  <span class="fs-12 fw-bold custom-modal-title">
                     <i class="ri-information-line text-primary me-1"></i> Format Kolom CSV
                   </span>
                   <a 
@@ -1080,7 +1080,7 @@ const allJemberKecamatan = [
 
               <!-- File Upload Input Area -->
               <div class="mb-3">
-                <label class="form-label fs-12 fw-semibold text-dark">Pilih File CSV (*.csv) <span class="text-danger">*</span></label>
+                <label class="form-label fs-12 fw-semibold custom-modal-label">Pilih File CSV (*.csv) <span class="text-danger">*</span></label>
                 <input 
                   ref="importFileInput"
                   type="file" 
@@ -1103,13 +1103,13 @@ const allJemberKecamatan = [
               </div>
             </div>
 
-            <div class="modal-footer bg-light border-top py-2.5 px-4 d-flex justify-content-end gap-2">
-              <button type="button" class="btn btn-sm btn-light border px-3" @click="closeImportModal">
+            <div class="modal-footer border-top py-2.5 px-4 d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-sm custom-modal-cancel border px-3" @click="closeImportModal">
                 Batal
               </button>
               <button 
                 type="submit" 
-                class="btn btn-sm btn-primary px-3 d-flex align-items-center gap-1"
+                class="btn btn-sm btn-primary px-3.5 d-flex align-items-center gap-1"
                 :disabled="isImporting || !importFile"
               >
                 <i class="ri-upload-cloud-line" :class="{ 'ri-spin': isImporting }"></i>
@@ -1128,10 +1128,10 @@ const allJemberKecamatan = [
       v-if="isCleanModalOpen" 
       class="modal fade show d-block" 
       tabindex="-1" 
-      style="background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(3px);"
+      style="background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(3px); z-index: 1055;"
     >
       <div class="modal-dialog modal-dialog-centered modal-md">
-        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden custom-modal-content">
           <div class="modal-header bg-danger-subtle border-bottom py-3 px-4">
             <div class="d-flex align-items-center gap-2">
               <div class="avatar-xs bg-danger text-white rounded-2 d-flex align-items-center justify-content-center">
@@ -1147,14 +1147,14 @@ const allJemberKecamatan = [
 
           <form @submit.prevent="executeClean">
             <div class="modal-body p-4">
-              <p class="fs-13 text-dark mb-3">
+              <p class="fs-13 custom-modal-title mb-3">
                 Silakan pilih opsi pembersihan data sekolah & madrasah:
               </p>
 
               <!-- Option 1: Clear All / Reset -->
               <div 
-                class="form-check p-3 rounded-3 border mb-2.5 transition-all cursor-pointer"
-                :class="cleanScope === 'all' ? 'border-danger bg-danger-subtle' : 'bg-light'"
+                class="form-check p-3 rounded-3 border mb-2.5 transition-all cursor-pointer custom-clean-opt"
+                :class="cleanScope === 'all' ? 'border-danger bg-danger-subtle' : 'custom-modal-card'"
                 @click="cleanScope = 'all'"
               >
                 <input 
@@ -1176,8 +1176,8 @@ const allJemberKecamatan = [
 
               <!-- Option 2: Only Inactive -->
               <div 
-                class="form-check p-3 rounded-3 border mb-2.5 transition-all cursor-pointer"
-                :class="cleanScope === 'inactive' ? 'border-warning bg-warning-subtle' : 'bg-light'"
+                class="form-check p-3 rounded-3 border mb-2.5 transition-all cursor-pointer custom-clean-opt"
+                :class="cleanScope === 'inactive' ? 'border-warning bg-warning-subtle' : 'custom-modal-card'"
                 @click="cleanScope = 'inactive'"
               >
                 <input 
@@ -1188,7 +1188,7 @@ const allJemberKecamatan = [
                   value="inactive" 
                 />
                 <label class="form-check-label ms-1 cursor-pointer w-100" for="scopeInactive">
-                  <strong class="d-block text-dark fs-13 mb-0.5">
+                  <strong class="d-block custom-modal-title fs-13 mb-0.5">
                     <i class="ri-close-circle-line me-1 text-warning"></i> Hapus Sekolah Non-Aktif Saja
                   </strong>
                   <span class="fs-11 text-muted d-block">
@@ -1199,8 +1199,8 @@ const allJemberKecamatan = [
 
               <!-- Option 3: Dummy / Test Data -->
               <div 
-                class="form-check p-3 rounded-3 border transition-all cursor-pointer"
-                :class="cleanScope === 'dummy' ? 'border-primary bg-primary-subtle' : 'bg-light'"
+                class="form-check p-3 rounded-3 border transition-all cursor-pointer custom-clean-opt"
+                :class="cleanScope === 'dummy' ? 'border-primary bg-primary-subtle' : 'custom-modal-card'"
                 @click="cleanScope = 'dummy'"
               >
                 <input 
@@ -1211,7 +1211,7 @@ const allJemberKecamatan = [
                   value="dummy" 
                 />
                 <label class="form-check-label ms-1 cursor-pointer w-100" for="scopeDummy">
-                  <strong class="d-block text-dark fs-13 mb-0.5">
+                  <strong class="d-block custom-modal-title fs-13 mb-0.5">
                     <i class="ri-magic-line me-1 text-primary"></i> Hapus Data Uji Coba / Dummy Saja
                   </strong>
                   <span class="fs-11 text-muted d-block">
@@ -1221,8 +1221,8 @@ const allJemberKecamatan = [
               </div>
             </div>
 
-            <div class="modal-footer bg-light border-top py-2.5 px-4 d-flex justify-content-end gap-2">
-              <button type="button" class="btn btn-sm btn-light border px-3" @click="closeCleanModal">
+            <div class="modal-footer border-top py-2.5 px-4 d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-sm custom-modal-cancel border px-3" @click="closeCleanModal">
                 Batal
               </button>
               <button 
@@ -1240,3 +1240,140 @@ const allJemberKecamatan = [
     </div>
   </VelzonLayout>
 </template>
+
+<style scoped>
+/* Custom Modal Elements */
+.custom-modal-content {
+  background-color: #ffffff;
+  color: #1e293b;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.custom-modal-title {
+  color: #0f172a;
+}
+.custom-modal-subtitle {
+  color: #64748b;
+}
+.custom-modal-label {
+  color: #334155;
+}
+.custom-modal-card {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+}
+.custom-modal-cancel {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+.custom-modal-cancel:hover {
+  background-color: #f1f5f9;
+  color: #1e293b;
+}
+
+/* Dark Mode Support for Schools Management Page & Modals */
+:global([data-bs-theme="dark"]) .custom-modal-content,
+:global([data-bs-theme="dark"]) .modal-content {
+  background-color: #1e2227 !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7) !important;
+}
+
+:global([data-bs-theme="dark"]) .modal-header {
+  background-color: #16191d !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+:global([data-bs-theme="dark"]) .modal-footer {
+  background-color: #16191d !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+:global([data-bs-theme="dark"]) .custom-modal-title,
+:global([data-bs-theme="dark"]) .modal-title {
+  color: #f8fafc !important;
+}
+
+:global([data-bs-theme="dark"]) .custom-modal-subtitle {
+  color: #94a3b8 !important;
+}
+
+:global([data-bs-theme="dark"]) .custom-modal-label,
+:global([data-bs-theme="dark"]) .form-label,
+:global([data-bs-theme="dark"]) .form-check-label {
+  color: #cbd5e1 !important;
+}
+
+:global([data-bs-theme="dark"]) .custom-modal-card {
+  background-color: #16191d !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+:global([data-bs-theme="dark"]) .custom-modal-cancel {
+  background-color: #292e34 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #cbd5e1 !important;
+}
+
+:global([data-bs-theme="dark"]) .custom-modal-cancel:hover {
+  background-color: #343a40 !important;
+  color: #ffffff !important;
+}
+
+:global([data-bs-theme="dark"]) .form-control,
+:global([data-bs-theme="dark"]) .form-select {
+  background-color: #14171a !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #f8fafc !important;
+}
+
+:global([data-bs-theme="dark"]) .form-control:focus,
+:global([data-bs-theme="dark"]) .form-select:focus {
+  background-color: #1a1e23 !important;
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.2) !important;
+}
+
+:global([data-bs-theme="dark"]) .input-group-text {
+  background-color: #1a1e23 !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #94a3b8 !important;
+}
+
+:global([data-bs-theme="dark"]) .card {
+  background-color: #1e2227 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:global([data-bs-theme="dark"]) .card-header,
+:global([data-bs-theme="dark"]) .card-footer {
+  background-color: #1e2227 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:global([data-bs-theme="dark"]) .table-light {
+  background-color: #24292f !important;
+  color: #94a3b8 !important;
+}
+
+:global([data-bs-theme="dark"]) .table-hover tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+:global([data-bs-theme="dark"]) .btn-light {
+  background-color: #292e34 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #cbd5e1 !important;
+}
+
+:global([data-bs-theme="dark"]) .btn-light:hover {
+  background-color: #343a40 !important;
+  color: #ffffff !important;
+}
+
+:global([data-bs-theme="dark"]) .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+</style>

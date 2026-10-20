@@ -153,6 +153,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         // 3. Setting SEO & Open Graph Web
         Route::get('/seo-og', [\App\Http\Controllers\Admin\SettingsController::class, 'seoOg'])->name('seo-og');
         Route::post('/seo-og', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSeoOg'])->name('seo-og.update');
+
+        // 4. Quick Update Master Edisi & Tahun Event
+        Route::post('/update-edisi', [\App\Http\Controllers\Admin\SettingsController::class, 'updateEdition'])->name('edition.update');
     });
 
     // 2. Redirect all operational routes to Dark Operational UI

@@ -5,6 +5,7 @@ import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import IndoDatePicker from '@/Components/IndoDatePicker.vue';
 import IndoTimePicker from '@/Components/IndoTimePicker.vue';
 import { useToast } from '@/Composables/useToast';
+import { getWaChatUrl } from '@/Utils/whatsapp';
 
 const props = defineProps({
   competitions: { type: Array, default: () => [] },
@@ -1008,7 +1009,7 @@ function confirmDelete() {
                           </span>
                           <a 
                             v-if="cd.contact" 
-                            :href="`https://wa.me/62${cd.contact.replace(/^0/, '')}`" 
+                            :href="getWaChatUrl(cd.contact, `Halo ${cd.name}, saya ingin berkoordinasi seputar lomba ${comp.title}: `)" 
                             target="_blank" 
                             class="badge bg-success-subtle text-success fs-9 text-decoration-none"
                             title="Chat WhatsApp"

@@ -205,13 +205,11 @@
                                     </div>
                                     <div class="d-flex gap-2">
                                         @php
-                                            $cleanPhone = preg_replace('/[^0-9]/', '', $selectedRegistration->mentor_phone);
-                                            if(str_starts_with($cleanPhone, '0')) {
-                                                $cleanPhone = '62' . substr($cleanPhone, 1);
-                                            }
-                                            $waMsg = urlencode("Halo Bapak/Ibu {$selectedRegistration->mentor_name} dari {$selectedRegistration->school_name}.\n\nKami dari Panitia Semarak Aliyah XII 2026 MA Unggulan Wahid Hasyim Balung menginfokan status pendaftaran berkas {$selectedRegistration->reg_code} untuk cabang lomba {$selectedRegistration->competition_id}:\n\nStatus: {$selectedRegistration->payment_status}\nCatatan: " . ($selectedRegistration->verification_notes ?? 'Berkas Anda telah ditinjau panitia.') . "\n\nTerima kasih.");
+                                            $mentorNumber = $selectedRegistration->mentor_wa ?? $selectedRegistration->mentor_phone;
+                                            $waMsgText = "Halo Bapak/Ibu {$selectedRegistration->mentor_name} dari {$selectedRegistration->school_name}.\n\nKami dari Panitia Semarak Aliyah XII 2026 MA Unggulan Wahid Hasyim Balung menginfokan status pendaftaran berkas {$selectedRegistration->reg_code} untuk cabang lomba {$selectedRegistration->competition_id}:\n\nStatus: {$selectedRegistration->payment_status}\nCatatan: " . ($selectedRegistration->verification_notes ?? 'Berkas Anda telah ditinjau panitia.') . "\n\nTerima kasih.";
+                                            $waUrl = \App\Models\Setting::getWaUrl($mentorNumber, $waMsgText);
                                         @endphp
-                                        <a href="https://wa.me/{{ $cleanPhone }}?text={{ $waMsg }}" target="_blank" class="btn btn-sm wa-btn d-flex align-items-center gap-1 rounded-pill px-3">
+                                        <a href="{{ $waUrl }}" target="_blank" class="btn btn-sm wa-btn d-flex align-items-center gap-1 rounded-pill px-3">
                                             <i class="ri-whatsapp-line fs-14"></i> Hubungi Pembina
                                         </a>
                                     </div>

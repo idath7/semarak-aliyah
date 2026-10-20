@@ -512,15 +512,13 @@
             @foreach($contacts as $idx => $wa)
                 @php
                     $rawNum = $wa['number'] ?? '';
-                    $cleanWa = preg_replace('/[^0-9]/', '', $rawNum);
-                    if (str_starts_with($cleanWa, '0')) {
-                        $cleanWa = '62' . substr($cleanWa, 1);
-                    }
+                    $cleanWa = \App\Models\Setting::formatWaNumber($rawNum, '');
                     $waLabel = !empty($wa['label']) ? $wa['label'] : (count($contacts) > 1 ? 'Hotline Panitia ' . ($idx + 1) : 'Hubungi Hotline Panitia');
+                    $waUrl = \App\Models\Setting::getWaUrl($rawNum, 'Halo Panitia Semarak Aliyah 2026, saya ingin bertanya seputar informasi pendaftaran', '');
                 @endphp
                 @if(!empty($cleanWa))
                     <a 
-                        href="https://wa.me/{{ $cleanWa }}?text=Halo%20Panitia%20Semarak%20Aliyah%202026%2C%20saya%20ingin%20bertanya%20seputar%20informasi%20pendaftaran" 
+                        href="{{ $waUrl }}" 
                         target="_blank" 
                         rel="noopener" 
                         class="btn-wa-hotline"

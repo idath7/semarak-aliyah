@@ -169,7 +169,7 @@
         </div>
         <div class="top-bar-item">
           <svg fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 4V3z"></path></svg>
-          <a href="https://wa.me/6283850070767" target="_blank" rel="noopener">0838 5007 0767</a>
+          <a href="{{ \App\Models\Setting::getWaUrl(\App\Models\Setting::get('school_contact_wa', '083850070767')) }}" target="_blank" rel="noopener">{{ \App\Models\Setting::get('school_contact_wa', '0838 5007 0767') }}</a>
         </div>
       </div>
     </div>
@@ -376,7 +376,7 @@
               Kuota utama telah terpenuhi. Hubungi WA Panitia untuk masuk daftar tunggu (waiting list).
             </div>
           </div>
-          <a href="https://wa.me/6283850070767?text=Halo%20Admin%20Semarak%2C%20apakah%20bisa%20masuk%20waiting%20list%20Tournament%20Volleyball%20Putra%3F" target="_blank" rel="noopener" class="btn-card-detail" style="text-align: center;">
+          <a href="{{ \App\Models\Setting::getWaUrl(\App\Models\Setting::get('school_contact_wa', '083850070767'), 'Halo Admin Semarak, apakah bisa masuk waiting list Tournament Volleyball Putra?') }}" target="_blank" rel="noopener" class="btn-card-detail" style="text-align: center;">
             💬 Hubungi Panitia (Waiting List)
           </a>
         </div>
@@ -516,7 +516,7 @@
   </div>
 
   <!-- WhatsApp Floating Button -->
-  <a href="https://wa.me/6283850070767?text=Halo%20Admin%20Semarak%20Aliyah%202026%2C%20saya%20ingin%20bertanya%20seputar%20pendaftaran" 
+  <a href="{{ \App\Models\Setting::getWaUrl(\App\Models\Setting::get('school_contact_wa', '083850070767'), 'Halo Admin Semarak Aliyah 2026, saya ingin bertanya seputar pendaftaran') }}" 
      class="floating-wa-btn" 
      target="_blank" 
      rel="noopener" 

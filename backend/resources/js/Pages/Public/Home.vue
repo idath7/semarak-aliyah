@@ -2,10 +2,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
+import { formatWaNumber, getWaChatUrl } from '@/Utils/whatsapp';
 
 const page = usePage();
 const school = computed(() => page.props.schoolProfile || {});
-const cleanSchoolWa = computed(() => (school.value.contact_wa || '083850070767').replace(/[^0-9]/g, ''));
+const cleanSchoolWa = computed(() => formatWaNumber(school.value.contact_wa, '6283850070767'));
 
 const props = defineProps({
   competitions: {
@@ -758,7 +759,7 @@ function getCompStatusInfo(comp) {
 }
 
 function getCompWaLink(comp) {
-  if (!comp) return 'https://wa.me/6283850070767';
+  if (!comp) return getWaChatUrl(cleanSchoolWa.value);
   const statusInfo = getCompStatusInfo(comp);
   let msg = `Halo Admin Semarak, saya ingin menanyakan perihal cabang lomba ${comp.title}.`;
   if (statusInfo.isManuallyClosed) {
@@ -768,7 +769,7 @@ function getCompWaLink(comp) {
   } else if (comp.is_deadline_passed) {
     msg = `Halo Admin Semarak, apakah pendaftaran ${comp.title} masih bisa menerima pendaftar susulan?`;
   }
-  return `https://wa.me/6283850070767?text=${encodeURIComponent(msg)}`;
+  return getWaChatUrl(cleanSchoolWa.value, msg);
 }
 
 // Helper function for converting hex colors to rgba
@@ -874,46 +875,28 @@ function getCompTmAgenda(comp) {
 }
 
 function getCompCpWaUrl(contactPerson, compTitle = '') {
-  if (!contactPerson || contactPerson === '-') {
-    return 'https://wa.me/6283850070767?text=' + encodeURIComponent(`Halo Panitia Semarak, saya ingin berkonsultasi mengenai Technical Meeting cabang ${compTitle || 'lomba'}.`);
-  }
-  const match = contactPerson.match(/08[0-9]{8,12}/);
-  let phone = '6283850070767';
-  if (match) {
-    phone = '62' + match[0].substring(1);
-  } else {
-    const digitsOnly = contactPerson.replace(/\D/g, '');
-    if (digitsOnly.startsWith('62')) phone = digitsOnly;
-    else if (digitsOnly.startsWith('08')) phone = '62' + digitsOnly.substring(1);
-  }
   const text = `Halo Narahubung ${compTitle || 'Semarak Aliyah'}, saya ingin berkonsultasi mengenai jadwal & teknis pelaksanaan Technical Meeting (TM).`;
-  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+  return getWaChatUrl(contactPerson, text, cleanSchoolWa.value);
 }
 
 // Helper to parse single or multiple Contact Persons cleanly into structured items
 function getCompCpList(comp) {
   if (!comp) return [];
   const compTitle = comp.title || 'Lomba';
-  const defaultWa = (school.value.contact_wa || '083850070767').replace(/[^0-9]/g, '');
 
   // 1. If coordinators array is provided and not empty
   if (Array.isArray(comp.coordinators) && comp.coordinators.length > 0) {
     const list = comp.coordinators
       .filter(c => c && (c.name || c.contact))
       .map(c => {
-        const rawContact = c.contact || c.phone || defaultWa;
-        const digits = rawContact.replace(/\D/g, '');
-        let phone = defaultWa;
-        if (digits.startsWith('62')) phone = digits;
-        else if (digits.startsWith('08')) phone = '62' + digits.substring(1);
-        else if (digits.length >= 9) phone = '62' + digits;
-
+        const rawContact = c.contact || c.phone || cleanSchoolWa.value;
+        const phone = formatWaNumber(rawContact, cleanSchoolWa.value);
         const text = `Halo ${c.name || 'Narahubung'} (${compTitle}), saya ingin berkonsultasi mengenai Technical Meeting (TM) & pelaksanaan lomba.`;
         return {
           name: c.name || c.role || 'Koordinator Lomba',
           role: c.role || '',
           phone: rawContact,
-          waUrl: `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+          waUrl: getWaChatUrl(phone, text, cleanSchoolWa.value)
         };
       });
     if (list.length > 0) return list;
@@ -924,8 +907,8 @@ function getCompCpList(comp) {
   if (!rawCp || rawCp.trim() === '-' || rawCp.trim() === '') {
     return [{
       name: 'Panitia Semarak',
-      phone: '0838 5007 0767',
-      waUrl: `https://wa.me/6283850070767?text=${encodeURIComponent(`Halo Panitia Semarak, saya ingin berkonsultasi mengenai Technical Meeting cabang ${compTitle}.`)}`
+      phone: school.value.contact_wa || '0838 5007 0767',
+      waUrl: getWaChatUrl(cleanSchoolWa.value, `Halo Panitia Semarak, saya ingin berkonsultasi mengenai Technical Meeting cabang ${compTitle}.`)
     }];
   }
 
@@ -934,15 +917,11 @@ function getCompCpList(comp) {
   const result = [];
 
   for (const part of parts) {
-    const phoneMatch = part.match(/(?:(?:\+?62)|0)8[0-9\s-]{7,13}/);
+    const phoneMatch = part.match(/(?:(?:\+?62)|0)?8[0-9\s-]{7,15}/);
     let rawPhone = phoneMatch ? phoneMatch[0].trim() : '';
-    let cleanPhone = rawPhone.replace(/\D/g, '');
-    let phone = defaultWa;
-    if (cleanPhone.startsWith('62')) phone = cleanPhone;
-    else if (cleanPhone.startsWith('08')) phone = '62' + cleanPhone.substring(1);
-    else if (cleanPhone.length >= 9) phone = '62' + cleanPhone;
+    let phone = formatWaNumber(rawPhone || part, cleanSchoolWa.value);
 
-    let name = part.replace(/(?:(?:\+?62)|0)8[0-9\s-]{7,13}/, '')
+    let name = part.replace(/(?:(?:\+?62)|0)?8[0-9\s-]{7,15}/, '')
                    .replace(/[()]/g, '')
                    .replace(/[-:]/g, ' ')
                    .trim();
@@ -952,14 +931,14 @@ function getCompCpList(comp) {
     result.push({
       name,
       phone: rawPhone || phone,
-      waUrl: `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+      waUrl: getWaChatUrl(phone, text, cleanSchoolWa.value)
     });
   }
 
   return result.length > 0 ? result : [{
     name: 'Panitia Semarak',
-    phone: '0838 5007 0767',
-    waUrl: `https://wa.me/6283850070767?text=${encodeURIComponent(`Halo Panitia Semarak, saya ingin berkonsultasi mengenai Technical Meeting cabang ${compTitle}.`)}`
+    phone: school.value.contact_wa || '0838 5007 0767',
+    waUrl: getWaChatUrl(cleanSchoolWa.value, `Halo Panitia Semarak, saya ingin berkonsultasi mengenai Technical Meeting cabang ${compTitle}.`)
   }];
 }
 
@@ -2375,7 +2354,7 @@ function handleLightboxKey(e) {
 
           <div class="sponsor-cta-right">
             <a 
-              :href="`https://wa.me/${effectiveSponsorSettings.cta_wa}?text=${encodeURIComponent('Halo Panitia ' + (school.event_name || 'Semarak Aliyah') + ', kami tertarik untuk bekerja sama sebagai mitra sponsor.')}`"
+              :href="getWaChatUrl(effectiveSponsorSettings.cta_wa, 'Halo Panitia ' + (school.event_name || 'Semarak Aliyah') + ', kami tertarik untuk bekerja sama sebagai mitra sponsor.', cleanSchoolWa)"
               target="_blank"
               rel="noopener"
               class="sponsor-cta-btn"

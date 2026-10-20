@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Registration;
 use App\Models\Competition;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 
 class RegistrationController extends Controller
@@ -63,7 +64,8 @@ class RegistrationController extends Controller
 ━━━━━━━━━━━━━━━━━━━━
 Halo Panitia Semarak Aliyah 2026, data registrasi di atas sudah tersimpan di sistem database Laravel website resmi. Mohon konfirmasi rekening transfer dan petunjuk verifikasi berikutnya. Terima kasih!";
 
-        $waUrl = "https://wa.me/6283850070767?text=" . urlencode($waMsg);
+        $schoolWa = Setting::get('school_contact_wa', '6283850070767');
+        $waUrl = Setting::getWaUrl($schoolWa, $waMsg);
 
         return response()->json([
             'status' => 'success',

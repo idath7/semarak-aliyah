@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { Head, useForm, Link, usePage } from '@inertiajs/vue3';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
+import { getWaChatUrl } from '@/Utils/whatsapp';
 
 const page = usePage();
 const school = computed(() => page.props.schoolProfile || {});
@@ -162,7 +163,7 @@ function getCompStatusInfo(comp) {
 }
 
 function getCompWaLink(comp) {
-  if (!comp) return 'https://wa.me/6283850070767';
+  if (!comp) return getWaChatUrl(school.value.contact_wa || '083850070767');
   const statusInfo = getCompStatusInfo(comp);
   let msg = `Halo Admin Semarak, saya ingin menanyakan perihal cabang lomba ${comp.title}.`;
   if (statusInfo.isManuallyClosed) {
@@ -172,7 +173,7 @@ function getCompWaLink(comp) {
   } else if (comp.is_deadline_passed) {
     msg = `Halo Admin Semarak, apakah pendaftaran ${comp.title} masih bisa menerima pendaftar susulan?`;
   }
-  return `https://wa.me/6283850070767?text=${encodeURIComponent(msg)}`;
+  return getWaChatUrl(school.value.contact_wa || '083850070767', msg);
 }
 
 function getCompDropdownSuffix(c) {

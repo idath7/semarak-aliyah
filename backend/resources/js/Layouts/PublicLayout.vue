@@ -2,10 +2,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { useTheme } from '@/Composables/useTheme';
+import { formatWaNumber } from '@/Utils/whatsapp';
 
 const page = usePage();
 const school = computed(() => page.props.schoolProfile || {});
-const cleanWaNumber = computed(() => (school.value.contact_wa || '083850070767').replace(/[^0-9]/g, ''));
+const cleanWaNumber = computed(() => formatWaNumber(school.value.contact_wa, '6283850070767'));
 
 const eventInfo = computed(() => {
   const name = (school.value.event_name || 'SEMARAK ALIYAH XIV 2026').trim();
@@ -31,8 +32,8 @@ const isBannerDismissed = ref(false);
 const isPopupOpen = ref(false);
 
 const customWaNumber = computed(() => {
-  const num = kustomisasi.value.floating_wa_number || school.value.contact_wa || '083850070767';
-  return num.replace(/[^0-9]/g, '');
+  const num = kustomisasi.value.floating_wa_number || school.value.contact_wa;
+  return formatWaNumber(num, '6283850070767');
 });
 
 const customWaMessage = computed(() => {

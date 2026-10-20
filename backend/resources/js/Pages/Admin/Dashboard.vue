@@ -4,6 +4,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { initEcho } from '@/echo';
 import { useToast } from '@/Composables/useToast';
+import { getWaChatUrl } from '@/Utils/whatsapp';
 
 const page = usePage();
 const school = computed(() => page.props.schoolProfile || {});
@@ -641,9 +642,10 @@ onMounted(() => {
                     <td>
                       <div class="fw-semibold fs-12 text-dark">{{ reg.mentor_name }}</div>
                       <a 
-                        :href="`https://wa.me/62${reg.mentor_wa ? reg.mentor_wa.replace(/^0/, '') : ''}`" 
+                        :href="getWaChatUrl(reg.mentor_wa, `Halo Bapak/Ibu ${reg.mentor_name} (${reg.school_name}), kami dari Panitia ${school.event_name || 'Semarak Aliyah'}. Terkait pendaftaran Anda (Kode: ${reg.reg_code}) pada cabang ${reg.competition_title}: `)" 
                         target="_blank" 
                         class="badge bg-success-subtle text-success fs-10 text-decoration-none"
+                        title="Hubungi Guru Pendamping via WhatsApp"
                       >
                         <i class="ri-whatsapp-line align-middle me-0.5"></i> {{ reg.mentor_wa }}
                       </a>

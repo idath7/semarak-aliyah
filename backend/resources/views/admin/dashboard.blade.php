@@ -429,10 +429,10 @@
                                                         <div class="d-inline-flex gap-2">
                                                             <!-- WhatsApp Shortcut Button -->
                                                             @php
-                                                                $cleanWa = preg_replace('/^0/', '62', preg_replace('/[^0-9]/', '', $reg->mentor_wa));
-                                                                $waMsg = rawurlencode("Halo Bapak/Ibu {$reg->mentor_name} ({$reg->school_name}), kami dari Panitia SEMARAK ALIYAH XII 2026 MA Unggulan Wahid Hasyim Balung. Terkait pendaftaran Anda (Kode: {$reg->reg_code}) pada cabang {$reg->competition_title}: ");
+                                                                $waMsg = "Halo Bapak/Ibu {$reg->mentor_name} ({$reg->school_name}), kami dari Panitia SEMARAK ALIYAH XII 2026 MA Unggulan Wahid Hasyim Balung. Terkait pendaftaran Anda (Kode: {$reg->reg_code}) pada cabang {$reg->competition_title}: ";
+                                                                $waUrl = \App\Models\Setting::getWaUrl($reg->mentor_wa, $waMsg);
                                                             @endphp
-                                                            <a href="https://wa.me/{{ $cleanWa }}?text={{ $waMsg }}" target="_blank" class="btn-whatsapp" title="Hubungi Guru Pendamping via WhatsApp">
+                                                            <a href="{{ $waUrl }}" target="_blank" class="btn-whatsapp" title="Hubungi Guru Pendamping via WhatsApp">
                                                                 <i class="ri-whatsapp-line"></i> WA
                                                             </a>
 

@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { initEcho } from '@/echo';
 import { useToast } from '@/Composables/useToast';
+import { getWaChatUrl } from '@/Utils/whatsapp';
 
 const props = defineProps({
   stats: { type: Object, default: () => ({}) },
@@ -391,9 +392,10 @@ onMounted(() => {
                     <td>
                       <div class="fw-semibold fs-12 text-dark">{{ reg.mentor_name }}</div>
                       <a 
-                        :href="`https://wa.me/62${reg.mentor_wa ? reg.mentor_wa.replace(/^0/, '') : ''}`" 
+                        :href="getWaChatUrl(reg.mentor_wa, `Halo Bapak/Ibu ${reg.mentor_name || 'Pembina'} (${reg.school_name || ''}), kami dari Panitia Semarak Aliyah terkait pendaftaran (Kode: ${reg.reg_code}) pada cabang ${reg.competition_title || reg.competition_id}: `)" 
                         target="_blank" 
                         class="badge bg-success-subtle text-success fs-10 text-decoration-none"
+                        :title="`Kirim WhatsApp ke ${reg.mentor_name}`"
                       >
                         <i class="ri-whatsapp-line align-middle me-0.5"></i> {{ reg.mentor_wa }}
                       </a>
@@ -520,7 +522,7 @@ onMounted(() => {
                   <label class="form-label text-muted fs-11 text-uppercase mb-0">Nomor Kontak WhatsApp</label>
                   <div class="mt-1">
                     <a 
-                      :href="`https://wa.me/62${activeDetailItem.mentor_wa ? activeDetailItem.mentor_wa.replace(/^0/, '') : ''}`" 
+                      :href="getWaChatUrl(activeDetailItem.mentor_wa, `Halo Bapak/Ibu ${activeDetailItem.mentor_name || 'Pembina'} (${activeDetailItem.school_name || ''}), kami dari Panitia Semarak Aliyah terkait pendaftaran (Kode: ${activeDetailItem.reg_code}) pada cabang ${activeDetailItem.competition_title || activeDetailItem.competition_id}: `)" 
                       target="_blank" 
                       class="btn btn-xs btn-success d-inline-flex align-items-center gap-1"
                     >

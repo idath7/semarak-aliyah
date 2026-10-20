@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, router, Link } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { useToast } from '@/Composables/useToast';
+import { getWaChatUrl } from '@/Utils/whatsapp';
 
 const props = defineProps({
   users: { type: Object, required: true },
@@ -216,11 +217,7 @@ function getInitials(name) {
 // Format WhatsApp Link
 function getWaLink(phone) {
   if (!phone) return null;
-  let clean = phone.replace(/[^0-9]/g, '');
-  if (clean.startsWith('0')) {
-    clean = '62' + clean.substring(1);
-  }
-  return `https://wa.me/${clean}`;
+  return getWaChatUrl(phone);
 }
 </script>
 

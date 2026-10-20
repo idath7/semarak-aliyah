@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { initEcho } from '@/echo';
+import VelzonConfirmModal from '@/Components/VelzonConfirmModal.vue';
 
 const page = usePage();
 const authUser = computed(() => page.props.auth?.user || { name: 'Panitia Semarak' });
@@ -501,5 +502,7 @@ function logout() {
         <slot />
       </main>
     </div>
+    <!-- Global Velzon Confirmation Modal -->
+    <VelzonConfirmModal />
   </div>
 </template>

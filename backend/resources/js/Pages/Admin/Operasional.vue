@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { useConfirmDialog } from '@/Composables/useConfirmDialog';
 
 const props = defineProps({
   initialTab: { type: String, default: 'overview' },
@@ -14,6 +15,8 @@ const props = defineProps({
   matches: { type: Array, default: () => [] },
   defaultRubrics: { type: Object, default: () => ({}) },
 });
+
+const { confirm: confirmDialog } = useConfirmDialog();
 
 // Navigation state
 const activeTab = ref(props.initialTab || 'overview');
@@ -534,7 +537,15 @@ async function saveRubricCustomization() {
 }
 
 async function resetRubricToDefault() {
-  if (!confirm('Apakah Anda yakin ingin mereset rubrik penilaian ke standar Juknis resmi?')) return;
+  const ok = await confirmDialog({
+    title: 'Reset Rubrik Penilaian?',
+    message: 'Apakah Anda yakin ingin mereset rubrik penilaian cabang ini kembali ke standar baku resmi Juknis?',
+    type: 'warning',
+    confirmText: 'Ya, Reset Rubrik',
+    icon: 'ri-refresh-line',
+  });
+  if (!ok) return;
+
   isSavingRubric.value = true;
   try {
     const res = await fetch(`/api/operasional/jury/rubric/${activeCompetitionId.value}/reset`, {
@@ -640,7 +651,15 @@ async function reloadTournamentData() {
 }
 
 async function generateBracket() {
-  if (!confirm('Apakah Anda yakin ingin mengundi dan mengenerate ulang bagan 8 besar sistem gugur? Data skor laga yang sudah ada akan di-reset.')) return;
+  const ok = await confirmDialog({
+    title: 'Undi Ulang Bagan Pertandingan?',
+    message: 'Apakah Anda yakin ingin mengundi dan mengenerate ulang bagan 8 besar sistem gugur? Data skor laga yang sudah ada akan di-reset.',
+    type: 'danger',
+    confirmText: 'Ya, Undi Ulang',
+    icon: 'ri-shuffle-line',
+  });
+  if (!ok) return;
+
   try {
     const res = await fetch(`/api/operasional/tournament/generate/${activeCompetitionId.value}`, {
       method: 'POST',

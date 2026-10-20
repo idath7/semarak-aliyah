@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { useToast } from '@/Composables/useToast';
+import { useConfirmDialog } from '@/Composables/useConfirmDialog';
 
 const props = defineProps({
   sponsors: { type: Array, default: () => [] },
@@ -10,6 +11,7 @@ const props = defineProps({
 });
 
 const { success, error } = useToast();
+const { confirm: confirmDialog } = useConfirmDialog();
 
 // 1. Settings Form State
 const settingsForm = ref({
@@ -244,15 +246,23 @@ function toggleActive(sponsor) {
   });
 }
 
-function deleteSponsor(sponsor) {
-  if (confirm(`Yakin ingin menghapus mitra sponsor "${sponsor.name}"?`)) {
-    router.delete(`/admin/sponsor/${sponsor.id}`, {
-      preserveScroll: true,
-      onSuccess: () => {
-        success(`Mitra sponsor "${sponsor.name}" telah dihapus.`);
-      }
-    });
-  }
+async function deleteSponsor(sponsor) {
+  const ok = await confirmDialog({
+    title: 'Hapus Mitra Sponsor?',
+    message: `Apakah Anda yakin ingin menghapus mitra sponsor "${sponsor.name}"? Data dan logo sponsor akan dihapus permanen.`,
+    type: 'danger',
+    confirmText: 'Ya, Hapus Sponsor',
+    icon: 'ri-delete-bin-line',
+  });
+
+  if (!ok) return;
+
+  router.delete(`/admin/sponsor/${sponsor.id}`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      success(`Mitra sponsor "${sponsor.name}" telah dihapus.`);
+    }
+  });
 }
 </script>
 

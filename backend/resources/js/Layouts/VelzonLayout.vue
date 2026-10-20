@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { useToast } from '@/Composables/useToast';
+import VelzonConfirmModal from '@/Components/VelzonConfirmModal.vue';
 
 const page = usePage();
 const authUser = computed(() => page.props.auth?.user || { name: 'Panitia Semarak', email: 'admin@maswahas.sch.id' });
@@ -618,6 +619,8 @@ onMounted(() => {
           </div>
         </div>
       </footer>
+      <!-- Velzon Global Confirmation Modal -->
+      <VelzonConfirmModal />
     </main>
   </div>
 </template>

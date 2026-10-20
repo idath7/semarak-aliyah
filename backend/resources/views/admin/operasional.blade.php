@@ -1557,9 +1557,68 @@
 </div>
 
 <!-- Bootstrap JS -->
+@include('admin.partials.velzon-confirm-modal')
+
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+  window.velzonConfirm = function({ title, message, type = 'danger', confirmText = 'Ya, Lanjutkan', cancelText = 'Batal', icon }) {
+    return new Promise((resolve) => {
+      const modalEl = document.getElementById('velzonConfirmModal');
+      if (!modalEl || typeof bootstrap === 'undefined') {
+        resolve(window.confirm(message));
+        return;
+      }
+      const titleEl = document.getElementById('velzonConfirmTitle');
+      const msgEl = document.getElementById('velzonConfirmMessage');
+      const okBtn = document.getElementById('velzonConfirmOkBtn');
+      const cancelBtn = document.getElementById('velzonConfirmCancelBtn');
+      const avatarEl = document.getElementById('velzonConfirmAvatar');
+      const iconEl = document.getElementById('velzonConfirmIcon');
+
+      titleEl.textContent = title || 'Konfirmasi Tindakan';
+      msgEl.textContent = message || '';
+      okBtn.textContent = confirmText;
+      cancelBtn.textContent = cancelText;
+
+      if (type === 'danger') {
+        avatarEl.style.background = 'rgba(239, 68, 68, 0.15)';
+        avatarEl.style.color = '#ef4444';
+        iconEl.className = icon || 'ri-delete-bin-line';
+        okBtn.className = 'btn btn-sm btn-danger px-3.5 py-1.5 rounded-3 text-white shadow-sm';
+      } else if (type === 'warning') {
+        avatarEl.style.background = 'rgba(245, 158, 11, 0.15)';
+        avatarEl.style.color = '#f59e0b';
+        iconEl.className = icon || 'ri-alert-line';
+        okBtn.className = 'btn btn-sm btn-warning px-3.5 py-1.5 rounded-3 text-white shadow-sm';
+      } else {
+        avatarEl.style.background = 'rgba(16, 185, 129, 0.15)';
+        avatarEl.style.color = '#10b981';
+        iconEl.className = icon || 'ri-check-line';
+        okBtn.className = 'btn btn-sm btn-success px-3.5 py-1.5 rounded-3 text-white shadow-sm';
+      }
+
+      const bsModal = new bootstrap.Modal(modalEl);
+      let confirmed = false;
+
+      const onOk = () => {
+        confirmed = true;
+        bsModal.hide();
+      };
+
+      const onHidden = () => {
+        okBtn.removeEventListener('click', onOk);
+        modalEl.removeEventListener('hidden.bs.modal', onHidden);
+        resolve(confirmed);
+      };
+
+      okBtn.addEventListener('click', onOk);
+      modalEl.addEventListener('hidden.bs.modal', onHidden);
+
+      bsModal.show();
+    });
+  };
   // Global Operational State
   let currentTab = 'dashboard';
   let activeCompetitions = [];
@@ -1840,7 +1899,14 @@
   }
 
   async function undoCheckin(id) {
-    if (!confirm('Yakin ingin membatalkan status hadir delegasi ini?')) return;
+    const ok = await window.velzonConfirm({
+      title: 'Batalkan Status Hadir?',
+      message: 'Apakah Anda yakin ingin membatalkan status hadir delegasi ini?',
+      type: 'warning',
+      confirmText: 'Ya, Batalkan Hadir',
+      icon: 'ri-user-unfollow-line'
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/operasional/gate/undo/${id}`, { method: 'POST' });
       const json = await res.json();
@@ -2607,7 +2673,14 @@
   }
 
   async function resetModalToJuknis() {
-    if (!confirm(`Kembalikan rubrik cabang ini ke standar resmi Juknis Semarak Aliyah XII?`)) return;
+    const ok = await window.velzonConfirm({
+      title: 'Reset Rubrik Penilaian?',
+      message: 'Kembalikan rubrik cabang ini ke standar resmi Juknis Semarak Aliyah XII?',
+      type: 'warning',
+      confirmText: 'Ya, Reset Rubrik',
+      icon: 'ri-refresh-line'
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch(`/api/operasional/jury/rubric/${modalCompetitionId}/reset`, { method: 'POST' });
@@ -2651,7 +2724,13 @@
     if (modalRubricType === 'percentage') {
       const sum = modalCriteriaList.reduce((acc, cur) => acc + (parseFloat(cur.weight) || 0), 0);
       if (Math.round(sum) !== 100) {
-        const proceed = confirm(`Total bobot persentase adalah ${sum}%, bukan 100%. Apakah Anda yakin ingin tetap menyimpan?`);
+        const proceed = await window.velzonConfirm({
+          title: 'Peringatan Bobot Penilaian',
+          message: `Total bobot persentase adalah ${sum}%, bukan 100%. Apakah Anda yakin ingin tetap menyimpan perubahan?`,
+          type: 'warning',
+          confirmText: 'Tetap Simpan',
+          icon: 'ri-scales-3-line'
+        });
         if (!proceed) return;
       }
     }
@@ -2804,7 +2883,14 @@
 
   async function regenerateBracketPrompt() {
     const compId = document.getElementById('tournamentCompSelect').value;
-    if (!confirm('Peringatan: Membuat ulang bagan akan mereset skor semua pertandingan cabang ini. Lanjutkan?')) return;
+    const ok = await window.velzonConfirm({
+      title: 'Buat Ulang Bagan Pertandingan?',
+      message: 'Peringatan: Membuat ulang bagan akan mereset skor semua pertandingan cabang ini. Lanjutkan?',
+      type: 'danger',
+      confirmText: 'Ya, Buat Ulang Bagan',
+      icon: 'ri-shuffle-line'
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/operasional/tournament/generate/${compId}`, { method: 'POST' });
       const json = await res.json();

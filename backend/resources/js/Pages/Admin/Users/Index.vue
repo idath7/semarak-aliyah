@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, router, Link } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { useToast } from '@/Composables/useToast';
+import { useConfirmDialog } from '@/Composables/useConfirmDialog';
 import { getWaChatUrl } from '@/Utils/whatsapp';
 
 const props = defineProps({
@@ -16,6 +17,7 @@ const props = defineProps({
 });
 
 const { success, error } = useToast();
+const { confirm: confirmDialog } = useConfirmDialog();
 
 // -----------------------------------------------------------------------------
 // FILTER & SEARCH STATE
@@ -149,14 +151,24 @@ function submitForm() {
 // -----------------------------------------------------------------------------
 // STATUS TOGGLE & DELETE ACTIONS
 // -----------------------------------------------------------------------------
-function toggleStatus(user) {
+async function toggleStatus(user) {
   if (user.id === props.currentUserId) {
     error('Anda tidak dapat menonaktifkan akun Anda sendiri yang sedang aktif.');
     return;
   }
 
   const actionText = user.is_active ? 'menonaktifkan' : 'mengaktifkan';
-  if (!confirm(`Yakin ingin ${actionText} akun ${user.name}?`)) {
+  const isDeactivating = user.is_active;
+
+  const ok = await confirmDialog({
+    title: `${isDeactivating ? 'Nonaktifkan' : 'Aktifkan'} Akun Pengguna?`,
+    message: `Apakah Anda yakin ingin ${actionText} akun ${user.name} (${user.email})?`,
+    type: isDeactivating ? 'warning' : 'success',
+    confirmText: isDeactivating ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan',
+    icon: isDeactivating ? 'ri-user-unfollow-line' : 'ri-user-shared-line',
+  });
+
+  if (!ok) {
     return;
   }
 

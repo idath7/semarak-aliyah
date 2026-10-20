@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { useToast } from '@/Composables/useToast';
+import { useConfirmDialog } from '@/Composables/useConfirmDialog';
 
 const props = defineProps({
   competitions: { type: Array, default: () => [] },
@@ -11,6 +12,7 @@ const props = defineProps({
 });
 
 const toast = useToast();
+const { confirm: confirmDialog } = useConfirmDialog();
 
 const currentCompId = ref(props.selectedCompetition?.id || props.competitions[0]?.id || '');
 const activeTab = ref('builder'); // 'builder' | 'preview'
@@ -66,9 +68,17 @@ watch([fields, formSettings], () => {
 }, { deep: true });
 
 // Competition Switching
-function switchCompetition(compId) {
+async function switchCompetition(compId) {
   if (isDirty.value) {
-    if (!confirm('Ada perubahan formulir yang belum disimpan. Yakin ingin beralih ke cabang lomba lain?')) {
+    const ok = await confirmDialog({
+      title: 'Perubahan Belum Disimpan',
+      message: 'Ada perubahan formulir yang belum disimpan. Yakin ingin beralih ke cabang lomba lain?',
+      type: 'warning',
+      confirmText: 'Beralih & Abaikan',
+      cancelText: 'Tetap di Sini',
+      icon: 'ri-alert-line',
+    });
+    if (!ok) {
       return;
     }
   }
@@ -284,9 +294,16 @@ function addQuickPreset(preset) {
 }
 
 // Field Operations
-function removeField(index) {
+async function removeField(index) {
   const f = fields.value[index];
-  if (confirm(`Yakin ingin menghapus field "${f.label}"?`)) {
+  const ok = await confirmDialog({
+    title: 'Hapus Field Formulir?',
+    message: `Apakah Anda yakin ingin menghapus field "${f.label}"?`,
+    type: 'danger',
+    confirmText: 'Ya, Hapus Field',
+    icon: 'ri-delete-bin-line',
+  });
+  if (ok) {
     fields.value.splice(index, 1);
     toast.info(`Field "${f.label}" telah dihapus.`);
   }
@@ -411,8 +428,15 @@ function saveFormFields() {
 // Template Preset Modal
 const showPresetModal = ref(false);
 
-function applyPreset(presetKey) {
-  if (confirm(`Terapkan preset "${presetKey}"? Susunan field saat ini akan digantikan oleh preset terpilih.`)) {
+async function applyPreset(presetKey) {
+  const ok = await confirmDialog({
+    title: 'Terapkan Template Preset?',
+    message: `Terapkan preset "${presetKey}"? Susunan field saat ini akan digantikan oleh preset terpilih.`,
+    type: 'warning',
+    confirmText: 'Ya, Terapkan Preset',
+    icon: 'ri-magic-line',
+  });
+  if (ok) {
     router.post(`/admin/form-builder/${currentCompId.value}/preset`, {
       preset: presetKey,
     }, {
@@ -443,8 +467,15 @@ function executeCopy() {
 }
 
 // Reset Confirmation
-function resetForm() {
-  if (confirm(`Yakin ingin mengosongkan semua field formulir cabang "${props.selectedCompetition?.title}"?`)) {
+async function resetForm() {
+  const ok = await confirmDialog({
+    title: 'Kosongkan Seluruh Formulir?',
+    message: `Yakin ingin mengosongkan semua field formulir cabang "${props.selectedCompetition?.title}"? Semua konfigurasi field tambahan akan di-reset.`,
+    type: 'danger',
+    confirmText: 'Ya, Kosongkan',
+    icon: 'ri-eraser-line',
+  });
+  if (ok) {
     router.post(`/admin/form-builder/${currentCompId.value}/reset`, {}, {
       preserveScroll: true,
       onSuccess: () => {

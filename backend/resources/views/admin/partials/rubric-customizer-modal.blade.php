@@ -413,8 +413,17 @@
         // Reset to default button
         const resetBtn = document.getElementById('modal-btn-reset-default');
         if (resetBtn) {
-            resetBtn.addEventListener('click', () => {
-                if (!confirm(`Kembalikan rubrik cabang "${activeCompetitionTitle}" ke standar baku resmi Juknis?`)) {
+            resetBtn.addEventListener('click', async () => {
+                if (window.velzonConfirm) {
+                    const ok = await window.velzonConfirm({
+                        title: 'Reset Rubrik Penilaian?',
+                        message: `Kembalikan rubrik cabang "${activeCompetitionTitle}" ke standar baku resmi Juknis?`,
+                        type: 'warning',
+                        confirmText: 'Ya, Reset Rubrik',
+                        icon: 'ri-refresh-line'
+                    });
+                    if (!ok) return;
+                } else if (!confirm(`Kembalikan rubrik cabang "${activeCompetitionTitle}" ke standar baku resmi Juknis?`)) {
                     return;
                 }
 

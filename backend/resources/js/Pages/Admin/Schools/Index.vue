@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, router, Link } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { useToast } from '@/Composables/useToast';
+import { useConfirmDialog } from '@/Composables/useConfirmDialog';
 import { getWaChatUrl } from '@/Utils/whatsapp';
 
 const props = defineProps({
@@ -13,6 +14,7 @@ const props = defineProps({
 });
 
 const { success, error } = useToast();
+const { confirm: confirmDialog } = useConfirmDialog();
 
 // -----------------------------------------------------------------------------
 // FILTER & SEARCH STATE
@@ -170,8 +172,16 @@ function executeDelete() {
 // -----------------------------------------------------------------------------
 const isSyncing = ref(false);
 
-function syncDefaults() {
-  if (!confirm('Apakah Anda yakin ingin menyinkronkan ulang database dengan 146+ sekolah default Kabupaten Jember? Data yang sudah ada tidak akan hilang.')) {
+async function syncDefaults() {
+  const ok = await confirmDialog({
+    title: 'Sinkronisasi Master Sekolah?',
+    message: 'Apakah Anda yakin ingin menyinkronkan ulang database dengan 146+ sekolah & madrasah resmi se-Kabupaten Jember? Data yang sudah ada tidak akan hilang.',
+    type: 'info',
+    confirmText: 'Ya, Sinkronkan',
+    icon: 'ri-refresh-line',
+  });
+
+  if (!ok) {
     return;
   }
 

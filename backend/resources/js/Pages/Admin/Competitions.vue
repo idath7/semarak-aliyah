@@ -5,6 +5,7 @@ import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import IndoDatePicker from '@/Components/IndoDatePicker.vue';
 import IndoTimePicker from '@/Components/IndoTimePicker.vue';
 import { useToast } from '@/Composables/useToast';
+import { useConfirmDialog } from '@/Composables/useConfirmDialog';
 import { getWaChatUrl } from '@/Utils/whatsapp';
 
 const props = defineProps({
@@ -15,6 +16,7 @@ const props = defineProps({
 });
 
 const toast = useToast();
+const { confirm: confirmDialog } = useConfirmDialog();
 const searchQuery = ref(props.filters.search || '');
 const selectedCategory = ref(props.filters.category || 'all');
 const competitionsList = ref([...props.competitions]);
@@ -171,12 +173,19 @@ function submitCategory() {
   });
 }
 
-function deleteCategoryItem(cat) {
+async function deleteCategoryItem(cat) {
   if (cat.competitions_count > 0) {
     toast.error(`Kategori "${cat.name}" tidak dapat dihapus karena masih digunakan oleh ${cat.competitions_count} cabang lomba!`, 'Kategori Masih Digunakan');
     return;
   }
-  if (!confirm(`Hapus kategori bidang "${cat.name}"?`)) return;
+  const ok = await confirmDialog({
+    title: 'Hapus Kategori Lomba?',
+    message: `Apakah Anda yakin ingin menghapus kategori bidang "${cat.name}"? Tindakan ini tidak dapat dibatalkan.`,
+    type: 'danger',
+    confirmText: 'Ya, Hapus Kategori',
+    icon: 'ri-delete-bin-line',
+  });
+  if (!ok) return;
 
   router.delete(`/admin/kategori/${cat.id}`, {
     preserveScroll: true,

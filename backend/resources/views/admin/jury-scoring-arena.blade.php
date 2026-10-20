@@ -497,8 +497,21 @@
                 }
 
                 if (delBtn) {
-                    delBtn.addEventListener('click', () => {
-                        if (confirm('Hapus kriteria penilaian ini?')) {
+                    delBtn.addEventListener('click', async () => {
+                        let confirmed = false;
+                        if (typeof window.velzonConfirm === 'function') {
+                            confirmed = await window.velzonConfirm({
+                                title: 'Hapus Kriteria?',
+                                message: 'Apakah Anda yakin ingin menghapus kriteria penilaian ini?',
+                                type: 'danger',
+                                icon: 'ri-delete-bin-line',
+                                confirmText: 'Ya, Hapus',
+                                cancelText: 'Batal'
+                            });
+                        } else {
+                            confirmed = confirm('Hapus kriteria penilaian ini?');
+                        }
+                        if (confirmed) {
                             row.remove();
                             calculateTotal();
                         }
@@ -635,5 +648,8 @@
 
     <!-- Modal Kustomisasi Rubrik Penjurian Partial -->
     @include('admin.partials.rubric-customizer-modal')
+    @include('admin.partials.velzon-confirm-modal')
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

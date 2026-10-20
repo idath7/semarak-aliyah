@@ -168,6 +168,96 @@ function executeDelete() {
 }
 
 // -----------------------------------------------------------------------------
+// IMPORT CSV & EXPORT CSV
+// -----------------------------------------------------------------------------
+const isImportModalOpen = ref(false);
+const importFileInput = ref(null);
+const importFile = ref(null);
+const isImporting = ref(false);
+
+function openImportModal() {
+  importFile.value = null;
+  if (importFileInput.value) importFileInput.value.value = '';
+  isImportModalOpen.value = true;
+}
+
+function closeImportModal() {
+  isImportModalOpen.value = false;
+  importFile.value = null;
+}
+
+function onFileSelect(e) {
+  const files = e.target.files;
+  if (files && files[0]) {
+    importFile.value = files[0];
+  }
+}
+
+function submitImport() {
+  if (!importFile.value) {
+    error('Pilih file CSV terlebih dahulu.');
+    return;
+  }
+
+  isImporting.value = true;
+  const formData = new FormData();
+  formData.append('file', importFile.value);
+
+  router.post('/admin/sekolah/import-csv', formData, {
+    forceFormData: true,
+    onSuccess: () => {
+      closeImportModal();
+      success('Data sekolah berhasil diimpor!');
+    },
+    onError: (err) => {
+      error(Object.values(err)[0] || 'Gagal mengimpor file CSV.');
+    },
+    onFinish: () => {
+      isImporting.value = false;
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
+// TOGGLE ACTIVE STATUS
+// -----------------------------------------------------------------------------
+function toggleActiveStatus(school) {
+  router.post(`/admin/sekolah/${school.id}/toggle-active`, {}, {
+    preserveScroll: true,
+    onSuccess: () => {
+      success(`Status ${school.name} berhasil diubah.`);
+    },
+    onError: () => {
+      error('Gagal memperbarui status aktif.');
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
+// CLEAN INVALID / DUMMY TEST DATA
+// -----------------------------------------------------------------------------
+async function cleanInvalidData() {
+  const ok = await confirmDialog({
+    title: 'Bersihkan Data Tidak Valid?',
+    message: 'Sistem akan menghapus entri sekolah dummy, uji coba, atau nama kosong dari database. Data yang sudah terhubung dengan peserta tidak akan terhapus.',
+    type: 'warning',
+    confirmText: 'Ya, Bersihkan Data',
+    icon: 'ri-magic-line'
+  });
+
+  if (!ok) return;
+
+  router.post('/admin/sekolah/clean-invalid', {}, {
+    onSuccess: () => {
+      success('Pembersihan data selesai!');
+    },
+    onError: () => {
+      error('Gagal membersihkan data.');
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
 // SYNC DEFAULT DATASET
 // -----------------------------------------------------------------------------
 const isSyncing = ref(false);
@@ -229,7 +319,39 @@ const allJemberKecamatan = [
             </div>
           </div>
         </div>
-        <div class="col-auto d-flex gap-2">
+        <div class="col-auto d-flex flex-wrap gap-2">
+          <!-- Button Export CSV -->
+          <a 
+            href="/admin/sekolah/export-csv" 
+            class="btn btn-sm btn-outline-success d-flex align-items-center gap-1.5"
+            title="Download seluruh database sekolah dalam format spreadsheet CSV/Excel"
+          >
+            <i class="ri-file-excel-2-line"></i>
+            <span class="d-none d-md-inline">Export CSV</span>
+          </a>
+
+          <!-- Button Import CSV -->
+          <button 
+            type="button" 
+            class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1.5"
+            @click="openImportModal"
+            title="Unggah spreadsheet CSV data resmi dari Dispendik/Kemenag"
+          >
+            <i class="ri-upload-2-line"></i>
+            <span class="d-none d-md-inline">Import CSV</span>
+          </button>
+
+          <!-- Button Bersihkan Data Dummy -->
+          <button 
+            type="button" 
+            class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1.5"
+            @click="cleanInvalidData"
+            title="Hapus data sekolah kosong, dummy atau uji coba"
+          >
+            <i class="ri-magic-line"></i>
+            <span class="d-none d-lg-inline">Bersihkan Data</span>
+          </button>
+
           <!-- Button Sync Defaults -->
           <button 
             type="button" 
@@ -239,7 +361,7 @@ const allJemberKecamatan = [
             title="Sinkronkan dengan master dataset 146+ SMP/MTs Kabupaten Jember"
           >
             <i class="ri-refresh-line" :class="{ 'ri-spin': isSyncing }"></i>
-            <span class="d-none d-sm-inline">{{ isSyncing ? 'Menyinkronkan...' : 'Sinkron Master Jember' }}</span>
+            <span class="d-none d-sm-inline">{{ isSyncing ? 'Menyinkronkan...' : 'Sinkron Master' }}</span>
           </button>
 
           <!-- Button Tambah Sekolah -->
@@ -251,6 +373,20 @@ const allJemberKecamatan = [
             <i class="ri-add-line fs-14"></i>
             <span>Tambah Sekolah</span>
           </button>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- DATA QUALITY & API NOTICE BANNER                              -->
+      <!-- ============================================================== -->
+      <div class="alert alert-info border-0 shadow-sm rounded-3 d-flex align-items-start gap-3 mb-4 p-3" style="background: rgba(14, 165, 233, 0.08); border-left: 4px solid #0284c7 !important;">
+        <div class="avatar-xs rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center flex-shrink-0 mt-0.5">
+          <i class="ri-information-line fs-16"></i>
+        </div>
+        <div class="flex-grow-1 fs-12 text-dark">
+          <strong class="d-block mb-1 fs-13 text-dark">💡 Panduan Validitas Data Sekolah & Madrasah:</strong>
+          Data dari API publik pihak ketiga atau arsip Dapodik lama sering kali memiliki informasi yang kadaluarsa (sekolah dimerger/tutup) dan <strong>tidak mencakup Madrasah Tsanawiyah (MTs)</strong> karena MTs dikelola terpisah di sistem EMIS Kementerian Agama.
+          Anda dapat memperbarui data secara presisi dengan tombol <strong>Import CSV</strong> menggunakan format resmi dari Dispendik/Kemenag, mengedit langsung data lembaga di tabel, atau mengaktifkan/menonaktifkan sekolah dengan saklar status.
         </div>
       </div>
 
@@ -534,12 +670,16 @@ const allJemberKecamatan = [
 
                 <!-- Status Aktif -->
                 <td class="text-center">
-                  <span 
-                    class="badge rounded-pill px-2 py-0.5 fs-10"
-                    :class="school.is_active ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'"
+                  <button 
+                    type="button"
+                    class="btn btn-xs rounded-pill px-2.5 py-1 border d-inline-flex align-items-center gap-1 transition-all"
+                    :class="school.is_active ? 'bg-success-subtle text-success border-success-subtle' : 'bg-danger-subtle text-danger border-danger-subtle'"
+                    :title="school.is_active ? 'Klik untuk menonaktifkan sekolah ini' : 'Klik untuk mengaktifkan sekolah ini'"
+                    @click="toggleActiveStatus(school)"
                   >
-                    {{ school.is_active ? 'Aktif' : 'Non-aktif' }}
-                  </span>
+                    <i :class="school.is_active ? 'ri-checkbox-circle-fill' : 'ri-close-circle-fill'"></i>
+                    <span class="fs-11 fw-medium">{{ school.is_active ? 'Aktif' : 'Non-aktif' }}</span>
+                  </button>
                 </td>
 
                 <!-- Aksi -->
@@ -780,6 +920,94 @@ const allJemberKecamatan = [
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL: IMPORT CSV                                              -->
+    <!-- ============================================================== -->
+    <div 
+      v-if="isImportModalOpen" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      style="background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(3px);"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-md">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+          <div class="modal-header bg-light border-bottom py-3 px-4">
+            <div class="d-flex align-items-center gap-2">
+              <div class="avatar-xs bg-primary-subtle text-primary rounded-2 d-flex align-items-center justify-content-center">
+                <i class="ri-file-upload-line fs-16"></i>
+              </div>
+              <div>
+                <h5 class="modal-title fs-15 fw-bold text-dark mb-0">Import Database Sekolah</h5>
+                <small class="text-muted fs-11">Unggah file spreadsheet CSV resmi Dispendik / Kemenag</small>
+              </div>
+            </div>
+            <button type="button" class="btn-close" @click="closeImportModal"></button>
+          </div>
+
+          <form @submit.prevent="submitImport">
+            <div class="modal-body p-4">
+              <!-- Helper & Template Download -->
+              <div class="p-3 bg-light rounded-3 border mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <span class="fs-12 fw-bold text-dark">
+                    <i class="ri-information-line text-primary me-1"></i> Format Kolom CSV
+                  </span>
+                  <a 
+                    href="/admin/sekolah/template-csv" 
+                    class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill"
+                    title="Download template CSV siap pakai"
+                  >
+                    <i class="ri-download-line"></i> Download Template
+                  </a>
+                </div>
+                <p class="fs-11 text-muted mb-0">
+                  Pastikan file CSV memiliki kolom header: <code>name</code> (Nama Sekolah), <code>jenjang</code> (SMP/MTs), <code>status</code> (Negeri/Swasta), <code>kecamatan</code>, serta opsional <code>npsn</code>, <code>alamat</code>, <code>phone</code>, <code>email</code>.
+                </p>
+              </div>
+
+              <!-- File Upload Input Area -->
+              <div class="mb-3">
+                <label class="form-label fs-12 fw-semibold text-dark">Pilih File CSV (*.csv) <span class="text-danger">*</span></label>
+                <input 
+                  ref="importFileInput"
+                  type="file" 
+                  class="form-control form-control-sm" 
+                  accept=".csv,text/csv,text/plain" 
+                  required
+                  @change="onFileSelect"
+                />
+                <small class="text-muted fs-11 d-block mt-1">
+                  Mendukung pemisah koma (<code>,</code>) maupun titik koma (<code>;</code>) dari Microsoft Excel.
+                </small>
+              </div>
+
+              <!-- Selected File Info -->
+              <div v-if="importFile" class="d-flex align-items-center gap-2 p-2 bg-success-subtle text-success rounded-2 fs-12">
+                <i class="ri-checkbox-circle-line fs-16"></i>
+                <div class="text-truncate">
+                  <strong>{{ importFile.name }}</strong> ({{ Math.round(importFile.size / 1024) }} KB)
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer bg-light border-top py-2.5 px-4 d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-sm btn-light border px-3" @click="closeImportModal">
+                Batal
+              </button>
+              <button 
+                type="submit" 
+                class="btn btn-sm btn-primary px-3 d-flex align-items-center gap-1"
+                :disabled="isImporting || !importFile"
+              >
+                <i class="ri-upload-cloud-line" :class="{ 'ri-spin': isImporting }"></i>
+                <span>{{ isImporting ? 'Mengimpor...' : 'Mulai Import' }}</span>
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

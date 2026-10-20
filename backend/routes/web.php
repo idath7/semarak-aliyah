@@ -64,6 +64,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::put('/sekolah/{id}', [\App\Http\Controllers\Admin\SchoolController::class, 'update'])->name('schools.update');
     Route::delete('/sekolah/{id}', [\App\Http\Controllers\Admin\SchoolController::class, 'destroy'])->name('schools.destroy');
     Route::post('/sekolah/sync-defaults', [\App\Http\Controllers\Admin\SchoolController::class, 'syncDefaults'])->name('schools.sync-defaults');
+    Route::get('/sekolah/export-csv', [\App\Http\Controllers\Admin\SchoolController::class, 'exportCsv'])->name('schools.export-csv');
+    Route::get('/sekolah/template-csv', [\App\Http\Controllers\Admin\SchoolController::class, 'templateCsv'])->name('schools.template-csv');
+    Route::post('/sekolah/import-csv', [\App\Http\Controllers\Admin\SchoolController::class, 'importCsv'])->name('schools.import-csv');
+    Route::post('/sekolah/{id}/toggle-active', [\App\Http\Controllers\Admin\SchoolController::class, 'toggleActive'])->name('schools.toggle-active');
+    Route::post('/sekolah/clean-invalid', [\App\Http\Controllers\Admin\SchoolController::class, 'cleanInvalid'])->name('schools.clean-invalid');
 
     // Manajemen Kelola Biaya Registrasi & Paket Pembayaran
     Route::get('/biaya', [AdminPanelController::class, 'biayaIndex'])->name('biaya.index');

@@ -197,11 +197,12 @@
 
         .maintenance-title {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            font-size: clamp(1.4rem, 4vw, 1.85rem);
-            font-weight: 800;
+            font-size: clamp(1.15rem, 2.5vw, 1.35rem);
+            font-weight: 700;
             color: #ffffff;
-            line-height: 1.25;
-            margin-bottom: 14px;
+            line-height: 1.35;
+            margin-bottom: 12px;
+            letter-spacing: -0.01em;
         }
 
         .maintenance-desc {
@@ -234,19 +235,21 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
+            gap: 10px;
             flex-wrap: wrap;
+            max-width: 540px;
+            margin: 0 auto;
         }
 
         .btn-wa-hotline {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 10px 22px;
+            padding: 9px 18px;
             background: #10b981;
             color: #ffffff;
             font-weight: 700;
-            font-size: 0.86rem;
+            font-size: 0.82rem;
             border-radius: 9999px;
             text-decoration: none;
             transition: all 0.25s ease;
@@ -452,22 +455,32 @@
 
         <div class="btn-group-action">
             @php
-                $cleanWa = preg_replace('/[^0-9]/', '', $emergencyWa ?? '');
-                if (str_starts_with($cleanWa, '0')) {
-                    $cleanWa = '62' . substr($cleanWa, 1);
+                $contacts = $waContacts ?? [];
+                if (empty($contacts) && !empty($emergencyWa)) {
+                    $contacts = [['label' => 'Hubungi Hotline Panitia', 'number' => $emergencyWa]];
                 }
             @endphp
-            @if(!empty($emergencyWa))
-                <a 
-                    href="https://wa.me/{{ $cleanWa }}?text=Halo%20Panitia%20Semarak%20Aliyah%202026%2C%20saya%20ingin%20bertanya%20seputar%20informasi%20pendaftaran" 
-                    target="_blank" 
-                    rel="noopener" 
-                    class="btn-wa-hotline"
-                >
-                    <i class="ri-whatsapp-line fs-18"></i>
-                    <span>Hubungi Hotline Panitia</span>
-                </a>
-            @endif
+            @foreach($contacts as $idx => $wa)
+                @php
+                    $rawNum = $wa['number'] ?? '';
+                    $cleanWa = preg_replace('/[^0-9]/', '', $rawNum);
+                    if (str_starts_with($cleanWa, '0')) {
+                        $cleanWa = '62' . substr($cleanWa, 1);
+                    }
+                    $waLabel = !empty($wa['label']) ? $wa['label'] : (count($contacts) > 1 ? 'Hotline Panitia ' . ($idx + 1) : 'Hubungi Hotline Panitia');
+                @endphp
+                @if(!empty($cleanWa))
+                    <a 
+                        href="https://wa.me/{{ $cleanWa }}?text=Halo%20Panitia%20Semarak%20Aliyah%202026%2C%20saya%20ingin%20bertanya%20seputar%20informasi%20pendaftaran" 
+                        target="_blank" 
+                        rel="noopener" 
+                        class="btn-wa-hotline"
+                    >
+                        <i class="ri-whatsapp-line fs-18"></i>
+                        <span>{{ $waLabel }} ({{ $rawNum }})</span>
+                    </a>
+                @endif
+            @endforeach
         </div>
 
         <div class="footer-note">

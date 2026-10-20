@@ -90,13 +90,42 @@ class SettingsController extends Controller
             } catch (\Exception $e) {}
         }
 
+        $rawWa = Setting::get('maintenance_emergency_wa', '0838 5007 0767');
+        $rawWaList = Setting::get('maintenance_emergency_wa_list', null);
+        $waContacts = [];
+        if (!empty($rawWaList)) {
+            $decoded = json_decode($rawWaList, true);
+            if (is_array($decoded)) {
+                $waContacts = array_values(array_filter($decoded, fn($w) => !empty($w['number'])));
+            }
+        }
+        if (empty($waContacts) && !empty($rawWa)) {
+            $parts = preg_split('/[\r\n,;\/]+/', $rawWa);
+            foreach ($parts as $idx => $part) {
+                $trimmed = trim($part);
+                if (!empty($trimmed)) {
+                    $waContacts[] = [
+                        'label' => count($parts) > 1 ? 'Hotline Panitia ' . ($idx + 1) : 'Hotline Panitia',
+                        'number' => $trimmed,
+                    ];
+                }
+            }
+        }
+        if (empty($waContacts)) {
+            $waContacts[] = [
+                'label' => 'Hotline Panitia',
+                'number' => '0838 5007 0767',
+            ];
+        }
+
         $settings = [
             'maintenance_mode' => Setting::get('maintenance_mode', '0') === '1',
             'maintenance_title' => Setting::get('maintenance_title', 'Situs Sedang Dalam Pemeliharaan Berkala'),
             'maintenance_message' => Setting::get('maintenance_message', 'Mohon maaf atas ketidaknyamanan ini. Saat ini sistem Semarak Aliyah XIV 2026 sedang dalam proses peningkatan performa dan sinkronisasi data teknis. Website publik akan segera kembali online.'),
             'maintenance_estimated_end' => $estimatedEnd,
             'maintenance_countdown_target' => $countdownTarget,
-            'maintenance_emergency_wa' => Setting::get('maintenance_emergency_wa', '0838 5007 0767'),
+            'maintenance_emergency_wa' => $waContacts[0]['number'] ?? '0838 5007 0767',
+            'maintenance_emergency_wa_list' => $waContacts,
             'maintenance_secret_key' => Setting::get('maintenance_secret_key', 'semarak2026bypass'),
         ];
 
@@ -111,7 +140,10 @@ class SettingsController extends Controller
             'maintenance_message' => 'required|string|max:1000',
             'maintenance_estimated_end' => 'nullable|string|max:150',
             'maintenance_countdown_target' => 'nullable|string|max:100',
-            'maintenance_emergency_wa' => 'nullable|string|max:50',
+            'maintenance_emergency_wa' => 'nullable|string|max:255',
+            'maintenance_emergency_wa_list' => 'nullable|array',
+            'maintenance_emergency_wa_list.*.label' => 'nullable|string|max:100',
+            'maintenance_emergency_wa_list.*.number' => 'nullable|string|max:50',
             'maintenance_secret_key' => 'nullable|string|max:100',
         ]);
 
@@ -125,12 +157,27 @@ class SettingsController extends Controller
             } catch (\Exception $e) {}
         }
 
+        $waList = $request->input('maintenance_emergency_wa_list', []);
+        $cleanWaList = [];
+        if (is_array($waList)) {
+            foreach ($waList as $w) {
+                if (!empty($w['number'])) {
+                    $cleanWaList[] = [
+                        'label' => trim($w['label'] ?? 'Hotline Panitia'),
+                        'number' => trim($w['number']),
+                    ];
+                }
+            }
+        }
+        $primaryWa = !empty($cleanWaList) ? $cleanWaList[0]['number'] : ($validated['maintenance_emergency_wa'] ?? '');
+
         Setting::set('maintenance_mode', $request->boolean('maintenance_mode') ? '1' : '0');
         Setting::set('maintenance_title', (string)$validated['maintenance_title']);
         Setting::set('maintenance_message', (string)$validated['maintenance_message']);
         Setting::set('maintenance_estimated_end', (string)$estimatedEnd);
         Setting::set('maintenance_countdown_target', (string)$target);
-        Setting::set('maintenance_emergency_wa', (string)($validated['maintenance_emergency_wa'] ?? ''));
+        Setting::set('maintenance_emergency_wa', (string)$primaryWa);
+        Setting::set('maintenance_emergency_wa_list', json_encode($cleanWaList));
         Setting::set('maintenance_secret_key', (string)($validated['maintenance_secret_key'] ?? 'semarak2026bypass'));
 
         $statusText = $request->boolean('maintenance_mode') ? 'DIAKTIFKAN' : 'DINONAKTIFKAN';
@@ -151,7 +198,7 @@ class SettingsController extends Controller
             'seo_robots' => Setting::get('seo_robots', 'index, follow'),
             'seo_og_title' => Setting::get('seo_og_title', 'SEMARAK ALIYAH XII 2026 - Panggung Prestasi Pelajar SMP/MTs'),
             'seo_og_description' => Setting::get('seo_og_description', 'Daftarkan delegasi sekolah/madrasah Anda di ajang Semarak Aliyah XII 2026. Kompetisi Sains, Seni, Religi, Olahraga, dan E-Sport!'),
-            'seo_og_image' => Setting::get('seo_og_image', '/assets/img/pamflet.jpg'),
+            'seo_og_image' => Setting::get('seo_og_image', '/assets/img/og-thumbnail.jpg'),
             'seo_twitter_card' => Setting::get('seo_twitter_card', 'summary_large_image'),
             'seo_theme_color' => Setting::get('seo_theme_color', '#8b5cf6'),
         ];

@@ -14,6 +14,10 @@ const props = defineProps({
 
 const { success, error } = useToast();
 
+const initialWaList = (props.settings.maintenance_emergency_wa_list && props.settings.maintenance_emergency_wa_list.length > 0)
+  ? JSON.parse(JSON.stringify(props.settings.maintenance_emergency_wa_list))
+  : [{ label: 'Hotline Panitia', number: props.settings.maintenance_emergency_wa || '0838 5007 0767' }];
+
 const form = useForm({
   maintenance_mode: Boolean(props.settings.maintenance_mode),
   maintenance_title: props.settings.maintenance_title || 'Situs Sedang Dalam Pemeliharaan Berkala',
@@ -21,8 +25,22 @@ const form = useForm({
   maintenance_estimated_end: props.settings.maintenance_estimated_end || '',
   maintenance_countdown_target: props.settings.maintenance_countdown_target || '',
   maintenance_emergency_wa: props.settings.maintenance_emergency_wa || '0838 5007 0767',
+  maintenance_emergency_wa_list: initialWaList,
   maintenance_secret_key: props.settings.maintenance_secret_key || 'semarak2026bypass',
 });
+
+function addWaContact() {
+  form.maintenance_emergency_wa_list.push({
+    label: `Hotline Panitia ${form.maintenance_emergency_wa_list.length + 1}`,
+    number: ''
+  });
+}
+
+function removeWaContact(index) {
+  if (form.maintenance_emergency_wa_list.length > 1) {
+    form.maintenance_emergency_wa_list.splice(index, 1);
+  }
+}
 
 const INDO_MONTHS = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -390,16 +408,61 @@ function submitForm() {
                   </div>
 
                   <div class="col-12">
-                    <label class="form-label fs-12 fw-semibold text-dark-emphasis">Nomor WhatsApp Darurat / Hotline Panitia</label>
-                    <div class="input-group">
-                      <span class="input-group-text bg-success-subtle text-success border-0"><i class="ri-whatsapp-line"></i></span>
-                      <input
-                        v-model="form.maintenance_emergency_wa"
-                        type="text"
-                        class="form-control"
-                        placeholder="0838 5007 0767"
-                      />
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <label class="form-label fs-12 fw-semibold text-dark-emphasis mb-0">
+                        <i class="ri-whatsapp-line text-success me-1"></i> Nomor WhatsApp Darurat / Hotline Panitia
+                      </label>
+                      <button
+                        type="button"
+                        class="btn btn-xs btn-outline-success rounded-pill px-3 py-1 fs-11 d-flex align-items-center gap-1 shadow-sm"
+                        @click="addWaContact"
+                      >
+                        <i class="ri-add-line"></i>
+                        <span>Tambah Nomor WA</span>
+                      </button>
                     </div>
+
+                    <div class="d-flex flex-column gap-2">
+                      <div 
+                        v-for="(wa, index) in form.maintenance_emergency_wa_list" 
+                        :key="index"
+                        class="p-2.5 rounded-3 bg-dark-subtle border border-secondary/20 d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2"
+                      >
+                        <div class="d-flex align-items-center gap-2 flex-grow-1">
+                          <span class="badge bg-success-subtle text-success fs-11 px-2 py-1 rounded-2 flex-shrink-0">
+                            #{{ index + 1 }}
+                          </span>
+                          <input
+                            v-model="wa.label"
+                            type="text"
+                            class="form-control form-control-sm fs-12"
+                            placeholder="Label (Contoh: Hotline Pendaftaran)"
+                            style="max-width: 200px;"
+                          />
+                          <div class="input-group input-group-sm flex-grow-1">
+                            <span class="input-group-text bg-transparent border-secondary/20 text-success"><i class="ri-whatsapp-fill"></i></span>
+                            <input
+                              v-model="wa.number"
+                              type="text"
+                              class="form-control form-control-sm fs-12"
+                              placeholder="0838 5007 0767"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          v-if="form.maintenance_emergency_wa_list.length > 1"
+                          type="button"
+                          class="btn btn-sm btn-outline-danger px-2 py-1 rounded-2 align-self-end align-self-md-center"
+                          title="Hapus nomor ini"
+                          @click="removeWaContact(index)"
+                        >
+                          <i class="ri-delete-bin-line"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <small class="text-muted fs-11 mt-1 d-block">
+                      Dapat menambahkan lebih dari 1 nomor WhatsApp (misal Hotline Pendaftaran, Hotline Teknis). Seluruh nomor akan ditampilkan sebagai tombol hotline di halaman pemeliharaan.
+                    </small>
                   </div>
                 </div>
               </div>
@@ -507,7 +570,7 @@ function submitForm() {
                   </div>
 
                   <!-- Dynamic Title -->
-                  <h6 class="fw-bold text-white fs-15 mb-2 lh-sm">{{ form.maintenance_title || 'Situs Sedang Dalam Pemeliharaan Berkala' }}</h6>
+                  <h6 class="fw-bold text-white fs-13 mb-2 lh-sm">{{ form.maintenance_title || 'Situs Sedang Dalam Pemeliharaan Berkala' }}</h6>
 
                   <!-- Dynamic Message -->
                   <p class="text-slate-300 fs-11 lh-base px-2 mb-3">
@@ -552,9 +615,14 @@ function submitForm() {
 
                   <!-- Action Buttons -->
                   <div class="d-flex flex-column gap-2 mt-2">
-                    <button type="button" class="btn btn-success btn-sm rounded-pill fw-bold fs-11 py-2 d-flex align-items-center justify-content-center gap-2 shadow">
+                    <button 
+                      v-for="(wa, idx) in form.maintenance_emergency_wa_list" 
+                      :key="idx"
+                      type="button" 
+                      class="btn btn-success btn-sm rounded-pill fw-bold fs-11 py-1.5 px-3 d-flex align-items-center justify-content-center gap-2 shadow"
+                    >
                       <i class="ri-whatsapp-line fs-14"></i>
-                      <span>Hubungi Hotline Panitia ({{ form.maintenance_emergency_wa || '-' }})</span>
+                      <span>{{ wa.label || 'Hotline Panitia' }} ({{ wa.number || '-' }})</span>
                     </button>
                   </div>
 

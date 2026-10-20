@@ -22,14 +22,14 @@ const form = useForm({
   seo_robots: props.settings.seo_robots || 'index, follow',
   seo_og_title: props.settings.seo_og_title || 'SEMARAK ALIYAH XIV 2026 - Panggung Prestasi Pelajar SMP/MTs',
   seo_og_description: props.settings.seo_og_description || 'Daftarkan delegasi sekolah/madrasah Anda di ajang Semarak Aliyah XIV 2026. Kompetisi Sains, Seni, Religi, Olahraga, dan E-Sport!',
-  seo_og_image: props.settings.seo_og_image || '/assets/img/pamflet.jpg',
+  seo_og_image: props.settings.seo_og_image || '/assets/img/og-thumbnail.jpg',
   seo_og_image_file: null,
   seo_twitter_card: props.settings.seo_twitter_card || 'summary_large_image',
   seo_theme_color: props.settings.seo_theme_color || '#8b5cf6',
 });
 
 const activePreviewTab = ref('google'); // 'google', 'whatsapp', 'facebook'
-const imagePreviewUrl = ref(props.settings.seo_og_image || '/assets/img/pamflet.jpg');
+const imagePreviewUrl = ref(props.settings.seo_og_image || '/assets/img/og-thumbnail.jpg');
 
 function onImageFileChange(e) {
   const file = e.target.files[0];
@@ -301,7 +301,7 @@ function submitForm() {
                       v-model="form.seo_og_image"
                       type="text"
                       class="form-control"
-                      placeholder="/assets/img/pamflet.jpg"
+                      placeholder="/assets/img/og-thumbnail.jpg"
                     />
                     <small class="text-muted fs-11 d-block mt-1">Ukuran ideal: 1200 x 630 px (Rasio 1.91:1) format JPG/PNG/WebP.</small>
                   </div>
@@ -429,7 +429,7 @@ function submitForm() {
                       alt="OG Image Preview"
                       class="w-100 h-100"
                       style="object-fit: cover;"
-                      @error="imagePreviewUrl = '/assets/img/pamflet.jpg'"
+                      @error="imagePreviewUrl = '/assets/img/og-thumbnail.jpg'"
                     />
                   </div>
                   <div class="p-2.5" style="background: rgba(0,0,0,0.25);">
@@ -459,7 +459,7 @@ function submitForm() {
                     alt="Social Preview"
                     class="w-100 h-100"
                     style="object-fit: cover;"
-                    @error="imagePreviewUrl = '/assets/img/pamflet.jpg'"
+                    @error="imagePreviewUrl = '/assets/img/og-thumbnail.jpg'"
                   />
                 </div>
                 <div class="p-3" style="background: #242526;">

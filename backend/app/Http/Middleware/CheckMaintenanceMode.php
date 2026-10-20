@@ -59,12 +59,44 @@ class CheckMaintenanceMode
                 } catch (\Exception $e) {}
             }
 
+            $rawWa = Setting::get('maintenance_emergency_wa', '0838 5007 0767');
+            $rawWaList = Setting::get('maintenance_emergency_wa_list', null);
+            $waContacts = [];
+
+            if (!empty($rawWaList)) {
+                $decoded = json_decode($rawWaList, true);
+                if (is_array($decoded)) {
+                    $waContacts = array_values(array_filter($decoded, fn($w) => !empty($w['number'])));
+                }
+            }
+
+            if (empty($waContacts) && !empty($rawWa)) {
+                $parts = preg_split('/[\r\n,;\/]+/', $rawWa);
+                foreach ($parts as $idx => $part) {
+                    $trimmed = trim($part);
+                    if (!empty($trimmed)) {
+                        $waContacts[] = [
+                            'label' => count($parts) > 1 ? 'Hotline Panitia ' . ($idx + 1) : 'Hubungi Hotline Panitia',
+                            'number' => $trimmed,
+                        ];
+                    }
+                }
+            }
+
+            if (empty($waContacts)) {
+                $waContacts[] = [
+                    'label' => 'Hubungi Hotline Panitia',
+                    'number' => '0838 5007 0767',
+                ];
+            }
+
             $data = [
                 'title' => Setting::get('maintenance_title', 'Situs Sedang Dalam Pemeliharaan Berkala'),
                 'message' => Setting::get('maintenance_message', 'Mohon maaf atas ketidaknyamanan ini. Saat ini sistem Semarak Aliyah XIV 2026 sedang dalam proses peningkatan performa dan sinkronisasi data teknis. Website publik akan segera kembali online.'),
                 'estimatedEnd' => $estimatedEnd,
                 'countdownTarget' => $countdownTarget,
-                'emergencyWa' => Setting::get('maintenance_emergency_wa', '0838 5007 0767'),
+                'emergencyWa' => $waContacts[0]['number'] ?? '0838 5007 0767',
+                'waContacts' => $waContacts,
                 'schoolName' => Setting::get('school_name', 'MA Unggulan Wahid Hasyim Balung'),
                 'eventName' => Setting::get('event_name', 'SEMARAK ALIYAH XIV 2026'),
             ];

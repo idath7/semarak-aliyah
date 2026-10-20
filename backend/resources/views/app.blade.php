@@ -19,7 +19,7 @@
         $seoThemeColor = \App\Models\Setting::get('seo_theme_color', '#8b5cf6');
         $ogTitle = \App\Models\Setting::get('seo_og_title', $seoTitle);
         $ogDesc = \App\Models\Setting::get('seo_og_description', $seoDesc);
-        $ogImage = \App\Models\Setting::get('seo_og_image', '/assets/img/pamflet.jpg');
+        $ogImage = \App\Models\Setting::get('seo_og_image', '/assets/img/og-thumbnail.jpg');
         if (!str_starts_with($ogImage, 'http')) {
             $ogImage = url($ogImage);
         }

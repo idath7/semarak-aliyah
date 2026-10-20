@@ -61,7 +61,11 @@ function setMode(mode) {
 }
 
 function logout() {
-  router.post('/logout');
+  router.post('/logout', {}, {
+    onFinish: () => {
+      window.location.href = '/login';
+    }
+  });
 }
 </script>
 

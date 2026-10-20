@@ -429,16 +429,16 @@
 
                                         <div class="mb-3">
                                             <label for="username" class="form-label">Username / Email</label>
-                                            <input type="text" name="email" class="form-control" id="username" placeholder="Masukkan email / username" value="{{ old('email', 'admin@maswahas.sch.id') }}" required autofocus>
+                                            <input type="text" name="email" class="form-control" id="username" placeholder="Masukkan email / username" value="{{ old('email') }}" required autofocus>
                                         </div>
 
                                         <div class="mb-3">
                                             <div class="float-end">
-                                                <a href="javascript:void(0);" onclick="alert('Kata sandi panitia default: admin123');" class="forgot-password-link">Forgot password?</a>
+                                                <a href="javascript:void(0);" onclick="alert('Silakan hubungi Administrator Utama untuk bantuan reset kata sandi.');" class="forgot-password-link">Forgot password?</a>
                                             </div>
                                             <label class="form-label" for="password-input">Password</label>
                                             <div class="position-relative auth-pass-inputgroup mb-3">
-                                                <input type="password" name="password" class="form-control pe-5 password-input" placeholder="Masukkan password" id="password-input" value="admin123" required>
+                                                <input type="password" name="password" class="form-control pe-5 password-input" placeholder="Masukkan password" id="password-input" value="" required>
                                                 <button class="password-addon" type="button" id="password-addon" aria-label="Toggle Password Visibility">
                                                     <i class="ri-eye-fill align-middle" id="eye-icon"></i>
                                                 </button>
@@ -472,10 +472,6 @@
                             <!-- end card body -->
                         </div>
                         <!-- end card -->
-
-                        <div class="mt-3 text-center">
-                            <p class="mb-0 account-hint">Akun Panitia : <span class="hint-val">admin@maswahas.sch.id</span> (Password : <span class="hint-val">admin123</span>)</p>
-                        </div>
 
                     </div>
                 </div>

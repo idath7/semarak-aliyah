@@ -74,7 +74,11 @@ function toggleFullscreen() {
 }
 
 function logout() {
-  router.post('/logout');
+  router.post('/logout', {}, {
+    onFinish: () => {
+      window.location.href = '/login';
+    }
+  });
 }
 
 onMounted(() => {

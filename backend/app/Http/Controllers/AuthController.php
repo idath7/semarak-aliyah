@@ -4,16 +4,23 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class AuthController extends Controller
 {
     /**
      * Show the Velzon login form.
      */
-    public function showLogin()
+    public function showLogin(Request $request)
     {
         if (Auth::check()) {
             return redirect()->route('admin.dashboard');
+        }
+
+        // Jika request datang via Inertia (X-Inertia header),
+        // paksa browser melakukan full page reload ke halaman login, bukan merender di modal
+        if ($request->header('X-Inertia')) {
+            return Inertia::location(route('login'));
         }
 
         return view('auth.login');
@@ -63,6 +70,13 @@ class AuthController extends Controller
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        // Saat logout dipanggil dari Inertia (seperti VelzonLayout atau AppLayout),
+        // wajib kembalikan Inertia::location agar browser melakukan full page reload ke /login
+        // dan TIDAK menampilkan halaman login di dalam modal mengambang.
+        if ($request->header('X-Inertia')) {
+            return Inertia::location(route('login'));
+        }
 
         return redirect()->route('login')->with('info', 'Anda telah berhasil keluar dari sistem.');
     }

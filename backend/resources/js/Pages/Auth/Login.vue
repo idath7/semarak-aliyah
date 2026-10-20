@@ -5,8 +5,8 @@ import { Head, useForm, Link } from '@inertiajs/vue3';
 const showPassword = ref(false);
 
 const form = useForm({
-  email: 'admin@maswahas.sch.id',
-  password: 'password',
+  email: '',
+  password: '',
   remember: true,
 });
 
@@ -14,11 +14,6 @@ function handleLogin() {
   form.post('/login', {
     onFinish: () => form.reset('password'),
   });
-}
-
-function fillDemo() {
-  form.email = 'admin@maswahas.sch.id';
-  form.password = 'password';
 }
 </script>
 
@@ -90,9 +85,6 @@ function fillDemo() {
             <input type="checkbox" v-model="form.remember" class="rounded bg-slate-950 border-slate-800 text-amber-500 focus:ring-0">
             <span>Ingat Sesi Saya</span>
           </label>
-          <button type="button" @click="fillDemo" class="text-amber-400 hover:underline">
-            Isi Akun Default
-          </button>
         </div>
 
         <button 

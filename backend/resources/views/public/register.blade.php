@@ -462,7 +462,12 @@
         <div class="form-grid-2">
           <div class="form-group">
             <label class="form-label" for="reg-sekolah">Nama Asal Sekolah / Madrasah *</label>
-            <input type="text" id="reg-sekolah" class="form-control" placeholder="Contoh: SMPN 1 Balung / MTs Wahid Hasyim" required>
+            <input type="text" id="reg-sekolah" class="form-control" list="school-datalist" placeholder="Contoh: SMPN 1 Balung / MTs Wahid Hasyim" required>
+            <datalist id="school-datalist">
+              @foreach(\App\Models\School::active()->select('name')->orderBy('name')->get() as $sch)
+                <option value="{{ $sch->name }}"></option>
+              @endforeach
+            </datalist>
           </div>
           <div class="form-group">
             <label class="form-label" for="reg-pendamping">Nama Guru Pendamping *</label>

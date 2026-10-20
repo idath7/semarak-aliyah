@@ -60,6 +60,47 @@ function openRegisterModal(compId = null, isAllIn = false) {
 
 function closeRegisterModal() {
   registerModalOpen.value = false;
+  showSchoolDropdown.value = false;
+}
+
+// -----------------------------------------------------------------------------
+// School Database Autocomplete (SMP / MTs Kabupaten Jember)
+// -----------------------------------------------------------------------------
+const schoolSuggestions = ref([]);
+const isSearchingSchools = ref(false);
+const showSchoolDropdown = ref(false);
+let schoolSearchTimeout = null;
+
+function onSchoolInput() {
+  const query = form.school_name ? form.school_name.trim() : '';
+  if (!query || query.length < 2) {
+    schoolSuggestions.value = [];
+    showSchoolDropdown.value = false;
+    return;
+  }
+
+  if (schoolSearchTimeout) clearTimeout(schoolSearchTimeout);
+  schoolSearchTimeout = setTimeout(async () => {
+    isSearchingSchools.value = true;
+    try {
+      const res = await fetch(`/api/schools?search=${encodeURIComponent(query)}&limit=6&paginate=0`);
+      if (res.ok) {
+        const json = await res.json();
+        schoolSuggestions.value = json.data || [];
+        showSchoolDropdown.value = schoolSuggestions.value.length > 0;
+      }
+    } catch (e) {
+      console.error('Failed to fetch school suggestions:', e);
+    } finally {
+      isSearchingSchools.value = false;
+    }
+  }, 250);
+}
+
+function selectSchool(school) {
+  form.school_name = school.name;
+  showSchoolDropdown.value = false;
+  schoolSuggestions.value = [];
 }
 
 // Dynamic Fee
@@ -441,16 +482,54 @@ function getCompDropdownSuffix(c) {
 
             <!-- 2. Data Sekolah & Pendamping -->
             <div class="form-grid-2">
-              <div class="form-group">
-                <label class="form-label" for="reg-sekolah">Nama Asal Sekolah / Madrasah *</label>
+              <div class="form-group" style="position: relative;">
+                <label class="form-label" for="reg-sekolah" style="display: flex; align-items: center; justify-content: space-between;">
+                  <span>Nama Asal Sekolah / Madrasah *</span>
+                  <span v-if="isSearchingSchools" style="font-size: 0.72rem; color: #10b981; font-weight: normal;">
+                    <i class="ri-loader-4-line ri-spin"></i> Mencari database...
+                  </span>
+                </label>
                 <input 
                   type="text" 
                   id="reg-sekolah" 
                   v-model="form.school_name"
                   class="form-control" 
-                  placeholder="Contoh: SMPN 1 Balung / MTs Wahid Hasyim" 
+                  placeholder="Ketik nama SMP/MTs (Contoh: SMPN 1 Balung / MTs Wahid Hasyim)" 
                   required
+                  autocomplete="off"
+                  @input="onSchoolInput"
+                  @focus="onSchoolInput"
                 >
+
+                <!-- Autocomplete Dropdown List -->
+                <div 
+                  v-if="showSchoolDropdown && schoolSuggestions.length > 0" 
+                  class="school-autocomplete-dropdown"
+                  style="position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 1050; background: #0b1120; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.7); max-height: 220px; overflow-y: auto;"
+                >
+                  <div 
+                    v-for="s in schoolSuggestions" 
+                    :key="s.id"
+                    @click="selectSchool(s)"
+                    style="padding: 9px 12px; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: space-between; gap: 8px; transition: background 0.15s;"
+                    onmouseover="this.style.background='rgba(16, 185, 129, 0.18)'"
+                    onmouseout="this.style.background='transparent'"
+                  >
+                    <div>
+                      <div style="font-weight: 600; font-size: 0.85rem; color: #f8fafc;">{{ s.name }}</div>
+                      <div style="font-size: 0.72rem; color: #94a3b8;">
+                        <span>Kecamatan {{ s.kecamatan }}</span>
+                        <span v-if="s.npsn && s.npsn !== '-'"> • NPSN: {{ s.npsn }}</span>
+                      </div>
+                    </div>
+                    <span 
+                      style="font-size: 0.68rem; padding: 2px 7px; border-radius: 4px; font-weight: 700; white-space: nowrap;"
+                      :style="s.jenjang === 'MTs' ? 'background: rgba(16,185,129,0.25); color: #34d399; border: 1px solid rgba(16,185,129,0.4);' : 'background: rgba(59,130,246,0.25); color: #60a5fa; border: 1px solid rgba(59,130,246,0.4);'"
+                    >
+                      {{ s.jenjang }} {{ s.status }}
+                    </span>
+                  </div>
+                </div>
               </div>
               <div class="form-group">
                 <label class="form-label" for="reg-pendamping">Nama Guru Pendamping *</label>

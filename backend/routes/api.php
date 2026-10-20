@@ -4,10 +4,19 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\CompetitionController;
 use App\Http\Controllers\Api\RegistrationController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\SchoolController;
 
 // Public Endpoints
 Route::get('/competitions', [CompetitionController::class, 'index']);
 Route::post('/register', [RegistrationController::class, 'store'])->middleware('throttle:15,1');
+
+// Database Sekolah & Madrasah (SMP/MTs) Kabupaten Jember Public APIs
+Route::prefix('schools')->group(function () {
+    Route::get('/', [SchoolController::class, 'index']);
+    Route::get('/kecamatan', [SchoolController::class, 'kecamatan']);
+    Route::get('/stats', [SchoolController::class, 'stats']);
+    Route::get('/{id}', [SchoolController::class, 'show']);
+});
 
 // Admin Panel Endpoints (Protected with web auth)
 Route::middleware(['web', 'auth'])->prefix('admin')->group(function () {
@@ -15,6 +24,12 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () {
     Route::post('/verify', [AdminController::class, 'verify']);
     Route::post('/toggle-quota', [AdminController::class, 'toggleQuota']);
     Route::get('/export', [AdminController::class, 'export']);
+
+    // Admin Sekolah Management APIs
+    Route::post('/schools', [SchoolController::class, 'store']);
+    Route::put('/schools/{id}', [SchoolController::class, 'update']);
+    Route::delete('/schools/{id}', [SchoolController::class, 'destroy']);
+    Route::post('/schools/sync-defaults', [SchoolController::class, 'syncDefaults']);
 });
 
 // Operational Command Center APIs (Protected with web auth)

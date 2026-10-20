@@ -329,6 +329,17 @@ onMounted(() => {
 
           <li class="nav-item">
             <Link 
+              href="/admin/sekolah" 
+              class="nav-link menu-link"
+              :class="{ 'active': currentUrl.startsWith('/admin/sekolah') }"
+            >
+              <i class="ri-building-4-line text-success"></i>
+              <span v-show="!isSidebarCollapsed">Database Sekolah (SMP/MTs)</span>
+            </Link>
+          </li>
+
+          <li class="nav-item">
+            <Link 
               href="/admin/lomba" 
               class="nav-link menu-link"
               :class="{ 'active': currentUrl.startsWith('/admin/lomba') }"

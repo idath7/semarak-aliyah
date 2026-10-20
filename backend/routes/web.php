@@ -58,6 +58,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/pengguna/{id}/toggle-status', [\App\Http\Controllers\Admin\UserController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::delete('/pengguna/{id}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
 
+    // Database Master Sekolah & Madrasah (SMP/MTs) di Kabupaten Jember
+    Route::get('/sekolah', [\App\Http\Controllers\Admin\SchoolController::class, 'index'])->name('schools.index');
+    Route::post('/sekolah', [\App\Http\Controllers\Admin\SchoolController::class, 'store'])->name('schools.store');
+    Route::put('/sekolah/{id}', [\App\Http\Controllers\Admin\SchoolController::class, 'update'])->name('schools.update');
+    Route::delete('/sekolah/{id}', [\App\Http\Controllers\Admin\SchoolController::class, 'destroy'])->name('schools.destroy');
+    Route::post('/sekolah/sync-defaults', [\App\Http\Controllers\Admin\SchoolController::class, 'syncDefaults'])->name('schools.sync-defaults');
+
     // Manajemen Kelola Biaya Registrasi & Paket Pembayaran
     Route::get('/biaya', [AdminPanelController::class, 'biayaIndex'])->name('biaya.index');
     Route::post('/biaya/competition/{id}', [AdminPanelController::class, 'updateCompetitionFee'])->name('biaya.competition.update');

@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             CompetitionSeeder::class,
             FormFieldSeeder::class,
             TournamentSeeder::class,
+            SchoolSeeder::class,
         ]);
     }
 }

@@ -642,13 +642,13 @@ function deleteSponsor(sponsor) {
                   <!-- Card Body Preview -->
                   <div class="card-body p-3 text-center d-flex flex-column justify-content-center" style="min-height: 120px;">
                     <!-- A. TAMPILAN MODE HANYA LOGO (Icon, Nama, Deskripsi Disembunyikan) -->
-                    <div v-if="sp.only_logo || (!sp.name && sp.logo)" class="py-2">
-                      <div class="d-flex align-items-center justify-content-center p-2 rounded-2 bg-white border" style="min-height: 72px;">
+                    <div v-if="sp.only_logo || (!sp.name && sp.logo)" class="py-1">
+                      <div class="d-flex align-items-center justify-content-center p-1 rounded-2 bg-white border" style="min-height: 80px; width: 100%; overflow: hidden;">
                         <img 
                           v-if="sp.logo" 
                           :src="sp.logo" 
                           :alt="sp.name || 'Logo'" 
-                          style="max-height: 52px; max-width: 90%; object-fit: contain;" 
+                          style="max-height: 76px; width: 100%; object-fit: contain;" 
                         />
                         <div v-else class="text-muted fs-12 d-flex align-items-center gap-2">
                           <i class="ri-image-line fs-20 text-warning"></i>

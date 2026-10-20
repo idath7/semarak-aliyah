@@ -4843,6 +4843,12 @@ section[id] {
     border-radius: 14px;
   }
 
+  .sponsor-card.is-logo-only {
+    padding: 6px 8px;
+    min-height: 96px;
+    height: 96px;
+  }
+
   .sponsor-cta-strip {
     padding: 14px 16px;
     border-radius: 16px;
@@ -6780,35 +6786,41 @@ section[id] {
   text-overflow: ellipsis;
 }
 
-/* Logo-Only Mode: Icon, nama sponsor, dan deskripsi otomatis disembunyikan */
+/* Logo-Only Mode: Icon, nama sponsor, dan deskripsi otomatis disembunyikan (Fullwidth frame dengan padding tipis) */
 .sponsor-card.is-logo-only {
   justify-content: center;
   align-items: center;
-  padding: 18px 24px;
-  min-height: 104px;
+  padding: 8px 10px;
+  min-height: 116px;
+  height: 116px;
+  overflow: hidden;
 }
 
 .sponsor-logo-only-wrapper {
   width: 100%;
   height: 100%;
-  min-height: 68px;
+  min-height: 96px;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  border-radius: calc(var(--radius-lg) - 4px);
+  text-decoration: none;
 }
 
 .sponsor-brand-logo-only {
-  max-width: 90%;
-  max-height: 56px;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100px;
   object-fit: contain;
+  object-position: center;
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.06));
 }
 
 .sponsor-card.is-logo-only:hover .sponsor-brand-logo-only {
-  transform: scale(1.08);
+  transform: scale(1.03);
 }
 
 .sponsor-thumb-logo {

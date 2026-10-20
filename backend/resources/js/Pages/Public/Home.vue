@@ -2309,9 +2309,13 @@ function handleLightboxKey(e) {
             :class="{ 'is-logo-only': sp.only_logo || sp.is_logo_only || (!sp.name && sp.logo) }"
             :style="sp.only_logo || sp.is_logo_only ? { borderColor: sp.borderLight } : {}"
           >
-            <!-- 1. JIKA HANYA MENYERTAKAN LOGO: Icon, Nama, dan Deskripsi Otomatis Disembunyikan -->
-            <div 
+            <!-- 1. JIKA HANYA MENYERTAKAN LOGO: Icon, Nama, dan Deskripsi Otomatis Disembunyikan (Fullwidth Card) -->
+            <component 
+              :is="sp.website_url ? 'a' : 'div'"
               v-if="sp.only_logo || sp.is_logo_only || (!sp.name && sp.logo)" 
+              :href="sp.website_url || undefined"
+              :target="sp.website_url ? '_blank' : undefined"
+              :rel="sp.website_url ? 'noopener noreferrer' : undefined"
               class="sponsor-logo-only-wrapper"
               :title="sp.name || 'Mitra Sponsor'"
             >
@@ -2327,7 +2331,7 @@ function handleLightboxKey(e) {
                 <i :class="sp.icon || 'ri-building-line'" :style="{ color: sp.color }"></i>
                 <span class="placeholder-name">{{ sp.short || sp.name }}</span>
               </div>
-            </div>
+            </component>
 
             <!-- 2. MODE STANDAR: Menampilkan Icon, Nama, dan Kategori/Deskripsi -->
             <template v-else>

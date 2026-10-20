@@ -93,7 +93,21 @@
     <meta name="twitter:image" content="{{ $ogImage . $ogImageVersion }}" />
 
     @if(request()->is('admin*') || request()->is('operasional*') || request()->is('login*'))
-        <!-- Admin & Operasional Command Center Fonts & Assets -->
+        <!-- Admin & Operasional Command Center Fonts & Assets (Synchronous Theme Restorer) -->
+        <script>
+            (function() {
+                try {
+                    var t = localStorage.getItem('velzon_theme') || 'dark';
+                    document.documentElement.setAttribute('data-bs-theme', t);
+                    document.documentElement.style.colorScheme = t;
+                    if (t === 'dark') {
+                        document.documentElement.style.backgroundColor = '#0b0f19';
+                    } else {
+                        document.documentElement.style.backgroundColor = '#f3f3f9';
+                    }
+                } catch(e) {}
+            })();
+        </script>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Orbitron:wght@600;700;800;900&family=Syne:wght@700;800;900&family=Oswald:wght@600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">

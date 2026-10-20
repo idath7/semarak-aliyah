@@ -123,6 +123,12 @@ function toggleTheme() {
   isDarkTheme.value = !isDarkTheme.value;
   const theme = isDarkTheme.value ? 'dark' : 'light';
   document.documentElement.setAttribute('data-bs-theme', theme);
+  document.documentElement.style.colorScheme = theme;
+  if (theme === 'dark') {
+    document.documentElement.style.backgroundColor = '#0b0f19';
+  } else {
+    document.documentElement.style.backgroundColor = '#f3f3f9';
+  }
   localStorage.setItem('velzon_theme', theme);
 }
 
@@ -143,12 +149,20 @@ function logout() {
 }
 
 onMounted(() => {
+  const currentTheme = document.documentElement.getAttribute('data-bs-theme');
   const savedTheme = localStorage.getItem('velzon_theme');
-  if (savedTheme === 'dark') {
-    isDarkTheme.value = true;
-    document.documentElement.setAttribute('data-bs-theme', 'dark');
+  const effectiveTheme = savedTheme || currentTheme || 'dark';
+
+  isDarkTheme.value = (effectiveTheme === 'dark');
+  document.documentElement.setAttribute('data-bs-theme', effectiveTheme);
+  document.documentElement.style.colorScheme = effectiveTheme;
+  if (effectiveTheme === 'dark') {
+    document.documentElement.style.backgroundColor = '#0b0f19';
   } else {
-    document.documentElement.setAttribute('data-bs-theme', 'light');
+    document.documentElement.style.backgroundColor = '#f3f3f9';
+  }
+  if (!savedTheme) {
+    localStorage.setItem('velzon_theme', effectiveTheme);
   }
 });
 </script>

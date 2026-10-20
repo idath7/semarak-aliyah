@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Setting;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class SettingsController extends Controller
 {
@@ -214,7 +215,7 @@ class SettingsController extends Controller
             'seo_meta_keywords' => 'nullable|string|max:500',
             'seo_author' => 'nullable|string|max:150',
             'seo_canonical_url' => 'nullable|string|max:255',
-            'seo_robots' => 'required|string|in:index, follow,noindex, follow,index, nofollow,noindex, nofollow',
+            'seo_robots' => ['required', 'string', Rule::in(['index, follow', 'noindex, follow', 'index, nofollow', 'noindex, nofollow'])],
             'seo_og_title' => 'required|string|max:150',
             'seo_og_description' => 'required|string|max:350',
             'seo_og_image' => 'nullable|string|max:500',

@@ -42,17 +42,17 @@
 
     <!-- Structured Data (JSON-LD) untuk Search Engine Google -->
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "{{ $eventName }}",
-      "url": "{{ $currentUrl ?? url()->current() }}",
-      "description": "{{ $seoDesc ?? $message }}",
-      "publisher": {
-        "@type": "Organization",
-        "name": "{{ $schoolName }}"
-      }
-    }
+    {!! json_encode([
+      '@context' => 'https://schema.org',
+      '@type' => 'WebSite',
+      'name' => $eventName ?? 'SEMARAK ALIYAH XIV 2026',
+      'url' => $currentUrl ?? url()->current(),
+      'description' => $seoDesc ?? ($message ?? ''),
+      'publisher' => [
+        '@type' => 'Organization',
+        'name' => $schoolName ?? 'MA Unggulan Wahid Hasyim Balung',
+      ],
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}
     </script>
     
     <!-- Google Fonts -->

@@ -72,6 +72,49 @@ const progressOffset = computed(() => {
   return CIRCLE_CIRCUMFERENCE - (percent / 100) * CIRCLE_CIRCUMFERENCE;
 });
 
+const activeSection = ref('beranda');
+
+function setActiveSection(id) {
+  activeSection.value = id;
+}
+
+function updateActiveSection() {
+  if (typeof window === 'undefined') return;
+  const path = window.location.pathname;
+  if (path.startsWith('/scoreboard')) {
+    activeSection.value = 'scoreboard';
+    return;
+  }
+  if (path !== '/') {
+    activeSection.value = '';
+    return;
+  }
+
+  const scrollPos = window.scrollY || document.documentElement.scrollTop || 0;
+  const sections = ['kontak', 'jadwal', 'kompetisi', 'biaya', 'tentang'];
+  for (const id of sections) {
+    const el = document.getElementById(id);
+    if (el) {
+      if (scrollPos >= el.offsetTop - 160) {
+        activeSection.value = id;
+        return;
+      }
+    }
+  }
+
+  activeSection.value = 'beranda';
+}
+
+function handleHashChange() {
+  if (typeof window === 'undefined') return;
+  const hash = window.location.hash.replace('#', '');
+  if (hash) {
+    activeSection.value = hash;
+  } else {
+    updateActiveSection();
+  }
+}
+
 function handleScroll() {
   const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
   const docHeight = (document.documentElement.scrollHeight || document.body.scrollHeight) - window.innerHeight;
@@ -84,6 +127,8 @@ function handleScroll() {
   } else {
     scrollProgress.value = 0;
   }
+
+  updateActiveSection();
 }
 
 function scrollToTop() {
@@ -96,7 +141,9 @@ function scrollToTop() {
 onMounted(() => {
   initTheme();
   window.addEventListener('scroll', handleScroll, { passive: true });
+  window.addEventListener('hashchange', handleHashChange);
   handleScroll();
+  handleHashChange();
 
   try {
     if (sessionStorage.getItem('semarak_banner_dismissed') === '1') {
@@ -116,6 +163,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
+  window.removeEventListener('hashchange', handleHashChange);
 });
 </script>
 
@@ -216,14 +264,68 @@ onUnmounted(() => {
 
           <!-- Desktop Menu -->
           <nav class="nav-menu" aria-label="Menu Utama">
-            <Link href="/" class="nav-link">Beranda</Link>
-            <a href="/#tentang" class="nav-link">Tentang</a>
-            <a href="/#biaya" class="nav-link">Biaya & Paket</a>
-            <a href="/#kompetisi" class="nav-link">Kompetisi</a>
-            <a href="/#jadwal" class="nav-link">Jadwal & TM</a>
-            <a href="/assets/JUKNIS-SEMARAK-2026.pdf" download class="nav-link">Juknis</a>
-            <a href="/#kontak" class="nav-link">Kontak</a>
-            <Link href="/scoreboard" class="nav-link nav-link-live" aria-label="Live Scoreboard">
+            <Link 
+              href="/" 
+              class="nav-link" 
+              :class="{ 'active': activeSection === 'beranda' }"
+              @click="setActiveSection('beranda')"
+            >
+              Beranda
+            </Link>
+            <a 
+              href="/#tentang" 
+              class="nav-link" 
+              :class="{ 'active': activeSection === 'tentang' }"
+              @click="setActiveSection('tentang')"
+            >
+              Tentang
+            </a>
+            <a 
+              href="/#biaya" 
+              class="nav-link" 
+              :class="{ 'active': activeSection === 'biaya' }"
+              @click="setActiveSection('biaya')"
+            >
+              Biaya & Paket
+            </a>
+            <a 
+              href="/#kompetisi" 
+              class="nav-link" 
+              :class="{ 'active': activeSection === 'kompetisi' }"
+              @click="setActiveSection('kompetisi')"
+            >
+              Kompetisi
+            </a>
+            <a 
+              href="/#jadwal" 
+              class="nav-link" 
+              :class="{ 'active': activeSection === 'jadwal' }"
+              @click="setActiveSection('jadwal')"
+            >
+              Jadwal & TM
+            </a>
+            <a 
+              href="/assets/JUKNIS-SEMARAK-2026.pdf" 
+              download 
+              class="nav-link"
+            >
+              Juknis
+            </a>
+            <a 
+              href="/#kontak" 
+              class="nav-link" 
+              :class="{ 'active': activeSection === 'kontak' }"
+              @click="setActiveSection('kontak')"
+            >
+              Kontak
+            </a>
+            <Link 
+              href="/scoreboard" 
+              class="nav-link nav-link-live" 
+              :class="{ 'active': activeSection === 'scoreboard' }"
+              aria-label="Live Scoreboard"
+              @click="setActiveSection('scoreboard')"
+            >
               <span class="live-dot-pulse"></span>
               <span>Live Score</span>
             </Link>
@@ -290,35 +392,75 @@ onUnmounted(() => {
       </div>
 
       <nav class="drawer-nav">
-        <Link href="/" class="drawer-link" @click="closeMobileMenu">
+        <Link 
+          href="/" 
+          class="drawer-link" 
+          :class="{ 'active': activeSection === 'beranda' }"
+          @click="closeMobileMenu(); setActiveSection('beranda')"
+        >
           <span class="drawer-icon-wrap icon-purple"><i class="ri-home-4-line"></i></span>
           <span>Beranda</span>
         </Link>
-        <a href="/#tentang" class="drawer-link" @click="closeMobileMenu">
+        <a 
+          href="/#tentang" 
+          class="drawer-link" 
+          :class="{ 'active': activeSection === 'tentang' }"
+          @click="closeMobileMenu(); setActiveSection('tentang')"
+        >
           <span class="drawer-icon-wrap icon-orange"><i class="ri-information-line"></i></span>
           <span>Tentang Semarak</span>
         </a>
-        <a href="/#biaya" class="drawer-link" @click="closeMobileMenu">
+        <a 
+          href="/#biaya" 
+          class="drawer-link" 
+          :class="{ 'active': activeSection === 'biaya' }"
+          @click="closeMobileMenu(); setActiveSection('biaya')"
+        >
           <span class="drawer-icon-wrap icon-green"><i class="ri-money-dollar-circle-line"></i></span>
           <span>Biaya & Paket Registrasi</span>
         </a>
-        <a href="/#kompetisi" class="drawer-link" @click="closeMobileMenu">
+        <a 
+          href="/#kompetisi" 
+          class="drawer-link" 
+          :class="{ 'active': activeSection === 'kompetisi' }"
+          @click="closeMobileMenu(); setActiveSection('kompetisi')"
+        >
           <span class="drawer-icon-wrap icon-pink"><i class="ri-trophy-line"></i></span>
           <span>Pilihan Kompetisi</span>
         </a>
-        <a href="/#jadwal" class="drawer-link" @click="closeMobileMenu">
+        <a 
+          href="/#jadwal" 
+          class="drawer-link" 
+          :class="{ 'active': activeSection === 'jadwal' }"
+          @click="closeMobileMenu(); setActiveSection('jadwal')"
+        >
           <span class="drawer-icon-wrap icon-orange"><i class="ri-calendar-event-line"></i></span>
           <span>Jadwal & Technical Meeting</span>
         </a>
-        <a href="/assets/JUKNIS-SEMARAK-2026.pdf" download class="drawer-link" @click="closeMobileMenu">
+        <a 
+          href="/assets/JUKNIS-SEMARAK-2026.pdf" 
+          download 
+          class="drawer-link" 
+          @click="closeMobileMenu"
+        >
           <span class="drawer-icon-wrap icon-purple"><i class="ri-file-download-line"></i></span>
           <span>Unduh Juknis & Pamflet</span>
         </a>
-        <a href="/#kontak" class="drawer-link" @click="closeMobileMenu">
+        <a 
+          href="/#kontak" 
+          class="drawer-link" 
+          :class="{ 'active': activeSection === 'kontak' }"
+          @click="closeMobileMenu(); setActiveSection('kontak')"
+        >
           <span class="drawer-icon-wrap icon-pink"><i class="ri-map-pin-line"></i></span>
           <span>Lokasi & Kontak Panitia</span>
         </a>
-        <Link href="/scoreboard" class="drawer-link drawer-link-live" @click="closeMobileMenu">
+        <Link 
+          href="/scoreboard" 
+          class="drawer-link drawer-link-live" 
+          :class="{ 'active': activeSection === 'scoreboard' }"
+          @click="closeMobileMenu(); setActiveSection('scoreboard')"
+        >
           <span class="drawer-icon-wrap" style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;"><i class="ri-broadcast-line"></i></span>
           <span style="flex-grow: 1;">Live Scoreboard</span>
           <span class="live-tag">LIVE</span>

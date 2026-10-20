@@ -234,25 +234,93 @@ function toggleActiveStatus(school) {
 }
 
 // -----------------------------------------------------------------------------
-// CLEAN INVALID / DUMMY TEST DATA
+// CLEAN DATA MODAL STATE & HANDLERS
 // -----------------------------------------------------------------------------
-async function cleanInvalidData() {
+const isCleanModalOpen = ref(false);
+const cleanScope = ref('all');
+const isCleaning = ref(false);
+
+function openCleanModal() {
+  cleanScope.value = 'all';
+  isCleanModalOpen.value = true;
+}
+
+function closeCleanModal() {
+  isCleanModalOpen.value = false;
+}
+
+async function executeClean() {
+  const scopeLabels = {
+    all: 'seluruh data sekolah & madrasah hasil API/seeder',
+    inactive: 'sekolah yang berstatus non-aktif',
+    dummy: 'data uji coba / dummy'
+  };
+
   const ok = await confirmDialog({
-    title: 'Bersihkan Data Tidak Valid?',
-    message: 'Sistem akan menghapus entri sekolah dummy, uji coba, atau nama kosong dari database. Data yang sudah terhubung dengan peserta tidak akan terhapus.',
-    type: 'warning',
-    confirmText: 'Ya, Bersihkan Data',
-    icon: 'ri-magic-line'
+    title: 'Konfirmasi Pembersihan Data',
+    message: `Apakah Anda yakin ingin menghapus ${scopeLabels[cleanScope.value]}? Tindakan ini tidak dapat dibatalkan. Data registrasi peserta yang sudah ada tetap aman.`,
+    type: cleanScope.value === 'all' ? 'danger' : 'warning',
+    confirmText: 'Ya, Bersihkan Sekarang',
+    icon: 'ri-delete-bin-line'
   });
 
   if (!ok) return;
 
-  router.post('/admin/sekolah/clean-invalid', {}, {
+  isCleaning.value = true;
+  router.post('/admin/sekolah/clean-invalid', { scope: cleanScope.value }, {
     onSuccess: () => {
-      success('Pembersihan data selesai!');
+      closeCleanModal();
+      selectedIds.value = [];
+      success('Pembersihan data sekolah berhasil!');
+    },
+    onError: (err) => {
+      error(Object.values(err)[0] || 'Gagal membersihkan data.');
+    },
+    onFinish: () => {
+      isCleaning.value = false;
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
+// BULK SELECTION & BULK DELETE
+// -----------------------------------------------------------------------------
+const selectedIds = ref([]);
+
+const isAllSelected = computed(() => {
+  if (!props.schools.data || props.schools.data.length === 0) return false;
+  return props.schools.data.every(s => selectedIds.value.includes(s.id));
+});
+
+function toggleSelectAll() {
+  if (isAllSelected.value) {
+    selectedIds.value = [];
+  } else {
+    selectedIds.value = props.schools.data.map(s => s.id);
+  }
+}
+
+async function bulkDeleteSelected() {
+  if (selectedIds.value.length === 0) return;
+
+  const count = selectedIds.value.length;
+  const ok = await confirmDialog({
+    title: `Hapus ${count} Sekolah Terpilih?`,
+    message: `Apakah Anda yakin ingin menghapus ${count} sekolah yang telah dicentang dari database?`,
+    type: 'danger',
+    confirmText: `Ya, Hapus ${count} Sekolah`,
+    icon: 'ri-delete-bin-line'
+  });
+
+  if (!ok) return;
+
+  router.post('/admin/sekolah/bulk-delete', { ids: selectedIds.value }, {
+    onSuccess: () => {
+      selectedIds.value = [];
+      success(`${count} sekolah terpilih berhasil dihapus.`);
     },
     onError: () => {
-      error('Gagal membersihkan data.');
+      error('Gagal menghapus sekolah terpilih.');
     }
   });
 }
@@ -341,12 +409,12 @@ const allJemberKecamatan = [
             <span class="d-none d-md-inline">Import CSV</span>
           </button>
 
-          <!-- Button Bersihkan Data Dummy -->
+          <!-- Button Bersihkan Data -->
           <button 
             type="button" 
             class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1.5"
-            @click="cleanInvalidData"
-            title="Hapus data sekolah kosong, dummy atau uji coba"
+            @click="openCleanModal"
+            title="Bersihkan / kosongkan database sekolah hasil API"
           >
             <i class="ri-magic-line"></i>
             <span class="d-none d-lg-inline">Bersihkan Data</span>
@@ -554,6 +622,28 @@ const allJemberKecamatan = [
       <!-- ============================================================== -->
       <!-- DATA TABLE                                                     -->
       <!-- ============================================================== -->
+      <!-- Bulk Action Bar -->
+      <div 
+        v-if="selectedIds.length > 0" 
+        class="alert alert-warning border-0 shadow-sm rounded-3 d-flex align-items-center justify-content-between p-3 mb-3"
+      >
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-warning text-dark fs-12 px-2.5 py-1">{{ selectedIds.length }} Terpilih</span>
+          <span class="fs-13 fw-semibold text-dark">Data sekolah telah dicentang untuk aksi massal</span>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-light border" @click="selectedIds = []">Batal Pilih</button>
+          <button 
+            type="button" 
+            class="btn btn-sm btn-danger d-flex align-items-center gap-1 shadow-sm"
+            @click="bulkDeleteSelected"
+          >
+            <i class="ri-delete-bin-line"></i>
+            <span>Hapus ({{ selectedIds.length }}) Sekolah Terpilih</span>
+          </button>
+        </div>
+      </div>
+
       <div class="card border-0 shadow-sm rounded-3 bg-white">
         <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
@@ -579,6 +669,15 @@ const allJemberKecamatan = [
           <table class="table table-hover align-middle mb-0">
             <thead class="table-light fs-12 text-muted text-uppercase">
               <tr>
+                <th scope="col" style="width: 40px;" class="text-center">
+                  <input 
+                    type="checkbox" 
+                    class="form-check-input cursor-pointer"
+                    :checked="isAllSelected"
+                    @change="toggleSelectAll"
+                    title="Pilih semua di halaman ini"
+                  />
+                </th>
                 <th scope="col" style="width: 50px;" class="text-center">#</th>
                 <th scope="col">Nama Lembaga & NPSN</th>
                 <th scope="col">Jenjang</th>
@@ -591,7 +690,7 @@ const allJemberKecamatan = [
             </thead>
             <tbody class="fs-13">
               <tr v-if="!schools.data || schools.data.length === 0">
-                <td colspan="8" class="text-center py-5 text-muted">
+                <td colspan="9" class="text-center py-5 text-muted">
                   <i class="ri-search-line fs-32 text-secondary mb-2 d-block"></i>
                   <p class="mb-1 fw-semibold">Tidak ada data sekolah yang cocok dengan filter pencarian.</p>
                   <small class="text-muted">Coba ubah kata kunci atau klik reset filter.</small>
@@ -599,6 +698,16 @@ const allJemberKecamatan = [
               </tr>
 
               <tr v-for="(school, index) in schools.data" :key="school.id">
+                <!-- Checkbox -->
+                <td class="text-center">
+                  <input 
+                    type="checkbox" 
+                    class="form-check-input cursor-pointer"
+                    :value="school.id"
+                    v-model="selectedIds"
+                  />
+                </td>
+
                 <!-- Index -->
                 <td class="text-center text-muted fs-12">
                   {{ ((schools.current_page - 1) * schools.per_page) + index + 1 }}
@@ -1005,6 +1114,124 @@ const allJemberKecamatan = [
               >
                 <i class="ri-upload-cloud-line" :class="{ 'ri-spin': isImporting }"></i>
                 <span>{{ isImporting ? 'Mengimpor...' : 'Mulai Import' }}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL: CLEAN / CLEAR SCHOOLS DATA                             -->
+    <!-- ============================================================== -->
+    <div 
+      v-if="isCleanModalOpen" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      style="background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(3px);"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-md">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+          <div class="modal-header bg-danger-subtle border-bottom py-3 px-4">
+            <div class="d-flex align-items-center gap-2">
+              <div class="avatar-xs bg-danger text-white rounded-2 d-flex align-items-center justify-content-center">
+                <i class="ri-delete-bin-line fs-16"></i>
+              </div>
+              <div>
+                <h5 class="modal-title fs-15 fw-bold text-danger mb-0">Bersihkan Database Sekolah</h5>
+                <small class="text-muted fs-11">Pilih cakupan data yang ingin dibersihkan / dihapus</small>
+              </div>
+            </div>
+            <button type="button" class="btn-close" @click="closeCleanModal"></button>
+          </div>
+
+          <form @submit.prevent="executeClean">
+            <div class="modal-body p-4">
+              <p class="fs-13 text-dark mb-3">
+                Silakan pilih opsi pembersihan data sekolah & madrasah:
+              </p>
+
+              <!-- Option 1: Clear All / Reset -->
+              <div 
+                class="form-check p-3 rounded-3 border mb-2.5 transition-all cursor-pointer"
+                :class="cleanScope === 'all' ? 'border-danger bg-danger-subtle' : 'bg-light'"
+                @click="cleanScope = 'all'"
+              >
+                <input 
+                  id="scopeAll"
+                  v-model="cleanScope"
+                  class="form-check-input cursor-pointer" 
+                  type="radio" 
+                  value="all" 
+                />
+                <label class="form-check-label ms-1 cursor-pointer w-100" for="scopeAll">
+                  <strong class="d-block text-danger fs-13 mb-0.5">
+                    <i class="ri-refresh-line me-1"></i> Kosongkan Seluruh Data (Hasil API / Seeder)
+                  </strong>
+                  <span class="fs-11 text-muted d-block">
+                    Menghapus seluruh {{ metrics.total_schools || 0 }} data sekolah saat ini agar database bersih total. Riwayat pendaftaran peserta yang sudah masuk tetap aman.
+                  </span>
+                </label>
+              </div>
+
+              <!-- Option 2: Only Inactive -->
+              <div 
+                class="form-check p-3 rounded-3 border mb-2.5 transition-all cursor-pointer"
+                :class="cleanScope === 'inactive' ? 'border-warning bg-warning-subtle' : 'bg-light'"
+                @click="cleanScope = 'inactive'"
+              >
+                <input 
+                  id="scopeInactive"
+                  v-model="cleanScope"
+                  class="form-check-input cursor-pointer" 
+                  type="radio" 
+                  value="inactive" 
+                />
+                <label class="form-check-label ms-1 cursor-pointer w-100" for="scopeInactive">
+                  <strong class="d-block text-dark fs-13 mb-0.5">
+                    <i class="ri-close-circle-line me-1 text-warning"></i> Hapus Sekolah Non-Aktif Saja
+                  </strong>
+                  <span class="fs-11 text-muted d-block">
+                    Menghapus sekolah-sekolah yang statusnya telah dinonaktifkan di sistem.
+                  </span>
+                </label>
+              </div>
+
+              <!-- Option 3: Dummy / Test Data -->
+              <div 
+                class="form-check p-3 rounded-3 border transition-all cursor-pointer"
+                :class="cleanScope === 'dummy' ? 'border-primary bg-primary-subtle' : 'bg-light'"
+                @click="cleanScope = 'dummy'"
+              >
+                <input 
+                  id="scopeDummy"
+                  v-model="cleanScope"
+                  class="form-check-input cursor-pointer" 
+                  type="radio" 
+                  value="dummy" 
+                />
+                <label class="form-check-label ms-1 cursor-pointer w-100" for="scopeDummy">
+                  <strong class="d-block text-dark fs-13 mb-0.5">
+                    <i class="ri-magic-line me-1 text-primary"></i> Hapus Data Uji Coba / Dummy Saja
+                  </strong>
+                  <span class="fs-11 text-muted d-block">
+                    Menghapus data dengan nama kosong atau berlabel "test / contoh / dummy".
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div class="modal-footer bg-light border-top py-2.5 px-4 d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-sm btn-light border px-3" @click="closeCleanModal">
+                Batal
+              </button>
+              <button 
+                type="submit" 
+                class="btn btn-sm btn-danger px-3.5 d-flex align-items-center gap-1.5 shadow-sm"
+                :disabled="isCleaning"
+              >
+                <i class="ri-delete-bin-line" :class="{ 'ri-spin': isCleaning }"></i>
+                <span>{{ isCleaning ? 'Memproses...' : 'Bersihkan Sekarang' }}</span>
               </button>
             </div>
           </form>

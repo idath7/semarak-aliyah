@@ -443,10 +443,23 @@ class SchoolController extends Controller
     }
 
     /**
-     * Clean invalid or dummy test entries.
+     * Clean invalid or wipe all schools.
      */
-    public function cleanInvalid()
+    public function cleanInvalid(Request $request)
     {
+        $scope = $request->input('scope', 'all');
+
+        if ($scope === 'all') {
+            $deleted = School::count();
+            School::truncate();
+            return redirect()->back()->with('success', "Pembersihan selesai: Seluruh {$deleted} data sekolah hasil API/seeder berhasil dibersihkan dari database.");
+        }
+
+        if ($scope === 'inactive') {
+            $deleted = School::where('is_active', false)->delete();
+            return redirect()->back()->with('success', "Pembersihan selesai: {$deleted} data sekolah non-aktif berhasil dihapus.");
+        }
+
         $deleted = School::where(function ($q) {
             $q->whereNull('name')
               ->orWhere('name', '')
@@ -455,6 +468,32 @@ class SchoolController extends Controller
               ->orWhere('name', 'like', '%dummy%');
         })->delete();
 
-        return redirect()->back()->with('success', "Pembersihan selesai: {$deleted} data tidak valid/dummy berhasil dihapus.");
+        return redirect()->back()->with('success', "Pembersihan selesai: {$deleted} data tidak valid berhasil dihapus.");
+    }
+
+    /**
+     * Clear / truncate all schools.
+     */
+    public function clearAll()
+    {
+        $count = School::count();
+        School::truncate();
+
+        return redirect()->back()->with('success', "Seluruh {$count} data sekolah & madrasah berhasil dikosongkan.");
+    }
+
+    /**
+     * Bulk delete selected schools.
+     */
+    public function bulkDelete(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer',
+        ]);
+
+        $count = School::whereIn('id', $validated['ids'])->delete();
+
+        return redirect()->back()->with('success', "{$count} data sekolah terpilih berhasil dihapus dari database.");
     }
 }

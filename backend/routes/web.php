@@ -69,6 +69,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/sekolah/import-csv', [\App\Http\Controllers\Admin\SchoolController::class, 'importCsv'])->name('schools.import-csv');
     Route::post('/sekolah/{id}/toggle-active', [\App\Http\Controllers\Admin\SchoolController::class, 'toggleActive'])->name('schools.toggle-active');
     Route::post('/sekolah/clean-invalid', [\App\Http\Controllers\Admin\SchoolController::class, 'cleanInvalid'])->name('schools.clean-invalid');
+    Route::post('/sekolah/clear-all', [\App\Http\Controllers\Admin\SchoolController::class, 'clearAll'])->name('schools.clear-all');
+    Route::post('/sekolah/bulk-delete', [\App\Http\Controllers\Admin\SchoolController::class, 'bulkDelete'])->name('schools.bulk-delete');
 
     // Manajemen Kelola Biaya Registrasi & Paket Pembayaran
     Route::get('/biaya', [AdminPanelController::class, 'biayaIndex'])->name('biaya.index');

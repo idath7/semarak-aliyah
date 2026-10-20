@@ -98,14 +98,24 @@ class CheckMaintenanceMode
 
             $seoTitle = Setting::get('seo_meta_title', $eventName . ' - ' . $schoolName);
             $seoDesc = Setting::get('seo_meta_description', 'Ajang kompetisi tahunan bergengsi siswa/i SMP/MTs sederajat se-Kabupaten Jember. Raih piala juara, piagam resmi, uang pembinaan jutaan rupiah, dan beasiswa pendidikan.');
-            $ogTitle = Setting::get('seo_og_title', $seoTitle);
-            $ogDesc = Setting::get('seo_og_description', $seoDesc);
+            $seoKeywords = Setting::get('seo_meta_keywords', 'semarak aliyah, ma wahid hasyim balung, olimpiade mipa jember, olimpiade ips jember, storytelling, festival albanjari, singer lagu islami, voli jember, mobile legends');
+            $seoAuthor = Setting::get('seo_author', 'Panitia ' . $eventName . ' • ' . $schoolName);
+            $seoRobots = Setting::get('seo_robots', 'index, follow');
+            $seoThemeColor = Setting::get('seo_theme_color', '#8b5cf6');
 
             $isHttps = $request->isSecure() || $request->header('x-forwarded-proto') === 'https' || str_starts_with(config('app.url'), 'https://');
             $currentUrl = url()->current();
             if ($isHttps && str_starts_with($currentUrl, 'http://')) {
                 $currentUrl = 'https://' . substr($currentUrl, 7);
             }
+
+            $seoCanonical = Setting::get('seo_canonical_url', $currentUrl);
+            if ($isHttps && str_starts_with($seoCanonical, 'http://')) {
+                $seoCanonical = 'https://' . substr($seoCanonical, 7);
+            }
+
+            $ogTitle = Setting::get('seo_og_title', $seoTitle);
+            $ogDesc = Setting::get('seo_og_description', $seoDesc);
 
             $rawOgImage = Setting::get('seo_og_image', '/assets/img/og-thumbnail.jpg');
             $ogImage = $rawOgImage;
@@ -146,6 +156,13 @@ class CheckMaintenanceMode
                 'schoolName' => $schoolName,
                 'eventName' => $eventName,
                 'currentUrl' => $currentUrl,
+                'seoTitle' => $seoTitle,
+                'seoDesc' => $seoDesc,
+                'seoKeywords' => $seoKeywords,
+                'seoAuthor' => $seoAuthor,
+                'seoRobots' => $seoRobots,
+                'seoThemeColor' => $seoThemeColor,
+                'seoCanonical' => $seoCanonical,
                 'ogTitle' => $ogTitle,
                 'ogDesc' => $ogDesc,
                 'ogImage' => $ogImage,

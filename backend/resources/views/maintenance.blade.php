@@ -3,22 +3,29 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $title }} | {{ $eventName }}</title>
+    <title>{{ $seoTitle ?? ($title . ' | ' . $eventName) }}</title>
     <link rel="icon" type="image/png" href="/assets/img/logo.png">
 
-    <!-- Primary Meta Tags -->
-    <meta name="title" content="{{ $ogTitle ?? ($title . ' | ' . $eventName) }}">
-    <meta name="description" content="{{ $ogDesc ?? $message }}">
-    <meta name="theme-color" content="#8b5cf6">
-    <link rel="canonical" href="{{ $currentUrl ?? url()->current() }}">
+    <!-- Primary Meta Tags (Mengikuti Pengaturan SEO Admin) -->
+    <meta name="title" content="{{ $seoTitle ?? ($title . ' | ' . $eventName) }}">
+    <meta name="description" content="{{ $seoDesc ?? $message }}">
+    @if(!empty($seoKeywords))
+    <meta name="keywords" content="{{ $seoKeywords }}">
+    @endif
+    @if(!empty($seoAuthor))
+    <meta name="author" content="{{ $seoAuthor }}">
+    @endif
+    <meta name="robots" content="{{ $seoRobots ?? 'index, follow' }}">
+    <meta name="theme-color" content="{{ $seoThemeColor ?? '#8b5cf6' }}">
+    <link rel="canonical" href="{{ $seoCanonical ?? ($currentUrl ?? url()->current()) }}">
 
-    <!-- Open Graph / Facebook / WhatsApp -->
+    <!-- Open Graph / Facebook / WhatsApp (Sesuai Konfigurasi SEO Terkini) -->
     <meta property="og:type" content="website">
     <meta property="og:locale" content="id_ID">
     <meta property="og:site_name" content="{{ $eventName }}">
     <meta property="og:url" content="{{ $currentUrl ?? url()->current() }}">
-    <meta property="og:title" content="{{ $ogTitle ?? ($title . ' | ' . $eventName) }}">
-    <meta property="og:description" content="{{ $ogDesc ?? $message }}">
+    <meta property="og:title" content="{{ $ogTitle ?? ($seoTitle ?? ($title . ' | ' . $eventName)) }}">
+    <meta property="og:description" content="{{ $ogDesc ?? ($seoDesc ?? $message) }}">
     <meta property="og:image" content="{{ ($ogImage ?? url('/assets/img/og-thumbnail.jpg')) . ($ogImageVersion ?? '') }}">
     <meta property="og:image:secure_url" content="{{ ($ogImageSecure ?? url('/assets/img/og-thumbnail.jpg')) . ($ogImageVersion ?? '') }}">
     <meta property="og:image:type" content="{{ $ogImageType ?? 'image/jpeg' }}">
@@ -29,9 +36,24 @@
     <!-- Twitter / X -->
     <meta name="twitter:card" content="{{ $twitterCard ?? 'summary_large_image' }}">
     <meta name="twitter:url" content="{{ $currentUrl ?? url()->current() }}">
-    <meta name="twitter:title" content="{{ $ogTitle ?? ($title . ' | ' . $eventName) }}">
-    <meta name="twitter:description" content="{{ $ogDesc ?? $message }}">
+    <meta name="twitter:title" content="{{ $ogTitle ?? ($seoTitle ?? ($title . ' | ' . $eventName)) }}">
+    <meta name="twitter:description" content="{{ $ogDesc ?? ($seoDesc ?? $message) }}">
     <meta name="twitter:image" content="{{ ($ogImage ?? url('/assets/img/og-thumbnail.jpg')) . ($ogImageVersion ?? '') }}">
+
+    <!-- Structured Data (JSON-LD) untuk Search Engine Google -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "{{ $eventName }}",
+      "url": "{{ $currentUrl ?? url()->current() }}",
+      "description": "{{ $seoDesc ?? $message }}",
+      "publisher": {
+        "@type": "Organization",
+        "name": "{{ $schoolName }}"
+      }
+    }
+    </script>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

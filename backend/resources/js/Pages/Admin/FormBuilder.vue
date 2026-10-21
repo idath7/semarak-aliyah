@@ -95,7 +95,6 @@ function initializeData() {
       };
     }
     if (f.type === 'participant_repeater') {
-      if (!f.max_items) f.max_items = 8;
       if (!f.min_items) f.min_items = 1;
       if (!f.sub_fields || typeof f.sub_fields !== 'object') {
         f.sub_fields = {
@@ -237,11 +236,11 @@ const coreIdentityPresets = [
 const fieldTypes = [
   { 
     type: 'participant_repeater', 
-    label: 'Biodata Peserta Dinamis (Multi-Siswa)', 
+    label: 'Biodata Multi-Peserta / Tim (Dinamis)', 
     icon: 'ri-group-line', 
-    desc: 'Jumlah siswa otomatis memunculkan form biodata per-siswa (1 s.d. 8)', 
+    desc: 'Form biodata siswa otomatis muncul sesuai jumlah delegasi yang didaftarkan', 
     defaultOptions: [], 
-    badge: '⚡ Logika / Repeater',
+    badge: '⚡ Roster Dinamis',
     isRepeater: true 
   },
   { type: 'text', label: 'Teks Singkat', icon: 'ri-input-field', desc: 'Nama, NISN, ID, Judul', defaultOptions: [], badge: 'Umum' },
@@ -255,15 +254,83 @@ const fieldTypes = [
   { type: 'date', label: 'Tanggal', icon: 'ri-calendar-line', desc: 'Tanggal lahir, tanggal terbit', defaultOptions: [], badge: 'Waktu' },
 ];
 
-// 3. Quick Preset Library
+// 3. Quick Preset Library (Preset Berbagai Cabang Lomba: Tim, Turnamen, Beregu, Musik/Banjari)
 const quickPresets = [
   {
-    name: 'Biodata Kontingen Dinamis (Maksimal 8 Siswa)',
+    name: 'Grup Musik / Albanjari / Hadrah (Multi-Personil)',
     type: 'participant_repeater',
-    label: 'Biodata Siswa Delegasi',
-    help_text: 'Tentukan jumlah peserta yang didaftarkan, lalu lengkapi biodata masing-masing siswa.',
+    label: 'Biodata Personil Tim Hadrah / Albanjari',
+    help_text: 'Tentukan jumlah personil yang dikirimkan, lalu lengkapi biodata masing-masing siswa.',
     required: true,
-    max_items: 8,
+    max_items: 10,
+    min_items: 1,
+    sub_fields: {
+      name: { active: true, required: true, label: 'Nama Lengkap Personil' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
+    },
+    category: 'Grup Seni / Musik',
+  },
+  {
+    name: 'Turnamen Tim Futsal / Olahraga (Line-up / Roster)',
+    type: 'participant_repeater',
+    label: 'Roster Tim Pemain (Inti & Cadangan)',
+    help_text: 'Masukkan jumlah pemain yang didaftarkan dalam skuad tim turnamen.',
+    required: true,
+    max_items: 12,
+    min_items: 5,
+    sub_fields: {
+      name: { active: true, required: true, label: 'Nama Lengkap Pemain' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: true, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: true, label: 'NISN Pemain' },
+    },
+    category: 'Turnamen Olahraga',
+  },
+  {
+    name: 'Regu Cerdas Cermat / LCC / Debat (3 Siswa)',
+    type: 'participant_repeater',
+    label: 'Biodata Anggota Regu LCC / Debat',
+    help_text: 'Isi biodata untuk juru bicara dan anggota regu delegasi.',
+    required: true,
+    max_items: 3,
+    min_items: 3,
+    sub_fields: {
+      name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: true, label: 'Nomor Induk Siswa (NISN)' },
+    },
+    category: 'Lomba Beregu',
+  },
+  {
+    name: 'Tim Riset / Robotik / Karya Ilmiah (2 Siswa)',
+    type: 'participant_repeater',
+    label: 'Biodata Tim Peneliti Muda (Ketua & Anggota)',
+    help_text: 'Lengkapi biodata ketua tim dan anggota tim riset.',
+    required: true,
+    max_items: 2,
+    min_items: 2,
+    sub_fields: {
+      name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
+    },
+    category: 'Lomba Beregu',
+  },
+  {
+    name: 'Delegasi Kontingen Dinamis (Batas Fleksibel / Kustom)',
+    type: 'participant_repeater',
+    label: 'Biodata Siswa Delegasi Sekolah',
+    help_text: 'Jumlah formulir biodata otomatis muncul sesuai angka yang dipilih pendaftar.',
+    required: true,
+    max_items: 15,
     min_items: 1,
     sub_fields: {
       name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
@@ -272,13 +339,30 @@ const quickPresets = [
       grade: { active: true, required: true, label: 'Kelas / Tingkat' },
       nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
     },
-    category: '⚡ Logika Dinamis',
+    category: 'Kontingen Dinamis',
+  },
+  {
+    name: 'Peserta Utama & Cadangan (1-2 Siswa)',
+    type: 'participant_repeater',
+    label: 'Biodata Peserta Utama & Cadangan',
+    help_text: 'Pilih 1 siswa jika hanya peserta utama, atau 2 siswa jika menyertakan cadangan.',
+    required: true,
+    max_items: 2,
+    min_items: 1,
+    sub_fields: {
+      name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
+    },
+    category: 'Individu / Cadangan',
   },
   {
     name: 'Jumlah Peserta yang Dikirimkan',
     type: 'number',
     label: 'Jumlah Peserta yang Didaftarkan',
-    placeholder: 'Contoh: 3 (Maksimal 8)',
+    placeholder: 'Contoh: 3',
     help_text: 'Tuliskan angka jumlah siswa yang didelegasikan oleh sekolah',
     required: true,
     category: 'Logika',
@@ -385,7 +469,7 @@ function addField(typeObj) {
     allowed_extensions: typeObj.type === 'file' ? ['pdf', 'jpg', 'jpeg', 'png'] : [],
     max_size_mb: typeObj.type === 'file' ? 5 : null,
     min_items: typeObj.type === 'participant_repeater' ? 1 : null,
-    max_items: typeObj.type === 'participant_repeater' ? 8 : null,
+    max_items: typeObj.type === 'participant_repeater' ? 10 : null,
     sub_fields: typeObj.type === 'participant_repeater' ? {
       name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
       gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
@@ -452,7 +536,7 @@ function addQuickPreset(preset) {
     allowed_extensions: preset.allowed_extensions ? [...preset.allowed_extensions] : [],
     max_size_mb: preset.max_size_mb || (preset.type === 'file' ? 5 : null),
     min_items: preset.min_items || (preset.type === 'participant_repeater' ? 1 : null),
-    max_items: preset.max_items || (preset.type === 'participant_repeater' ? 8 : null),
+    max_items: preset.max_items !== undefined ? preset.max_items : null,
     sub_fields: preset.sub_fields ? JSON.parse(JSON.stringify(preset.sub_fields)) : (preset.type === 'participant_repeater' ? {
       name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
       gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
@@ -793,17 +877,17 @@ onUnmounted(() => {
 const previewValues = ref({});
 
 function changeParticipantCount(field, delta) {
-  const current = previewValues.value[field.name + '_count'] || 3;
-  const min = field.min_items || 1;
-  const max = field.max_items || 8;
+  const min = Number(field.min_items) || 1;
+  const max = field.max_items ? Number(field.max_items) : 50;
+  const current = previewValues.value[field.name + '_count'] || min;
   const next = Math.max(min, Math.min(max, current + delta));
   previewValues.value[field.name + '_count'] = next;
   previewValues.value[field.name] = next; // Also update direct value for any condition watcher!
 }
 
 function setParticipantCountDirect(field, val) {
-  const min = field.min_items || 1;
-  const max = field.max_items || 8;
+  const min = Number(field.min_items) || 1;
+  const max = field.max_items ? Number(field.max_items) : 50;
   const next = Math.max(min, Math.min(max, Number(val) || min));
   previewValues.value[field.name + '_count'] = next;
   previewValues.value[field.name] = next;
@@ -1287,7 +1371,8 @@ function setParticipantCountDirect(field, val) {
                         }"
                       >
                         <i :class="field.type === 'participant_repeater' ? 'ri-group-line' : (field.type === 'file' ? 'ri-upload-cloud-2-line' : (field.type === 'url' ? 'ri-link' : (field.type === 'select' ? 'ri-arrow-down-s-line' : 'ri-input-field')))"></i>
-                        <span>{{ field.type === 'participant_repeater' ? 'Multi-Peserta (Maks. ' + (field.max_items || 8) + ')' : field.type }}</span>
+                        <span v-if="field.type === 'participant_repeater'">Multi-Peserta Dinamis <template v-if="field.max_items">(Maks. {{ field.max_items }})</template></span>
+                        <span v-else>{{ field.type }}</span>
                       </span>
 
                       <!-- Question Label Title -->
@@ -1449,40 +1534,59 @@ function setParticipantCountDirect(field, val) {
                           <div class="d-flex align-items-center justify-content-between mb-2">
                             <label class="form-label fs-12 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
                               <i class="ri-group-line text-warning fs-16"></i>
-                              <span>Konfigurasi Kuota & Biodata Peserta Dinamis</span>
+                              <span>Konfigurasi Kuota & Biodata Multi-Peserta (Tim / Turnamen / Beregu)</span>
                             </label>
                             <span class="badge bg-warning text-dark fs-10 font-mono">Otomatisasi Form</span>
                           </div>
 
                           <p class="text-muted fs-11 mb-3">
-                            Tentukan batas maksimal peserta dalam 1 kontingen. Pendaftar bebas memilih jumlah siswa yang didaftarkan (misal 3 dari kuota 8), dan formulir secara otomatis menghasilkan 3 kolom biodata siswa.
+                            Atur batas kuota peserta per tim/kontingen untuk cabang lomba ini (misal regu 3 siswa, turnamen 10-12 pemain, grup musik/banjari, atau bebas). Form biodata yang tampil di pendaftar secara otomatis menyesuaikan dengan jumlah siswa yang didaftarkan.
                           </p>
 
                           <div class="row g-3">
                             <!-- Min & Max Items -->
                             <div class="col-md-6">
-                              <label class="form-label fs-11 fw-bold text-dark mb-1">
-                                Jumlah Maksimal Peserta per Kontingen:
-                              </label>
-                              <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light text-muted fs-11">Maks</span>
-                                <input 
-                                  type="number" 
-                                  v-model.number="field.max_items"
-                                  class="form-control fs-12 font-mono fw-bold"
-                                  min="1"
-                                  max="30"
-                                />
-                                <span class="input-group-text bg-light text-muted fs-11">Siswa / Tim</span>
+                              <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                  <label class="form-label fs-11 fw-bold text-dark mb-1">
+                                    Kuota Minimal:
+                                  </label>
+                                  <div class="input-group input-group-sm">
+                                    <input 
+                                      type="number" 
+                                      v-model.number="field.min_items"
+                                      class="form-control fs-12 font-mono fw-bold"
+                                      min="1"
+                                      placeholder="1"
+                                    />
+                                    <span class="input-group-text bg-light text-muted fs-11">Siswa</span>
+                                  </div>
+                                </div>
+                                <div class="col-6">
+                                  <label class="form-label fs-11 fw-bold text-dark mb-1">
+                                    Kuota Maksimal:
+                                  </label>
+                                  <div class="input-group input-group-sm">
+                                    <input 
+                                      type="number" 
+                                      v-model.number="field.max_items"
+                                      class="form-control fs-12 font-mono fw-bold"
+                                      min="1"
+                                      placeholder="Bebas"
+                                    />
+                                    <span class="input-group-text bg-light text-muted fs-11">Siswa</span>
+                                  </div>
+                                </div>
                               </div>
                               <!-- Quick preset chips -->
                               <div class="d-flex gap-1.5 mt-1.5 flex-wrap">
-                                <span class="text-muted fs-10 me-1">Pilihan Cepat:</span>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1.5 fs-10" @click="field.max_items = 3">3 Siswa</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1.5 fs-10" @click="field.max_items = 5">5 Siswa</button>
-                                <button type="button" class="btn btn-xs btn-warning py-0 px-1.5 fs-10 fw-bold" @click="field.max_items = 8">8 Siswa (Default)</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1.5 fs-10" @click="field.max_items = 12">12 Siswa</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1.5 fs-10" @click="field.max_items = 16">16 Siswa</button>
+                                <span class="text-muted fs-10 w-100 mb-0.5">Preset Batas Kuota Cepat:</span>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = 2">2 (Duo/Riset)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 3; field.max_items = 3">3 (Regu LCC)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = 5">5 (Futsal/E-Sport)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = 10">10 (Musik/Hadrah)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 5; field.max_items = 12">12 (Line-up Turnamen)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = null">Bebas (Tanpa Batas)</button>
                               </div>
                             </div>
 
@@ -1845,7 +1949,7 @@ function setParticipantCountDirect(field, val) {
                           </span>
                         </label>
 
-                        <!-- SPECIAL COMPONENT: PARTICIPANT REPEATER (DINAMIS 1 s.d. 8) -->
+                        <!-- SPECIAL COMPONENT: PARTICIPANT REPEATER (MULTI-PESERTA DINAMIS) -->
                         <div v-if="field.type === 'participant_repeater'" class="space-y-2.5 pt-1">
                           
                           <!-- Stepper Control: Jumlah Siswa yang Didaftarkan -->
@@ -1856,7 +1960,9 @@ function setParticipantCountDirect(field, val) {
                                 <span>Jumlah Peserta Didaftarkan:</span>
                               </div>
                               <div class="text-[10px] text-slate-400 mt-0.5">
-                                Maksimal kuota: <strong>{{ field.max_items || 8 }} Siswa</strong> (Min. {{ field.min_items || 1 }})
+                                <span v-if="field.max_items">Batas maksimal kuota: <strong>{{ field.max_items }} Siswa/Tim</strong></span>
+                                <span v-else>Kuota peserta: <strong>Bebas/Fleksibel</strong></span>
+                                <span v-if="field.min_items && field.min_items > 1"> (Min. {{ field.min_items }})</span>
                               </div>
                             </div>
 
@@ -1864,18 +1970,18 @@ function setParticipantCountDirect(field, val) {
                               <button 
                                 type="button" 
                                 class="btn btn-xs btn-outline-secondary text-slate-300 px-2 py-1"
-                                :disabled="(previewValues[field.name + '_count'] || 3) <= (field.min_items || 1)"
+                                :disabled="(previewValues[field.name + '_count'] || 1) <= (field.min_items || 1)"
                                 @click="changeParticipantCount(field, -1)"
                               >
                                 <i class="ri-subtract-line"></i>
                               </button>
                               <span class="badge bg-slate-900 border border-slate-700 font-mono text-amber-400 font-bold fs-12 px-2.5 py-1">
-                                {{ previewValues[field.name + '_count'] || 3 }} Siswa
+                                {{ previewValues[field.name + '_count'] || field.min_items || 1 }} Siswa
                               </span>
                               <button 
                                 type="button" 
                                 class="btn btn-xs btn-outline-secondary text-slate-300 px-2 py-1"
-                                :disabled="(previewValues[field.name + '_count'] || 3) >= (field.max_items || 8)"
+                                :disabled="field.max_items && (previewValues[field.name + '_count'] || 1) >= Number(field.max_items)"
                                 @click="changeParticipantCount(field, 1)"
                               >
                                 <i class="ri-add-line"></i>
@@ -2177,7 +2283,9 @@ function setParticipantCountDirect(field, val) {
                             <span>Jumlah Peserta Didaftarkan:</span>
                           </div>
                           <div class="text-[11px] text-slate-400 mt-0.5">
-                            Batas maksimal: <strong>{{ field.max_items || 8 }} Siswa</strong> (Min. {{ field.min_items || 1 }})
+                            <span v-if="field.max_items">Batas maksimal: <strong>{{ field.max_items }} Peserta/Siswa</strong></span>
+                            <span v-else>Kuota peserta: <strong>Bebas/Fleksibel</strong></span>
+                            <span v-if="field.min_items && field.min_items > 1"> (Min. {{ field.min_items }})</span>
                           </div>
                         </div>
 
@@ -2185,18 +2293,18 @@ function setParticipantCountDirect(field, val) {
                           <button 
                             type="button" 
                             class="btn btn-sm btn-outline-secondary text-slate-300"
-                            :disabled="(previewValues[field.name + '_count'] || 3) <= (field.min_items || 1)"
+                            :disabled="(previewValues[field.name + '_count'] || 1) <= (field.min_items || 1)"
                             @click="changeParticipantCount(field, -1)"
                           >
                             <i class="ri-subtract-line"></i>
                           </button>
                           <span class="badge bg-slate-900 border border-slate-700 font-mono text-amber-400 font-bold fs-14 px-3 py-1.5">
-                            {{ previewValues[field.name + '_count'] || 3 }} Peserta
+                            {{ previewValues[field.name + '_count'] || field.min_items || 1 }} Peserta
                           </span>
                           <button 
                             type="button" 
                             class="btn btn-sm btn-outline-secondary text-slate-300"
-                            :disabled="(previewValues[field.name + '_count'] || 3) >= (field.max_items || 8)"
+                            :disabled="field.max_items && (previewValues[field.name + '_count'] || 1) >= Number(field.max_items)"
                             @click="changeParticipantCount(field, 1)"
                           >
                             <i class="ri-add-line"></i>

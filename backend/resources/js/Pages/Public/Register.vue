@@ -57,17 +57,17 @@ function syncParticipantsList() {
 
 watch(repeaterField, (rf) => {
   if (rf) {
-    const max = rf.max_items || 8;
-    const min = rf.min_items || 1;
-    participantCount.value = Math.max(min, Math.min(max, 3));
+    const min = rf.min_items ? Number(rf.min_items) : 1;
+    const max = rf.max_items ? Number(rf.max_items) : 50;
+    participantCount.value = Math.max(min, Math.min(max, min));
     syncParticipantsList();
   }
 }, { immediate: true });
 
 function adjustCount(delta) {
   if (!repeaterField.value) return;
-  const min = repeaterField.value.min_items || 1;
-  const max = repeaterField.value.max_items || 8;
+  const min = repeaterField.value.min_items ? Number(repeaterField.value.min_items) : 1;
+  const max = repeaterField.value.max_items ? Number(repeaterField.value.max_items) : 50;
   participantCount.value = Math.max(min, Math.min(max, participantCount.value + delta));
   syncParticipantsList();
 }
@@ -647,7 +647,9 @@ function getCompDropdownSuffix(c) {
                     <span>{{ repeaterField.label || 'Jumlah Peserta yang Didaftarkan' }} *</span>
                   </div>
                   <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px;">
-                    Batas maksimal kuota: <strong>{{ repeaterField.max_items || 8 }} Siswa</strong> (Minimal {{ repeaterField.min_items || 1 }} Siswa)
+                    <span v-if="repeaterField.max_items">Batas maksimal kuota: <strong>{{ repeaterField.max_items }} Siswa/Tim</strong></span>
+                    <span v-else>Kuota peserta: <strong>Bebas/Fleksibel</strong></span>
+                    <span v-if="repeaterField.min_items && repeaterField.min_items > 1"> (Minimal {{ repeaterField.min_items }} Siswa)</span>
                   </div>
                 </div>
 
@@ -666,7 +668,7 @@ function getCompDropdownSuffix(c) {
                   <button 
                     type="button" 
                     style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;"
-                    :disabled="participantCount >= (repeaterField.max_items || 8)"
+                    :disabled="repeaterField.max_items && participantCount >= Number(repeaterField.max_items)"
                     @click="adjustCount(1)"
                   >
                     <i class="ri-add-line"></i>

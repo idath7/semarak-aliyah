@@ -14,11 +14,15 @@ const props = defineProps({
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirmDialog();
 
+// Navigation & Mode State
 const currentCompId = ref(props.selectedCompetition?.id || props.competitions[0]?.id || '');
-const activeTab = ref('builder'); // 'builder' | 'preview'
+const viewMode = ref('split'); // 'builder' (Editor Penuh) | 'split' (Berdampingan) | 'preview' (Pratinjau Penuh)
 const previewDevice = ref('desktop'); // 'desktop' | 'mobile'
+const toolboxTab = ref('types'); // 'types' | 'presets' | 'identity'
+const toolboxSearch = ref('');
+const canvasSearch = ref('');
 
-// Clone custom_fields and form_settings from props
+// Form Data State
 const fields = ref([]);
 const formSettings = ref({
   show_package_type: false,
@@ -29,6 +33,49 @@ const formSettings = ref({
 const isDirty = ref(false);
 const isSaving = ref(false);
 
+// Accordion Expand/Collapse Map: { [fieldId]: boolean }
+const expandedMap = ref({});
+
+function isExpanded(id) {
+  return expandedMap.value[id] !== false; // Default true if not explicitly set to false
+}
+
+function toggleExpand(id) {
+  expandedMap.value[id] = !isExpanded(id);
+}
+
+function expandAll() {
+  fields.value.forEach(f => {
+    expandedMap.value[f.id] = true;
+  });
+}
+
+function collapseAll() {
+  fields.value.forEach(f => {
+    expandedMap.value[f.id] = false;
+  });
+}
+
+// Competition Index Helpers for Quick Prev / Next navigation
+const currentCompIndex = computed(() => {
+  return props.competitions.findIndex(c => String(c.id) === String(currentCompId.value));
+});
+
+const prevCompetition = computed(() => {
+  if (currentCompIndex.value > 0) {
+    return props.competitions[currentCompIndex.value - 1];
+  }
+  return null;
+});
+
+const nextCompetition = computed(() => {
+  if (currentCompIndex.value >= 0 && currentCompIndex.value < props.competitions.length - 1) {
+    return props.competitions[currentCompIndex.value + 1];
+  }
+  return null;
+});
+
+// Initialize Data from Props
 function initializeData() {
   const sourceFields = props.selectedCompetition?.custom_fields;
   if (Array.isArray(sourceFields) && sourceFields.length > 0) {
@@ -36,6 +83,13 @@ function initializeData() {
   } else {
     fields.value = [];
   }
+
+  // Setup initial expansion: if more than 3 fields, expand first 2, collapse rest for neatness
+  const newMap = {};
+  fields.value.forEach((f, idx) => {
+    newMap[f.id] = fields.value.length <= 3 ? true : (idx < 2);
+  });
+  expandedMap.value = newMap;
 
   const s = props.selectedCompetition?.form_settings;
   if (s && typeof s === 'object') {
@@ -62,13 +116,14 @@ watch(() => props.selectedCompetition, () => {
   initializeData();
 }, { immediate: true, deep: true });
 
-// Watch for changes in fields to set dirty flag
+// Track unsaved changes
 watch([fields, formSettings], () => {
   isDirty.value = true;
 }, { deep: true });
 
-// Competition Switching
+// Switch Competition
 async function switchCompetition(compId) {
+  if (String(compId) === String(currentCompId.value)) return;
   if (isDirty.value) {
     const ok = await confirmDialog({
       title: 'Perubahan Belum Disimpan',
@@ -78,21 +133,16 @@ async function switchCompetition(compId) {
       cancelText: 'Tetap di Sini',
       icon: 'ri-alert-line',
     });
-    if (!ok) {
-      return;
-    }
+    if (!ok) return;
   }
-  router.visit(`/admin/form-builder/${compId}`, {
-    preserveScroll: true,
-  });
+  router.visit(`/admin/form-builder/${compId}`, { preserveScroll: true });
 }
 
-// Generate unique field ID
+// Helpers
 function generateId() {
   return 'cf_' + Math.random().toString(36).substr(2, 9);
 }
 
-// Sluggify field name
 function makeSlug(text) {
   return (text || '')
     .toString()
@@ -103,7 +153,7 @@ function makeSlug(text) {
     .replace(/^-+|-+$/g, '');
 }
 
-// 1. Core Identity Field Presets (Bisa Ditambahkan & Dikustomisasi Bebas)
+// 1. Core Identity Field Presets
 const coreIdentityPresets = [
   {
     name: 'Asal Sekolah / Lembaga',
@@ -114,6 +164,7 @@ const coreIdentityPresets = [
     help_text: 'Nama resmi instansi atau pangkalan delegasi',
     required: true,
     icon: 'ri-community-line',
+    desc: 'Wajib untuk sertifikat & administrasi sekolah'
   },
   {
     name: 'Guru / Pembina Pendamping',
@@ -124,6 +175,7 @@ const coreIdentityPresets = [
     help_text: 'Nama pembina atau guru penanggung jawab delegasi',
     required: false,
     icon: 'ri-user-star-line',
+    desc: 'Untuk kontak koordinasi guru & presensi'
   },
   {
     name: 'Nomor WhatsApp Kontak',
@@ -134,6 +186,7 @@ const coreIdentityPresets = [
     help_text: 'Nomor kontak aktif untuk informasi koordinasi teknis dan TM',
     required: true,
     icon: 'ri-whatsapp-line',
+    desc: 'Untuk undangan grup TM & notifikasi pendaftaran'
   },
   {
     name: 'Daftar Peserta / Kontingen',
@@ -144,20 +197,21 @@ const coreIdentityPresets = [
     help_text: 'Tuliskan nama lengkap peserta delegasi dan tingkat kelas',
     required: true,
     icon: 'ri-team-line',
+    desc: 'Format fleksibel untuk individu maupun regu'
   },
 ];
 
 // 2. Toolbox Component Types
 const fieldTypes = [
-  { type: 'text', label: 'Teks Singkat', icon: 'ri-input-field', desc: 'Nama, NISN, ID, Judul', defaultOptions: [] },
-  { type: 'textarea', label: 'Paragraf / Roster', icon: 'ri-text', desc: 'Deskripsi, daftar anggota, biodata', defaultOptions: [] },
-  { type: 'select', label: 'Pilihan Dropdown', icon: 'ri-arrow-down-s-line', desc: 'Pilih salah satu dari daftar opsi', defaultOptions: ['Pilihan 1', 'Pilihan 2', 'Pilihan 3'] },
-  { type: 'radio', label: 'Pilihan Tunggal (Radio)', icon: 'ri-radio-button-line', desc: 'Pilihan eksklusif radio button', defaultOptions: ['Pilihan A', 'Pilihan B'] },
-  { type: 'checkbox', label: 'Pilihan Ganda (Checkbox)', icon: 'ri-checkbox-line', desc: 'Centang satu atau beberapa opsi', defaultOptions: ['Item 1', 'Item 2', 'Item 3'] },
-  { type: 'file', label: 'Upload Dokumen / File', icon: 'ri-upload-cloud-2-line', desc: 'Unggah berkas PDF, JPG, PNG, dll.', defaultOptions: [] },
-  { type: 'url', label: 'Tautan / Link URL', icon: 'ri-link', desc: 'Link Google Drive, YouTube, dll.', defaultOptions: [] },
-  { type: 'number', label: 'Angka / Nominal', icon: 'ri-hashtag', desc: 'Usia, kelas, skor, no. urut', defaultOptions: [] },
-  { type: 'date', label: 'Tanggal', icon: 'ri-calendar-line', desc: 'Tanggal lahir, tanggal terbit', defaultOptions: [] },
+  { type: 'text', label: 'Teks Singkat', icon: 'ri-input-field', desc: 'Nama, NISN, ID, Judul', defaultOptions: [], badge: 'Umum' },
+  { type: 'textarea', label: 'Paragraf / Roster', icon: 'ri-text', desc: 'Deskripsi, daftar anggota, biodata', defaultOptions: [], badge: 'Teks Panjang' },
+  { type: 'select', label: 'Pilihan Dropdown', icon: 'ri-arrow-down-s-line', desc: 'Pilih 1 dari daftar opsi', defaultOptions: ['Pilihan 1', 'Pilihan 2', 'Pilihan 3'], badge: 'Pilihan' },
+  { type: 'radio', label: 'Pilihan Tunggal (Radio)', icon: 'ri-radio-button-line', desc: 'Pilihan eksklusif radio button', defaultOptions: ['Pilihan A', 'Pilihan B'], badge: 'Pilihan' },
+  { type: 'checkbox', label: 'Pilihan Ganda (Checkbox)', icon: 'ri-checkbox-line', desc: 'Centang satu atau beberapa opsi', defaultOptions: ['Item 1', 'Item 2', 'Item 3'], badge: 'Pilihan' },
+  { type: 'file', label: 'Upload Berkas / File', icon: 'ri-upload-cloud-2-line', desc: 'Unggah PDF, JPG, PNG, dll.', defaultOptions: [], badge: 'Media' },
+  { type: 'url', label: 'Tautan / Link URL', icon: 'ri-link', desc: 'Link Google Drive, YouTube, dll.', defaultOptions: [], badge: 'Tautan' },
+  { type: 'number', label: 'Angka / Nominal', icon: 'ri-hashtag', desc: 'Usia, kelas, skor, no. urut', defaultOptions: [], badge: 'Numerik' },
+  { type: 'date', label: 'Tanggal', icon: 'ri-calendar-line', desc: 'Tanggal lahir, tanggal terbit', defaultOptions: [], badge: 'Waktu' },
 ];
 
 // 3. Quick Preset Library
@@ -169,6 +223,7 @@ const quickPresets = [
     placeholder: 'Contoh: 0081234567',
     help_text: 'NISN resmi peserta delegasi terdaftar di Kemendikbud/Kemenag',
     required: true,
+    category: 'Akademik',
   },
   {
     name: 'Scan / Foto Kartu Pelajar (KTS)',
@@ -178,6 +233,7 @@ const quickPresets = [
     required: true,
     allowed_extensions: ['pdf', 'jpg', 'jpeg', 'png'],
     max_size_mb: 5,
+    category: 'Verifikasi',
   },
   {
     name: 'Nama Tim / Squad',
@@ -186,6 +242,7 @@ const quickPresets = [
     placeholder: 'Contoh: Garuda Muda MTs',
     help_text: 'Nama resmi tim yang akan tercantum pada bagan turnamen',
     required: true,
+    category: 'Turnamen',
   },
   {
     name: 'ID Game & Server (E-Sport)',
@@ -194,6 +251,7 @@ const quickPresets = [
     placeholder: 'Contoh: 12345678 (2045)',
     help_text: 'ID akun in-game beserta zona server dalam kurung',
     required: true,
+    category: 'E-Sport',
   },
   {
     name: 'Link Karya / Video (Drive/YT)',
@@ -202,6 +260,7 @@ const quickPresets = [
     placeholder: 'https://drive.google.com/...',
     help_text: 'Tautan rekaman video atau portofolio digital (Pastikan diset publik)',
     required: true,
+    category: 'Seni',
   },
   {
     name: 'Pilihan Golongan Juz',
@@ -210,6 +269,7 @@ const quickPresets = [
     help_text: 'Pilih kategori golongan juz hafalan',
     required: true,
     options: ['Juz 1 s.d. 5', 'Juz 26 s.d. 30'],
+    category: 'Keagamaan',
   },
   {
     name: 'Roster Pemain & Posisi',
@@ -218,17 +278,45 @@ const quickPresets = [
     placeholder: "1. Nama (No. Punggung - Posisi)\n2. Nama (No. Punggung - Posisi)...",
     help_text: 'Sebutkan nomor punggung dan posisi masing-masing pemain',
     required: true,
+    category: 'Olahraga',
   },
   {
-    name: 'Surat Keterangan / Rekomendasi',
+    name: 'Surat Rekomendasi Resmi',
     type: 'file',
     label: 'Surat Rekomendasi Kepala Madrasah',
     help_text: 'Unggah surat rekomendasi delegasi resmi bertandatangan & stempel (PDF)',
     required: true,
     allowed_extensions: ['pdf'],
     max_size_mb: 5,
+    category: 'Verifikasi',
   },
 ];
+
+// Filtered Toolbox Items based on Search
+const filteredFieldTypes = computed(() => {
+  if (!toolboxSearch.value.trim()) return fieldTypes;
+  const q = toolboxSearch.value.toLowerCase();
+  return fieldTypes.filter(f => f.label.toLowerCase().includes(q) || f.desc.toLowerCase().includes(q) || f.type.toLowerCase().includes(q));
+});
+
+const filteredQuickPresets = computed(() => {
+  if (!toolboxSearch.value.trim()) return quickPresets;
+  const q = toolboxSearch.value.toLowerCase();
+  return quickPresets.filter(p => p.name.toLowerCase().includes(q) || p.label.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+});
+
+const filteredCorePresets = computed(() => {
+  if (!toolboxSearch.value.trim()) return coreIdentityPresets;
+  const q = toolboxSearch.value.toLowerCase();
+  return coreIdentityPresets.filter(c => c.name.toLowerCase().includes(q) || c.label.toLowerCase().includes(q));
+});
+
+// Filtered Canvas Fields based on canvas search
+const displayedFields = computed(() => {
+  if (!canvasSearch.value.trim()) return fields.value;
+  const q = canvasSearch.value.toLowerCase();
+  return fields.value.filter(f => (f.label || '').toLowerCase().includes(q) || (f.name || '').toLowerCase().includes(q) || (f.type || '').toLowerCase().includes(q));
+});
 
 // Add Field from Toolbox
 function addField(typeObj) {
@@ -250,7 +338,8 @@ function addField(typeObj) {
   };
 
   fields.value.push(newField);
-  toast.info(`Field "${typeObj.label}" berhasil ditambahkan.`);
+  expandedMap.value[id] = true;
+  toast.info(`Field "${typeObj.label}" ditambahkan.`);
 }
 
 // Add Core Identity Preset
@@ -270,6 +359,7 @@ function addCorePreset(preset) {
   };
 
   fields.value.push(newField);
+  expandedMap.value[id] = true;
   toast.success(`Field "${preset.name}" ditambahkan!`);
 }
 
@@ -290,6 +380,7 @@ function addQuickPreset(preset) {
   };
 
   fields.value.push(newField);
+  expandedMap.value[id] = true;
   toast.success(`Preset "${preset.name}" ditambahkan!`);
 }
 
@@ -297,14 +388,16 @@ function addQuickPreset(preset) {
 async function removeField(index) {
   const f = fields.value[index];
   const ok = await confirmDialog({
-    title: 'Hapus Field Formulir?',
-    message: `Apakah Anda yakin ingin menghapus field "${f.label}"?`,
+    title: 'Hapus Pertanyaan?',
+    message: `Apakah Anda yakin ingin menghapus "${f.label}"? Pertanyaan ini tidak akan muncul lagi di formulir pendaftaran.`,
     type: 'danger',
-    confirmText: 'Ya, Hapus Field',
+    confirmText: 'Ya, Hapus',
+    cancelText: 'Batal',
     icon: 'ri-delete-bin-line',
   });
   if (ok) {
     fields.value.splice(index, 1);
+    delete expandedMap.value[f.id];
     toast.info(`Field "${f.label}" telah dihapus.`);
   }
 }
@@ -316,6 +409,7 @@ function duplicateField(index) {
   clone.label = clone.label + ' (Salinan)';
   clone.name = makeSlug(clone.label);
   fields.value.splice(index + 1, 0, clone);
+  expandedMap.value[clone.id] = true;
   toast.success('Field berhasil diduplikasi!');
 }
 
@@ -333,7 +427,7 @@ function moveFieldDown(index) {
   }
 }
 
-// Options Manager for Select, Radio, Checkbox
+// Options Manager
 function addOption(field) {
   if (!Array.isArray(field.options)) {
     field.options = [];
@@ -343,13 +437,52 @@ function addOption(field) {
 
 function removeOption(field, optIndex) {
   if (field.options.length <= 1) {
-    alert('Minimal harus memiliki 1 pilihan opsi.');
+    toast.warning('Minimal harus memiliki 1 pilihan opsi.');
     return;
   }
   field.options.splice(optIndex, 1);
 }
 
-// Allowed extensions toggle for File type
+// Bulk Option Editor Modal
+const showBulkModal = ref(false);
+const bulkEditingField = ref(null);
+const bulkText = ref('');
+
+function openBulkOptions(field) {
+  bulkEditingField.value = field;
+  bulkText.value = (field.options || []).join('\n');
+  showBulkModal.value = true;
+}
+
+function saveBulkOptions() {
+  if (!bulkEditingField.value) return;
+  const lines = bulkText.value
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+  
+  if (lines.length === 0) {
+    toast.warning('Daftar opsi tidak boleh kosong.');
+    return;
+  }
+
+  bulkEditingField.value.options = lines;
+  showBulkModal.value = false;
+  toast.success(`${lines.length} opsi berhasil diperbarui!`);
+}
+
+function applyOptionPreset(field, type) {
+  if (type === 'yesno') {
+    field.options = ['Ya', 'Tidak'];
+  } else if (type === 'genders') {
+    field.options = ['Laki-laki', 'Perempuan'];
+  } else if (type === 'classes') {
+    field.options = ['Kelas 7 SMP/MTs', 'Kelas 8 SMP/MTs', 'Kelas 9 SMP/MTs'];
+  }
+  toast.info('Preset opsi diterapkan.');
+}
+
+// File Extensions Toggle & Presets
 function toggleExtension(field, ext) {
   if (!Array.isArray(field.allowed_extensions)) {
     field.allowed_extensions = [];
@@ -362,8 +495,24 @@ function toggleExtension(field, ext) {
   }
 }
 
-// Native Drag & Drop Reordering
+function setFilePreset(field, preset) {
+  if (preset === 'pdf') {
+    field.allowed_extensions = ['pdf'];
+  } else if (preset === 'images') {
+    field.allowed_extensions = ['jpg', 'jpeg', 'png'];
+  } else if (preset === 'audio') {
+    field.allowed_extensions = ['mp3', 'wav'];
+  } else if (preset === 'docs') {
+    field.allowed_extensions = ['pdf', 'docx'];
+  } else if (preset === 'all') {
+    field.allowed_extensions = ['pdf', 'jpg', 'jpeg', 'png', 'docx', 'zip'];
+  }
+  toast.info(`Preset format berkas "${preset}" diterapkan.`);
+}
+
+// Drag & Drop
 let draggedItemIndex = null;
+const dragOverIndex = ref(null);
 
 function onDragStart(index, event) {
   draggedItemIndex = index;
@@ -371,21 +520,28 @@ function onDragStart(index, event) {
   event.dataTransfer.setData('text/plain', index);
 }
 
-function onDragOver(event) {
+function onDragOver(index, event) {
   event.preventDefault();
   event.dataTransfer.dropEffect = 'move';
+  dragOverIndex.value = index;
+}
+
+function onDragLeave() {
+  dragOverIndex.value = null;
 }
 
 function onDrop(targetIndex, event) {
   event.preventDefault();
+  dragOverIndex.value = null;
   if (draggedItemIndex === null || draggedItemIndex === targetIndex) return;
 
   const item = fields.value.splice(draggedItemIndex, 1)[0];
   fields.value.splice(targetIndex, 0, item);
   draggedItemIndex = null;
+  toast.info('Urutan pertanyaan berhasil diubah.');
 }
 
-// Save Form Fields and Form Settings
+// Save Form
 function saveFormFields() {
   if (!currentCompId.value) return;
 
@@ -393,12 +549,14 @@ function saveFormFields() {
   for (let i = 0; i < fields.value.length; i++) {
     const f = fields.value[i];
     if (!f.label || !f.label.trim()) {
-      alert(`Field ke-${i + 1} belum memiliki Nama Label Pertanyaan.`);
+      expandedMap.value[f.id] = true;
+      toast.warning(`Pertanyaan ke-${i + 1} belum memiliki Label Pertanyaan.`);
       return;
     }
     if (['select', 'radio', 'checkbox'].includes(f.type)) {
       if (!f.options || f.options.length === 0) {
-        alert(`Field "${f.label}" bertipe ${f.type} harus memiliki minimal 1 pilihan opsi.`);
+        expandedMap.value[f.id] = true;
+        toast.warning(`Field "${f.label}" harus memiliki minimal 1 pilihan opsi.`);
         return;
       }
     }
@@ -416,7 +574,7 @@ function saveFormFields() {
     onSuccess: () => {
       isSaving.value = false;
       isDirty.value = false;
-      toast.success(`Formulir pendaftaran cabang "${props.selectedCompetition?.title}" berhasil disimpan!`, 'Tersimpan');
+      toast.success(`Formulir cabang "${props.selectedCompetition?.title}" berhasil disimpan!`, 'Tersimpan');
     },
     onError: () => {
       isSaving.value = false;
@@ -425,15 +583,19 @@ function saveFormFields() {
   });
 }
 
-// Template Preset Modal
+// Modals
 const showPresetModal = ref(false);
+const showCopyModal = ref(false);
+const showSettingsModal = ref(false);
+const sourceCompIdToCopy = ref('');
 
 async function applyPreset(presetKey) {
   const ok = await confirmDialog({
     title: 'Terapkan Template Preset?',
-    message: `Terapkan preset "${presetKey}"? Susunan field saat ini akan digantikan oleh preset terpilih.`,
+    message: `Terapkan template "${presetKey}"? Susunan pertanyaan saat ini akan digantikan dengan template siap pakai terpilih.`,
     type: 'warning',
-    confirmText: 'Ya, Terapkan Preset',
+    confirmText: 'Ya, Terapkan',
+    cancelText: 'Batal',
     icon: 'ri-magic-line',
   });
   if (ok) {
@@ -443,15 +605,11 @@ async function applyPreset(presetKey) {
       preserveScroll: true,
       onSuccess: () => {
         showPresetModal.value = false;
-        toast.success(`Preset "${presetKey}" berhasil diterapkan!`);
+        toast.success(`Template preset "${presetKey}" berhasil diterapkan!`);
       }
     });
   }
 }
-
-// Copy from Another Competition Modal
-const showCopyModal = ref(false);
-const sourceCompIdToCopy = ref('');
 
 function executeCopy() {
   if (!sourceCompIdToCopy.value) return;
@@ -466,27 +624,24 @@ function executeCopy() {
   });
 }
 
-// Reset Confirmation
 async function resetForm() {
   const ok = await confirmDialog({
     title: 'Kosongkan Seluruh Formulir?',
-    message: `Yakin ingin mengosongkan semua field formulir cabang "${props.selectedCompetition?.title}"? Semua konfigurasi field tambahan akan di-reset.`,
+    message: `Yakin ingin mengosongkan semua field formulir cabang "${props.selectedCompetition?.title}"? Semua pertanyaan yang telah dikonfigurasi akan dihapus.`,
     type: 'danger',
     confirmText: 'Ya, Kosongkan',
+    cancelText: 'Batal',
     icon: 'ri-eraser-line',
   });
   if (ok) {
     router.post(`/admin/form-builder/${currentCompId.value}/reset`, {}, {
       preserveScroll: true,
       onSuccess: () => {
-        toast.info('Formulir telah direset.');
+        toast.info('Formulir telah dikosongkan.');
       }
     });
   }
 }
-
-// Settings Modal
-const showSettingsModal = ref(false);
 
 // Keyboard Shortcut: Ctrl+S to save
 function handleKeyDown(e) {
@@ -504,7 +659,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
 });
 
-// Preview Dummy State for Interactive Testing
+// Interactive Live Preview Simulation State
 const previewValues = ref({});
 </script>
 
@@ -512,804 +667,1213 @@ const previewValues = ref({});
   <VelzonLayout>
     <Head :title="`Formulir Builder: ${selectedCompetition?.title || 'Cabang Lomba'} | Semarak Aliyah XIV`" />
 
-    <!-- ============================================================== -->
-    <!-- HEADER BAR: TITLE, COMPETITION SWITCHER, ACTIONS                -->
-    <!-- ============================================================== -->
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-body p-3 p-lg-4">
-        <div class="row align-items-center g-3">
-          <!-- Title & Breadcrumbs -->
-          <div class="col-xl-4 col-lg-5">
-            <div class="d-flex align-items-center gap-2 mb-1">
-              <Link href="/admin" class="text-muted text-decoration-none fs-12">Dashboard</Link>
-              <span class="text-muted fs-11">/</span>
-              <Link href="/admin/lomba" class="text-muted text-decoration-none fs-12">Manajemen Lomba</Link>
-              <span class="text-muted fs-11">/</span>
-              <span class="text-dark fw-semibold fs-12">Formulir Builder</span>
+    <div class="form-builder-wrapper pb-5">
+      <!-- ============================================================== -->
+      <!-- TOP COMMAND BAR: SWITCHER, STATUS, VIEW MODES, SAVE            -->
+      <!-- ============================================================== -->
+      <div class="card border-0 shadow-sm mb-3 top-command-bar">
+        <div class="card-body p-3">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            
+            <!-- Left: Competition Selector & Navigation -->
+            <div class="d-flex align-items-center gap-2 flex-grow-1 flex-md-grow-0">
+              <div class="d-flex align-items-center gap-1">
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-icon btn-outline-secondary" 
+                  :disabled="!prevCompetition"
+                  @click="prevCompetition && switchCompetition(prevCompetition.id)"
+                  title="Cabang Sebelumnya"
+                >
+                  <i class="ri-arrow-left-s-line fs-16"></i>
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-icon btn-outline-secondary" 
+                  :disabled="!nextCompetition"
+                  @click="nextCompetition && switchCompetition(nextCompetition.id)"
+                  title="Cabang Berikutnya"
+                >
+                  <i class="ri-arrow-right-s-line fs-16"></i>
+                </button>
+              </div>
+
+              <!-- Sleek Competition Selector Dropdown -->
+              <div class="dropdown flex-grow-1">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text bg-warning-subtle text-warning border-0 px-2.5">
+                    <i class="ri-trophy-line fs-14"></i>
+                  </span>
+                  <select 
+                    class="form-select form-select-sm fw-bold border-0 bg-light-subtle comp-select shadow-none"
+                    :value="currentCompId"
+                    @change="switchCompetition($event.target.value)"
+                  >
+                    <option v-for="c in competitions" :key="c.id" :value="c.id">
+                      {{ c.icon }} {{ c.title }} ({{ c.custom_fields?.length || 0 }} Pertanyaan) — {{ c.category_label || c.category }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Unsaved Status Indicator -->
+              <div v-if="isDirty" class="d-flex align-items-center gap-1.5 px-2 py-1 rounded-pill bg-warning-subtle text-warning-emphasis fs-11 fw-semibold text-nowrap">
+                <span class="pulse-dot bg-warning"></span>
+                <span>Belum Disimpan</span>
+              </div>
+              <div v-else class="d-flex align-items-center gap-1 px-2 py-1 rounded-pill bg-success-subtle text-success fs-11 fw-semibold text-nowrap">
+                <i class="ri-check-line"></i>
+                <span>Tersimpan</span>
+              </div>
             </div>
+
+            <!-- Center: View Mode Switcher (Editor / Split / Preview) -->
+            <div class="d-flex align-items-center justify-content-center">
+              <div class="view-mode-pill p-1 rounded-pill bg-light d-flex gap-1 border">
+                <button 
+                  type="button" 
+                  class="btn btn-xs rounded-pill px-2.5 py-1 fw-bold transition-all"
+                  :class="viewMode === 'builder' ? 'btn-primary shadow-sm text-white' : 'btn-ghost-secondary text-muted'"
+                  @click="viewMode = 'builder'"
+                >
+                  <i class="ri-layout-masonry-line me-1"></i> Editor Penuh
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-xs rounded-pill px-2.5 py-1 fw-bold transition-all"
+                  :class="viewMode === 'split' ? 'btn-primary shadow-sm text-white' : 'btn-ghost-secondary text-muted'"
+                  @click="viewMode = 'split'"
+                  title="Editor dan Live Pratinjau berdampingan secara real-time"
+                >
+                  <i class="ri-side-bar-line me-1"></i> Berdampingan (Split)
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-xs rounded-pill px-2.5 py-1 fw-bold transition-all"
+                  :class="viewMode === 'preview' ? 'btn-info shadow-sm text-white' : 'btn-ghost-secondary text-muted'"
+                  @click="viewMode = 'preview'"
+                  title="Simulasi formulir publik penuh layar"
+                >
+                  <i class="ri-eye-line me-1"></i> Pratinjau Penuh
+                </button>
+              </div>
+            </div>
+
+            <!-- Right: Quick Tools & Save Button -->
             <div class="d-flex align-items-center gap-2">
-              <div class="avatar-sm flex-shrink-0 bg-warning-subtle text-warning rounded-circle d-flex align-items-center justify-content-center">
-                <i class="ri-survey-line fs-20"></i>
+              <!-- Extra Actions Dropdown -->
+              <div class="btn-group">
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1.5"
+                  data-bs-toggle="dropdown" 
+                  aria-expanded="false"
+                >
+                  <i class="ri-more-2-fill"></i>
+                  <span class="d-none d-sm-inline">Opsi Formulir</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-1 fs-12">
+                  <li>
+                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 cursor-pointer" @click="showSettingsModal = true">
+                      <i class="ri-settings-3-line text-primary"></i> Pengaturan Judul & Paket
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 cursor-pointer" @click="showPresetModal = true">
+                      <i class="ri-magic-line text-warning"></i> Terapkan Template Siap Pakai
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 cursor-pointer" @click="showCopyModal = true">
+                      <i class="ri-file-copy-line text-info"></i> Salin dari Cabang Lomba Lain
+                    </a>
+                  </li>
+                  <li><hr class="dropdown-divider my-1"></li>
+                  <li>
+                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 text-danger cursor-pointer" @click="resetForm">
+                      <i class="ri-refresh-line"></i> Kosongkan Seluruh Field
+                    </a>
+                  </li>
+                </ul>
               </div>
-              <div>
-                <h4 class="fs-17 fw-bold mb-0 text-dark">Formulir Builder Pendaftaran</h4>
-                <p class="text-muted fs-12 mb-0">Atur seluruh pertanyaan, urutan, & syarat berkas pendaftaran bebas tanpa terkunci</p>
-              </div>
-            </div>
-          </div>
 
-          <!-- Competition Switcher Dropdown -->
-          <div class="col-xl-4 col-lg-4">
-            <div class="bg-light p-2 rounded-3 border d-flex align-items-center gap-2">
-              <label class="fs-12 fw-semibold text-muted text-nowrap mb-0 ms-1">
-                <i class="ri-medal-line text-warning"></i> Pilih Cabang:
-              </label>
-              <select 
-                class="form-select form-select-sm border-0 bg-white fw-bold text-dark fs-13 shadow-none"
-                :value="currentCompId"
-                @change="switchCompetition($event.target.value)"
+              <!-- Save Button -->
+              <button 
+                type="button" 
+                class="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 fw-bold px-3 shadow-sm save-btn"
+                :disabled="isSaving"
+                @click="saveFormFields"
+                title="Simpan formulir (Ctrl + S)"
               >
-                <option v-for="c in competitions" :key="c.id" :value="c.id">
-                  {{ c.icon }} {{ c.title }} ({{ c.custom_fields?.length || 0 }} Field)
-                </option>
-              </select>
+                <i v-if="!isSaving" class="ri-save-line fs-14"></i>
+                <span v-if="isSaving" class="spinner-border spinner-border-sm"></span>
+                <span>{{ isSaving ? 'Menyimpan...' : 'Simpan Formulir' }}</span>
+                <span class="badge bg-dark-subtle text-white font-mono fs-10 px-1 py-0.5 rounded ms-1 opacity-75 d-none d-md-inline">^S</span>
+              </button>
             </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
+      <!-- MAIN WORKSPACE CONTENT                                         -->
+      <!-- ============================================================== -->
+      
+      <!-- MODE 1: BUILDER & SPLIT VIEW -->
+      <div v-show="viewMode !== 'preview'" class="row g-3">
+        
+        <!-- LEFT COLUMN: UNIFIED SMART TOOLBOX (Sticky & Tabbed) -->
+        <div :class="viewMode === 'split' ? 'col-xl-3 col-lg-4' : 'col-xl-4 col-lg-4'">
+          <div class="card border-0 shadow-sm sticky-toolbox">
+            
+            <!-- Toolbox Header with Search -->
+            <div class="card-header bg-transparent border-bottom p-3">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <h6 class="fs-13 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
+                  <i class="ri-tools-line text-primary fs-15"></i>
+                  <span>Tambah Komponen</span>
+                </h6>
+                <span class="badge bg-primary-subtle text-primary fs-10">Klik untuk Tambah</span>
+              </div>
+
+              <!-- Quick Search Input -->
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-light border-end-0 text-muted ps-2.5">
+                  <i class="ri-search-line fs-12"></i>
+                </span>
+                <input 
+                  type="text" 
+                  v-model="toolboxSearch"
+                  class="form-control form-control-sm border-start-0 bg-light fs-12"
+                  placeholder="Cari tipe input atau preset..."
+                />
+                <button 
+                  v-if="toolboxSearch" 
+                  class="btn btn-sm btn-light border" 
+                  @click="toolboxSearch = ''"
+                  type="button"
+                >
+                  <i class="ri-close-line"></i>
+                </button>
+              </div>
+
+              <!-- Segmented Tabs for Toolbox -->
+              <div class="d-flex gap-1 mt-2.5 pt-1">
+                <button 
+                  type="button" 
+                  class="btn btn-xs flex-fill rounded-2 fw-semibold py-1.5 transition-all"
+                  :class="toolboxTab === 'types' ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary'"
+                  @click="toolboxTab = 'types'"
+                >
+                  Tipe Input ({{ fieldTypes.length }})
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-xs flex-fill rounded-2 fw-semibold py-1.5 transition-all"
+                  :class="toolboxTab === 'presets' ? 'btn-warning text-dark shadow-sm' : 'btn-outline-secondary'"
+                  @click="toolboxTab = 'presets'"
+                >
+                  Preset ({{ quickPresets.length }})
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-xs flex-fill rounded-2 fw-semibold py-1.5 transition-all"
+                  :class="toolboxTab === 'identity' ? 'btn-info text-white shadow-sm' : 'btn-outline-secondary'"
+                  @click="toolboxTab = 'identity'"
+                >
+                  Identitas ({{ coreIdentityPresets.length }})
+                </button>
+              </div>
+            </div>
+
+            <!-- Toolbox Body Items -->
+            <div class="card-body p-2.5 toolbox-scroll-area">
+              
+              <!-- Tab 1: Basic Input Types -->
+              <div v-show="toolboxTab === 'types'" class="d-flex flex-column gap-1.5">
+                <div v-if="filteredFieldTypes.length === 0" class="text-center py-4 text-muted fs-12">
+                  Tidak ada tipe input cocok dengan "{{ toolboxSearch }}"
+                </div>
+                <button 
+                  v-for="ft in filteredFieldTypes" 
+                  :key="ft.type"
+                  type="button" 
+                  class="btn btn-sm btn-outline-light text-start p-2 rounded-2 border d-flex align-items-center justify-content-between transition-all hover-tool-card"
+                  @click="addField(ft)"
+                  :title="`Klik untuk menambahkan pertanyaan bertipe ${ft.label}`"
+                >
+                  <div class="d-flex align-items-center gap-2 text-truncate">
+                    <div class="tool-icon-box rounded-2 flex-shrink-0 d-flex align-items-center justify-content-center">
+                      <i :class="ft.icon" class="fs-15 text-primary"></i>
+                    </div>
+                    <div class="text-truncate">
+                      <div class="fs-12 fw-bold text-dark text-truncate lh-sm">{{ ft.label }}</div>
+                      <div class="text-muted fs-10 text-truncate lh-sm mt-0.5">{{ ft.desc }}</div>
+                    </div>
+                  </div>
+                  <i class="ri-add-line fs-14 text-muted flex-shrink-0 ms-1"></i>
+                </button>
+              </div>
+
+              <!-- Tab 2: Quick Presets -->
+              <div v-show="toolboxTab === 'presets'" class="d-flex flex-column gap-1.5">
+                <div v-if="filteredQuickPresets.length === 0" class="text-center py-4 text-muted fs-12">
+                  Tidak ada preset cocok dengan "{{ toolboxSearch }}"
+                </div>
+                <button 
+                  v-for="(qp, qIdx) in filteredQuickPresets" 
+                  :key="qIdx"
+                  type="button" 
+                  class="btn btn-sm btn-outline-light text-start p-2 rounded-2 border d-flex align-items-center justify-content-between transition-all hover-tool-card"
+                  @click="addQuickPreset(qp)"
+                  :title="`Klik untuk menambahkan preset ${qp.name}`"
+                >
+                  <div class="d-flex align-items-center gap-2 text-truncate">
+                    <div class="tool-icon-box rounded-2 flex-shrink-0 d-flex align-items-center justify-content-center bg-warning-subtle text-warning">
+                      <i 
+                        :class="qp.type === 'file' ? 'ri-upload-cloud-2-line text-danger' : (qp.type === 'url' ? 'ri-link text-info' : (qp.type === 'radio' ? 'ri-radio-button-line text-success' : 'ri-flashlight-line text-warning'))"
+                        class="fs-15"
+                      ></i>
+                    </div>
+                    <div class="text-truncate">
+                      <div class="fs-12 fw-bold text-dark text-truncate lh-sm">{{ qp.name }}</div>
+                      <div class="text-muted fs-10 text-truncate lh-sm mt-0.5">{{ qp.category }} • {{ qp.type.toUpperCase() }}</div>
+                    </div>
+                  </div>
+                  <i class="ri-add-line fs-14 text-muted flex-shrink-0 ms-1"></i>
+                </button>
+              </div>
+
+              <!-- Tab 3: Core Identity Presets -->
+              <div v-show="toolboxTab === 'identity'" class="d-flex flex-column gap-1.5">
+                <div v-if="filteredCorePresets.length === 0" class="text-center py-4 text-muted fs-12">
+                  Tidak ada identitas cocok dengan "{{ toolboxSearch }}"
+                </div>
+                <button 
+                  v-for="(cip, cIdx) in filteredCorePresets" 
+                  :key="cIdx"
+                  type="button" 
+                  class="btn btn-sm btn-outline-light text-start p-2 rounded-2 border d-flex align-items-center justify-content-between transition-all hover-tool-card"
+                  @click="addCorePreset(cip)"
+                >
+                  <div class="d-flex align-items-center gap-2 text-truncate">
+                    <div class="tool-icon-box rounded-2 flex-shrink-0 d-flex align-items-center justify-content-center bg-info-subtle text-info">
+                      <i :class="cip.icon" class="fs-15 text-info"></i>
+                    </div>
+                    <div class="text-truncate">
+                      <div class="fs-12 fw-bold text-dark text-truncate lh-sm">{{ cip.name }}</div>
+                      <div class="text-muted fs-10 text-truncate lh-sm mt-0.5">{{ cip.desc }}</div>
+                    </div>
+                  </div>
+                  <i class="ri-add-line fs-14 text-muted flex-shrink-0 ms-1"></i>
+                </button>
+              </div>
+
+            </div>
+
+            <!-- Toolbox Footer Quick Helpers -->
+            <div class="card-footer bg-light-subtle border-top p-2.5 d-flex gap-1.5">
+              <button 
+                type="button" 
+                class="btn btn-xs btn-outline-primary flex-fill d-flex align-items-center justify-content-center gap-1"
+                @click="showPresetModal = true"
+              >
+                <i class="ri-magic-line"></i> Template Lomba
+              </button>
+              <button 
+                type="button" 
+                class="btn btn-xs btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-1"
+                @click="showSettingsModal = true"
+              >
+                <i class="ri-equalizer-line"></i> Opsi Form
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- CENTER / MAIN COLUMN: FORM CANVAS (Ergonomic Accordion Cards) -->
+        <div :class="viewMode === 'split' ? 'col-xl-5 col-lg-8' : 'col-xl-8 col-lg-8'">
+          <div class="card border-0 shadow-sm form-canvas-card">
+            
+            <!-- Canvas Header Bar with Controls -->
+            <div class="card-header bg-transparent border-bottom py-3 px-3 px-sm-4">
+              <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div>
+                  <h5 class="fs-14 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                    <span>{{ selectedCompetition?.title }}</span>
+                    <span class="badge bg-primary text-white fs-11 font-mono rounded-pill px-2">
+                      {{ fields.length }} Field
+                    </span>
+                  </h5>
+                  <p class="text-muted fs-11 mb-0 mt-0.5">
+                    Urutkan dan sesuaikan konfigurasi formulir bebas tanpa terkunci.
+                  </p>
+                </div>
+
+                <!-- Global Expand/Collapse & Filter Controls -->
+                <div class="d-flex align-items-center gap-1.5">
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-outline-secondary d-inline-flex align-items-center gap-1"
+                    @click="collapseAll"
+                    title="Ciutkan semua field menjadi daftar ringkas untuk mudah melihat urutan"
+                  >
+                    <i class="ri-contract-up-down-line"></i>
+                    <span class="d-none d-sm-inline">Ciutkan Semua</span>
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-outline-secondary d-inline-flex align-items-center gap-1"
+                    @click="expandAll"
+                    title="Bentangkan seluruh field untuk diedit"
+                  >
+                    <i class="ri-expand-up-down-line"></i>
+                    <span class="d-none d-sm-inline">Bentangkan Semua</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Quick Canvas Field Search (if fields > 5) -->
+              <div v-if="fields.length > 5" class="mt-2.5">
+                <div class="input-group input-group-sm">
+                  <span class="input-group-text bg-light border-0 text-muted"><i class="ri-search-line"></i></span>
+                  <input 
+                    type="text" 
+                    v-model="canvasSearch"
+                    class="form-control form-control-sm border-0 bg-light fs-12"
+                    placeholder="Saring pertanyaan pada kanvas..."
+                  />
+                  <button v-if="canvasSearch" class="btn btn-sm btn-light border-0" @click="canvasSearch = ''">
+                    <i class="ri-close-line"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Canvas Card Body: Field List -->
+            <div class="card-body p-3 p-sm-4 canvas-scroll-area">
+              
+              <!-- Empty State -->
+              <div v-if="fields.length === 0" class="text-center py-5 border border-dashed rounded-3">
+                <div class="avatar-md bg-warning-subtle text-warning rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3">
+                  <i class="ri-survey-line fs-24"></i>
+                </div>
+                <h5 class="fs-15 fw-bold text-dark">Formulir Cabang Ini Belum Memiliki Pertanyaan</h5>
+                <p class="text-muted fs-12 max-w-md mx-auto mb-3">
+                  Pilih tipe komponen dari toolbox di sebelah kiri, atau terapkan template siap pakai hanya dengan 1-klik.
+                </p>
+                <div class="d-flex justify-content-center gap-2">
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+                    @click="showPresetModal = true"
+                  >
+                    <i class="ri-magic-line"></i> Terapkan Template Siap Pakai
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-1.5"
+                    @click="addCorePreset(coreIdentityPresets[0])"
+                  >
+                    <i class="ri-community-line"></i> Tambah Identitas Sekolah
+                  </button>
+                </div>
+              </div>
+
+              <!-- Dynamic Field Cards (Collapsible & Draggable) -->
+              <div v-else class="d-flex flex-column gap-2.5 field-list-container">
+                
+                <div 
+                  v-for="(field, index) in displayedFields" 
+                  :key="field.id"
+                  class="field-card card border rounded-3 transition-all"
+                  :class="{ 
+                    'drag-over': dragOverIndex === index,
+                    'is-expanded': isExpanded(field.id),
+                    'border-primary-subtle': field.required,
+                    'border-light-subtle': !field.required
+                  }"
+                  @dragover="onDragOver(index, $event)"
+                  @dragleave="onDragLeave"
+                  @drop="onDrop(index, $event)"
+                >
+                  <!-- Card Header Strip (Always Visible, Click to Toggle) -->
+                  <div 
+                    class="field-header py-2.5 px-3 d-flex align-items-center justify-content-between user-select-none cursor-pointer"
+                    @click="toggleExpand(field.id)"
+                  >
+                    <!-- Left: Drag Handle, Number, Type Badge, Field Label -->
+                    <div class="d-flex align-items-center gap-2 text-truncate flex-grow-1 me-2">
+                      
+                      <!-- Dedicated Drag Handle -->
+                      <span 
+                        class="drag-grip text-muted p-1 rounded hover-drag"
+                        draggable="true"
+                        @dragstart.stop="onDragStart(index, $event)"
+                        @click.stop
+                        title="Tahan & seret untuk memindahkan urutan"
+                      >
+                        <i class="ri-draggable fs-16"></i>
+                      </span>
+
+                      <!-- Index Pill -->
+                      <span class="badge bg-dark-subtle text-dark font-mono fs-11 px-1.5 py-0.5 rounded">
+                        #{{ index + 1 }}
+                      </span>
+
+                      <!-- Field Type Pill -->
+                      <span 
+                        class="badge fs-10 px-2 py-0.5 rounded-pill text-uppercase d-inline-flex align-items-center gap-1"
+                        :class="{
+                          'bg-primary-subtle text-primary': field.type === 'text',
+                          'bg-info-subtle text-info': field.type === 'textarea' || field.type === 'url',
+                          'bg-success-subtle text-success': field.type === 'select' || field.type === 'radio' || field.type === 'checkbox',
+                          'bg-danger-subtle text-danger': field.type === 'file',
+                          'bg-secondary-subtle text-secondary': field.type === 'number' || field.type === 'date'
+                        }"
+                      >
+                        <i :class="field.type === 'file' ? 'ri-upload-cloud-2-line' : (field.type === 'url' ? 'ri-link' : (field.type === 'select' ? 'ri-arrow-down-s-line' : 'ri-input-field'))"></i>
+                        <span>{{ field.type }}</span>
+                      </span>
+
+                      <!-- Question Label Title -->
+                      <span class="fs-13 fw-bold text-dark text-truncate field-title-text">
+                        {{ field.label || '(Pertanyaan Tanpa Judul)' }}
+                      </span>
+
+                      <!-- Variable Key Tag -->
+                      <span class="badge bg-light text-muted font-mono fs-10 d-none d-md-inline" title="Nama variabel / key di database">
+                        {{ field.name }}
+                      </span>
+                    </div>
+
+                    <!-- Right Controls: Required Switch, Reorder Arrows, Duplicate, Delete, Chevron -->
+                    <div class="d-flex align-items-center gap-1.5 flex-shrink-0" @click.stop>
+                      
+                      <!-- Required Toggle Pill -->
+                      <button 
+                        type="button" 
+                        class="btn btn-xs rounded-pill px-2 py-0.5 fw-semibold transition-all"
+                        :class="field.required ? 'btn-danger-subtle text-danger border border-danger-subtle' : 'btn-light text-muted border'"
+                        @click="field.required = !field.required"
+                        :title="field.required ? 'Pertanyaan ini wajib diisi oleh pendaftar' : 'Pertanyaan ini opsional'"
+                      >
+                        {{ field.required ? 'Wajib' : 'Opsional' }}
+                      </button>
+
+                      <div class="vr mx-0.5 d-none d-sm-block"></div>
+
+                      <!-- Move Up / Down Buttons -->
+                      <div class="btn-group btn-group-xs d-none d-sm-inline-flex">
+                        <button 
+                          type="button" 
+                          class="btn btn-xs btn-light border" 
+                          :disabled="index === 0"
+                          @click="moveFieldUp(index)"
+                          title="Geser Naik"
+                        >
+                          <i class="ri-arrow-up-s-line"></i>
+                        </button>
+                        <button 
+                          type="button" 
+                          class="btn btn-xs btn-light border" 
+                          :disabled="index === fields.length - 1"
+                          @click="moveFieldDown(index)"
+                          title="Geser Turun"
+                        >
+                          <i class="ri-arrow-down-s-line"></i>
+                        </button>
+                      </div>
+
+                      <!-- Duplicate Button -->
+                      <button 
+                        type="button" 
+                        class="btn btn-xs btn-light border text-secondary" 
+                        @click="duplicateField(index)"
+                        title="Duplikasi Pertanyaan"
+                      >
+                        <i class="ri-file-copy-line"></i>
+                      </button>
+
+                      <!-- Delete Button -->
+                      <button 
+                        type="button" 
+                        class="btn btn-xs btn-outline-danger" 
+                        @click="removeField(index)"
+                        title="Hapus Pertanyaan"
+                      >
+                        <i class="ri-delete-bin-line"></i>
+                      </button>
+
+                      <!-- Expand/Collapse Chevron -->
+                      <button 
+                        type="button" 
+                        class="btn btn-xs btn-ghost-secondary chevron-btn ms-1"
+                        @click="toggleExpand(field.id)"
+                        :title="isExpanded(field.id) ? 'Ciutkan' : 'Bentangkan'"
+                      >
+                        <i :class="isExpanded(field.id) ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'" class="fs-15"></i>
+                      </button>
+
+                    </div>
+                  </div>
+
+                  <!-- Card Body: Expanded Editor Section -->
+                  <div v-show="isExpanded(field.id)" class="field-body p-3 border-top bg-light-subtle">
+                    <div class="row g-2.5">
+                      
+                      <!-- Label Pertanyaan Input -->
+                      <div class="col-md-7">
+                        <label class="form-label fs-11 fw-bold text-dark mb-1 d-flex align-items-center justify-content-between">
+                          <span>Label Teks Pertanyaan <span class="text-danger">*</span></span>
+                          <span class="fs-10 text-muted font-mono">key: {{ field.name }}</span>
+                        </label>
+                        <div class="input-group input-group-sm">
+                          <span class="input-group-text bg-light text-muted"><i class="ri-edit-line"></i></span>
+                          <input 
+                            type="text" 
+                            v-model="field.label"
+                            class="form-control fs-12 fw-semibold"
+                            placeholder="Contoh: Nama Sekolah / Asal Kontingen / NISN..."
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <!-- Tipe Komponen Selector -->
+                      <div class="col-md-5">
+                        <label class="form-label fs-11 fw-bold text-dark mb-1">
+                          Tipe Komponen Input
+                        </label>
+                        <select v-model="field.type" class="form-select form-select-sm fs-12">
+                          <option v-for="ft in fieldTypes" :key="ft.type" :value="ft.type">
+                            {{ ft.label }} ({{ ft.type }})
+                          </option>
+                        </select>
+                      </div>
+
+                      <!-- Placeholder Input -->
+                      <div v-if="!['file', 'radio', 'checkbox'].includes(field.type)" class="col-md-6">
+                        <label class="form-label fs-11 text-muted mb-1">
+                          Placeholder (Contoh Teks di dalam input)
+                        </label>
+                        <input 
+                          type="text" 
+                          v-model="field.placeholder"
+                          class="form-control form-control-sm fs-12"
+                          placeholder="Contoh: Masukkan nama lengkap..."
+                        />
+                      </div>
+
+                      <!-- Petunjuk Bantuan (Help Text) -->
+                      <div :class="!['file', 'radio', 'checkbox'].includes(field.type) ? 'col-md-6' : 'col-12'">
+                        <label class="form-label fs-11 text-muted mb-1">
+                          Petunjuk Bantuan Tambahan (Help Text)
+                        </label>
+                        <input 
+                          type="text" 
+                          v-model="field.help_text"
+                          class="form-control form-control-sm fs-12"
+                          placeholder="Contoh: Pastikan sesuai KTP / Akta Kelahiran..."
+                        />
+                      </div>
+
+                      <!-- Options Editor for Select, Radio, Checkbox -->
+                      <div v-if="['select', 'radio', 'checkbox'].includes(field.type)" class="col-12">
+                        <div class="p-3 bg-body rounded-3 border">
+                          <div class="d-flex align-items-center justify-content-between mb-2.5 flex-wrap gap-2">
+                            <label class="form-label fs-11 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
+                              <i class="ri-list-check-2 text-success fs-14"></i>
+                              <span>Daftar Pilihan Opsi ({{ field.options?.length || 0 }})</span>
+                            </label>
+                            
+                            <!-- Option Presets & Bulk Editor Actions -->
+                            <div class="d-flex align-items-center gap-1.5">
+                              <button 
+                                type="button" 
+                                class="btn btn-xs btn-outline-secondary"
+                                @click="openBulkOptions(field)"
+                                title="Tempel banyak opsi sekaligus dari Excel atau catatan"
+                              >
+                                <i class="ri-file-text-line me-1"></i> Tempel Sekaligus
+                              </button>
+                              
+                              <div class="dropdown">
+                                <button class="btn btn-xs btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                  Preset Opsi
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end fs-11 shadow border-0">
+                                  <li><a class="dropdown-item cursor-pointer" @click="applyOptionPreset(field, 'yesno')">Ya / Tidak</a></li>
+                                  <li><a class="dropdown-item cursor-pointer" @click="applyOptionPreset(field, 'genders')">Laki-laki / Perempuan</a></li>
+                                  <li><a class="dropdown-item cursor-pointer" @click="applyOptionPreset(field, 'classes')">Kelas 7 / 8 / 9 SMP</a></li>
+                                </ul>
+                              </div>
+
+                              <button 
+                                type="button" 
+                                class="btn btn-xs btn-success d-inline-flex align-items-center gap-1"
+                                @click="addOption(field)"
+                              >
+                                <i class="ri-add-line"></i> Tambah Opsi
+                              </button>
+                            </div>
+                          </div>
+
+                          <!-- Options Rows -->
+                          <div class="d-flex flex-column gap-1.5">
+                            <div 
+                              v-for="(opt, oIdx) in field.options" 
+                              :key="oIdx"
+                              class="input-group input-group-sm"
+                            >
+                              <span class="input-group-text bg-light-subtle text-muted fs-11 font-mono px-2">
+                                {{ oIdx + 1 }}
+                              </span>
+                              <input 
+                                type="text" 
+                                v-model="field.options[oIdx]"
+                                class="form-control fs-12"
+                                placeholder="Tulis opsi pilihan..."
+                                required
+                              />
+                              <button 
+                                type="button" 
+                                class="btn btn-outline-danger"
+                                @click="removeOption(field, oIdx)"
+                                title="Hapus Opsi"
+                                :disabled="field.options.length <= 1"
+                              >
+                                <i class="ri-close-line"></i>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- File Upload Settings Zone -->
+                      <div v-if="field.type === 'file'" class="col-12">
+                        <div class="p-3 bg-danger-subtle/20 rounded-3 border border-danger-subtle">
+                          <div class="row g-2.5">
+                            
+                            <!-- Allowed Extensions with Preset Helpers -->
+                            <div class="col-md-7">
+                              <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                <label class="form-label fs-11 fw-bold text-dark mb-0">
+                                  <i class="ri-file-shield-2-line text-danger me-1"></i> Format Berkas Diizinkan:
+                                </label>
+                                <!-- Format Presets -->
+                                <div class="d-flex gap-1">
+                                  <button type="button" class="btn btn-xs btn-ghost-danger py-0 px-1 text-[10px]" @click="setFilePreset(field, 'pdf')">PDF Saja</button>
+                                  <button type="button" class="btn btn-xs btn-ghost-danger py-0 px-1 text-[10px]" @click="setFilePreset(field, 'images')">Foto/JPG</button>
+                                  <button type="button" class="btn btn-xs btn-ghost-danger py-0 px-1 text-[10px]" @click="setFilePreset(field, 'audio')">Audio</button>
+                                  <button type="button" class="btn btn-xs btn-ghost-danger py-0 px-1 text-[10px]" @click="setFilePreset(field, 'all')">Semua</button>
+                                </div>
+                              </div>
+
+                              <div class="d-flex flex-wrap gap-1.5">
+                                <button 
+                                  v-for="ext in ['pdf', 'jpg', 'jpeg', 'png', 'mp3', 'wav', 'docx', 'zip']" 
+                                  :key="ext"
+                                  type="button"
+                                  class="btn btn-xs rounded-pill px-2 py-0.5 font-mono"
+                                  :class="field.allowed_extensions?.includes(ext) ? 'btn-danger text-white' : 'btn-outline-secondary bg-body'"
+                                  @click="toggleExtension(field, ext)"
+                                >
+                                  .{{ ext }}
+                                </button>
+                              </div>
+                            </div>
+
+                            <!-- Max File Size -->
+                            <div class="col-md-5">
+                              <label class="form-label fs-11 fw-bold text-dark mb-1">
+                                Ukuran Maksimal Berkas
+                              </label>
+                              <div class="input-group input-group-sm">
+                                <input 
+                                  type="number" 
+                                  v-model.number="field.max_size_mb"
+                                  class="form-control fs-12 font-mono"
+                                  min="1"
+                                  max="50"
+                                />
+                                <span class="input-group-text bg-light-subtle text-muted fs-11">MB</span>
+                              </div>
+                              <div class="d-flex gap-1 mt-1">
+                                <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" @click="field.max_size_mb = 2">2MB</button>
+                                <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" @click="field.max_size_mb = 5">5MB</button>
+                                <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" @click="field.max_size_mb = 10">10MB</button>
+                              </div>
+                            </div>
+
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- Canvas Footer Summary & Quick Add -->
+            <div class="card-footer bg-transparent border-top py-2.5 px-3 px-sm-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div class="text-muted fs-11">
+                Total <strong>{{ fields.length }} pertanyaan</strong> dikonfigurasi • 
+                <span class="text-danger fw-semibold">{{ fields.filter(f => f.required).length }} Wajib</span>, 
+                <span class="text-secondary">{{ fields.filter(f => !f.required).length }} Opsional</span>
+              </div>
+              <button 
+                type="button" 
+                class="btn btn-xs btn-success d-inline-flex align-items-center gap-1 fw-bold"
+                :disabled="isSaving"
+                @click="saveFormFields"
+              >
+                <i class="ri-check-line"></i> Simpan Perubahan
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN (ONLY IN SPLIT VIEW): LIVE INTERACTIVE DEVICE PREVIEW -->
+        <div v-if="viewMode === 'split'" class="col-xl-4 col-lg-12">
+          <div class="card border-0 shadow-sm sticky-preview-card">
+            
+            <!-- Live Preview Header -->
+            <div class="card-header bg-slate-900 text-white py-2.5 px-3 d-flex align-items-center justify-content-between">
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-emerald-500 text-slate-950 fw-bold fs-10">LIVE PREVIEW</span>
+                <span class="fs-12 fw-semibold text-slate-300">Formulir Publik</span>
+              </div>
+
+              <!-- Device Switcher -->
+              <div class="btn-group btn-group-xs" role="group">
+                <button 
+                  type="button" 
+                  class="btn btn-xs"
+                  :class="previewDevice === 'desktop' ? 'btn-light' : 'btn-outline-light'"
+                  @click="previewDevice = 'desktop'"
+                  title="Simulasi Desktop"
+                >
+                  <i class="ri-macbook-line"></i>
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-xs"
+                  :class="previewDevice === 'mobile' ? 'btn-light' : 'btn-outline-light'"
+                  @click="previewDevice = 'mobile'"
+                  title="Simulasi Mobile"
+                >
+                  <i class="ri-smartphone-line"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Live Preview Interactive Area -->
+            <div class="card-body p-3 bg-slate-950 text-white preview-scroll-area d-flex justify-content-center">
+              <div 
+                class="transition-all w-100" 
+                :style="{ maxWidth: previewDevice === 'mobile' ? '360px' : '100%' }"
+              >
+                <!-- Simulated Form Card -->
+                <div class="p-3 sm:p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl text-slate-200">
+                  
+                  <!-- Form Title & Header -->
+                  <div class="mb-4 pb-3 border-b border-slate-800">
+                    <span class="text-[10px] font-bold text-amber-400 uppercase tracking-widest">
+                      {{ formSettings.form_title || 'FORMULIR PENDAFTARAN' }}
+                    </span>
+                    <h5 class="text-base font-black text-white mt-0.5 mb-1">
+                      {{ selectedCompetition?.title }}
+                    </h5>
+                    <p class="text-[11px] text-slate-400 mb-0">
+                      {{ formSettings.form_subtitle || `Biaya: Rp ${Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID')}` }}
+                    </p>
+                  </div>
+
+                  <!-- Optional Package Type -->
+                  <div v-if="formSettings.show_package_type" class="mb-4 pb-4 border-b border-slate-800">
+                    <label class="block text-[11px] font-bold text-slate-300 mb-1.5">Pilihan Paket:</label>
+                    <div class="grid grid-cols-2 gap-2">
+                      <div class="p-2 rounded-lg border border-amber-500 bg-amber-500/10 text-white text-[11px]">
+                        <div class="font-bold">Satuan</div>
+                        <div class="text-emerald-400 font-mono text-[10px]">Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}</div>
+                      </div>
+                      <div class="p-2 rounded-lg border border-slate-800 bg-slate-950 text-slate-400 text-[11px]">
+                        <div class="font-bold">Paket All-In</div>
+                        <div class="text-amber-400 font-mono text-[10px]">Rp 200.000</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Dynamic Fields Preview -->
+                  <div class="space-y-3.5 text-xs">
+                    <div v-if="fields.length === 0" class="p-3 rounded-xl bg-slate-950 border border-slate-800 text-center text-slate-500 text-[11px]">
+                      Belum ada field pertanyaan.
+                    </div>
+
+                    <div 
+                      v-for="field in fields" 
+                      :key="field.id"
+                      class="space-y-1"
+                    >
+                      <!-- Label -->
+                      <label class="block text-slate-200 font-bold text-[11px]">
+                        {{ field.label }}
+                        <span v-if="field.required" class="text-rose-400 ml-0.5">*</span>
+                        <span v-else class="text-slate-500 font-normal text-[10px] ml-1">(Opsional)</span>
+                      </label>
+
+                      <!-- Inputs -->
+                      <div v-if="['text', 'number', 'url'].includes(field.type)">
+                        <input 
+                          :type="field.type" 
+                          v-model="previewValues[field.name]"
+                          :placeholder="field.placeholder || `Masukkan ${field.label}...`"
+                          class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
+                        />
+                      </div>
+
+                      <div v-else-if="field.type === 'textarea'">
+                        <textarea 
+                          rows="2"
+                          v-model="previewValues[field.name]"
+                          :placeholder="field.placeholder || `Tuliskan ${field.label}...`"
+                          class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
+                        ></textarea>
+                      </div>
+
+                      <div v-else-if="field.type === 'select'">
+                        <select 
+                          v-model="previewValues[field.name]"
+                          class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                        >
+                          <option value="" disabled selected>-- Pilih {{ field.label }} --</option>
+                          <option v-for="(opt, optIdx) in field.options" :key="optIdx" :value="opt">
+                            {{ opt }}
+                          </option>
+                        </select>
+                      </div>
+
+                      <div v-else-if="field.type === 'radio'" class="space-y-1.5 pt-0.5">
+                        <label 
+                          v-for="(opt, optIdx) in field.options" 
+                          :key="optIdx"
+                          class="flex items-center gap-2 p-2 rounded-lg border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 text-[11px]"
+                        >
+                          <input 
+                            type="radio" 
+                            :name="`preview_split_${field.name}`" 
+                            :value="opt" 
+                            v-model="previewValues[field.name]"
+                            class="text-amber-500 focus:ring-0"
+                          />
+                          <span class="text-slate-300">{{ opt }}</span>
+                        </label>
+                      </div>
+
+                      <div v-else-if="field.type === 'checkbox'" class="space-y-1.5 pt-0.5">
+                        <label 
+                          v-for="(opt, optIdx) in field.options" 
+                          :key="optIdx"
+                          class="flex items-center gap-2 p-2 rounded-lg border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 text-[11px]"
+                        >
+                          <input 
+                            type="checkbox" 
+                            :value="opt" 
+                            class="text-amber-500 rounded focus:ring-0"
+                          />
+                          <span class="text-slate-300">{{ opt }}</span>
+                        </label>
+                      </div>
+
+                      <div v-else-if="field.type === 'file'" class="pt-0.5">
+                        <div class="border border-dashed border-slate-800 hover:border-amber-500/50 rounded-xl p-3 text-center bg-slate-950/70 transition-all cursor-pointer">
+                          <i class="ri-upload-cloud-2-line text-lg text-amber-400 mb-0.5 d-block"></i>
+                          <div class="text-slate-300 font-semibold text-[11px]">Unggah Berkas</div>
+                          <div class="text-[10px] text-slate-500 mt-0.5">
+                            {{ field.allowed_extensions?.join(', ') || 'Semua format' }} • Max {{ field.max_size_mb || 5 }} MB
+                          </div>
+                        </div>
+                      </div>
+
+                      <div v-else-if="field.type === 'date'">
+                        <input 
+                          type="date" 
+                          v-model="previewValues[field.name]"
+                          class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                        />
+                      </div>
+
+                      <!-- Help Text -->
+                      <div v-if="field.help_text" class="text-[10px] text-slate-500">
+                        <i class="ri-information-line me-0.5"></i> {{ field.help_text }}
+                      </div>
+                    </div>
+
+                    <!-- Submit Button Simulation -->
+                    <div class="pt-2 mt-4 border-t border-slate-800">
+                      <button 
+                        type="button" 
+                        class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-md"
+                        @click="toast.success('Pengujian form sukses!')"
+                      >
+                        {{ formSettings.submit_text || 'Kirim Pendaftaran' }}
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- MODE 2: FULL PREVIEW VIEW -->
+      <div v-show="viewMode === 'preview'" class="card border-0 shadow-sm full-preview-card">
+        <div class="card-header bg-slate-900 text-white py-3 px-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-emerald-500 text-slate-950 fw-bold fs-11">SIMULASI FORMULIR LENGKAP</span>
+            <h5 class="fs-15 fw-bold text-white mb-0">{{ selectedCompetition?.title }}</h5>
           </div>
 
-          <!-- Action Buttons -->
-          <div class="col-xl-4 col-lg-3 text-lg-end d-flex flex-wrap align-items-center justify-content-lg-end gap-2">
-            <!-- Mode Switcher Tab Buttons -->
+          <div class="d-flex align-items-center gap-2">
             <div class="btn-group btn-group-sm" role="group">
               <button 
                 type="button" 
                 class="btn"
-                :class="activeTab === 'builder' ? 'btn-primary' : 'btn-outline-secondary'"
-                @click="activeTab = 'builder'"
+                :class="previewDevice === 'desktop' ? 'btn-light' : 'btn-outline-light'"
+                @click="previewDevice = 'desktop'"
               >
-                <i class="ri-edit-2-line"></i> Desain
+                <i class="ri-macbook-line me-1"></i> Desktop
               </button>
               <button 
                 type="button" 
                 class="btn"
-                :class="activeTab === 'preview' ? 'btn-info' : 'btn-outline-secondary'"
-                @click="activeTab = 'preview'"
+                :class="previewDevice === 'mobile' ? 'btn-light' : 'btn-outline-light'"
+                @click="previewDevice = 'mobile'"
               >
-                <i class="ri-eye-line"></i> Pratinjau
+                <i class="ri-smartphone-line me-1"></i> Mobile
               </button>
             </div>
 
-            <!-- Save Button -->
             <button 
               type="button" 
-              class="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 shadow-sm fw-bold px-3"
-              :disabled="isSaving"
-              @click="saveFormFields"
-              title="Tekan Ctrl+S untuk simpan cepat"
+              class="btn btn-sm btn-outline-light"
+              @click="viewMode = 'split'"
             >
-              <i v-if="!isSaving" class="ri-save-line fs-14"></i>
-              <span v-if="isSaving" class="spinner-border spinner-border-sm"></span>
-              <span>{{ isSaving ? 'Menyimpan...' : 'Simpan Formulir' }}</span>
-              <span v-if="isDirty" class="badge bg-warning text-dark fs-9 ms-1">Ada Perubahan</span>
+              <i class="ri-arrow-left-line me-1"></i> Kembali ke Editor
             </button>
           </div>
         </div>
 
-        <!-- Competition Detail Ribbon & Actions Bar -->
-        <div class="mt-3 pt-3 border-top d-flex flex-wrap align-items-center justify-content-between gap-2 fs-12">
-          <div class="d-flex align-items-center gap-2 flex-wrap">
-            <span class="badge bg-primary text-white fs-11">
-              <i class="ri-award-line me-0.5"></i> {{ selectedCompetition?.title }}
-            </span>
-            <span class="badge bg-secondary-subtle text-secondary fs-11 text-uppercase">
-              {{ selectedCompetition?.category }}
-            </span>
-            <span class="badge bg-info-subtle text-info fs-11">
-              {{ selectedCompetition?.participant_type === 'tim' ? 'Tim / Regu' : 'Individu' }}
-            </span>
-            <span class="text-muted fs-11">
-              • Biaya: <strong class="text-success font-mono">Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}</strong>
-            </span>
-          </div>
-
-          <div class="d-flex align-items-center gap-2">
-            <!-- Form Settings Button -->
-            <button 
-              type="button" 
-              class="btn btn-xs btn-outline-dark d-inline-flex align-items-center gap-1"
-              @click="showSettingsModal = true"
-            >
-              <i class="ri-settings-3-line"></i> Pengaturan Formulir
-            </button>
-
-            <!-- Template Preset Button -->
-            <button 
-              type="button" 
-              class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1"
-              @click="showPresetModal = true"
-            >
-              <i class="ri-magic-line"></i> Terapkan Template
-            </button>
-
-            <!-- Copy Button -->
-            <button 
-              type="button" 
-              class="btn btn-xs btn-outline-secondary d-inline-flex align-items-center gap-1"
-              @click="showCopyModal = true"
-            >
-              <i class="ri-file-copy-line"></i> Salin dari Cabang Lain
-            </button>
-
-            <!-- Reset Button -->
-            <button 
-              type="button" 
-              class="btn btn-xs btn-outline-danger d-inline-flex align-items-center gap-1"
-              @click="resetForm"
-              title="Kosongkan seluruh field formulir"
-            >
-              <i class="ri-refresh-line"></i> Kosongkan
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ============================================================== -->
-    <!-- MAIN WORKSPACE: BUILDER CANVAS vs LIVE PREVIEW                  -->
-    <!-- ============================================================== -->
-    <div v-show="activeTab === 'builder'" class="row g-4">
-      <!-- ------------------------------------------------------------ -->
-      <!-- LEFT COLUMN: FIELD TOOLBOX & PRESETS                         -->
-      <!-- ------------------------------------------------------------ -->
-      <div class="col-xl-4 col-lg-5">
-        <!-- Palette 1: Core Identity / Fundamental Fields (Bisa ditambah bebas) -->
-        <div class="card border-0 shadow-sm mb-3">
-          <div class="card-header bg-info-subtle border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between">
-            <h6 class="fs-13 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
-              <i class="ri-user-shared-line text-info"></i> Komponen Identitas Inti
-            </h6>
-            <span class="badge bg-info text-white fs-10">Bebas Custom</span>
-          </div>
-          <div class="card-body p-2.5">
-            <p class="text-muted fs-11 mb-2">
-              Klik komponen di bawah untuk menambahkan identitas dasar (dapat Anda ubah nama, diurutkan, atau dihapus):
-            </p>
-            <div class="d-flex flex-column gap-1.5">
-              <button 
-                v-for="(cip, cIdx) in coreIdentityPresets" 
-                :key="cIdx"
-                type="button" 
-                class="btn btn-sm btn-outline-light text-dark text-start border p-2 rounded-2 d-flex align-items-center justify-content-between hover-core-preset"
-                @click="addCorePreset(cip)"
-              >
-                <div class="d-flex align-items-center gap-2 text-truncate">
-                  <i :class="cip.icon" class="fs-15 text-primary flex-shrink-0"></i>
-                  <span class="fs-12 fw-semibold text-truncate">{{ cip.name }}</span>
-                </div>
-                <i class="ri-add-line fs-14 text-muted flex-shrink-0"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Palette 2: Basic Input Types -->
-        <div class="card border-0 shadow-sm mb-3">
-          <div class="card-header bg-light border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between">
-            <h6 class="fs-13 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
-              <i class="ri-tools-line text-primary"></i> Tipe Input Komponen
-            </h6>
-            <span class="badge bg-primary-subtle text-primary fs-10">Bebas</span>
-          </div>
-          <div class="card-body p-2.5">
-            <div class="row g-2">
-              <div v-for="ft in fieldTypes" :key="ft.type" class="col-6">
-                <button 
-                  type="button" 
-                  class="btn btn-outline-light text-start p-2.5 w-100 rounded-3 border d-flex flex-column justify-content-between h-100 hover-toolbox-item"
-                  @click="addField(ft)"
-                  :title="`Klik untuk menambahkan input ${ft.label}`"
-                >
-                  <div class="d-flex align-items-center gap-2 mb-1">
-                    <i :class="ft.icon" class="fs-16 text-primary flex-shrink-0"></i>
-                    <span class="fs-12 fw-bold text-dark text-truncate">{{ ft.label }}</span>
-                  </div>
-                  <small class="text-muted fs-10 lh-1 d-block text-truncate">{{ ft.desc }}</small>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Palette 3: 1-Click Common Field Presets -->
-        <div class="card border-0 shadow-sm mb-3">
-          <div class="card-header bg-warning-subtle border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between">
-            <h6 class="fs-13 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
-              <i class="ri-flashlight-line text-warning"></i> Preset Pertanyaan Siap Pakai
-            </h6>
-            <span class="badge bg-warning text-dark fs-10">1-Klik</span>
-          </div>
-          <div class="card-body p-2.5">
-            <div class="d-flex flex-column gap-1.5">
-              <button 
-                v-for="(qp, qIdx) in quickPresets" 
-                :key="qIdx"
-                type="button" 
-                class="btn btn-sm btn-outline-light text-dark text-start border p-2 rounded-2 d-flex align-items-center justify-content-between hover-quick-preset"
-                @click="addQuickPreset(qp)"
-              >
-                <div class="d-flex align-items-center gap-2 text-truncate">
-                  <i 
-                    :class="qp.type === 'file' ? 'ri-upload-cloud-2-line text-danger' : (qp.type === 'url' ? 'ri-link text-info' : (qp.type === 'radio' ? 'ri-radio-button-line text-success' : 'ri-input-field text-primary'))"
-                    class="fs-15 flex-shrink-0"
-                  ></i>
-                  <span class="fs-12 fw-semibold text-truncate">{{ qp.name }}</span>
-                </div>
-                <i class="ri-add-line fs-14 text-muted flex-shrink-0"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ------------------------------------------------------------ -->
-      <!-- RIGHT COLUMN: ACTIVE FORM CANVAS (DRAG & REORDER & EDIT)      -->
-      <!-- ------------------------------------------------------------ -->
-      <div class="col-xl-8 col-lg-7">
-        <!-- Canvas Card -->
-        <div class="card border-0 shadow-sm">
-          <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div>
-              <h5 class="fs-15 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
-                <span>Susunan Formulir: {{ selectedCompetition?.title }}</span>
-                <span class="badge bg-light text-dark border fs-11">{{ fields.length }} Pertanyaan</span>
-              </h5>
-              <p class="text-muted fs-11 mb-0 mt-0.5">
-                Tidak ada field yang dikunci. Anda bebas mengubah nama label, petunjuk bantuan, menentukan wajib/opsional, menggeser urutan, atau menghapus field.
-              </p>
-            </div>
-
-            <div class="d-flex align-items-center gap-2">
-              <button 
-                type="button" 
-                class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-1"
-                @click="activeTab = 'preview'"
-              >
-                <i class="ri-play-line"></i> Pratinjau Tampilan
-              </button>
-            </div>
-          </div>
-
-          <div class="card-body p-3 p-lg-4">
-            <!-- Unlocked Freedom Notification Banner -->
-            <div class="alert alert-success border-0 d-flex align-items-center justify-content-between p-2.5 rounded-3 mb-4">
-              <div class="d-flex align-items-center gap-2 fs-12 text-success-emphasis">
-                <i class="ri-lock-unlock-line fs-18 text-success flex-shrink-0"></i>
-                <div>
-                  <strong>Formulir Dinamis Bebas Kustomisasi:</strong>
-                  Seluruh pertanyaan di bawah ini adalah field yang akan tampil di formulir pendaftaran publik cabang ini.
-                </div>
-              </div>
-              <button 
-                type="button" 
-                class="btn btn-xs btn-outline-success fw-semibold text-nowrap ms-2"
-                @click="showSettingsModal = true"
-              >
-                <i class="ri-equalizer-line"></i> Opsi Formulir
-              </button>
-            </div>
-
-            <!-- Empty State -->
-            <div v-if="fields.length === 0" class="text-center py-5 border border-dashed rounded-3">
-              <div class="avatar-lg bg-warning-subtle text-warning rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3">
-                <i class="ri-survey-line fs-32"></i>
-              </div>
-              <h5 class="fs-16 fw-bold text-dark">Formulir Cabang Ini Masih Kosong</h5>
-              <p class="text-muted fs-12 max-w-md mx-auto mb-4">
-                Tambahkan field pertanyaan dari panel toolbox sebelah kiri, atau gunakan template preset siap pakai dengan 1 kali klik.
-              </p>
-              <div class="d-flex justify-content-center gap-2">
-                <button 
-                  type="button" 
-                  class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm"
-                  @click="showPresetModal = true"
-                >
-                  <i class="ri-magic-line"></i> Terapkan Template Siap Pakai
-                </button>
-                <button 
-                  type="button" 
-                  class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
-                  @click="addCorePreset(coreIdentityPresets[0])"
-                >
-                  <i class="ri-add-line"></i> Tambah Identitas Sekolah
-                </button>
-              </div>
-            </div>
-
-            <!-- List of All Configured Fields (Fully Unlocked & Editable) -->
-            <div v-else class="space-y-3 d-flex flex-column gap-3">
-              <div 
-                v-for="(field, index) in fields" 
-                :key="field.id"
-                class="card border rounded-3 field-card shadow-sm position-relative transition-all"
-                :class="{ 'border-primary': field.required, 'border-light-subtle': !field.required }"
-                draggable="true"
-                @dragstart="onDragStart(index, $event)"
-                @dragover="onDragOver($event)"
-                @drop="onDrop(index, $event)"
-              >
-                <!-- Card Header with Reorder Handles & Actions -->
-                <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between">
-                  <div class="d-flex align-items-center gap-2">
-                    <!-- Drag Handle -->
-                    <span class="cursor-grab text-muted p-1 hover-drag" title="Tahan & seret untuk mengubah urutan">
-                      <i class="ri-drag-move-2-line fs-16"></i>
-                    </span>
-
-                    <!-- Index Badge -->
-                    <span class="badge bg-dark text-white font-mono fs-11">#{{ index + 1 }}</span>
-
-                    <!-- Type Badge -->
-                    <span 
-                      class="badge fs-11 d-inline-flex align-items-center gap-1"
-                      :class="{
-                        'bg-primary-subtle text-primary': field.type === 'text',
-                        'bg-info-subtle text-info': field.type === 'textarea' || field.type === 'url',
-                        'bg-success-subtle text-success': field.type === 'select' || field.type === 'radio' || field.type === 'checkbox',
-                        'bg-danger-subtle text-danger': field.type === 'file',
-                        'bg-secondary-subtle text-secondary': field.type === 'number' || field.type === 'date'
-                      }"
-                    >
-                      <i 
-                        :class="field.type === 'file' ? 'ri-upload-cloud-2-line' : (field.type === 'url' ? 'ri-link' : (field.type === 'select' ? 'ri-arrow-down-s-line' : 'ri-input-field'))"
-                      ></i>
-                      <span class="text-uppercase">{{ field.type }}</span>
-                    </span>
-
-                    <span class="text-muted fs-11 font-mono">({{ field.name }})</span>
-                  </div>
-
-                  <!-- Right Header Controls: Reorder buttons, Duplicate, Required Switch, Delete -->
-                  <div class="d-flex align-items-center gap-2">
-                    <!-- Required Toggle -->
-                    <div class="form-check form-switch mb-0 d-flex align-items-center gap-1.5" title="Tandai sebagai pertanyaan wajib diisi">
-                      <input 
-                        class="form-check-input cursor-pointer" 
-                        type="checkbox" 
-                        role="switch" 
-                        :id="`req-switch-${field.id}`"
-                        v-model="field.required" 
-                      />
-                      <label :for="`req-switch-${field.id}`" class="form-check-label fs-11 mb-0 cursor-pointer fw-semibold text-muted">
-                        {{ field.required ? 'Wajib' : 'Opsional' }}
-                      </label>
-                    </div>
-
-                    <div class="vr mx-1"></div>
-
-                    <!-- Move Up / Down -->
-                    <div class="btn-group btn-group-sm">
-                      <button 
-                        type="button" 
-                        class="btn btn-xs btn-light border text-muted"
-                        :disabled="index === 0"
-                        @click="moveFieldUp(index)"
-                        title="Pindah ke Atas"
-                      >
-                        <i class="ri-arrow-up-s-line"></i>
-                      </button>
-                      <button 
-                        type="button" 
-                        class="btn btn-xs btn-light border text-muted"
-                        :disabled="index === fields.length - 1"
-                        @click="moveFieldDown(index)"
-                        title="Pindah ke Bawah"
-                      >
-                        <i class="ri-arrow-down-s-line"></i>
-                      </button>
-                    </div>
-
-                    <!-- Duplicate Button -->
-                    <button 
-                      type="button" 
-                      class="btn btn-xs btn-light border text-secondary"
-                      @click="duplicateField(index)"
-                      title="Duplikasi Pertanyaan Ini"
-                    >
-                      <i class="ri-file-copy-line"></i>
-                    </button>
-
-                    <!-- Delete Button (Bisa Dihapus Kapan Saja!) -->
-                    <button 
-                      type="button" 
-                      class="btn btn-xs btn-outline-danger"
-                      @click="removeField(index)"
-                      title="Hapus Pertanyaan Ini dari Formulir"
-                    >
-                      <i class="ri-delete-bin-line"></i>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Card Body: Field Configuration Inputs -->
-                <div class="card-body p-3">
-                  <div class="row g-3">
-                    <!-- Label Pertanyaan (Bebas Diedit!) -->
-                    <div class="col-md-7">
-                      <label class="form-label fs-12 fw-bold text-dark mb-1">
-                        Label Teks Pertanyaan *
-                      </label>
-                      <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-light text-muted"><i class="ri-edit-line"></i></span>
-                        <input 
-                          type="text" 
-                          v-model="field.label"
-                          class="form-control fs-13 fw-semibold text-dark"
-                          placeholder="Contoh: Nama Sekolah / Asal Kontingen / Nama Tim..."
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <!-- Tipe Field & Slug Key -->
-                    <div class="col-md-5">
-                      <label class="form-label fs-12 fw-semibold text-dark mb-1">
-                        Tipe Komponen Input
-                      </label>
-                      <select v-model="field.type" class="form-select form-select-sm fs-12 text-dark">
-                        <option v-for="ft in fieldTypes" :key="ft.type" :value="ft.type">
-                          {{ ft.label }} ({{ ft.type }})
-                        </option>
-                      </select>
-                    </div>
-
-                    <!-- Placeholder -->
-                    <div v-if="!['file', 'radio', 'checkbox'].includes(field.type)" class="col-md-6">
-                      <label class="form-label fs-11 text-muted mb-1">
-                        Teks Contoh / Petunjuk Input (Placeholder)
-                      </label>
-                      <input 
-                        type="text" 
-                        v-model="field.placeholder"
-                        class="form-control form-control-sm fs-12"
-                        placeholder="Contoh: Masukkan teks petunjuk..."
-                      />
-                    </div>
-
-                    <!-- Keterangan / Bantuan Pengisian (Help Text) -->
-                    <div :class="!['file', 'radio', 'checkbox'].includes(field.type) ? 'col-md-6' : 'col-12'">
-                      <label class="form-label fs-11 text-muted mb-1">
-                        Petunjuk Bantuan Tambahan (Help Text)
-                      </label>
-                      <input 
-                        type="text" 
-                        v-model="field.help_text"
-                        class="form-control form-control-sm fs-12"
-                        placeholder="Keterangan kecil di bawah input..."
-                      />
-                    </div>
-
-                    <!-- Options Editor for Select, Radio, Checkbox -->
-                    <div v-if="['select', 'radio', 'checkbox'].includes(field.type)" class="col-12">
-                      <div class="p-3 bg-light rounded-3 border">
-                        <div class="d-flex align-items-center justify-content-between mb-2">
-                          <label class="form-label fs-12 fw-bold text-dark mb-0">
-                            <i class="ri-list-check-2 text-success me-1"></i> Daftar Pilihan Opsi (Options)
-                          </label>
-                          <button 
-                            type="button" 
-                            class="btn btn-xs btn-success d-inline-flex align-items-center gap-1"
-                            @click="addOption(field)"
-                          >
-                            <i class="ri-add-line"></i> Tambah Opsi
-                          </button>
-                        </div>
-
-                        <div class="d-flex flex-column gap-2">
-                          <div 
-                            v-for="(opt, oIdx) in field.options" 
-                            :key="oIdx"
-                            class="input-group input-group-sm"
-                          >
-                            <span class="input-group-text bg-white text-muted fs-11 font-mono">
-                              {{ oIdx + 1 }}
-                            </span>
-                            <input 
-                              type="text" 
-                              v-model="field.options[oIdx]"
-                              class="form-control fs-12"
-                              placeholder="Tuliskan teks opsi pilihan..."
-                              required
-                            />
-                            <button 
-                              type="button" 
-                              class="btn btn-outline-danger"
-                              @click="removeOption(field, oIdx)"
-                              title="Hapus Opsi"
-                              :disabled="field.options.length <= 1"
-                            >
-                              <i class="ri-close-line"></i>
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- File Upload Configuration (Allowed Extensions & Size Limit) -->
-                    <div v-if="field.type === 'file'" class="col-12">
-                      <div class="p-3 bg-danger-subtle/30 rounded-3 border border-danger-subtle">
-                        <div class="row g-3">
-                          <div class="col-md-7">
-                            <label class="form-label fs-12 fw-bold text-dark mb-1.5 d-block">
-                              <i class="ri-file-shield-2-line text-danger me-1"></i> Format Berkas yang Diizinkan:
-                            </label>
-                            <div class="d-flex flex-wrap gap-2">
-                              <label 
-                                v-for="ext in ['pdf', 'jpg', 'jpeg', 'png', 'mp3', 'wav', 'docx', 'zip']" 
-                                :key="ext"
-                                class="btn btn-xs rounded-pill cursor-pointer user-select-none"
-                                :class="field.allowed_extensions?.includes(ext) ? 'btn-danger text-white' : 'btn-outline-secondary bg-white'"
-                                @click="toggleExtension(field, ext)"
-                              >
-                                .{{ ext }}
-                              </label>
-                            </div>
-                            <small class="text-muted fs-10 mt-1 d-block">
-                              Klik format berkas di atas untuk mengaktifkan atau menonaktifkan.
-                            </small>
-                          </div>
-
-                          <div class="col-md-5">
-                            <label class="form-label fs-12 fw-bold text-dark mb-1">
-                              Ukuran Maksimal Berkas
-                            </label>
-                            <div class="input-group input-group-sm">
-                              <input 
-                                type="number" 
-                                v-model.number="field.max_size_mb"
-                                class="form-control fs-12 font-mono"
-                                min="1"
-                                max="50"
-                              />
-                              <span class="input-group-text bg-light text-muted fs-11">Megabyte (MB)</span>
-                            </div>
-                            <small class="text-muted fs-10 mt-1 d-block">
-                              Batas aman file upload adalah 5 s.d. 10 MB per berkas.
-                            </small>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Bottom Floating Save Reminder -->
-            <div v-if="fields.length > 0" class="mt-4 pt-3 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
-              <span class="text-muted fs-12">
-                Total <strong>{{ fields.length }} pertanyaan</strong> dikonfigurasi untuk cabang ini.
-              </span>
-              <button 
-                type="button" 
-                class="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 fw-bold shadow-sm px-4"
-                :disabled="isSaving"
-                @click="saveFormFields"
-              >
-                <i v-if="!isSaving" class="ri-check-line"></i>
-                <span v-if="isSaving" class="spinner-border spinner-border-sm"></span>
-                <span>{{ isSaving ? 'Menyimpan...' : 'Simpan Perubahan Formulir' }}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ============================================================== -->
-    <!-- TAB: LIVE INTERACTIVE PREVIEW                                   -->
-    <!-- ============================================================== -->
-    <div v-show="activeTab === 'preview'" class="card border-0 shadow-sm">
-      <div class="card-header bg-dark text-white py-3 px-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
-        <div class="d-flex align-items-center gap-2">
-          <span class="badge bg-emerald-500 text-slate-950 font-bold fs-11">LIVE TEST PREVIEW</span>
-          <h5 class="fs-15 fw-bold text-white mb-0">Simulasi Tampilan Formulir Publik</h5>
-        </div>
-
-        <div class="d-flex align-items-center gap-2">
-          <!-- Device Preview Selector -->
-          <div class="btn-group btn-group-sm" role="group">
-            <button 
-              type="button" 
-              class="btn"
-              :class="previewDevice === 'desktop' ? 'btn-light' : 'btn-outline-light'"
-              @click="previewDevice = 'desktop'"
-            >
-              <i class="ri-macbook-line"></i> Desktop
-            </button>
-            <button 
-              type="button" 
-              class="btn"
-              :class="previewDevice === 'mobile' ? 'btn-light' : 'btn-outline-light'"
-              @click="previewDevice = 'mobile'"
-            >
-              <i class="ri-smartphone-line"></i> Mobile
-            </button>
-          </div>
-
-          <button 
-            type="button" 
-            class="btn btn-sm btn-outline-light"
-            @click="activeTab = 'builder'"
+        <div class="card-body p-4 bg-slate-950 text-white min-h-[500px] d-flex justify-content-center">
+          <div 
+            class="transition-all w-full"
+            :style="{ maxWidth: previewDevice === 'mobile' ? '420px' : '760px' }"
           >
-            <i class="ri-arrow-left-line"></i> Kembali ke Desain
-          </button>
-        </div>
-      </div>
-
-      <!-- Preview Canvas Body (Dark Portal Simulation) -->
-      <div class="card-body p-4 bg-slate-950 text-white min-h-[500px] d-flex justify-content-center">
-        <div 
-          class="transition-all w-full"
-          :style="{ maxWidth: previewDevice === 'mobile' ? '420px' : '760px' }"
-        >
-          <!-- Simulated Form Card -->
-          <div class="p-4 sm:p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl text-slate-200">
-            <!-- Header simulation -->
-            <div class="mb-6 pb-4 border-b border-slate-800">
-              <span class="text-[11px] font-bold text-amber-400 uppercase tracking-widest">
-                {{ formSettings.form_title || 'FORMULIR PENDAFTARAN DELEGASI' }}
-              </span>
-              <h2 class="text-xl sm:text-2xl font-black text-white mt-1">
-                {{ selectedCompetition?.title }}
-              </h2>
-              <p class="text-xs text-slate-400 mt-1">
-                {{ formSettings.form_subtitle || `Kategori: ${selectedCompetition?.category_label || selectedCompetition?.category} • Biaya: Rp ${Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID')}` }}
-              </p>
-            </div>
-
-            <!-- Optional Package Type if enabled in form settings -->
-            <div v-if="formSettings.show_package_type" class="mb-6 pb-6 border-b border-slate-800">
-              <label class="block text-xs font-bold text-slate-300 mb-2">Pilihan Paket:</label>
-              <div class="grid grid-cols-2 gap-3">
-                <div class="p-3 rounded-xl border border-amber-500 bg-amber-500/10 text-white text-xs">
-                  <div class="font-bold">Paket Satuan</div>
-                  <div class="text-emerald-400 font-mono mt-0.5">Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}</div>
-                </div>
-                <div class="p-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-xs">
-                  <div class="font-bold">Paket All-In</div>
-                  <div class="text-amber-400 font-mono mt-0.5">Rp 200.000</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Dynamic Custom Fields Section (Penuh Tanpa Ada yang Terkunci) -->
-            <div class="space-y-5 text-xs">
-              <div v-if="fields.length === 0" class="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 text-center text-slate-500">
-                Belum ada pertanyaan pada formulir ini.
+            <div class="p-4 sm:p-6 rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl text-slate-200">
+              
+              <!-- Header -->
+              <div class="mb-6 pb-4 border-b border-slate-800">
+                <span class="text-[11px] font-bold text-amber-400 uppercase tracking-widest">
+                  {{ formSettings.form_title || 'FORMULIR PENDAFTARAN DELEGASI' }}
+                </span>
+                <h2 class="text-xl sm:text-2xl font-black text-white mt-1">
+                  {{ selectedCompetition?.title }}
+                </h2>
+                <p class="text-xs text-slate-400 mt-1">
+                  {{ formSettings.form_subtitle || `Kategori: ${selectedCompetition?.category_label || selectedCompetition?.category} • Biaya: Rp ${Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID')}` }}
+                </p>
               </div>
 
-              <div 
-                v-for="field in fields" 
-                :key="field.id"
-                class="space-y-1.5"
-              >
-                <!-- Label & Required Star -->
-                <label class="block text-slate-200 font-bold">
-                  {{ field.label }}
-                  <span v-if="field.required" class="text-rose-400 ml-0.5">*</span>
-                  <span v-else class="text-slate-500 font-normal text-[11px] ml-1">(Opsional)</span>
-                </label>
+              <!-- Package Type Simulation -->
+              <div v-if="formSettings.show_package_type" class="mb-6 pb-6 border-b border-slate-800">
+                <label class="block text-xs font-bold text-slate-300 mb-2">Pilihan Paket:</label>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="p-3 rounded-xl border border-amber-500 bg-amber-500/10 text-white text-xs">
+                    <div class="font-bold">Paket Satuan</div>
+                    <div class="text-emerald-400 font-mono mt-0.5">Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}</div>
+                  </div>
+                  <div class="p-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-xs">
+                    <div class="font-bold">Paket All-In</div>
+                    <div class="text-amber-400 font-mono mt-0.5">Rp 200.000</div>
+                  </div>
+                </div>
+              </div>
 
-                <!-- Input Type: Text or Number or URL -->
-                <div v-if="['text', 'number', 'url'].includes(field.type)">
-                  <input 
-                    :type="field.type" 
-                    v-model="previewValues[field.name]"
-                    :placeholder="field.placeholder || `Masukkan ${field.label}...`"
-                    class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
-                  />
+              <!-- Fields List -->
+              <div class="space-y-4 text-xs">
+                <div v-if="fields.length === 0" class="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center text-slate-500">
+                  Belum ada pertanyaan pada formulir ini.
                 </div>
 
-                <!-- Input Type: Textarea -->
-                <div v-else-if="field.type === 'textarea'">
-                  <textarea 
-                    rows="3"
-                    v-model="previewValues[field.name]"
-                    :placeholder="field.placeholder || `Tuliskan rincian ${field.label}...`"
-                    class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
-                  ></textarea>
-                </div>
+                <div 
+                  v-for="field in fields" 
+                  :key="field.id"
+                  class="space-y-1.5"
+                >
+                  <label class="block text-slate-200 font-bold">
+                    {{ field.label }}
+                    <span v-if="field.required" class="text-rose-400 ml-0.5">*</span>
+                    <span v-else class="text-slate-500 font-normal text-[11px] ml-1">(Opsional)</span>
+                  </label>
 
-                <!-- Input Type: Select Dropdown -->
-                <div v-else-if="field.type === 'select'">
-                  <select 
-                    v-model="previewValues[field.name]"
-                    class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
-                  >
-                    <option value="" disabled selected>-- Pilih Opsi {{ field.label }} --</option>
-                    <option v-for="(opt, optIdx) in field.options" :key="optIdx" :value="opt">
-                      {{ opt }}
-                    </option>
-                  </select>
-                </div>
-
-                <!-- Input Type: Radio -->
-                <div v-else-if="field.type === 'radio'" class="space-y-2 pt-1">
-                  <label 
-                    v-for="(opt, optIdx) in field.options" 
-                    :key="optIdx"
-                    class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 transition-all text-xs"
-                  >
+                  <div v-if="['text', 'number', 'url'].includes(field.type)">
                     <input 
-                      type="radio" 
-                      :name="`preview_${field.name}`" 
-                      :value="opt" 
+                      :type="field.type" 
                       v-model="previewValues[field.name]"
-                      class="text-amber-500 focus:ring-0"
+                      :placeholder="field.placeholder || `Masukkan ${field.label}...`"
+                      class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
                     />
-                    <span class="text-slate-300 font-medium">{{ opt }}</span>
-                  </label>
-                </div>
+                  </div>
 
-                <!-- Input Type: Checkbox -->
-                <div v-else-if="field.type === 'checkbox'" class="space-y-2 pt-1">
-                  <label 
-                    v-for="(opt, optIdx) in field.options" 
-                    :key="optIdx"
-                    class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 transition-all text-xs"
-                  >
-                    <input 
-                      type="checkbox" 
-                      :value="opt" 
-                      class="text-amber-500 rounded focus:ring-0"
-                    />
-                    <span class="text-slate-300 font-medium">{{ opt }}</span>
-                  </label>
-                </div>
+                  <div v-else-if="field.type === 'textarea'">
+                    <textarea 
+                      rows="3"
+                      v-model="previewValues[field.name]"
+                      :placeholder="field.placeholder || `Tuliskan ${field.label}...`"
+                      class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
+                    ></textarea>
+                  </div>
 
-                <!-- Input Type: File Upload Zone -->
-                <div v-else-if="field.type === 'file'" class="pt-1">
-                  <div class="border-2 border-dashed border-slate-800 hover:border-amber-500/50 rounded-2xl p-4 text-center bg-slate-950/70 transition-all cursor-pointer">
-                    <i class="ri-upload-cloud-2-line text-2xl text-amber-400 mb-1 d-block"></i>
-                    <div class="text-slate-300 font-semibold text-xs">Klik atau seret berkas ke sini</div>
-                    <div class="text-[11px] text-slate-500 mt-0.5">
-                      Format: {{ field.allowed_extensions?.join(', ') || 'Semua berkas' }} • Maksimal {{ field.max_size_mb || 5 }} MB
+                  <div v-else-if="field.type === 'select'">
+                    <select 
+                      v-model="previewValues[field.name]"
+                      class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    >
+                      <option value="" disabled selected>-- Pilih Opsi {{ field.label }} --</option>
+                      <option v-for="(opt, optIdx) in field.options" :key="optIdx" :value="opt">
+                        {{ opt }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <div v-else-if="field.type === 'radio'" class="space-y-2 pt-1">
+                    <label 
+                      v-for="(opt, optIdx) in field.options" 
+                      :key="optIdx"
+                      class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 transition-all text-xs"
+                    >
+                      <input 
+                        type="radio" 
+                        :name="`preview_full_${field.name}`" 
+                        :value="opt" 
+                        v-model="previewValues[field.name]"
+                        class="text-amber-500 focus:ring-0"
+                      />
+                      <span class="text-slate-300 font-medium">{{ opt }}</span>
+                    </label>
+                  </div>
+
+                  <div v-else-if="field.type === 'checkbox'" class="space-y-2 pt-1">
+                    <label 
+                      v-for="(opt, optIdx) in field.options" 
+                      :key="optIdx"
+                      class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 transition-all text-xs"
+                    >
+                      <input 
+                        type="checkbox" 
+                        :value="opt" 
+                        class="text-amber-500 rounded focus:ring-0"
+                      />
+                      <span class="text-slate-300 font-medium">{{ opt }}</span>
+                    </label>
+                  </div>
+
+                  <div v-else-if="field.type === 'file'" class="pt-1">
+                    <div class="border-2 border-dashed border-slate-800 hover:border-amber-500/50 rounded-2xl p-4 text-center bg-slate-950/70 transition-all cursor-pointer">
+                      <i class="ri-upload-cloud-2-line text-2xl text-amber-400 mb-1 d-block"></i>
+                      <div class="text-slate-300 font-semibold text-xs">Klik atau seret berkas ke sini</div>
+                      <div class="text-[11px] text-slate-500 mt-0.5">
+                        Format: {{ field.allowed_extensions?.join(', ') || 'Semua berkas' }} • Maksimal {{ field.max_size_mb || 5 }} MB
+                      </div>
                     </div>
+                  </div>
+
+                  <div v-else-if="field.type === 'date'">
+                    <input 
+                      type="date" 
+                      v-model="previewValues[field.name]"
+                      class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                    />
+                  </div>
+
+                  <div v-if="field.help_text" class="text-[11px] text-slate-500">
+                    <i class="ri-information-line me-0.5"></i> {{ field.help_text }}
                   </div>
                 </div>
 
-                <!-- Input Type: Date -->
-                <div v-else-if="field.type === 'date'">
-                  <input 
-                    type="date" 
-                    v-model="previewValues[field.name]"
-                    class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
-                  />
+                <!-- Submit Button simulation -->
+                <div class="pt-4 mt-6 border-t border-slate-800">
+                  <button 
+                    type="button" 
+                    class="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20"
+                    @click="toast.success('Simulasi pengisian berhasil! Semua validasi lancar.')"
+                  >
+                    {{ formSettings.submit_text || 'Kirim Pendaftaran Delegasi' }}
+                  </button>
                 </div>
 
-                <!-- Help Text -->
-                <div v-if="field.help_text" class="text-[11px] text-slate-500">
-                  <i class="ri-information-line me-0.5"></i> {{ field.help_text }}
-                </div>
-              </div>
-
-              <!-- Submit Button simulation -->
-              <div class="pt-4 mt-6 border-t border-slate-800">
-                <button 
-                  type="button" 
-                  class="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20"
-                  @click="toast.success('Simulasi pengisian berhasil! Semua validasi berjalan lancar.')"
-                >
-                  {{ formSettings.submit_text || 'Kirim Pendaftaran Delegasi' }}
-                </button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 1: BULK OPTIONS EDITOR (TEMPEL SEKALIGUS)                -->
+    <!-- ============================================================== -->
+    <div 
+      v-if="showBulkModal" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      style="background: rgba(0,0,0,0.6); z-index: 1070;"
+      @click.self="showBulkModal = false"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-header bg-light border-bottom py-3">
+            <h5 class="modal-title fs-14 fw-bold text-dark d-flex align-items-center gap-2">
+              <i class="ri-file-text-line text-primary fs-18"></i>
+              Tempel Pilihan Opsi Sekaligus
+            </h5>
+            <button type="button" class="btn-close" @click="showBulkModal = false"></button>
+          </div>
+          <div class="modal-body p-4">
+            <p class="text-muted fs-12 mb-2">
+              Ketik atau tempel (paste) setiap opsi pada <strong>baris baru</strong> (1 opsi per baris). Anda bisa langsung menyalin dari file Excel atau Word.
+            </p>
+            <textarea 
+              v-model="bulkText" 
+              rows="7" 
+              class="form-control fs-12 font-mono" 
+              placeholder="Pilihan 1&#10;Pilihan 2&#10;Pilihan 3..."
+            ></textarea>
+          </div>
+          <div class="modal-footer bg-light border-top py-2 px-4 d-flex justify-content-between">
+            <button type="button" class="btn btn-sm btn-secondary" @click="showBulkModal = false">Batal</button>
+            <button type="button" class="btn btn-sm btn-primary fw-semibold" @click="saveBulkOptions">
+              <i class="ri-check-line"></i> Simpan Daftar Opsi
+            </button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- ============================================================== -->
-    <!-- MODAL: PENGATURAN UMUM FORMULIR                                -->
+    <!-- MODAL 2: FORM SETTINGS & PACKAGE TOGGLE                         -->
     <!-- ============================================================== -->
     <div 
       v-if="showSettingsModal" 
@@ -1327,9 +1891,7 @@ const previewValues = ref({});
             </h5>
             <button type="button" class="btn-close" @click="showSettingsModal = false"></button>
           </div>
-
           <div class="modal-body p-4 space-y-3">
-            <!-- Toggle Pilihan Paket -->
             <div class="p-3 bg-light rounded-3 border mb-3">
               <div class="form-check form-switch d-flex align-items-center justify-content-between mb-0">
                 <div>
@@ -1337,7 +1899,7 @@ const previewValues = ref({});
                     Tampilkan Pilihan Paket (Satuan / All-In)
                   </label>
                   <p class="text-muted fs-11 mb-0 mt-0.5">
-                    Jika dinonaktifkan, pendaftaran otomatis menggunakan biaya satuan cabang ini (Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}).
+                    Jika nonaktif, pendaftaran menggunakan tarif satuan cabang ini (Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}).
                   </p>
                 </div>
                 <input 
@@ -1350,18 +1912,26 @@ const previewValues = ref({});
               </div>
             </div>
 
-            <!-- Custom Form Subtitle -->
             <div class="mb-3">
-              <label class="form-label fs-12 fw-semibold text-dark">Teks Petunjuk / Keterangan Formulir:</label>
+              <label class="form-label fs-12 fw-semibold text-dark">Judul Header Formulir:</label>
+              <input 
+                type="text" 
+                v-model="formSettings.form_title"
+                class="form-control fs-12"
+                placeholder="Contoh: FORMULIR PENDAFTARAN DELEGASI"
+              />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fs-12 fw-semibold text-dark">Teks Subtitle / Petunjuk:</label>
               <input 
                 type="text" 
                 v-model="formSettings.form_subtitle"
                 class="form-control fs-12"
-                placeholder="Contoh: Silakan isi formulir delegasi di bawah ini dengan lengkap..."
+                placeholder="Contoh: Silakan isi data delegasi di bawah ini dengan lengkap..."
               />
             </div>
 
-            <!-- Custom Submit Button Text -->
             <div class="mb-2">
               <label class="form-label fs-12 fw-semibold text-dark">Teks Tombol Kirim (Submit):</label>
               <input 
@@ -1372,7 +1942,6 @@ const previewValues = ref({});
               />
             </div>
           </div>
-
           <div class="modal-footer bg-light border-top py-2 px-4 d-flex justify-content-between">
             <button type="button" class="btn btn-sm btn-secondary" @click="showSettingsModal = false">Tutup</button>
             <button 
@@ -1388,7 +1957,7 @@ const previewValues = ref({});
     </div>
 
     <!-- ============================================================== -->
-    <!-- MODAL: TEMPLATE PRESET SELECTION                                -->
+    <!-- MODAL 3: TEMPLATE PRESET SELECTION                              -->
     <!-- ============================================================== -->
     <div 
       v-if="showPresetModal" 
@@ -1406,14 +1975,12 @@ const previewValues = ref({});
             </h5>
             <button type="button" class="btn-close" @click="showPresetModal = false"></button>
           </div>
-
           <div class="modal-body p-4">
             <p class="text-muted fs-12 mb-3">
-              Pilih template yang sesuai dengan kategori cabang lomba <strong>{{ selectedCompetition?.title }}</strong>. Template akan otomatis menyusun serangkaian pertanyaan lengkap yang relevan dan dapat Anda kustomisasi kembali.
+              Pilih template yang sesuai dengan kategori lomba <strong>{{ selectedCompetition?.title }}</strong>. Susunan pertanyaan akan otomatis disesuaikan secara instan.
             </p>
-
             <div class="row g-3">
-              <!-- Template 1: Akademik & Sains -->
+              <!-- Template 1: Akademik -->
               <div class="col-md-6">
                 <div class="card h-100 border p-3 rounded-3 hover-preset-card">
                   <div class="d-flex align-items-center justify-content-between mb-2">
@@ -1424,17 +1991,13 @@ const previewValues = ref({});
                   <p class="text-muted fs-11 mb-3">
                     Sekolah, pembina, WhatsApp, nama peserta & kelas, NISN siswa, dan scan kartu pelajar (KTS).
                   </p>
-                  <button 
-                    type="button" 
-                    class="btn btn-sm btn-outline-warning mt-auto w-100 fw-semibold"
-                    @click="applyPreset('akademik')"
-                  >
+                  <button type="button" class="btn btn-sm btn-outline-warning mt-auto w-100 fw-semibold" @click="applyPreset('akademik')">
                     Terapkan Template Ini
                   </button>
                 </div>
               </div>
 
-              <!-- Template 2: Tahfidz & Keagamaan -->
+              <!-- Template 2: Keagamaan -->
               <div class="col-md-6">
                 <div class="card h-100 border p-3 rounded-3 hover-preset-card">
                   <div class="d-flex align-items-center justify-content-between mb-2">
@@ -1445,17 +2008,13 @@ const previewValues = ref({});
                   <p class="text-muted fs-11 mb-3">
                     Lembaga pondok, pembina tahfidz, WhatsApp, nama santri, pilihan golongan juz, dan surat keterangan tashih.
                   </p>
-                  <button 
-                    type="button" 
-                    class="btn btn-sm btn-outline-info mt-auto w-100 fw-semibold"
-                    @click="applyPreset('tahfidz')"
-                  >
+                  <button type="button" class="btn btn-sm btn-outline-info mt-auto w-100 fw-semibold" @click="applyPreset('tahfidz')">
                     Terapkan Template Ini
                   </button>
                 </div>
               </div>
 
-              <!-- Template 3: Seni & Suara -->
+              <!-- Template 3: Seni -->
               <div class="col-md-6">
                 <div class="card h-100 border p-3 rounded-3 hover-preset-card">
                   <div class="d-flex align-items-center justify-content-between mb-2">
@@ -1464,13 +2023,9 @@ const previewValues = ref({});
                   </div>
                   <h6 class="fs-13 fw-bold text-dark mb-1">Albanjari, Singer & Storytelling</h6>
                   <p class="text-muted fs-11 mb-3">
-                    Sekolah/sanggar, nama panggung, pembina, WhatsApp, personil grup, judul lagu, dan upload file minus one.
+                    Sekolah/sanggar, nama panggung, pembina, WhatsApp, personil grup, judul lagu, dan upload minus one.
                   </p>
-                  <button 
-                    type="button" 
-                    class="btn btn-sm btn-outline-primary mt-auto w-100 fw-semibold"
-                    @click="applyPreset('seni')"
-                  >
+                  <button type="button" class="btn btn-sm btn-outline-primary mt-auto w-100 fw-semibold" @click="applyPreset('seni')">
                     Terapkan Template Ini
                   </button>
                 </div>
@@ -1485,19 +2040,15 @@ const previewValues = ref({});
                   </div>
                   <h6 class="fs-13 fw-bold text-dark mb-1">Mobile Legends (MSA S4)</h6>
                   <p class="text-muted fs-11 mb-3">
-                    Nama squad, User ID & Server kapten, nickname in-game, WhatsApp, roster 6 pemain, dan screenshot profil kapten.
+                    Nama squad, User ID & Server kapten, nickname in-game, WhatsApp, roster 6 pemain, dan screenshot profil.
                   </p>
-                  <button 
-                    type="button" 
-                    class="btn btn-sm btn-outline-danger mt-auto w-100 fw-semibold"
-                    @click="applyPreset('esport')"
-                  >
+                  <button type="button" class="btn btn-sm btn-outline-danger mt-auto w-100 fw-semibold" @click="applyPreset('esport')">
                     Terapkan Template Ini
                   </button>
                 </div>
               </div>
 
-              <!-- Template 5: Olahraga Voli -->
+              <!-- Template 5: Olahraga -->
               <div class="col-md-6">
                 <div class="card h-100 border p-3 rounded-3 hover-preset-card">
                   <div class="d-flex align-items-center justify-content-between mb-2">
@@ -1506,19 +2057,15 @@ const previewValues = ref({});
                   </div>
                   <h6 class="fs-13 fw-bold text-dark mb-1">Tournament Bola Voli</h6>
                   <p class="text-muted fs-11 mb-3">
-                    Nama tim voli, nama & kontak pelatih/official, nomor punggung & posisi pemain, dan scan KTS kolektif PDF.
+                    Nama tim voli, nama & kontak pelatih, nomor punggung & posisi pemain, dan scan KTS kolektif PDF.
                   </p>
-                  <button 
-                    type="button" 
-                    class="btn btn-sm btn-outline-success mt-auto w-100 fw-semibold"
-                    @click="applyPreset('olahraga')"
-                  >
+                  <button type="button" class="btn btn-sm btn-outline-success mt-auto w-100 fw-semibold" @click="applyPreset('olahraga')">
                     Terapkan Template Ini
                   </button>
                 </div>
               </div>
 
-              <!-- Template 6: Umum Ringkas -->
+              <!-- Template 6: Umum -->
               <div class="col-md-6">
                 <div class="card h-100 border p-3 rounded-3 hover-preset-card">
                   <div class="d-flex align-items-center justify-content-between mb-2">
@@ -1527,20 +2074,15 @@ const previewValues = ref({});
                   </div>
                   <h6 class="fs-13 fw-bold text-dark mb-1">Data Pendaftaran Fleksibel</h6>
                   <p class="text-muted fs-11 mb-3">
-                    Nama instansi/sekolah, nomor kontak WhatsApp, dan nama peserta kontingen.
+                    Nama instansi/sekolah, nomor kontak WhatsApp, dan daftar nama peserta kontingen.
                   </p>
-                  <button 
-                    type="button" 
-                    class="btn btn-sm btn-outline-secondary mt-auto w-100 fw-semibold"
-                    @click="applyPreset('umum')"
-                  >
+                  <button type="button" class="btn btn-sm btn-outline-secondary mt-auto w-100 fw-semibold" @click="applyPreset('umum')">
                     Terapkan Template Ini
                   </button>
                 </div>
               </div>
             </div>
           </div>
-
           <div class="modal-footer bg-light border-top py-2 px-4">
             <button type="button" class="btn btn-sm btn-secondary" @click="showPresetModal = false">Tutup</button>
           </div>
@@ -1549,7 +2091,7 @@ const previewValues = ref({});
     </div>
 
     <!-- ============================================================== -->
-    <!-- MODAL: COPY FORM FIELDS FROM ANOTHER COMPETITION               -->
+    <!-- MODAL 4: COPY CONFIG FROM ANOTHER COMPETITION                  -->
     <!-- ============================================================== -->
     <div 
       v-if="showCopyModal" 
@@ -1563,16 +2105,14 @@ const previewValues = ref({});
           <div class="modal-header bg-light border-bottom py-3">
             <h5 class="modal-title fs-14 fw-bold text-dark d-flex align-items-center gap-2">
               <i class="ri-file-copy-line text-primary fs-18"></i>
-              Salin Konfigurasi Formulir dari Cabang Lain
+              Salin Konfigurasi dari Cabang Lain
             </h5>
             <button type="button" class="btn-close" @click="showCopyModal = false"></button>
           </div>
-
           <div class="modal-body p-4">
             <p class="text-muted fs-12 mb-3">
-              Pilih cabang lomba sumber yang susunan formulirnya ingin disalin ke <strong>{{ selectedCompetition?.title }}</strong>.
+              Pilih cabang lomba sumber yang susunan pertanyaannya ingin disalin ke <strong>{{ selectedCompetition?.title }}</strong>.
             </p>
-
             <div class="mb-3">
               <label class="form-label fs-12 fw-semibold text-dark">Pilih Cabang Lomba Sumber:</label>
               <select v-model="sourceCompIdToCopy" class="form-select fs-13">
@@ -1587,7 +2127,6 @@ const previewValues = ref({});
               </select>
             </div>
           </div>
-
           <div class="modal-footer bg-light border-top py-2 px-4 d-flex justify-content-between">
             <button type="button" class="btn btn-sm btn-secondary" @click="showCopyModal = false">Batal</button>
             <button 
@@ -1602,43 +2141,180 @@ const previewValues = ref({});
         </div>
       </div>
     </div>
+
   </VelzonLayout>
 </template>
 
 <style scoped>
-.cursor-grab {
+/* Top Command Bar & Comp Select */
+.comp-select {
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse 1.8s infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+/* Sticky Panes */
+.sticky-toolbox {
+  position: sticky;
+  top: 75px;
+  z-index: 10;
+}
+.toolbox-scroll-area {
+  max-height: calc(100vh - 270px);
+  overflow-y: auto;
+}
+.sticky-preview-card {
+  position: sticky;
+  top: 75px;
+  z-index: 10;
+}
+.preview-scroll-area {
+  max-height: calc(100vh - 165px);
+  overflow-y: auto;
+}
+.canvas-scroll-area {
+  min-height: 480px;
+}
+
+/* Tool Cards */
+.tool-icon-box {
+  width: 28px;
+  height: 28px;
+  background-color: rgba(64, 81, 137, 0.08);
+}
+.hover-tool-card:hover {
+  background-color: rgba(64, 81, 137, 0.05) !important;
+  border-color: #405189 !important;
+  transform: translateX(2px);
+}
+
+/* Field Cards */
+.field-card {
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+.field-card:hover {
+  box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+}
+.field-card.drag-over {
+  border: 2px dashed #405189 !important;
+  background-color: rgba(64, 81, 137, 0.05);
+}
+.drag-grip {
   cursor: grab;
 }
-.cursor-grab:active {
+.drag-grip:active {
   cursor: grabbing;
 }
-.hover-toolbox-item:hover {
-  background-color: rgba(10, 179, 156, 0.05) !important;
-  border-color: #0ab39c !important;
-  transform: translateY(-1px);
+.hover-drag:hover {
+  background-color: rgba(0,0,0,0.06);
+  color: #405189 !important;
 }
-.hover-core-preset:hover {
-  background-color: rgba(13, 202, 240, 0.08) !important;
-  border-color: #0dcaf0 !important;
-  transform: translateY(-1px);
+
+/* Chevron Rotation */
+.chevron-btn i {
+  transition: transform 0.2s ease;
 }
-.hover-quick-preset:hover {
-  background-color: rgba(247, 184, 75, 0.1) !important;
-  border-color: #f7b84b !important;
-  transform: translateY(-1px);
-}
+
+/* Preset Cards */
 .hover-preset-card {
-  transition: all 0.2s ease-in-out;
+  transition: all 0.2s ease;
 }
 .hover-preset-card:hover {
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.08);
   border-color: #405189 !important;
   transform: translateY(-2px);
 }
-.field-card {
-  transition: border-color 0.2s, box-shadow 0.2s;
+</style>
+
+<!-- Non-scoped Dark Mode Styles for Form Builder to ensure 100% theme fidelity -->
+<style>
+[data-bs-theme="dark"] .top-command-bar,
+[data-bs-theme="dark"] .sticky-toolbox,
+[data-bs-theme="dark"] .form-canvas-card,
+[data-bs-theme="dark"] .full-preview-card {
+  background-color: #111827 !important;
+  border-color: #1e293b !important;
 }
-.field-card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+
+[data-bs-theme="dark"] .view-mode-pill {
+  background-color: #0b0f19 !important;
+  border-color: #1e293b !important;
+}
+
+[data-bs-theme="dark"] .comp-select {
+  background-color: #0b1120 !important;
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .hover-tool-card {
+  background-color: #0b1120 !important;
+  border-color: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+[data-bs-theme="dark"] .hover-tool-card:hover {
+  background-color: #162032 !important;
+  border-color: #3b82f6 !important;
+}
+[data-bs-theme="dark"] .tool-icon-box {
+  background-color: #1e293b !important;
+}
+
+[data-bs-theme="dark"] .field-card {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+}
+[data-bs-theme="dark"] .field-header {
+  background-color: #111827 !important;
+}
+[data-bs-theme="dark"] .field-body {
+  background-color: #0b0f19 !important;
+}
+
+[data-bs-theme="dark"] .field-card input,
+[data-bs-theme="dark"] .field-card select,
+[data-bs-theme="dark"] .field-card textarea,
+[data-bs-theme="dark"] .sticky-toolbox input,
+[data-bs-theme="dark"] .form-canvas-card input {
+  background-color: #0b1120 !important;
+  border-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .field-card input::placeholder,
+[data-bs-theme="dark"] .field-card textarea::placeholder,
+[data-bs-theme="dark"] .sticky-toolbox input::placeholder {
+  color: #64748b !important;
+}
+
+[data-bs-theme="dark"] .field-title-text {
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .modal-content {
+  background-color: #111827 !important;
+  color: #f8fafc !important;
+}
+[data-bs-theme="dark"] .modal-header,
+[data-bs-theme="dark"] .modal-footer {
+  background-color: #162032 !important;
+  border-color: #1e293b !important;
+}
+[data-bs-theme="dark"] .modal-content input,
+[data-bs-theme="dark"] .modal-content textarea,
+[data-bs-theme="dark"] .modal-content select {
+  background-color: #0b1120 !important;
+  border-color: #1e293b !important;
+  color: #f8fafc !important;
 }
 </style>

@@ -375,6 +375,10 @@ class PublicPortalController extends Controller
                         $pName = trim($p['name'] ?? '');
                         if (empty($pName)) continue;
                         $details = [];
+                        if (!empty($p['is_captain'])) $details[] = 'KAPTEN TIM';
+                        if (!empty($p['captain_wa'])) $details[] = 'WA Kapten: ' . $p['captain_wa'];
+                        if (!empty($p['wa_number'])) $details[] = 'WA: ' . $p['wa_number'];
+                        if (!empty($p['custom_id'])) $details[] = 'ID: ' . $p['custom_id'];
                         if (!empty($p['gender'])) $details[] = ($p['gender'] === 'L' || $p['gender'] === 'Laki-laki') ? 'L' : 'P';
                         if (!empty($p['grade'])) $details[] = $p['grade'];
                         if (!empty($p['birth_date'])) $details[] = $p['birth_date'];

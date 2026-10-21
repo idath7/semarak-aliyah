@@ -75,6 +75,22 @@ const nextCompetition = computed(() => {
   return null;
 });
 
+// Default sub-fields generator for dynamic participant repeater
+function createDefaultSubFields() {
+  return {
+    name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+    gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+    grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+    birth_date: { active: true, required: false, label: 'Tanggal Lahir Siswa' },
+    nisn: { active: true, required: false, label: 'Nomor Induk Siswa Nasional (NISN)' },
+    custom_id: { active: false, required: false, label: 'ID Siswa / No. Identitas (Teks)' },
+    wa_number: { active: false, required: false, label: 'Nomor WhatsApp Siswa (Angka)' },
+    captain_option: { active: false, required: false, label: 'Tandai Kapten Tim & Nomor WA Khusus Kapten' },
+    photo_formal: { active: false, required: false, label: 'Upload Pas Foto Formal Siswa' },
+    photo_freestyle: { active: false, required: false, label: 'Upload Foto Pose Gaya Bebas (Bisa >1 Foto)', multiple: true },
+  };
+}
+
 // Initialize Data from Props
 function initializeData() {
   const sourceFields = props.selectedCompetition?.custom_fields;
@@ -96,14 +112,16 @@ function initializeData() {
     }
     if (f.type === 'participant_repeater') {
       if (!f.min_items) f.min_items = 1;
+      const defs = createDefaultSubFields();
       if (!f.sub_fields || typeof f.sub_fields !== 'object') {
-        f.sub_fields = {
-          name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
-          gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
-          birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
-          grade: { active: true, required: true, label: 'Kelas / Tingkat' },
-          nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
-        };
+        f.sub_fields = defs;
+      } else {
+        // Merge any new sub_fields keys safely
+        for (const k in defs) {
+          if (!f.sub_fields[k]) {
+            f.sub_fields[k] = { ...defs[k] };
+          }
+        }
       }
     }
   });
@@ -470,13 +488,7 @@ function addField(typeObj) {
     max_size_mb: typeObj.type === 'file' ? 5 : null,
     min_items: typeObj.type === 'participant_repeater' ? 1 : null,
     max_items: typeObj.type === 'participant_repeater' ? 10 : null,
-    sub_fields: typeObj.type === 'participant_repeater' ? {
-      name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
-      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
-      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
-      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
-      nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
-    } : null,
+    sub_fields: typeObj.type === 'participant_repeater' ? createDefaultSubFields() : null,
     conditional_logic: {
       enabled: false,
       depend_on_field: '',
@@ -537,13 +549,7 @@ function addQuickPreset(preset) {
     max_size_mb: preset.max_size_mb || (preset.type === 'file' ? 5 : null),
     min_items: preset.min_items || (preset.type === 'participant_repeater' ? 1 : null),
     max_items: preset.max_items !== undefined ? preset.max_items : null,
-    sub_fields: preset.sub_fields ? JSON.parse(JSON.stringify(preset.sub_fields)) : (preset.type === 'participant_repeater' ? {
-      name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
-      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
-      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
-      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
-      nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
-    } : null),
+    sub_fields: preset.sub_fields ? JSON.parse(JSON.stringify(preset.sub_fields)) : (preset.type === 'participant_repeater' ? createDefaultSubFields() : null),
     conditional_logic: {
       enabled: false,
       depend_on_field: '',
@@ -1592,31 +1598,95 @@ function setParticipantCountDirect(field, val) {
 
                             <!-- Sub-fields toggles -->
                             <div class="col-md-6">
-                              <label class="form-label fs-11 fw-bold text-dark mb-1">
-                                Kolom Biodata Siswa yang Diaktifkan:
+                              <label class="form-label fs-11 fw-bold text-dark mb-1 d-flex align-items-center justify-content-between">
+                                <span>Kolom Biodata Siswa yang Diaktifkan:</span>
+                                <span class="text-muted fs-10 font-normal">Pilih yang dibutuhkan</span>
                               </label>
-                              <div class="d-flex flex-column gap-1.5 p-2 bg-body rounded border">
-                                <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
-                                  <input type="checkbox" class="form-check-input" checked disabled />
-                                  <span class="text-dark fw-semibold">Nama Lengkap Siswa</span>
-                                  <span class="badge bg-danger-subtle text-danger fs-9 ms-auto">Wajib</span>
-                                </label>
-                                <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
-                                  <input type="checkbox" class="form-check-input" v-model="field.sub_fields.gender.active" />
-                                  <span class="text-dark">Jenis Kelamin (Laki-laki / Perempuan)</span>
-                                </label>
-                                <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
-                                  <input type="checkbox" class="form-check-input" v-model="field.sub_fields.birth_date.active" />
-                                  <span class="text-dark">Tanggal Lahir Siswa</span>
-                                </label>
-                                <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
-                                  <input type="checkbox" class="form-check-input" v-model="field.sub_fields.grade.active" />
-                                  <span class="text-dark">Kelas / Tingkat (Kelas 7, 8, 9)</span>
-                                </label>
-                                <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
-                                  <input type="checkbox" class="form-check-input" v-model="field.sub_fields.nisn.active" />
-                                  <span class="text-dark">Nomor Induk Siswa Nasional (NISN)</span>
-                                </label>
+                              <div class="d-flex flex-column gap-2 p-2.5 bg-body rounded-3 border" style="max-height: 280px; overflow-y: auto;">
+                                
+                                <!-- Group 1: Data Identitas Dasar -->
+                                <div>
+                                  <div class="text-muted fs-10 fw-bold text-uppercase tracking-wider mb-1">1. Identitas & Akademik</div>
+                                  <div class="d-flex flex-column gap-1">
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                      <input type="checkbox" class="form-check-input" checked disabled />
+                                      <span class="text-dark fw-semibold">Nama Lengkap Siswa</span>
+                                      <span class="badge bg-danger-subtle text-danger fs-9 ms-auto">Wajib</span>
+                                    </label>
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                      <input type="checkbox" class="form-check-input" v-model="field.sub_fields.gender.active" />
+                                      <span class="text-dark">Jenis Kelamin (Laki-laki / Perempuan)</span>
+                                    </label>
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                      <input type="checkbox" class="form-check-input" v-model="field.sub_fields.grade.active" />
+                                      <span class="text-dark">Kelas / Tingkat (Kelas 7, 8, 9)</span>
+                                    </label>
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                      <input type="checkbox" class="form-check-input" v-model="field.sub_fields.birth_date.active" />
+                                      <span class="text-dark">Tanggal Lahir Siswa</span>
+                                    </label>
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                      <input type="checkbox" class="form-check-input" v-model="field.sub_fields.nisn.active" />
+                                      <span class="text-dark">Nomor Induk Siswa Nasional (NISN)</span>
+                                    </label>
+                                  </div>
+                                </div>
+
+                                <!-- Group 2: ID & Kontak WhatsApp -->
+                                <div class="pt-2 border-top">
+                                  <div class="text-muted fs-10 fw-bold text-uppercase tracking-wider mb-1">2. ID & Kontak Komunikasi</div>
+                                  <div class="d-flex flex-column gap-1.5">
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                      <input type="checkbox" class="form-check-input" v-model="field.sub_fields.custom_id.active" />
+                                      <div class="d-flex flex-column">
+                                        <span class="text-dark fw-medium">Kolom Ketik ID Siswa / No. Peserta / Akun Game</span>
+                                        <span class="text-muted fs-10">Field input teks bebas untuk ID in-game, no punggung, dll.</span>
+                                      </div>
+                                      <span class="badge bg-secondary-subtle text-secondary fs-9 ms-auto">Field Text</span>
+                                    </label>
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                      <input type="checkbox" class="form-check-input" v-model="field.sub_fields.wa_number.active" />
+                                      <div class="d-flex flex-column">
+                                        <span class="text-dark fw-medium">Kolom Nomor WhatsApp Siswa</span>
+                                        <span class="text-muted fs-10">Field input angka no. WA untuk seluruh personil/siswa</span>
+                                      </div>
+                                      <span class="badge bg-success-subtle text-success fs-9 ms-auto">Field Angka</span>
+                                    </label>
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-start gap-2 cursor-pointer fs-11 bg-warning-subtle/25 p-1.5 rounded border border-warning-subtle">
+                                      <input type="checkbox" class="form-check-input text-warning mt-0.5" v-model="field.sub_fields.captain_option.active" />
+                                      <div class="d-flex flex-column">
+                                        <span class="text-dark fw-bold d-flex align-items-center gap-1">
+                                          <i class="ri-vip-crown-line text-warning"></i> Tandai Kapten Tim & Nomor WA Khusus Kapten
+                                        </span>
+                                        <span class="text-muted fs-10">Pendaftar dapat menandai 1 siswa sebagai kapten, dan kolom No WA Kapten otomatis muncul pada siswa terpilih.</span>
+                                      </div>
+                                    </label>
+                                  </div>
+                                </div>
+
+                                <!-- Group 3: Foto & Media Siswa -->
+                                <div class="pt-2 border-top">
+                                  <div class="text-muted fs-10 fw-bold text-uppercase tracking-wider mb-1">3. Upload Berkas & Foto Siswa</div>
+                                  <div class="d-flex flex-column gap-1.5">
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                      <input type="checkbox" class="form-check-input" v-model="field.sub_fields.photo_formal.active" />
+                                      <div class="d-flex flex-column">
+                                        <span class="text-dark fw-medium">Upload Pas Foto Siswa Formal</span>
+                                        <span class="text-muted fs-10">Upload foto resmi 3x4 atau berseragam (1 file foto)</span>
+                                      </div>
+                                      <span class="badge bg-info-subtle text-info fs-9 ms-auto">Formal</span>
+                                    </label>
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                      <input type="checkbox" class="form-check-input" v-model="field.sub_fields.photo_freestyle.active" />
+                                      <div class="d-flex flex-column">
+                                        <span class="text-dark fw-medium">Upload Foto Siswa Pose Gaya Bebas</span>
+                                        <span class="text-muted fs-10">Mendukung upload lebih dari 1 file foto sekaligus (Multi-Foto)</span>
+                                      </div>
+                                      <span class="badge bg-success-subtle text-success fs-9 ms-auto">Bisa >1 Foto</span>
+                                    </label>
+                                  </div>
+                                </div>
+
                               </div>
                             </div>
                           </div>
@@ -1997,13 +2067,27 @@ function setParticipantCountDirect(field, val) {
                               class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 transition-all"
                             >
                               <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-b border-slate-800/80">
-                                <span class="text-[11px] font-bold text-amber-300 d-flex align-items-center gap-1">
+                                <span class="text-[11px] font-bold text-amber-300 d-flex align-items-center gap-1.5">
                                   <i class="ri-user-line text-emerald-400"></i>
                                   <span>Biodata Siswa #{{ pIdx }}</span>
+                                  <span v-if="previewValues[field.name + '_captain'] === pIdx" class="badge bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] py-0 d-inline-flex align-items-center gap-1 font-bold">
+                                    <i class="ri-vip-crown-fill text-amber-400"></i> KAPTEN TIM
+                                  </span>
                                 </span>
-                                <span class="badge bg-slate-900 text-slate-400 text-[9px] font-mono">
-                                  Peserta {{ pIdx }} dari {{ previewValues[field.name + '_count'] || 3 }}
-                                </span>
+                                <div class="d-flex align-items-center gap-1.5">
+                                  <label 
+                                    v-if="field.sub_fields?.captain_option?.active" 
+                                    class="flex items-center gap-1 px-1.5 py-0.5 rounded cursor-pointer text-[9px] border transition-all"
+                                    :class="previewValues[field.name + '_captain'] === pIdx ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold' : 'bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700'"
+                                    title="Tandai siswa ini sebagai kapten tim"
+                                  >
+                                    <input type="radio" :name="`cap_${field.name}`" :value="pIdx" v-model="previewValues[field.name + '_captain']" class="text-amber-500" />
+                                    <span>⭐ Kapten</span>
+                                  </label>
+                                  <span class="badge bg-slate-900 text-slate-400 text-[9px] font-mono">
+                                    Peserta {{ pIdx }} dari {{ previewValues[field.name + '_count'] || 1 }}
+                                  </span>
+                                </div>
                               </div>
 
                               <div class="space-y-2 text-xs">
@@ -2062,6 +2146,77 @@ function setParticipantCountDirect(field, val) {
                                       placeholder="008xxxxxxx"
                                       class="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white text-[11px]"
                                     />
+                                  </div>
+                                </div>
+
+                                <!-- ID Siswa (Field Text) -->
+                                <div v-if="field.sub_fields?.custom_id?.active">
+                                  <label class="block text-[10px] text-slate-400 mb-0.5 d-flex align-items-center justify-content-between">
+                                    <span>{{ field.sub_fields.custom_id.label || 'ID Siswa / No. Identitas' }}</span>
+                                    <span class="badge bg-slate-900 text-slate-400 text-[9px] py-0 border border-slate-800 font-mono">Field Text</span>
+                                  </label>
+                                  <input 
+                                    type="text" 
+                                    placeholder="Contoh: ID-0912 / User ID Game" 
+                                    class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono"
+                                  />
+                                </div>
+
+                                <!-- Nomor WhatsApp Siswa (Field Angka) -->
+                                <div v-if="field.sub_fields?.wa_number?.active">
+                                  <label class="block text-[10px] text-slate-400 mb-0.5 d-flex align-items-center gap-1">
+                                    <i class="ri-whatsapp-line text-emerald-400"></i>
+                                    <span>Nomor WhatsApp Siswa</span>
+                                    <span class="badge bg-slate-900 text-emerald-400 text-[9px] py-0 border border-slate-800 font-mono">Field Angka</span>
+                                  </label>
+                                  <input 
+                                    type="tel" 
+                                    placeholder="08xxxxxxxxxx" 
+                                    class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono"
+                                  />
+                                </div>
+
+                                <!-- Nomor WA Khusus Kapten Tim (Hanya jika siswa ditandai sebagai Kapten) -->
+                                <div v-if="field.sub_fields?.captain_option?.active && previewValues[field.name + '_captain'] === pIdx" class="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                                  <label class="block text-[10px] text-amber-300 font-bold mb-1 d-flex align-items-center gap-1">
+                                    <i class="ri-whatsapp-fill text-emerald-400"></i>
+                                    <span>Nomor WhatsApp Kapten Tim (Field Angka) *</span>
+                                  </label>
+                                  <input 
+                                    type="tel" 
+                                    placeholder="08xxxxxxxxxx (WA Kapten untuk koordinasi)" 
+                                    class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-amber-500/40 text-white text-xs font-mono placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                                  />
+                                  <div class="text-[9px] text-amber-300/80 mt-1">
+                                    ⭐ Nomor WA kapten otomatis aktif karena siswa ini ditandai sebagai Kapten Tim.
+                                  </div>
+                                </div>
+
+                                <!-- Upload Foto Siswa Formal (Pas Foto 1 File) -->
+                                <div v-if="field.sub_fields?.photo_formal?.active">
+                                  <label class="block text-[10px] text-slate-400 mb-0.5 d-flex align-items-center gap-1">
+                                    <i class="ri-camera-line text-sky-400"></i>
+                                    <span>Upload Pas Foto Formal Siswa</span>
+                                    <span class="badge bg-sky-500/20 text-sky-300 text-[9px] py-0 border border-sky-500/30 ms-auto">Formal (1 File)</span>
+                                  </label>
+                                  <div class="border border-dashed border-slate-800 hover:border-sky-500/50 rounded-lg p-2 text-center bg-slate-900/50 cursor-pointer">
+                                    <i class="ri-image-add-line text-sky-400 text-sm"></i>
+                                    <div class="text-[10px] text-slate-300 font-medium mt-0.5">Pilih Pas Foto Formal (JPG / PNG)</div>
+                                    <div class="text-[9px] text-slate-500">Maks. 3 MB</div>
+                                  </div>
+                                </div>
+
+                                <!-- Upload Foto Siswa Pose Gaya Bebas (Bisa >1 Foto) -->
+                                <div v-if="field.sub_fields?.photo_freestyle?.active">
+                                  <label class="block text-[10px] text-slate-400 mb-0.5 d-flex align-items-center gap-1">
+                                    <i class="ri-gallery-upload-line text-emerald-400"></i>
+                                    <span>Upload Foto Pose Gaya Bebas</span>
+                                    <span class="badge bg-emerald-500/20 text-emerald-300 text-[9px] py-0 border border-emerald-500/30 ms-auto">Bisa >1 Foto</span>
+                                  </label>
+                                  <div class="border border-dashed border-slate-800 hover:border-emerald-500/50 rounded-lg p-2 text-center bg-slate-900/50 cursor-pointer">
+                                    <i class="ri-images-line text-emerald-400 text-sm"></i>
+                                    <div class="text-[10px] text-slate-300 font-medium mt-0.5">Pilih Satu atau Beberapa Foto Pose Bebas</div>
+                                    <div class="text-[9px] text-slate-500">Mendukung upload lebih dari 1 file foto sekaligus</div>
                                   </div>
                                 </div>
                               </div>
@@ -2322,10 +2477,24 @@ function setParticipantCountDirect(field, val) {
                             <span class="text-xs font-bold text-amber-300 d-flex align-items-center gap-1.5">
                               <i class="ri-user-line text-emerald-400"></i>
                               <span>Biodata Peserta Siswa #{{ pIdx }}</span>
+                              <span v-if="previewValues[field.name + '_captain'] === pIdx" class="badge bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] py-0.5 d-inline-flex align-items-center gap-1 font-bold">
+                                <i class="ri-vip-crown-fill text-amber-400"></i> KAPTEN TIM
+                              </span>
                             </span>
-                            <span class="badge bg-slate-900 text-slate-400 text-[10px] font-mono">
-                              Peserta {{ pIdx }} dari {{ previewValues[field.name + '_count'] || 3 }}
-                            </span>
+                            <div class="d-flex align-items-center gap-2">
+                              <label 
+                                v-if="field.sub_fields?.captain_option?.active" 
+                                class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg cursor-pointer text-xs border transition-all"
+                                :class="previewValues[field.name + '_captain'] === pIdx ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-bold' : 'bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700'"
+                                title="Tandai siswa ini sebagai kapten tim"
+                              >
+                                <input type="radio" :name="`full_cap_${field.name}`" :value="pIdx" v-model="previewValues[field.name + '_captain']" class="text-amber-500" />
+                                <span>⭐ Kapten Tim</span>
+                              </label>
+                              <span class="badge bg-slate-900 text-slate-400 text-[10px] font-mono">
+                                Peserta {{ pIdx }} dari {{ previewValues[field.name + '_count'] || 1 }}
+                              </span>
+                            </div>
                           </div>
 
                           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
@@ -2374,8 +2543,81 @@ function setParticipantCountDirect(field, val) {
                               <input 
                                 type="text" 
                                 placeholder="0081234567"
-                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
+                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono"
                               />
+                            </div>
+
+                            <!-- ID Siswa (Field Text) -->
+                            <div v-if="field.sub_fields?.custom_id?.active" class="sm:col-span-2">
+                              <label class="block text-[11px] text-slate-400 mb-1 d-flex align-items-center justify-content-between">
+                                <span>{{ field.sub_fields.custom_id.label || 'ID Siswa / No. Identitas Khusus' }}</span>
+                                <span class="badge bg-slate-900 text-slate-400 text-[10px] py-0 border border-slate-800 font-mono">Field Text</span>
+                              </label>
+                              <input 
+                                type="text" 
+                                placeholder="Contoh: ID-0912 / User ID Game" 
+                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono"
+                              />
+                            </div>
+
+                            <!-- Nomor WhatsApp Siswa (Field Angka) -->
+                            <div v-if="field.sub_fields?.wa_number?.active" class="sm:col-span-2">
+                              <label class="block text-[11px] text-slate-400 mb-1 d-flex align-items-center gap-1.5">
+                                <i class="ri-whatsapp-line text-emerald-400"></i>
+                                <span>Nomor WhatsApp Siswa</span>
+                                <span class="badge bg-slate-900 text-emerald-400 text-[10px] py-0 border border-slate-800 font-mono">Field Angka</span>
+                              </label>
+                              <input 
+                                type="tel" 
+                                placeholder="08xxxxxxxxxx" 
+                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono"
+                              />
+                            </div>
+
+                            <!-- Nomor WA Khusus Kapten Tim -->
+                            <div v-if="field.sub_fields?.captain_option?.active && previewValues[field.name + '_captain'] === pIdx" class="sm:col-span-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                              <label class="block text-xs text-amber-300 font-bold mb-1 d-flex align-items-center gap-1.5">
+                                <i class="ri-whatsapp-fill text-emerald-400"></i>
+                                <span>Nomor WhatsApp Kapten Tim (Field Angka) *</span>
+                              </label>
+                              <input 
+                                type="tel" 
+                                placeholder="08xxxxxxxxxx (Nomor WA Kapten untuk grup koordinasi panitia)" 
+                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-amber-500/40 text-white text-xs font-mono placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                              />
+                              <div class="text-[11px] text-amber-300/80 mt-1.5">
+                                ⭐ Nomor WA kapten otomatis aktif karena siswa ini ditandai sebagai Kapten Tim.
+                              </div>
+                            </div>
+
+                            <!-- Upload Foto Siswa Formal (Pas Foto 1 File) -->
+                            <div v-if="field.sub_fields?.photo_formal?.active" class="sm:col-span-1">
+                              <label class="block text-[11px] text-slate-400 mb-1 d-flex align-items-center justify-content-between">
+                                <span class="d-flex align-items-center gap-1">
+                                  <i class="ri-camera-line text-sky-400"></i> Foto Formal Siswa
+                                </span>
+                                <span class="badge bg-sky-500/20 text-sky-300 text-[10px] py-0.5 border border-sky-500/30">Pas Foto (1 File)</span>
+                              </label>
+                              <div class="border border-dashed border-slate-800 hover:border-sky-500/50 rounded-xl p-3 text-center bg-slate-900/60 cursor-pointer">
+                                <i class="ri-image-add-line text-sky-400 text-lg"></i>
+                                <div class="text-xs text-slate-300 font-medium mt-1">Upload Pas Foto Formal</div>
+                                <div class="text-[10px] text-slate-500">JPG/PNG, Maks. 3 MB</div>
+                              </div>
+                            </div>
+
+                            <!-- Upload Foto Siswa Pose Gaya Bebas (Bisa >1 Foto) -->
+                            <div v-if="field.sub_fields?.photo_freestyle?.active" class="sm:col-span-1">
+                              <label class="block text-[11px] text-slate-400 mb-1 d-flex align-items-center justify-content-between">
+                                <span class="d-flex align-items-center gap-1">
+                                  <i class="ri-gallery-upload-line text-emerald-400"></i> Foto Pose Gaya Bebas
+                                </span>
+                                <span class="badge bg-emerald-500/20 text-emerald-300 text-[10px] py-0.5 border border-emerald-500/30">Bisa >1 Foto</span>
+                              </label>
+                              <div class="border border-dashed border-slate-800 hover:border-emerald-500/50 rounded-xl p-3 text-center bg-slate-900/60 cursor-pointer">
+                                <i class="ri-images-line text-emerald-400 text-lg"></i>
+                                <div class="text-xs text-slate-300 font-medium mt-1">Upload Foto Pose Bebas</div>
+                                <div class="text-[10px] text-slate-500">Mendukung upload lebih dari 1 foto</div>
+                              </div>
                             </div>
                           </div>
                         </div>

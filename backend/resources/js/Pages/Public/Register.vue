@@ -39,19 +39,56 @@ const form = useForm({
 const activeComp = computed(() => props.competitions?.find(c => c.id === form.competition_id) || null);
 const repeaterField = computed(() => activeComp.value?.custom_fields?.find(f => f.type === 'participant_repeater') || null);
 const participantCount = ref(3);
+
+function createEmptyParticipant() {
+  return {
+    name: '',
+    gender: 'L',
+    grade: 'Kelas 9 SMP/MTs',
+    birth_date: '',
+    nisn: '',
+    custom_id: '',
+    wa_number: '',
+    is_captain: false,
+    captain_wa: '',
+    photo_formal_name: '',
+    freestyle_count: 0,
+  };
+}
+
 const participantsList = ref([
-  { name: '', gender: 'L', grade: 'Kelas 9 SMP/MTs', birth_date: '', nisn: '' },
-  { name: '', gender: 'L', grade: 'Kelas 9 SMP/MTs', birth_date: '', nisn: '' },
-  { name: '', gender: 'P', grade: 'Kelas 8 SMP/MTs', birth_date: '', nisn: '' },
+  createEmptyParticipant(),
+  createEmptyParticipant(),
+  createEmptyParticipant(),
 ]);
+
+function setCaptain(idx) {
+  participantsList.value.forEach((p, i) => {
+    p.is_captain = (i === idx);
+    if (!p.is_captain) {
+      p.captain_wa = '';
+    }
+  });
+}
+
+function handleFreestyleFiles(idx, event) {
+  const files = event.target.files;
+  participantsList.value[idx].freestyle_count = files ? files.length : 0;
+}
 
 function syncParticipantsList() {
   const target = Math.max(1, participantCount.value);
   while (participantsList.value.length < target) {
-    participantsList.value.push({ name: '', gender: 'L', grade: 'Kelas 9 SMP/MTs', birth_date: '', nisn: '' });
+    participantsList.value.push(createEmptyParticipant());
   }
   if (participantsList.value.length > target) {
     participantsList.value.splice(target);
+  }
+  if (repeaterField.value?.sub_fields?.captain_option?.active) {
+    const hasCap = participantsList.value.some(p => p.is_captain);
+    if (!hasCap && participantsList.value.length > 0) {
+      participantsList.value[0].is_captain = true;
+    }
   }
 }
 
@@ -163,10 +200,16 @@ function handleSubmit() {
       const p = list[i];
       const pName = (p.name || '').trim() || `Peserta ${i + 1}`;
       const details = [];
+      if (p.is_captain) details.push('★ KAPTEN TIM');
+      if (p.captain_wa) details.push(`WA Kapten: ${p.captain_wa}`);
+      if (p.wa_number) details.push(`WA: ${p.wa_number}`);
+      if (p.custom_id) details.push(`ID: ${p.custom_id}`);
       if (p.gender) details.push(p.gender === 'L' ? 'Laki-laki' : 'Perempuan');
       if (p.grade) details.push(p.grade);
       if (p.birth_date) details.push(p.birth_date);
       if (p.nisn) details.push(`NISN: ${p.nisn}`);
+      if (p.photo_formal_name) details.push(`Pas Foto: ${p.photo_formal_name}`);
+      if (p.freestyle_count) details.push(`Foto Bebas: ${p.freestyle_count} file`);
       lines.push(`${i + 1}. ${pName}${details.length ? ' (' + details.join(', ') + ')' : ''}`);
     }
     form.participants_names = lines.join('\n');
@@ -684,16 +727,34 @@ function getCompDropdownSuffix(c) {
                   style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 12px;"
                 >
                   <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
-                    <span style="font-weight: 700; font-size: 0.8rem; color: #f59e0b; display: flex; align-items: center; gap: 6px;">
-                      <i class="ri-user-line" style="color: #10b981;"></i>
-                      <span>Biodata Siswa Delegasi #{{ pIdx }}</span>
-                    </span>
-                    <span style="font-size: 0.7rem; color: #64748b; font-family: monospace;">
-                      Peserta {{ pIdx }} dari {{ participantCount }}
-                    </span>
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                      <span style="font-weight: 700; font-size: 0.8rem; color: #f59e0b; display: flex; align-items: center; gap: 6px;">
+                        <i class="ri-user-line" style="color: #10b981;"></i>
+                        <span>Biodata Siswa Delegasi #{{ pIdx }}</span>
+                      </span>
+                      <span v-if="participantsList[pIdx - 1].is_captain" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 0.68rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;">
+                        <i class="ri-vip-crown-fill" style="color: #f59e0b;"></i> KAPTEN TIM
+                      </span>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <label 
+                        v-if="repeaterField.sub_fields?.captain_option?.active" 
+                        style="display: flex; align-items: center; gap: 4px; font-size: 0.72rem; cursor: pointer; padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.4); transition: all 0.15s;"
+                        :style="{ background: participantsList[pIdx - 1].is_captain ? 'rgba(245, 158, 11, 0.25)' : 'transparent', color: participantsList[pIdx - 1].is_captain ? '#fbbf24' : '#94a3b8' }"
+                        title="Tandai siswa ini sebagai kapten tim"
+                      >
+                        <input type="radio" name="reg_captain_sel" :checked="participantsList[pIdx - 1].is_captain" @change="setCaptain(pIdx - 1)" />
+                        <span>⭐ Kapten</span>
+                      </label>
+                      <span style="font-size: 0.7rem; color: #64748b; font-family: monospace;">
+                        Peserta {{ pIdx }} dari {{ participantCount }}
+                      </span>
+                    </div>
                   </div>
 
                   <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                    <!-- Nama Lengkap -->
                     <div>
                       <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: block;">Nama Lengkap Siswa *</label>
                       <input 
@@ -706,8 +767,9 @@ function getCompDropdownSuffix(c) {
                       />
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                      <div>
+                    <div class="grid-2-cols" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <!-- Jenis Kelamin -->
+                      <div v-if="repeaterField.sub_fields?.gender?.active !== false">
                         <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: block;">Jenis Kelamin</label>
                         <div style="display: flex; gap: 6px;">
                           <label style="flex: 1; border: 1px solid rgba(255,255,255,0.1); padding: 5px 8px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 0.76rem;" :style="{ background: participantsList[pIdx - 1].gender === 'L' ? 'rgba(16, 185, 129, 0.2)' : 'transparent' }">
@@ -721,7 +783,8 @@ function getCompDropdownSuffix(c) {
                         </div>
                       </div>
 
-                      <div>
+                      <!-- Kelas / Tingkat -->
+                      <div v-if="repeaterField.sub_fields?.grade?.active !== false">
                         <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: block;">Kelas / Tingkat</label>
                         <select v-model="participantsList[pIdx - 1].grade" class="form-control" style="padding: 7px 10px; font-size: 0.82rem;">
                           <option value="Kelas 7 SMP/MTs">Kelas 7 SMP/MTs</option>
@@ -731,8 +794,9 @@ function getCompDropdownSuffix(c) {
                       </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                      <div>
+                    <div class="grid-2-cols" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <!-- Tanggal Lahir -->
+                      <div v-if="repeaterField.sub_fields?.birth_date?.active !== false">
                         <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: block;">Tanggal Lahir (Opsional)</label>
                         <input 
                           type="date" 
@@ -741,7 +805,8 @@ function getCompDropdownSuffix(c) {
                           style="padding: 7px 10px; font-size: 0.82rem;"
                         />
                       </div>
-                      <div>
+                      <!-- NISN -->
+                      <div v-if="repeaterField.sub_fields?.nisn?.active !== false">
                         <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: block;">NISN (Opsional)</label>
                         <input 
                           type="text" 
@@ -750,6 +815,97 @@ function getCompDropdownSuffix(c) {
                           style="padding: 7px 10px; font-size: 0.82rem;"
                           placeholder="Nomor Induk Siswa"
                         />
+                      </div>
+                    </div>
+
+                    <!-- ID Siswa (Field Text) -->
+                    <div v-if="repeaterField.sub_fields?.custom_id?.active">
+                      <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between;">
+                        <span>{{ repeaterField.sub_fields.custom_id.label || 'ID Siswa / No. Identitas' }}</span>
+                        <span style="font-size: 0.68rem; color: #64748b; font-family: monospace;">Field Text</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        v-model="participantsList[pIdx - 1].custom_id"
+                        class="form-control" 
+                        style="padding: 7px 10px; font-size: 0.82rem; font-family: monospace;"
+                        placeholder="Contoh: ID-0912 / User ID Game / No. Punggung"
+                      />
+                    </div>
+
+                    <!-- Nomor WhatsApp Siswa (Field Angka) -->
+                    <div v-if="repeaterField.sub_fields?.wa_number?.active">
+                      <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: flex; align-items: center; gap: 4px;">
+                        <i class="ri-whatsapp-line" style="color: #10b981;"></i>
+                        <span>Nomor WhatsApp Siswa</span>
+                        <span style="font-size: 0.68rem; color: #10b981; font-family: monospace;">(Field Angka)</span>
+                      </label>
+                      <input 
+                        type="tel" 
+                        v-model="participantsList[pIdx - 1].wa_number"
+                        class="form-control" 
+                        style="padding: 7px 10px; font-size: 0.82rem; font-family: monospace;"
+                        placeholder="Contoh: 081234567890"
+                      />
+                    </div>
+
+                    <!-- Nomor WA Khusus Kapten Tim (Jika siswa ini ditandai sebagai kapten) -->
+                    <div v-if="repeaterField.sub_fields?.captain_option?.active && participantsList[pIdx - 1].is_captain" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 10px;">
+                      <label style="font-size: 0.75rem; color: #fbbf24; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                        <i class="ri-whatsapp-fill" style="color: #10b981;"></i>
+                        <span>Nomor WhatsApp Khusus Kapten Tim (Field Angka) *</span>
+                      </label>
+                      <input 
+                        type="tel" 
+                        v-model="participantsList[pIdx - 1].captain_wa"
+                        class="form-control" 
+                        style="padding: 7px 10px; font-size: 0.82rem; font-family: monospace; border-color: rgba(245, 158, 11, 0.5);"
+                        placeholder="Contoh: 081234567890 (WA Kapten untuk koordinasi)"
+                        required
+                      />
+                      <div style="font-size: 0.68rem; color: #cbd5e1; margin-top: 3px;">
+                        Nomor WA ini akan digunakan panitia lomba untuk koordinasi TM & grup WhatsApp resmi kapten.
+                      </div>
+                    </div>
+
+                    <!-- Upload Foto Siswa Formal (Pas Foto 1 File) -->
+                    <div v-if="repeaterField.sub_fields?.photo_formal?.active">
+                      <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="display: flex; align-items: center; gap: 4px;">
+                          <i class="ri-camera-line" style="color: #38bdf8;"></i> Upload Pas Foto Formal Siswa
+                        </span>
+                        <span style="font-size: 0.68rem; color: #38bdf8; background: rgba(56, 189, 248, 0.15); padding: 1px 6px; border-radius: 4px;">Formal (1 File)</span>
+                      </label>
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        class="form-control" 
+                        style="padding: 5px 8px; font-size: 0.78rem;"
+                        @change="e => participantsList[pIdx - 1].photo_formal_name = e.target.files[0]?.name || ''"
+                      />
+                      <div v-if="participantsList[pIdx - 1].photo_formal_name" style="font-size: 0.7rem; color: #38bdf8; margin-top: 2px;">
+                        ✓ File terpilih: {{ participantsList[pIdx - 1].photo_formal_name }}
+                      </div>
+                    </div>
+
+                    <!-- Upload Foto Siswa Pose Gaya Bebas (Bisa >1 Foto) -->
+                    <div v-if="repeaterField.sub_fields?.photo_freestyle?.active">
+                      <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="display: flex; align-items: center; gap: 4px;">
+                          <i class="ri-gallery-upload-line" style="color: #34d399;"></i> Upload Foto Pose Gaya Bebas
+                        </span>
+                        <span style="font-size: 0.68rem; color: #34d399; background: rgba(52, 211, 153, 0.15); padding: 1px 6px; border-radius: 4px;">Bisa >1 Foto</span>
+                      </label>
+                      <input 
+                        type="file" 
+                        multiple
+                        accept="image/*"
+                        class="form-control" 
+                        style="padding: 5px 8px; font-size: 0.78rem;"
+                        @change="e => handleFreestyleFiles(pIdx - 1, e)"
+                      />
+                      <div v-if="participantsList[pIdx - 1].freestyle_count" style="font-size: 0.7rem; color: #34d399; margin-top: 2px;">
+                        ✓ {{ participantsList[pIdx - 1].freestyle_count }} file foto pose gaya bebas dipilih
                       </div>
                     </div>
                   </div>

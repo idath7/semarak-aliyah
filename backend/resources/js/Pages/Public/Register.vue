@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { Head, useForm, Link, usePage } from '@inertiajs/vue3';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import { getWaChatUrl } from '@/Utils/whatsapp';
@@ -30,9 +30,47 @@ const form = useForm({
   mentor_wa: '',
   competition_id: props.preselectedLomba || props.competitions?.[0]?.id || 'mipa',
   participants_names: '',
+  custom_fields: {},
   notes: '',
   payment_method: 'Transfer Bank BSI',
 });
+
+// Dynamic Participant Repeater Logic
+const activeComp = computed(() => props.competitions?.find(c => c.id === form.competition_id) || null);
+const repeaterField = computed(() => activeComp.value?.custom_fields?.find(f => f.type === 'participant_repeater') || null);
+const participantCount = ref(3);
+const participantsList = ref([
+  { name: '', gender: 'L', grade: 'Kelas 9 SMP/MTs', birth_date: '', nisn: '' },
+  { name: '', gender: 'L', grade: 'Kelas 9 SMP/MTs', birth_date: '', nisn: '' },
+  { name: '', gender: 'P', grade: 'Kelas 8 SMP/MTs', birth_date: '', nisn: '' },
+]);
+
+function syncParticipantsList() {
+  const target = Math.max(1, participantCount.value);
+  while (participantsList.value.length < target) {
+    participantsList.value.push({ name: '', gender: 'L', grade: 'Kelas 9 SMP/MTs', birth_date: '', nisn: '' });
+  }
+  if (participantsList.value.length > target) {
+    participantsList.value.splice(target);
+  }
+}
+
+watch(repeaterField, (rf) => {
+  if (rf) {
+    const max = rf.max_items || 8;
+    const min = rf.min_items || 1;
+    participantCount.value = Math.max(min, Math.min(max, 3));
+    syncParticipantsList();
+  }
+}, { immediate: true });
+
+function adjustCount(delta) {
+  if (!repeaterField.value) return;
+  const min = repeaterField.value.min_items || 1;
+  const max = repeaterField.value.max_items || 8;
+  participantCount.value = Math.max(min, Math.min(max, participantCount.value + delta));
+  syncParticipantsList();
+}
 
 // Auto-open modal if lomba query param is present
 onMounted(() => {
@@ -118,6 +156,27 @@ const selectedCompFee = computed(() => {
 });
 
 function handleSubmit() {
+  if (repeaterField.value) {
+    const list = participantsList.value.slice(0, participantCount.value);
+    const lines = [];
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
+      const pName = (p.name || '').trim() || `Peserta ${i + 1}`;
+      const details = [];
+      if (p.gender) details.push(p.gender === 'L' ? 'Laki-laki' : 'Perempuan');
+      if (p.grade) details.push(p.grade);
+      if (p.birth_date) details.push(p.birth_date);
+      if (p.nisn) details.push(`NISN: ${p.nisn}`);
+      lines.push(`${i + 1}. ${pName}${details.length ? ' (' + details.join(', ') + ')' : ''}`);
+    }
+    form.participants_names = lines.join('\n');
+    form.custom_fields = {
+      ...(form.custom_fields || {}),
+      [repeaterField.value.name]: list,
+      [repeaterField.value.name + '_count']: participantCount.value,
+    };
+  }
+
   form.post('/layanan-registrasi', {
     preserveScroll: true,
     onSuccess: (page) => {
@@ -579,7 +638,125 @@ function getCompDropdownSuffix(c) {
               </div>
             </div>
 
-            <div class="form-group">
+            <!-- DYNAMIC PARTICIPANT REPEATER / ROSTER -->
+            <div v-if="repeaterField" class="form-group" style="margin-bottom: 20px;">
+              <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 14px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div>
+                  <div style="font-weight: 700; font-size: 0.88rem; color: #f8fafc; display: flex; align-items: center; gap: 6px;">
+                    <i class="ri-group-line" style="color: #10b981;"></i>
+                    <span>{{ repeaterField.label || 'Jumlah Peserta yang Didaftarkan' }} *</span>
+                  </div>
+                  <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px;">
+                    Batas maksimal kuota: <strong>{{ repeaterField.max_items || 8 }} Siswa</strong> (Minimal {{ repeaterField.min_items || 1 }} Siswa)
+                  </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button 
+                    type="button" 
+                    style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;"
+                    :disabled="participantCount <= (repeaterField.min_items || 1)"
+                    @click="adjustCount(-1)"
+                  >
+                    <i class="ri-subtract-line"></i>
+                  </button>
+                  <span style="font-family: monospace; font-weight: 800; font-size: 0.95rem; color: #10b981; padding: 4px 12px; background: #060911; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                    {{ participantCount }} Siswa
+                  </span>
+                  <button 
+                    type="button" 
+                    style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;"
+                    :disabled="participantCount >= (repeaterField.max_items || 8)"
+                    @click="adjustCount(1)"
+                  >
+                    <i class="ri-add-line"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Student Cards -->
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div 
+                  v-for="pIdx in participantCount" 
+                  :key="pIdx"
+                  style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 12px;"
+                >
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);">
+                    <span style="font-weight: 700; font-size: 0.8rem; color: #f59e0b; display: flex; align-items: center; gap: 6px;">
+                      <i class="ri-user-line" style="color: #10b981;"></i>
+                      <span>Biodata Siswa Delegasi #{{ pIdx }}</span>
+                    </span>
+                    <span style="font-size: 0.7rem; color: #64748b; font-family: monospace;">
+                      Peserta {{ pIdx }} dari {{ participantCount }}
+                    </span>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
+                    <div>
+                      <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: block;">Nama Lengkap Siswa *</label>
+                      <input 
+                        type="text" 
+                        v-model="participantsList[pIdx - 1].name"
+                        class="form-control" 
+                        style="padding: 7px 10px; font-size: 0.82rem;"
+                        :placeholder="`Nama Lengkap Peserta ${pIdx}`"
+                        required
+                      />
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <div>
+                        <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: block;">Jenis Kelamin</label>
+                        <div style="display: flex; gap: 6px;">
+                          <label style="flex: 1; border: 1px solid rgba(255,255,255,0.1); padding: 5px 8px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 0.76rem;" :style="{ background: participantsList[pIdx - 1].gender === 'L' ? 'rgba(16, 185, 129, 0.2)' : 'transparent' }">
+                            <input type="radio" :name="`reg_gender_${pIdx}`" value="L" v-model="participantsList[pIdx - 1].gender">
+                            <span>Laki-laki</span>
+                          </label>
+                          <label style="flex: 1; border: 1px solid rgba(255,255,255,0.1); padding: 5px 8px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 0.76rem;" :style="{ background: participantsList[pIdx - 1].gender === 'P' ? 'rgba(16, 185, 129, 0.2)' : 'transparent' }">
+                            <input type="radio" :name="`reg_gender_${pIdx}`" value="P" v-model="participantsList[pIdx - 1].gender">
+                            <span>Perempuan</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: block;">Kelas / Tingkat</label>
+                        <select v-model="participantsList[pIdx - 1].grade" class="form-control" style="padding: 7px 10px; font-size: 0.82rem;">
+                          <option value="Kelas 7 SMP/MTs">Kelas 7 SMP/MTs</option>
+                          <option value="Kelas 8 SMP/MTs">Kelas 8 SMP/MTs</option>
+                          <option value="Kelas 9 SMP/MTs">Kelas 9 SMP/MTs</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                      <div>
+                        <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: block;">Tanggal Lahir (Opsional)</label>
+                        <input 
+                          type="date" 
+                          v-model="participantsList[pIdx - 1].birth_date"
+                          class="form-control" 
+                          style="padding: 7px 10px; font-size: 0.82rem;"
+                        />
+                      </div>
+                      <div>
+                        <label style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 3px; display: block;">NISN (Opsional)</label>
+                        <input 
+                          type="text" 
+                          v-model="participantsList[pIdx - 1].nisn"
+                          class="form-control" 
+                          style="padding: 7px 10px; font-size: 0.82rem;"
+                          placeholder="Nomor Induk Siswa"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- STANDARD PARTICIPANTS TEXTAREA (FALLBACK IF NO REPEATER) -->
+            <div v-else class="form-group">
               <label class="form-label" for="reg-peserta">Nama Lengkap Peserta / Anggota Tim *</label>
               <textarea 
                 id="reg-peserta" 

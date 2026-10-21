@@ -14,7 +14,7 @@ const props = defineProps({
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirmDialog();
 
-// Navigation & Mode State
+// Navigation & View Mode State
 const currentCompId = ref(props.selectedCompetition?.id || props.competitions[0]?.id || '');
 const viewMode = ref('split'); // 'builder' (Editor Penuh) | 'split' (Berdampingan) | 'preview' (Pratinjau Penuh)
 const previewDevice = ref('desktop'); // 'desktop' | 'mobile'
@@ -37,7 +37,7 @@ const isSaving = ref(false);
 const expandedMap = ref({});
 
 function isExpanded(id) {
-  return expandedMap.value[id] !== false; // Default true if not explicitly set to false
+  return expandedMap.value[id] !== false;
 }
 
 function toggleExpand(id) {
@@ -84,12 +84,44 @@ function initializeData() {
     fields.value = [];
   }
 
-  // Setup initial expansion: if more than 3 fields, expand first 2, collapse rest for neatness
+  // Ensure every field has conditional_logic and repeater properties initialized
+  fields.value.forEach(f => {
+    if (!f.conditional_logic || typeof f.conditional_logic !== 'object') {
+      f.conditional_logic = {
+        enabled: false,
+        depend_on_field: '',
+        operator: '==',
+        value: '',
+      };
+    }
+    if (f.type === 'participant_repeater') {
+      if (!f.max_items) f.max_items = 8;
+      if (!f.min_items) f.min_items = 1;
+      if (!f.sub_fields || typeof f.sub_fields !== 'object') {
+        f.sub_fields = {
+          name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+          gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+          birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+          grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+          nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
+        };
+      }
+    }
+  });
+
+  // Setup initial expansion: if more than 3 fields, expand first 2, collapse rest
   const newMap = {};
   fields.value.forEach((f, idx) => {
     newMap[f.id] = fields.value.length <= 3 ? true : (idx < 2);
   });
   expandedMap.value = newMap;
+
+  // Initialize preview values for repeaters
+  fields.value.forEach(f => {
+    if (f.type === 'participant_repeater') {
+      previewValues.value[f.name + '_count'] = 3;
+    }
+  });
 
   const s = props.selectedCompetition?.form_settings;
   if (s && typeof s === 'object') {
@@ -197,25 +229,60 @@ const coreIdentityPresets = [
     help_text: 'Tuliskan nama lengkap peserta delegasi dan tingkat kelas',
     required: true,
     icon: 'ri-team-line',
-    desc: 'Format fleksibel untuk individu maupun regu'
+    desc: 'Format fleksibel teks roster umum'
   },
 ];
 
-// 2. Toolbox Component Types
+// 2. Toolbox Component Types (Including Dynamic Participant Repeater with Logic)
 const fieldTypes = [
+  { 
+    type: 'participant_repeater', 
+    label: 'Biodata Peserta Dinamis (Multi-Siswa)', 
+    icon: 'ri-group-line', 
+    desc: 'Jumlah siswa otomatis memunculkan form biodata per-siswa (1 s.d. 8)', 
+    defaultOptions: [], 
+    badge: '⚡ Logika / Repeater',
+    isRepeater: true 
+  },
   { type: 'text', label: 'Teks Singkat', icon: 'ri-input-field', desc: 'Nama, NISN, ID, Judul', defaultOptions: [], badge: 'Umum' },
+  { type: 'number', label: 'Angka / Nominal', icon: 'ri-hashtag', desc: 'Jumlah peserta, usia, skor, no. urut', defaultOptions: [], badge: 'Numerik' },
   { type: 'textarea', label: 'Paragraf / Roster', icon: 'ri-text', desc: 'Deskripsi, daftar anggota, biodata', defaultOptions: [], badge: 'Teks Panjang' },
   { type: 'select', label: 'Pilihan Dropdown', icon: 'ri-arrow-down-s-line', desc: 'Pilih 1 dari daftar opsi', defaultOptions: ['Pilihan 1', 'Pilihan 2', 'Pilihan 3'], badge: 'Pilihan' },
   { type: 'radio', label: 'Pilihan Tunggal (Radio)', icon: 'ri-radio-button-line', desc: 'Pilihan eksklusif radio button', defaultOptions: ['Pilihan A', 'Pilihan B'], badge: 'Pilihan' },
   { type: 'checkbox', label: 'Pilihan Ganda (Checkbox)', icon: 'ri-checkbox-line', desc: 'Centang satu atau beberapa opsi', defaultOptions: ['Item 1', 'Item 2', 'Item 3'], badge: 'Pilihan' },
   { type: 'file', label: 'Upload Berkas / File', icon: 'ri-upload-cloud-2-line', desc: 'Unggah PDF, JPG, PNG, dll.', defaultOptions: [], badge: 'Media' },
   { type: 'url', label: 'Tautan / Link URL', icon: 'ri-link', desc: 'Link Google Drive, YouTube, dll.', defaultOptions: [], badge: 'Tautan' },
-  { type: 'number', label: 'Angka / Nominal', icon: 'ri-hashtag', desc: 'Usia, kelas, skor, no. urut', defaultOptions: [], badge: 'Numerik' },
   { type: 'date', label: 'Tanggal', icon: 'ri-calendar-line', desc: 'Tanggal lahir, tanggal terbit', defaultOptions: [], badge: 'Waktu' },
 ];
 
 // 3. Quick Preset Library
 const quickPresets = [
+  {
+    name: 'Biodata Kontingen Dinamis (Maksimal 8 Siswa)',
+    type: 'participant_repeater',
+    label: 'Biodata Siswa Delegasi',
+    help_text: 'Tentukan jumlah peserta yang didaftarkan, lalu lengkapi biodata masing-masing siswa.',
+    required: true,
+    max_items: 8,
+    min_items: 1,
+    sub_fields: {
+      name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
+    },
+    category: '⚡ Logika Dinamis',
+  },
+  {
+    name: 'Jumlah Peserta yang Dikirimkan',
+    type: 'number',
+    label: 'Jumlah Peserta yang Didaftarkan',
+    placeholder: 'Contoh: 3 (Maksimal 8)',
+    help_text: 'Tuliskan angka jumlah siswa yang didelegasikan oleh sekolah',
+    required: true,
+    category: 'Logika',
+  },
   {
     name: 'Nomor Induk Siswa (NISN)',
     type: 'text',
@@ -254,15 +321,6 @@ const quickPresets = [
     category: 'E-Sport',
   },
   {
-    name: 'Link Karya / Video (Drive/YT)',
-    type: 'url',
-    label: 'Link Video / Portofolio Karya',
-    placeholder: 'https://drive.google.com/...',
-    help_text: 'Tautan rekaman video atau portofolio digital (Pastikan diset publik)',
-    required: true,
-    category: 'Seni',
-  },
-  {
     name: 'Pilihan Golongan Juz',
     type: 'radio',
     label: 'Golongan Juz yang Diujikan',
@@ -270,15 +328,6 @@ const quickPresets = [
     required: true,
     options: ['Juz 1 s.d. 5', 'Juz 26 s.d. 30'],
     category: 'Keagamaan',
-  },
-  {
-    name: 'Roster Pemain & Posisi',
-    type: 'textarea',
-    label: 'Daftar Pemain & Posisi Lapangan',
-    placeholder: "1. Nama (No. Punggung - Posisi)\n2. Nama (No. Punggung - Posisi)...",
-    help_text: 'Sebutkan nomor punggung dan posisi masing-masing pemain',
-    required: true,
-    category: 'Olahraga',
   },
   {
     name: 'Surat Rekomendasi Resmi',
@@ -321,7 +370,7 @@ const displayedFields = computed(() => {
 // Add Field from Toolbox
 function addField(typeObj) {
   const id = generateId();
-  const label = `Pertanyaan Baru (${typeObj.label})`;
+  const label = typeObj.type === 'participant_repeater' ? 'Biodata Siswa Delegasi' : `Pertanyaan Baru (${typeObj.label})`;
   const name = makeSlug(label);
 
   const newField = {
@@ -330,15 +379,33 @@ function addField(typeObj) {
     label: label,
     type: typeObj.type,
     placeholder: '',
-    help_text: '',
-    required: false,
+    help_text: typeObj.type === 'participant_repeater' ? 'Jumlah biodata siswa yang tampil otomatis menyesuaikan angka yang dipilih pendaftar.' : '',
+    required: typeObj.type === 'participant_repeater',
     options: typeObj.defaultOptions ? [...typeObj.defaultOptions] : [],
     allowed_extensions: typeObj.type === 'file' ? ['pdf', 'jpg', 'jpeg', 'png'] : [],
     max_size_mb: typeObj.type === 'file' ? 5 : null,
+    min_items: typeObj.type === 'participant_repeater' ? 1 : null,
+    max_items: typeObj.type === 'participant_repeater' ? 8 : null,
+    sub_fields: typeObj.type === 'participant_repeater' ? {
+      name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
+    } : null,
+    conditional_logic: {
+      enabled: false,
+      depend_on_field: '',
+      operator: '==',
+      value: '',
+    }
   };
 
   fields.value.push(newField);
   expandedMap.value[id] = true;
+  if (typeObj.type === 'participant_repeater') {
+    previewValues.value[name + '_count'] = 3;
+  }
   toast.info(`Field "${typeObj.label}" ditambahkan.`);
 }
 
@@ -356,6 +423,12 @@ function addCorePreset(preset) {
     options: [],
     allowed_extensions: [],
     max_size_mb: null,
+    conditional_logic: {
+      enabled: false,
+      depend_on_field: '',
+      operator: '==',
+      value: '',
+    }
   };
 
   fields.value.push(newField);
@@ -366,9 +439,10 @@ function addCorePreset(preset) {
 // Add Quick Preset
 function addQuickPreset(preset) {
   const id = generateId();
+  const name = makeSlug(preset.label);
   const newField = {
     id: id,
-    name: makeSlug(preset.label),
+    name: name,
     label: preset.label,
     type: preset.type,
     placeholder: preset.placeholder || '',
@@ -377,10 +451,28 @@ function addQuickPreset(preset) {
     options: preset.options ? [...preset.options] : [],
     allowed_extensions: preset.allowed_extensions ? [...preset.allowed_extensions] : [],
     max_size_mb: preset.max_size_mb || (preset.type === 'file' ? 5 : null),
+    min_items: preset.min_items || (preset.type === 'participant_repeater' ? 1 : null),
+    max_items: preset.max_items || (preset.type === 'participant_repeater' ? 8 : null),
+    sub_fields: preset.sub_fields ? JSON.parse(JSON.stringify(preset.sub_fields)) : (preset.type === 'participant_repeater' ? {
+      name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
+    } : null),
+    conditional_logic: {
+      enabled: false,
+      depend_on_field: '',
+      operator: '==',
+      value: '',
+    }
   };
 
   fields.value.push(newField);
   expandedMap.value[id] = true;
+  if (preset.type === 'participant_repeater') {
+    previewValues.value[name + '_count'] = 3;
+  }
   toast.success(`Preset "${preset.name}" ditambahkan!`);
 }
 
@@ -508,6 +600,44 @@ function setFilePreset(field, preset) {
     field.allowed_extensions = ['pdf', 'jpg', 'jpeg', 'png', 'docx', 'zip'];
   }
   toast.info(`Preset format berkas "${preset}" diterapkan.`);
+}
+
+// Conditional Logic Evaluator for Forms
+function evaluateCondition(logic, values) {
+  if (!logic || !logic.enabled || !logic.depend_on_field) {
+    return true; // No active condition: always visible
+  }
+
+  const targetVal = values[logic.depend_on_field];
+  const compareVal = logic.value;
+  const op = logic.operator || '==';
+
+  if (targetVal === undefined || targetVal === null || targetVal === '') {
+    return false;
+  }
+
+  const numTarget = Number(targetVal);
+  const numCompare = Number(compareVal);
+  const isNumeric = !isNaN(numTarget) && !isNaN(numCompare) && compareVal !== '';
+
+  switch (op) {
+    case '==':
+      return String(targetVal).trim().toLowerCase() === String(compareVal).trim().toLowerCase();
+    case '!=':
+      return String(targetVal).trim().toLowerCase() !== String(compareVal).trim().toLowerCase();
+    case '>':
+      return isNumeric ? numTarget > numCompare : String(targetVal) > String(compareVal);
+    case '>=':
+      return isNumeric ? numTarget >= numCompare : String(targetVal) >= String(compareVal);
+    case '<':
+      return isNumeric ? numTarget < numCompare : String(targetVal) < String(compareVal);
+    case '<=':
+      return isNumeric ? numTarget <= numCompare : String(targetVal) <= String(compareVal);
+    case 'contains':
+      return String(targetVal).toLowerCase().includes(String(compareVal).toLowerCase());
+    default:
+      return true;
+  }
 }
 
 // Drag & Drop
@@ -661,6 +791,23 @@ onUnmounted(() => {
 
 // Interactive Live Preview Simulation State
 const previewValues = ref({});
+
+function changeParticipantCount(field, delta) {
+  const current = previewValues.value[field.name + '_count'] || 3;
+  const min = field.min_items || 1;
+  const max = field.max_items || 8;
+  const next = Math.max(min, Math.min(max, current + delta));
+  previewValues.value[field.name + '_count'] = next;
+  previewValues.value[field.name] = next; // Also update direct value for any condition watcher!
+}
+
+function setParticipantCountDirect(field, val) {
+  const min = field.min_items || 1;
+  const max = field.max_items || 8;
+  const next = Math.max(min, Math.min(max, Number(val) || min));
+  previewValues.value[field.name + '_count'] = next;
+  previewValues.value[field.name] = next;
+}
 </script>
 
 <template>
@@ -761,7 +908,6 @@ const previewValues = ref({});
 
             <!-- Right: Quick Tools & Save Button -->
             <div class="d-flex align-items-center gap-2">
-              <!-- Extra Actions Dropdown -->
               <div class="btn-group">
                 <button 
                   type="button" 
@@ -797,7 +943,6 @@ const previewValues = ref({});
                 </ul>
               </div>
 
-              <!-- Save Button -->
               <button 
                 type="button" 
                 class="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 fw-bold px-3 shadow-sm save-btn"
@@ -819,8 +964,6 @@ const previewValues = ref({});
       <!-- ============================================================== -->
       <!-- MAIN WORKSPACE CONTENT                                         -->
       <!-- ============================================================== -->
-      
-      <!-- MODE 1: BUILDER & SPLIT VIEW -->
       <div v-show="viewMode !== 'preview'" class="row g-3">
         
         <!-- LEFT COLUMN: UNIFIED SMART TOOLBOX (Sticky & Tabbed) -->
@@ -900,15 +1043,22 @@ const previewValues = ref({});
                   :key="ft.type"
                   type="button" 
                   class="btn btn-sm btn-outline-light text-start p-2 rounded-2 border d-flex align-items-center justify-content-between transition-all hover-tool-card"
+                  :class="{ 'border-warning-subtle bg-warning-subtle/10': ft.isRepeater }"
                   @click="addField(ft)"
                   :title="`Klik untuk menambahkan pertanyaan bertipe ${ft.label}`"
                 >
                   <div class="d-flex align-items-center gap-2 text-truncate">
-                    <div class="tool-icon-box rounded-2 flex-shrink-0 d-flex align-items-center justify-content-center">
-                      <i :class="ft.icon" class="fs-15 text-primary"></i>
+                    <div 
+                      class="tool-icon-box rounded-2 flex-shrink-0 d-flex align-items-center justify-content-center"
+                      :class="ft.isRepeater ? 'bg-warning-subtle text-warning' : ''"
+                    >
+                      <i :class="[ft.icon, ft.isRepeater ? 'text-warning' : 'text-primary']" class="fs-15"></i>
                     </div>
                     <div class="text-truncate">
-                      <div class="fs-12 fw-bold text-dark text-truncate lh-sm">{{ ft.label }}</div>
+                      <div class="fs-12 fw-bold text-dark text-truncate lh-sm d-flex align-items-center gap-1">
+                        <span>{{ ft.label }}</span>
+                        <span v-if="ft.isRepeater" class="badge bg-warning text-dark fs-9 px-1 py-0">Baru</span>
+                      </div>
                       <div class="text-muted fs-10 text-truncate lh-sm mt-0.5">{{ ft.desc }}</div>
                     </div>
                   </div>
@@ -932,7 +1082,7 @@ const previewValues = ref({});
                   <div class="d-flex align-items-center gap-2 text-truncate">
                     <div class="tool-icon-box rounded-2 flex-shrink-0 d-flex align-items-center justify-content-center bg-warning-subtle text-warning">
                       <i 
-                        :class="qp.type === 'file' ? 'ri-upload-cloud-2-line text-danger' : (qp.type === 'url' ? 'ri-link text-info' : (qp.type === 'radio' ? 'ri-radio-button-line text-success' : 'ri-flashlight-line text-warning'))"
+                        :class="qp.type === 'participant_repeater' ? 'ri-group-line text-warning' : (qp.type === 'file' ? 'ri-upload-cloud-2-line text-danger' : (qp.type === 'url' ? 'ri-link text-info' : (qp.type === 'radio' ? 'ri-radio-button-line text-success' : 'ri-flashlight-line text-warning')))"
                         class="fs-15"
                       ></i>
                     </div>
@@ -1008,7 +1158,7 @@ const previewValues = ref({});
                     </span>
                   </h5>
                   <p class="text-muted fs-11 mb-0 mt-0.5">
-                    Urutkan dan sesuaikan konfigurasi formulir bebas tanpa terkunci.
+                    Urutkan dan sesuaikan konfigurasi logika & formulir bebas tanpa terkunci.
                   </p>
                 </div>
 
@@ -1035,7 +1185,7 @@ const previewValues = ref({});
                 </div>
               </div>
 
-              <!-- Quick Canvas Field Search (if fields > 5) -->
+              <!-- Quick Canvas Field Search -->
               <div v-if="fields.length > 5" class="mt-2.5">
                 <div class="input-group input-group-sm">
                   <span class="input-group-text bg-light border-0 text-muted"><i class="ri-search-line"></i></span>
@@ -1092,7 +1242,8 @@ const previewValues = ref({});
                   :class="{ 
                     'drag-over': dragOverIndex === index,
                     'is-expanded': isExpanded(field.id),
-                    'border-primary-subtle': field.required,
+                    'border-warning-subtle': field.type === 'participant_repeater',
+                    'border-primary-subtle': field.required && field.type !== 'participant_repeater',
                     'border-light-subtle': !field.required
                   }"
                   @dragover="onDragOver(index, $event)"
@@ -1127,6 +1278,7 @@ const previewValues = ref({});
                       <span 
                         class="badge fs-10 px-2 py-0.5 rounded-pill text-uppercase d-inline-flex align-items-center gap-1"
                         :class="{
+                          'bg-warning-subtle text-warning-emphasis border border-warning-subtle': field.type === 'participant_repeater',
                           'bg-primary-subtle text-primary': field.type === 'text',
                           'bg-info-subtle text-info': field.type === 'textarea' || field.type === 'url',
                           'bg-success-subtle text-success': field.type === 'select' || field.type === 'radio' || field.type === 'checkbox',
@@ -1134,13 +1286,22 @@ const previewValues = ref({});
                           'bg-secondary-subtle text-secondary': field.type === 'number' || field.type === 'date'
                         }"
                       >
-                        <i :class="field.type === 'file' ? 'ri-upload-cloud-2-line' : (field.type === 'url' ? 'ri-link' : (field.type === 'select' ? 'ri-arrow-down-s-line' : 'ri-input-field'))"></i>
-                        <span>{{ field.type }}</span>
+                        <i :class="field.type === 'participant_repeater' ? 'ri-group-line' : (field.type === 'file' ? 'ri-upload-cloud-2-line' : (field.type === 'url' ? 'ri-link' : (field.type === 'select' ? 'ri-arrow-down-s-line' : 'ri-input-field')))"></i>
+                        <span>{{ field.type === 'participant_repeater' ? 'Multi-Peserta (Maks. ' + (field.max_items || 8) + ')' : field.type }}</span>
                       </span>
 
                       <!-- Question Label Title -->
                       <span class="fs-13 fw-bold text-dark text-truncate field-title-text">
                         {{ field.label || '(Pertanyaan Tanpa Judul)' }}
+                      </span>
+
+                      <!-- Conditional Logic Active Badge -->
+                      <span 
+                        v-if="field.conditional_logic?.enabled"
+                        class="badge bg-warning-subtle text-warning border border-warning-subtle fs-10 d-inline-flex align-items-center gap-1"
+                        title="Pertanyaan ini memiliki aturan logika bersyarat"
+                      >
+                        <i class="ri-flashlight-line"></i> Bersyarat
                       </span>
 
                       <!-- Variable Key Tag -->
@@ -1236,7 +1397,7 @@ const previewValues = ref({});
                             type="text" 
                             v-model="field.label"
                             class="form-control fs-12 fw-semibold"
-                            placeholder="Contoh: Nama Sekolah / Asal Kontingen / NISN..."
+                            placeholder="Contoh: Biodata Siswa Delegasi / Nama Sekolah / NISN..."
                             required
                           />
                         </div>
@@ -1254,8 +1415,8 @@ const previewValues = ref({});
                         </select>
                       </div>
 
-                      <!-- Placeholder Input -->
-                      <div v-if="!['file', 'radio', 'checkbox'].includes(field.type)" class="col-md-6">
+                      <!-- Placeholder Input (Except for repeater, file, radio, checkbox) -->
+                      <div v-if="!['participant_repeater', 'file', 'radio', 'checkbox'].includes(field.type)" class="col-md-6">
                         <label class="form-label fs-11 text-muted mb-1">
                           Placeholder (Contoh Teks di dalam input)
                         </label>
@@ -1268,7 +1429,7 @@ const previewValues = ref({});
                       </div>
 
                       <!-- Petunjuk Bantuan (Help Text) -->
-                      <div :class="!['file', 'radio', 'checkbox'].includes(field.type) ? 'col-md-6' : 'col-12'">
+                      <div :class="!['participant_repeater', 'file', 'radio', 'checkbox'].includes(field.type) ? 'col-md-6' : 'col-12'">
                         <label class="form-label fs-11 text-muted mb-1">
                           Petunjuk Bantuan Tambahan (Help Text)
                         </label>
@@ -1276,8 +1437,86 @@ const previewValues = ref({});
                           type="text" 
                           v-model="field.help_text"
                           class="form-control form-control-sm fs-12"
-                          placeholder="Contoh: Pastikan sesuai KTP / Akta Kelahiran..."
+                          placeholder="Contoh: Tentukan jumlah peserta yang didaftarkan..."
                         />
+                      </div>
+
+                      <!-- ============================================================ -->
+                      <!-- PARTICIPANT REPEATER SPECIAL CONFIGURATION (LOGIKA DINAMIS)  -->
+                      <!-- ============================================================ -->
+                      <div v-if="field.type === 'participant_repeater'" class="col-12">
+                        <div class="p-3 bg-warning-subtle/20 rounded-3 border border-warning-subtle">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <label class="form-label fs-12 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
+                              <i class="ri-group-line text-warning fs-16"></i>
+                              <span>Konfigurasi Kuota & Biodata Peserta Dinamis</span>
+                            </label>
+                            <span class="badge bg-warning text-dark fs-10 font-mono">Otomatisasi Form</span>
+                          </div>
+
+                          <p class="text-muted fs-11 mb-3">
+                            Tentukan batas maksimal peserta dalam 1 kontingen. Pendaftar bebas memilih jumlah siswa yang didaftarkan (misal 3 dari kuota 8), dan formulir secara otomatis menghasilkan 3 kolom biodata siswa.
+                          </p>
+
+                          <div class="row g-3">
+                            <!-- Min & Max Items -->
+                            <div class="col-md-6">
+                              <label class="form-label fs-11 fw-bold text-dark mb-1">
+                                Jumlah Maksimal Peserta per Kontingen:
+                              </label>
+                              <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light text-muted fs-11">Maks</span>
+                                <input 
+                                  type="number" 
+                                  v-model.number="field.max_items"
+                                  class="form-control fs-12 font-mono fw-bold"
+                                  min="1"
+                                  max="30"
+                                />
+                                <span class="input-group-text bg-light text-muted fs-11">Siswa / Tim</span>
+                              </div>
+                              <!-- Quick preset chips -->
+                              <div class="d-flex gap-1.5 mt-1.5 flex-wrap">
+                                <span class="text-muted fs-10 me-1">Pilihan Cepat:</span>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1.5 fs-10" @click="field.max_items = 3">3 Siswa</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1.5 fs-10" @click="field.max_items = 5">5 Siswa</button>
+                                <button type="button" class="btn btn-xs btn-warning py-0 px-1.5 fs-10 fw-bold" @click="field.max_items = 8">8 Siswa (Default)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1.5 fs-10" @click="field.max_items = 12">12 Siswa</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1.5 fs-10" @click="field.max_items = 16">16 Siswa</button>
+                              </div>
+                            </div>
+
+                            <!-- Sub-fields toggles -->
+                            <div class="col-md-6">
+                              <label class="form-label fs-11 fw-bold text-dark mb-1">
+                                Kolom Biodata Siswa yang Diaktifkan:
+                              </label>
+                              <div class="d-flex flex-column gap-1.5 p-2 bg-body rounded border">
+                                <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                  <input type="checkbox" class="form-check-input" checked disabled />
+                                  <span class="text-dark fw-semibold">Nama Lengkap Siswa</span>
+                                  <span class="badge bg-danger-subtle text-danger fs-9 ms-auto">Wajib</span>
+                                </label>
+                                <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                  <input type="checkbox" class="form-check-input" v-model="field.sub_fields.gender.active" />
+                                  <span class="text-dark">Jenis Kelamin (Laki-laki / Perempuan)</span>
+                                </label>
+                                <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                  <input type="checkbox" class="form-check-input" v-model="field.sub_fields.birth_date.active" />
+                                  <span class="text-dark">Tanggal Lahir Siswa</span>
+                                </label>
+                                <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                  <input type="checkbox" class="form-check-input" v-model="field.sub_fields.grade.active" />
+                                  <span class="text-dark">Kelas / Tingkat (Kelas 7, 8, 9)</span>
+                                </label>
+                                <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                  <input type="checkbox" class="form-check-input" v-model="field.sub_fields.nisn.active" />
+                                  <span class="text-dark">Nomor Induk Siswa Nasional (NISN)</span>
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       <!-- Options Editor for Select, Radio, Checkbox -->
@@ -1289,7 +1528,6 @@ const previewValues = ref({});
                               <span>Daftar Pilihan Opsi ({{ field.options?.length || 0 }})</span>
                             </label>
                             
-                            <!-- Option Presets & Bulk Editor Actions -->
                             <div class="d-flex align-items-center gap-1.5">
                               <button 
                                 type="button" 
@@ -1356,14 +1594,11 @@ const previewValues = ref({});
                       <div v-if="field.type === 'file'" class="col-12">
                         <div class="p-3 bg-danger-subtle/20 rounded-3 border border-danger-subtle">
                           <div class="row g-2.5">
-                            
-                            <!-- Allowed Extensions with Preset Helpers -->
                             <div class="col-md-7">
                               <div class="d-flex align-items-center justify-content-between mb-1.5">
                                 <label class="form-label fs-11 fw-bold text-dark mb-0">
                                   <i class="ri-file-shield-2-line text-danger me-1"></i> Format Berkas Diizinkan:
                                 </label>
-                                <!-- Format Presets -->
                                 <div class="d-flex gap-1">
                                   <button type="button" class="btn btn-xs btn-ghost-danger py-0 px-1 text-[10px]" @click="setFilePreset(field, 'pdf')">PDF Saja</button>
                                   <button type="button" class="btn btn-xs btn-ghost-danger py-0 px-1 text-[10px]" @click="setFilePreset(field, 'images')">Foto/JPG</button>
@@ -1386,7 +1621,6 @@ const previewValues = ref({});
                               </div>
                             </div>
 
-                            <!-- Max File Size -->
                             <div class="col-md-5">
                               <label class="form-label fs-11 fw-bold text-dark mb-1">
                                 Ukuran Maksimal Berkas
@@ -1407,7 +1641,81 @@ const previewValues = ref({});
                                 <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" @click="field.max_size_mb = 10">10MB</button>
                               </div>
                             </div>
+                          </div>
+                        </div>
+                      </div>
 
+                      <!-- ============================================================ -->
+                      <!-- GENERAL CONDITIONAL LOGIC ACCORDION FOR EVERY FIELD          -->
+                      <!-- ============================================================ -->
+                      <div class="col-12 mt-2 pt-2 border-top">
+                        <div class="p-2.5 rounded-3 border bg-body">
+                          <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-2">
+                              <i class="ri-flashlight-line text-warning fs-15"></i>
+                              <div>
+                                <span class="fs-12 fw-bold text-dark">Logika Bersyarat (Conditional Logic)</span>
+                                <span class="text-muted fs-10 d-block">Tampilkan pertanyaan ini hanya jika syarat terpenuhi</span>
+                              </div>
+                            </div>
+                            <div class="form-check form-switch mb-0">
+                              <input 
+                                class="form-check-input cursor-pointer" 
+                                type="checkbox" 
+                                role="switch"
+                                :id="`logic-switch-${field.id}`"
+                                v-model="field.conditional_logic.enabled"
+                              />
+                            </div>
+                          </div>
+
+                          <!-- Conditional Logic Configuration Panel -->
+                          <div v-if="field.conditional_logic?.enabled" class="mt-2.5 pt-2.5 border-top">
+                            <div class="row g-2 align-items-center">
+                              <div class="col-sm-4">
+                                <label class="form-label fs-10 text-muted mb-1">Tampilkan Jika Pertanyaan:</label>
+                                <select v-model="field.conditional_logic.depend_on_field" class="form-select form-select-sm fs-11">
+                                  <option value="" disabled selected>-- Pilih Pertanyaan Target --</option>
+                                  <option 
+                                    v-for="other in fields.filter(f => f.id !== field.id)" 
+                                    :key="other.id" 
+                                    :value="other.name"
+                                  >
+                                    {{ other.label }} ({{ other.name }})
+                                  </option>
+                                </select>
+                              </div>
+
+                              <div class="col-sm-3">
+                                <label class="form-label fs-10 text-muted mb-1">Operator Kondisi:</label>
+                                <select v-model="field.conditional_logic.operator" class="form-select form-select-sm fs-11">
+                                  <option value="==">Sama dengan (==)</option>
+                                  <option value="!=">Tidak sama dengan (!=)</option>
+                                  <option value=">=">Lebih besar / sama (>=)</option>
+                                  <option value="<=">Lebih kecil / sama (<=)</option>
+                                  <option value=">">Lebih besar dari (>)</option>
+                                  <option value="<">Lebih kecil dari (<)</option>
+                                  <option value="contains">Mengandung kata</option>
+                                </select>
+                              </div>
+
+                              <div class="col-sm-5">
+                                <label class="form-label fs-10 text-muted mb-1">Nilai Pembanding / Angka:</label>
+                                <input 
+                                  type="text" 
+                                  v-model="field.conditional_logic.value"
+                                  class="form-control form-control-sm fs-11 font-mono"
+                                  placeholder="Contoh: 3 / Ya / Paket Satuan"
+                                />
+                              </div>
+                            </div>
+
+                            <div v-if="field.conditional_logic.depend_on_field" class="mt-2 p-1.5 rounded bg-warning-subtle/30 text-warning-emphasis fs-10 d-flex align-items-center gap-1.5">
+                              <i class="ri-information-line fs-13"></i>
+                              <span>
+                                Pertanyaan ini <strong>HANYA akan muncul</strong> jika <code>{{ field.conditional_logic.depend_on_field }}</code> bernilai <strong>{{ field.conditional_logic.operator }} '{{ field.conditional_logic.value }}'</strong>.
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1426,7 +1734,8 @@ const previewValues = ref({});
               <div class="text-muted fs-11">
                 Total <strong>{{ fields.length }} pertanyaan</strong> dikonfigurasi • 
                 <span class="text-danger fw-semibold">{{ fields.filter(f => f.required).length }} Wajib</span>, 
-                <span class="text-secondary">{{ fields.filter(f => !f.required).length }} Opsional</span>
+                <span class="text-secondary">{{ fields.filter(f => !f.required).length }} Opsional</span> •
+                <span class="text-warning-emphasis fw-semibold">{{ fields.filter(f => f.conditional_logic?.enabled).length }} Logika Bersyarat</span>
               </div>
               <button 
                 type="button" 
@@ -1441,7 +1750,7 @@ const previewValues = ref({});
           </div>
         </div>
 
-        <!-- RIGHT COLUMN (ONLY IN SPLIT VIEW): LIVE INTERACTIVE DEVICE PREVIEW -->
+        <!-- RIGHT COLUMN (ONLY IN SPLIT VIEW): LIVE INTERACTIVE DEVICE PREVIEW WITH LOGIC -->
         <div v-if="viewMode === 'split'" class="col-xl-4 col-lg-12">
           <div class="card border-0 shadow-sm sticky-preview-card">
             
@@ -1449,7 +1758,7 @@ const previewValues = ref({});
             <div class="card-header bg-slate-900 text-white py-2.5 px-3 d-flex align-items-center justify-content-between">
               <div class="d-flex align-items-center gap-2">
                 <span class="badge bg-emerald-500 text-slate-950 fw-bold fs-10">LIVE PREVIEW</span>
-                <span class="fs-12 fw-semibold text-slate-300">Formulir Publik</span>
+                <span class="fs-12 fw-semibold text-slate-300">Formulir Publik & Logika</span>
               </div>
 
               <!-- Device Switcher -->
@@ -1512,117 +1821,243 @@ const previewValues = ref({});
                     </div>
                   </div>
 
-                  <!-- Dynamic Fields Preview -->
+                  <!-- Dynamic Fields Preview with Real-Time Logic Evaluation -->
                   <div class="space-y-3.5 text-xs">
                     <div v-if="fields.length === 0" class="p-3 rounded-xl bg-slate-950 border border-slate-800 text-center text-slate-500 text-[11px]">
                       Belum ada field pertanyaan.
                     </div>
 
-                    <div 
-                      v-for="field in fields" 
-                      :key="field.id"
-                      class="space-y-1"
-                    >
-                      <!-- Label -->
-                      <label class="block text-slate-200 font-bold text-[11px]">
-                        {{ field.label }}
-                        <span v-if="field.required" class="text-rose-400 ml-0.5">*</span>
-                        <span v-else class="text-slate-500 font-normal text-[10px] ml-1">(Opsional)</span>
-                      </label>
+                    <template v-for="field in fields" :key="field.id">
+                      <!-- Evaluate Conditional Logic: If condition not met, hide! -->
+                      <div 
+                        v-if="evaluateCondition(field.conditional_logic, previewValues)"
+                        class="space-y-1.5 transition-all"
+                      >
+                        <!-- Label -->
+                        <label class="block text-slate-200 font-bold text-[11px] d-flex align-items-center justify-content-between">
+                          <span>
+                            {{ field.label }}
+                            <span v-if="field.required" class="text-rose-400 ml-0.5">*</span>
+                            <span v-else class="text-slate-500 font-normal text-[10px] ml-1">(Opsional)</span>
+                          </span>
+                          <span v-if="field.conditional_logic?.enabled" class="badge bg-warning-subtle text-amber-300 text-[9px] px-1 py-0">
+                            ⚡ Aktif Bersyarat
+                          </span>
+                        </label>
 
-                      <!-- Inputs -->
-                      <div v-if="['text', 'number', 'url'].includes(field.type)">
-                        <input 
-                          :type="field.type" 
-                          v-model="previewValues[field.name]"
-                          :placeholder="field.placeholder || `Masukkan ${field.label}...`"
-                          class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
-                        />
-                      </div>
+                        <!-- SPECIAL COMPONENT: PARTICIPANT REPEATER (DINAMIS 1 s.d. 8) -->
+                        <div v-if="field.type === 'participant_repeater'" class="space-y-2.5 pt-1">
+                          
+                          <!-- Stepper Control: Jumlah Siswa yang Didaftarkan -->
+                          <div class="p-2.5 rounded-xl bg-slate-950 border border-amber-500/30 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div>
+                              <div class="text-slate-200 font-bold text-[11px] d-flex align-items-center gap-1.5">
+                                <i class="ri-user-follow-line text-amber-400"></i>
+                                <span>Jumlah Peserta Didaftarkan:</span>
+                              </div>
+                              <div class="text-[10px] text-slate-400 mt-0.5">
+                                Maksimal kuota: <strong>{{ field.max_items || 8 }} Siswa</strong> (Min. {{ field.min_items || 1 }})
+                              </div>
+                            </div>
 
-                      <div v-else-if="field.type === 'textarea'">
-                        <textarea 
-                          rows="2"
-                          v-model="previewValues[field.name]"
-                          :placeholder="field.placeholder || `Tuliskan ${field.label}...`"
-                          class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
-                        ></textarea>
-                      </div>
+                            <div class="d-flex align-items-center gap-1.5">
+                              <button 
+                                type="button" 
+                                class="btn btn-xs btn-outline-secondary text-slate-300 px-2 py-1"
+                                :disabled="(previewValues[field.name + '_count'] || 3) <= (field.min_items || 1)"
+                                @click="changeParticipantCount(field, -1)"
+                              >
+                                <i class="ri-subtract-line"></i>
+                              </button>
+                              <span class="badge bg-slate-900 border border-slate-700 font-mono text-amber-400 font-bold fs-12 px-2.5 py-1">
+                                {{ previewValues[field.name + '_count'] || 3 }} Siswa
+                              </span>
+                              <button 
+                                type="button" 
+                                class="btn btn-xs btn-outline-secondary text-slate-300 px-2 py-1"
+                                :disabled="(previewValues[field.name + '_count'] || 3) >= (field.max_items || 8)"
+                                @click="changeParticipantCount(field, 1)"
+                              >
+                                <i class="ri-add-line"></i>
+                              </button>
+                            </div>
+                          </div>
 
-                      <div v-else-if="field.type === 'select'">
-                        <select 
-                          v-model="previewValues[field.name]"
-                          class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
-                        >
-                          <option value="" disabled selected>-- Pilih {{ field.label }} --</option>
-                          <option v-for="(opt, optIdx) in field.options" :key="optIdx" :value="opt">
-                            {{ opt }}
-                          </option>
-                        </select>
-                      </div>
+                          <!-- Dynamic Student Biodata Forms (1 s.d. N Sesuai Pilihan) -->
+                          <div class="space-y-2">
+                            <div 
+                              v-for="pIdx in (previewValues[field.name + '_count'] || 3)" 
+                              :key="pIdx"
+                              class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 transition-all"
+                            >
+                              <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-b border-slate-800/80">
+                                <span class="text-[11px] font-bold text-amber-300 d-flex align-items-center gap-1">
+                                  <i class="ri-user-line text-emerald-400"></i>
+                                  <span>Biodata Siswa #{{ pIdx }}</span>
+                                </span>
+                                <span class="badge bg-slate-900 text-slate-400 text-[9px] font-mono">
+                                  Peserta {{ pIdx }} dari {{ previewValues[field.name + '_count'] || 3 }}
+                                </span>
+                              </div>
 
-                      <div v-else-if="field.type === 'radio'" class="space-y-1.5 pt-0.5">
-                        <label 
-                          v-for="(opt, optIdx) in field.options" 
-                          :key="optIdx"
-                          class="flex items-center gap-2 p-2 rounded-lg border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 text-[11px]"
-                        >
+                              <div class="space-y-2 text-xs">
+                                <!-- Nama Siswa -->
+                                <div v-if="field.sub_fields?.name?.active !== false">
+                                  <label class="block text-[10px] text-slate-400 mb-0.5">Nama Lengkap Siswa *</label>
+                                  <input 
+                                    type="text" 
+                                    :placeholder="`Nama Siswa Peserta ${pIdx}...`"
+                                    class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
+                                  />
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2">
+                                  <!-- Jenis Kelamin -->
+                                  <div v-if="field.sub_fields?.gender?.active !== false">
+                                    <label class="block text-[10px] text-slate-400 mb-0.5">Jenis Kelamin</label>
+                                    <div class="flex gap-1.5">
+                                      <label class="flex items-center gap-1 p-1.5 rounded bg-slate-900 border border-slate-800 cursor-pointer text-[10px] flex-1">
+                                        <input type="radio" :name="`p_gender_${field.name}_${pIdx}`" value="L" checked class="text-amber-500" />
+                                        <span class="text-slate-300">L</span>
+                                      </label>
+                                      <label class="flex items-center gap-1 p-1.5 rounded bg-slate-900 border border-slate-800 cursor-pointer text-[10px] flex-1">
+                                        <input type="radio" :name="`p_gender_${field.name}_${pIdx}`" value="P" class="text-amber-500" />
+                                        <span class="text-slate-300">P</span>
+                                      </label>
+                                    </div>
+                                  </div>
+
+                                  <!-- Kelas -->
+                                  <div v-if="field.sub_fields?.grade?.active !== false">
+                                    <label class="block text-[10px] text-slate-400 mb-0.5">Kelas / Tingkat</label>
+                                    <select class="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-[11px]">
+                                      <option value="Kelas 7">Kelas 7</option>
+                                      <option value="Kelas 8">Kelas 8</option>
+                                      <option value="Kelas 9" selected>Kelas 9</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2">
+                                  <!-- Tanggal Lahir -->
+                                  <div v-if="field.sub_fields?.birth_date?.active !== false">
+                                    <label class="block text-[10px] text-slate-400 mb-0.5">Tgl Lahir</label>
+                                    <input 
+                                      type="date" 
+                                      class="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white text-[11px]"
+                                    />
+                                  </div>
+
+                                  <!-- NISN -->
+                                  <div v-if="field.sub_fields?.nisn?.active !== false">
+                                    <label class="block text-[10px] text-slate-400 mb-0.5">NISN</label>
+                                    <input 
+                                      type="text" 
+                                      placeholder="008xxxxxxx"
+                                      class="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white text-[11px]"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                        </div>
+
+                        <!-- STANDARD INPUT TYPES -->
+                        <div v-else-if="['text', 'number', 'url'].includes(field.type)">
                           <input 
-                            type="radio" 
-                            :name="`preview_split_${field.name}`" 
-                            :value="opt" 
+                            :type="field.type" 
                             v-model="previewValues[field.name]"
-                            class="text-amber-500 focus:ring-0"
+                            :placeholder="field.placeholder || `Masukkan ${field.label}...`"
+                            class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
                           />
-                          <span class="text-slate-300">{{ opt }}</span>
-                        </label>
-                      </div>
+                        </div>
 
-                      <div v-else-if="field.type === 'checkbox'" class="space-y-1.5 pt-0.5">
-                        <label 
-                          v-for="(opt, optIdx) in field.options" 
-                          :key="optIdx"
-                          class="flex items-center gap-2 p-2 rounded-lg border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 text-[11px]"
-                        >
-                          <input 
-                            type="checkbox" 
-                            :value="opt" 
-                            class="text-amber-500 rounded focus:ring-0"
-                          />
-                          <span class="text-slate-300">{{ opt }}</span>
-                        </label>
-                      </div>
+                        <div v-else-if="field.type === 'textarea'">
+                          <textarea 
+                            rows="2"
+                            v-model="previewValues[field.name]"
+                            :placeholder="field.placeholder || `Tuliskan ${field.label}...`"
+                            class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
+                          ></textarea>
+                        </div>
 
-                      <div v-else-if="field.type === 'file'" class="pt-0.5">
-                        <div class="border border-dashed border-slate-800 hover:border-amber-500/50 rounded-xl p-3 text-center bg-slate-950/70 transition-all cursor-pointer">
-                          <i class="ri-upload-cloud-2-line text-lg text-amber-400 mb-0.5 d-block"></i>
-                          <div class="text-slate-300 font-semibold text-[11px]">Unggah Berkas</div>
-                          <div class="text-[10px] text-slate-500 mt-0.5">
-                            {{ field.allowed_extensions?.join(', ') || 'Semua format' }} • Max {{ field.max_size_mb || 5 }} MB
+                        <div v-else-if="field.type === 'select'">
+                          <select 
+                            v-model="previewValues[field.name]"
+                            class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                          >
+                            <option value="" disabled selected>-- Pilih {{ field.label }} --</option>
+                            <option v-for="(opt, optIdx) in field.options" :key="optIdx" :value="opt">
+                              {{ opt }}
+                            </option>
+                          </select>
+                        </div>
+
+                        <div v-else-if="field.type === 'radio'" class="space-y-1.5 pt-0.5">
+                          <label 
+                            v-for="(opt, optIdx) in field.options" 
+                            :key="optIdx"
+                            class="flex items-center gap-2 p-2 rounded-lg border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 text-[11px]"
+                          >
+                            <input 
+                              type="radio" 
+                              :name="`preview_split_${field.name}`" 
+                              :value="opt" 
+                              v-model="previewValues[field.name]"
+                              class="text-amber-500 focus:ring-0"
+                            />
+                            <span class="text-slate-300">{{ opt }}</span>
+                          </label>
+                        </div>
+
+                        <div v-else-if="field.type === 'checkbox'" class="space-y-1.5 pt-0.5">
+                          <label 
+                            v-for="(opt, optIdx) in field.options" 
+                            :key="optIdx"
+                            class="flex items-center gap-2 p-2 rounded-lg border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 text-[11px]"
+                          >
+                            <input 
+                              type="checkbox" 
+                              :value="opt" 
+                              class="text-amber-500 rounded focus:ring-0"
+                            />
+                            <span class="text-slate-300">{{ opt }}</span>
+                          </label>
+                        </div>
+
+                        <div v-else-if="field.type === 'file'" class="pt-0.5">
+                          <div class="border border-dashed border-slate-800 hover:border-amber-500/50 rounded-xl p-3 text-center bg-slate-950/70 transition-all cursor-pointer">
+                            <i class="ri-upload-cloud-2-line text-lg text-amber-400 mb-0.5 d-block"></i>
+                            <div class="text-slate-300 font-semibold text-[11px]">Unggah Berkas</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">
+                              {{ field.allowed_extensions?.join(', ') || 'Semua format' }} • Max {{ field.max_size_mb || 5 }} MB
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div v-else-if="field.type === 'date'">
-                        <input 
-                          type="date" 
-                          v-model="previewValues[field.name]"
-                          class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
-                        />
-                      </div>
+                        <div v-else-if="field.type === 'date'">
+                          <input 
+                            type="date" 
+                            v-model="previewValues[field.name]"
+                            class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                          />
+                        </div>
 
-                      <!-- Help Text -->
-                      <div v-if="field.help_text" class="text-[10px] text-slate-500">
-                        <i class="ri-information-line me-0.5"></i> {{ field.help_text }}
+                        <!-- Help Text -->
+                        <div v-if="field.help_text" class="text-[10px] text-slate-500">
+                          <i class="ri-information-line me-0.5"></i> {{ field.help_text }}
+                        </div>
                       </div>
-                    </div>
+                    </template>
 
                     <!-- Submit Button Simulation -->
                     <div class="pt-2 mt-4 border-t border-slate-800">
                       <button 
                         type="button" 
                         class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-[11px] uppercase tracking-wider shadow-md"
-                        @click="toast.success('Pengujian form sukses!')"
+                        @click="toast.success('Pengujian form dan logika berhasil!')"
                       >
                         {{ formSettings.submit_text || 'Kirim Pendaftaran' }}
                       </button>
@@ -1642,7 +2077,7 @@ const previewValues = ref({});
       <div v-show="viewMode === 'preview'" class="card border-0 shadow-sm full-preview-card">
         <div class="card-header bg-slate-900 text-white py-3 px-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-emerald-500 text-slate-950 fw-bold fs-11">SIMULASI FORMULIR LENGKAP</span>
+            <span class="badge bg-emerald-500 text-slate-950 fw-bold fs-11">SIMULASI FORMULIR LENGKAP & LOGIKA</span>
             <h5 class="fs-15 fw-bold text-white mb-0">{{ selectedCompetition?.title }}</h5>
           </div>
 
@@ -1711,107 +2146,220 @@ const previewValues = ref({});
                 </div>
               </div>
 
-              <!-- Fields List -->
+              <!-- Fields List with Logic Evaluation in Full Preview -->
               <div class="space-y-4 text-xs">
                 <div v-if="fields.length === 0" class="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-center text-slate-500">
                   Belum ada pertanyaan pada formulir ini.
                 </div>
 
-                <div 
-                  v-for="field in fields" 
-                  :key="field.id"
-                  class="space-y-1.5"
-                >
-                  <label class="block text-slate-200 font-bold">
-                    {{ field.label }}
-                    <span v-if="field.required" class="text-rose-400 ml-0.5">*</span>
-                    <span v-else class="text-slate-500 font-normal text-[11px] ml-1">(Opsional)</span>
-                  </label>
-
-                  <div v-if="['text', 'number', 'url'].includes(field.type)">
-                    <input 
-                      :type="field.type" 
-                      v-model="previewValues[field.name]"
-                      :placeholder="field.placeholder || `Masukkan ${field.label}...`"
-                      class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
-                    />
-                  </div>
-
-                  <div v-else-if="field.type === 'textarea'">
-                    <textarea 
-                      rows="3"
-                      v-model="previewValues[field.name]"
-                      :placeholder="field.placeholder || `Tuliskan ${field.label}...`"
-                      class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
-                    ></textarea>
-                  </div>
-
-                  <div v-else-if="field.type === 'select'">
-                    <select 
-                      v-model="previewValues[field.name]"
-                      class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
-                    >
-                      <option value="" disabled selected>-- Pilih Opsi {{ field.label }} --</option>
-                      <option v-for="(opt, optIdx) in field.options" :key="optIdx" :value="opt">
-                        {{ opt }}
-                      </option>
-                    </select>
-                  </div>
-
-                  <div v-else-if="field.type === 'radio'" class="space-y-2 pt-1">
-                    <label 
-                      v-for="(opt, optIdx) in field.options" 
-                      :key="optIdx"
-                      class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 transition-all text-xs"
-                    >
-                      <input 
-                        type="radio" 
-                        :name="`preview_full_${field.name}`" 
-                        :value="opt" 
-                        v-model="previewValues[field.name]"
-                        class="text-amber-500 focus:ring-0"
-                      />
-                      <span class="text-slate-300 font-medium">{{ opt }}</span>
+                <template v-for="field in fields" :key="field.id">
+                  <div 
+                    v-if="evaluateCondition(field.conditional_logic, previewValues)"
+                    class="space-y-1.5 transition-all"
+                  >
+                    <label class="block text-slate-200 font-bold d-flex align-items-center justify-content-between">
+                      <span>
+                        {{ field.label }}
+                        <span v-if="field.required" class="text-rose-400 ml-0.5">*</span>
+                        <span v-else class="text-slate-500 font-normal text-[11px] ml-1">(Opsional)</span>
+                      </span>
+                      <span v-if="field.conditional_logic?.enabled" class="badge bg-warning-subtle text-amber-300 text-[10px]">
+                        ⚡ Bersyarat
+                      </span>
                     </label>
-                  </div>
 
-                  <div v-else-if="field.type === 'checkbox'" class="space-y-2 pt-1">
-                    <label 
-                      v-for="(opt, optIdx) in field.options" 
-                      :key="optIdx"
-                      class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 transition-all text-xs"
-                    >
-                      <input 
-                        type="checkbox" 
-                        :value="opt" 
-                        class="text-amber-500 rounded focus:ring-0"
-                      />
-                      <span class="text-slate-300 font-medium">{{ opt }}</span>
-                    </label>
-                  </div>
+                    <!-- REPEATER IN FULL PREVIEW -->
+                    <div v-if="field.type === 'participant_repeater'" class="space-y-3 pt-1">
+                      <div class="p-3 rounded-2xl bg-slate-950 border border-amber-500/30 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div>
+                          <div class="text-slate-200 font-bold text-xs d-flex align-items-center gap-1.5">
+                            <i class="ri-user-follow-line text-amber-400"></i>
+                            <span>Jumlah Peserta Didaftarkan:</span>
+                          </div>
+                          <div class="text-[11px] text-slate-400 mt-0.5">
+                            Batas maksimal: <strong>{{ field.max_items || 8 }} Siswa</strong> (Min. {{ field.min_items || 1 }})
+                          </div>
+                        </div>
 
-                  <div v-else-if="field.type === 'file'" class="pt-1">
-                    <div class="border-2 border-dashed border-slate-800 hover:border-amber-500/50 rounded-2xl p-4 text-center bg-slate-950/70 transition-all cursor-pointer">
-                      <i class="ri-upload-cloud-2-line text-2xl text-amber-400 mb-1 d-block"></i>
-                      <div class="text-slate-300 font-semibold text-xs">Klik atau seret berkas ke sini</div>
-                      <div class="text-[11px] text-slate-500 mt-0.5">
-                        Format: {{ field.allowed_extensions?.join(', ') || 'Semua berkas' }} • Maksimal {{ field.max_size_mb || 5 }} MB
+                        <div class="d-flex align-items-center gap-2">
+                          <button 
+                            type="button" 
+                            class="btn btn-sm btn-outline-secondary text-slate-300"
+                            :disabled="(previewValues[field.name + '_count'] || 3) <= (field.min_items || 1)"
+                            @click="changeParticipantCount(field, -1)"
+                          >
+                            <i class="ri-subtract-line"></i>
+                          </button>
+                          <span class="badge bg-slate-900 border border-slate-700 font-mono text-amber-400 font-bold fs-14 px-3 py-1.5">
+                            {{ previewValues[field.name + '_count'] || 3 }} Peserta
+                          </span>
+                          <button 
+                            type="button" 
+                            class="btn btn-sm btn-outline-secondary text-slate-300"
+                            :disabled="(previewValues[field.name + '_count'] || 3) >= (field.max_items || 8)"
+                            @click="changeParticipantCount(field, 1)"
+                          >
+                            <i class="ri-add-line"></i>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="space-y-3">
+                        <div 
+                          v-for="pIdx in (previewValues[field.name + '_count'] || 3)" 
+                          :key="pIdx"
+                          class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 transition-all"
+                        >
+                          <div class="d-flex align-items-center justify-content-between mb-2.5 pb-1.5 border-b border-slate-800">
+                            <span class="text-xs font-bold text-amber-300 d-flex align-items-center gap-1.5">
+                              <i class="ri-user-line text-emerald-400"></i>
+                              <span>Biodata Peserta Siswa #{{ pIdx }}</span>
+                            </span>
+                            <span class="badge bg-slate-900 text-slate-400 text-[10px] font-mono">
+                              Peserta {{ pIdx }} dari {{ previewValues[field.name + '_count'] || 3 }}
+                            </span>
+                          </div>
+
+                          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                            <div v-if="field.sub_fields?.name?.active !== false" class="sm:col-span-2">
+                              <label class="block text-[11px] text-slate-400 mb-1">Nama Lengkap Siswa *</label>
+                              <input 
+                                type="text" 
+                                :placeholder="`Nama Lengkap Peserta ${pIdx}...`"
+                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
+                              />
+                            </div>
+
+                            <div v-if="field.sub_fields?.gender?.active !== false">
+                              <label class="block text-[11px] text-slate-400 mb-1">Jenis Kelamin *</label>
+                              <div class="flex gap-2">
+                                <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-800 bg-slate-900 cursor-pointer text-xs flex-1">
+                                  <input type="radio" :name="`full_p_gender_${field.name}_${pIdx}`" value="L" checked class="text-amber-500" />
+                                  <span class="text-slate-300">Laki-laki</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-800 bg-slate-900 cursor-pointer text-xs flex-1">
+                                  <input type="radio" :name="`full_p_gender_${field.name}_${pIdx}`" value="P" class="text-amber-500" />
+                                  <span class="text-slate-300">Perempuan</span>
+                                </label>
+                              </div>
+                            </div>
+
+                            <div v-if="field.sub_fields?.grade?.active !== false">
+                              <label class="block text-[11px] text-slate-400 mb-1">Kelas / Tingkat *</label>
+                              <select class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs">
+                                <option value="Kelas 7 SMP/MTs">Kelas 7 SMP/MTs</option>
+                                <option value="Kelas 8 SMP/MTs">Kelas 8 SMP/MTs</option>
+                                <option value="Kelas 9 SMP/MTs" selected>Kelas 9 SMP/MTs</option>
+                              </select>
+                            </div>
+
+                            <div v-if="field.sub_fields?.birth_date?.active !== false">
+                              <label class="block text-[11px] text-slate-400 mb-1">Tanggal Lahir</label>
+                              <input 
+                                type="date" 
+                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                              />
+                            </div>
+
+                            <div v-if="field.sub_fields?.nisn?.active !== false">
+                              <label class="block text-[11px] text-slate-400 mb-1">NISN</label>
+                              <input 
+                                type="text" 
+                                placeholder="0081234567"
+                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div v-else-if="field.type === 'date'">
-                    <input 
-                      type="date" 
-                      v-model="previewValues[field.name]"
-                      class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
-                    />
-                  </div>
+                    <!-- STANDARD FIELD TYPES IN FULL PREVIEW -->
+                    <div v-else-if="['text', 'number', 'url'].includes(field.type)">
+                      <input 
+                        :type="field.type" 
+                        v-model="previewValues[field.name]"
+                        :placeholder="field.placeholder || `Masukkan ${field.label}...`"
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
+                      />
+                    </div>
 
-                  <div v-if="field.help_text" class="text-[11px] text-slate-500">
-                    <i class="ri-information-line me-0.5"></i> {{ field.help_text }}
+                    <div v-else-if="field.type === 'textarea'">
+                      <textarea 
+                        rows="3"
+                        v-model="previewValues[field.name]"
+                        :placeholder="field.placeholder || `Tuliskan ${field.label}...`"
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
+                      ></textarea>
+                    </div>
+
+                    <div v-else-if="field.type === 'select'">
+                      <select 
+                        v-model="previewValues[field.name]"
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                      >
+                        <option value="" disabled selected>-- Pilih Opsi {{ field.label }} --</option>
+                        <option v-for="(opt, optIdx) in field.options" :key="optIdx" :value="opt">
+                          {{ opt }}
+                        </option>
+                      </select>
+                    </div>
+
+                    <div v-else-if="field.type === 'radio'" class="space-y-2 pt-1">
+                      <label 
+                        v-for="(opt, optIdx) in field.options" 
+                        :key="optIdx"
+                        class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 transition-all text-xs"
+                      >
+                        <input 
+                          type="radio" 
+                          :name="`preview_full_${field.name}`" 
+                          :value="opt" 
+                          v-model="previewValues[field.name]"
+                          class="text-amber-500 focus:ring-0"
+                        />
+                        <span class="text-slate-300 font-medium">{{ opt }}</span>
+                      </label>
+                    </div>
+
+                    <div v-else-if="field.type === 'checkbox'" class="space-y-2 pt-1">
+                      <label 
+                        v-for="(opt, optIdx) in field.options" 
+                        :key="optIdx"
+                        class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950 cursor-pointer hover:border-slate-700 transition-all text-xs"
+                      >
+                        <input 
+                          type="checkbox" 
+                          :value="opt" 
+                          class="text-amber-500 rounded focus:ring-0"
+                        />
+                        <span class="text-slate-300 font-medium">{{ opt }}</span>
+                      </label>
+                    </div>
+
+                    <div v-else-if="field.type === 'file'" class="pt-1">
+                      <div class="border-2 border-dashed border-slate-800 hover:border-amber-500/50 rounded-2xl p-4 text-center bg-slate-950/70 transition-all cursor-pointer">
+                        <i class="ri-upload-cloud-2-line text-2xl text-amber-400 mb-1 d-block"></i>
+                        <div class="text-slate-300 font-semibold text-xs">Klik atau seret berkas ke sini</div>
+                        <div class="text-[11px] text-slate-500 mt-0.5">
+                          Format: {{ field.allowed_extensions?.join(', ') || 'Semua berkas' }} • Maksimal {{ field.max_size_mb || 5 }} MB
+                        </div>
+                      </div>
+                    </div>
+
+                    <div v-else-if="field.type === 'date'">
+                      <input 
+                        type="date" 
+                        v-model="previewValues[field.name]"
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                      />
+                    </div>
+
+                    <div v-if="field.help_text" class="text-[11px] text-slate-500">
+                      <i class="ri-information-line me-0.5"></i> {{ field.help_text }}
+                    </div>
                   </div>
-                </div>
+                </template>
 
                 <!-- Submit Button simulation -->
                 <div class="pt-4 mt-6 border-t border-slate-800">
@@ -1833,7 +2381,7 @@ const previewValues = ref({});
     </div>
 
     <!-- ============================================================== -->
-    <!-- MODAL 1: BULK OPTIONS EDITOR (TEMPEL SEKALIGUS)                -->
+    <!-- MODAL 1: BULK OPTIONS EDITOR                                   -->
     <!-- ============================================================== -->
     <div 
       v-if="showBulkModal" 
@@ -1980,7 +2528,6 @@ const previewValues = ref({});
               Pilih template yang sesuai dengan kategori lomba <strong>{{ selectedCompetition?.title }}</strong>. Susunan pertanyaan akan otomatis disesuaikan secara instan.
             </p>
             <div class="row g-3">
-              <!-- Template 1: Akademik -->
               <div class="col-md-6">
                 <div class="card h-100 border p-3 rounded-3 hover-preset-card">
                   <div class="d-flex align-items-center justify-content-between mb-2">
@@ -1997,7 +2544,6 @@ const previewValues = ref({});
                 </div>
               </div>
 
-              <!-- Template 2: Keagamaan -->
               <div class="col-md-6">
                 <div class="card h-100 border p-3 rounded-3 hover-preset-card">
                   <div class="d-flex align-items-center justify-content-between mb-2">
@@ -2014,7 +2560,6 @@ const previewValues = ref({});
                 </div>
               </div>
 
-              <!-- Template 3: Seni -->
               <div class="col-md-6">
                 <div class="card h-100 border p-3 rounded-3 hover-preset-card">
                   <div class="d-flex align-items-center justify-content-between mb-2">
@@ -2031,7 +2576,6 @@ const previewValues = ref({});
                 </div>
               </div>
 
-              <!-- Template 4: E-Sport -->
               <div class="col-md-6">
                 <div class="card h-100 border p-3 rounded-3 hover-preset-card">
                   <div class="d-flex align-items-center justify-content-between mb-2">
@@ -2048,7 +2592,6 @@ const previewValues = ref({});
                 </div>
               </div>
 
-              <!-- Template 5: Olahraga -->
               <div class="col-md-6">
                 <div class="card h-100 border p-3 rounded-3 hover-preset-card">
                   <div class="d-flex align-items-center justify-content-between mb-2">
@@ -2065,7 +2608,6 @@ const previewValues = ref({});
                 </div>
               </div>
 
-              <!-- Template 6: Umum -->
               <div class="col-md-6">
                 <div class="card h-100 border p-3 rounded-3 hover-preset-card">
                   <div class="d-flex align-items-center justify-content-between mb-2">

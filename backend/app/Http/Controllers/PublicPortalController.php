@@ -367,6 +367,29 @@ class PublicPortalController extends Controller
             ?? ($processedCustomFields['roster_posisi_dan_nomor'] ?? null)
             ?? '-';
 
+        if ($participantsNames === '-' || empty(trim($participantsNames))) {
+            foreach ($processedCustomFields as $key => $val) {
+                if (is_array($val) && !empty($val) && isset($val[0]) && is_array($val[0]) && isset($val[0]['name'])) {
+                    $formattedList = [];
+                    foreach ($val as $pIdx => $p) {
+                        $pName = trim($p['name'] ?? '');
+                        if (empty($pName)) continue;
+                        $details = [];
+                        if (!empty($p['gender'])) $details[] = ($p['gender'] === 'L' || $p['gender'] === 'Laki-laki') ? 'L' : 'P';
+                        if (!empty($p['grade'])) $details[] = $p['grade'];
+                        if (!empty($p['birth_date'])) $details[] = $p['birth_date'];
+                        if (!empty($p['nisn'])) $details[] = 'NISN: ' . $p['nisn'];
+                        $detailStr = !empty($details) ? ' (' . implode(', ', $details) . ')' : '';
+                        $formattedList[] = ($pIdx + 1) . '. ' . $pName . $detailStr;
+                    }
+                    if (!empty($formattedList)) {
+                        $participantsNames = implode("\n", $formattedList);
+                        break;
+                    }
+                }
+            }
+        }
+
         $packageType = $request->input('package_type') ?? 'Paket Satuan';
 
         // Total fee calculation

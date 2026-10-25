@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\School;
+use App\Models\Registration;
 use Database\Seeders\SchoolSeeder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -272,8 +273,256 @@ class SchoolController extends Controller
             'email' => $s->email,
             'principal_name' => $s->principal_name,
             'is_active' => (bool)$s->is_active,
-            'badge' => "{$s->jenjang} {$s->status} • {$s->kecamatan}",
             'created_at' => $s->created_at ? $s->created_at->format('Y-m-d H:i:s') : null,
         ];
+    }
+
+    /**
+     * Check if a school is already registered in Semarak Aliyah,
+     * what package they took (Paket Satuan vs Paket All-In),
+     * which competitions they registered for, and verification status.
+     */
+    public function checkRegistrationStatus(Request $request)
+    {
+        $schoolId = $request->input('school_id');
+        $schoolName = trim($request->input('school_name', ''));
+        $school = null;
+
+        if (!empty($schoolId)) {
+            $school = School::find($schoolId);
+            if ($school) {
+                $schoolName = $school->name;
+            }
+        }
+
+        if (!$school && !empty($schoolName)) {
+            $school = School::findExistingSchool($schoolName);
+        }
+
+        if (empty($schoolName) && $school) {
+            $schoolName = $school->name;
+        }
+
+        if (empty($schoolName)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Parameter nama sekolah atau ID sekolah diperlukan.',
+                'data' => null
+            ], 400);
+        }
+
+        $cleanTarget = School::normalizeSchoolName($schoolName);
+
+        // Find all matching registrations
+        $registrations = Registration::orderBy('created_at', 'desc')->get()->filter(function ($r) use ($schoolName, $cleanTarget) {
+            if (empty($r->school_name)) return false;
+            if (strcasecmp(trim($r->school_name), trim($schoolName)) === 0) return true;
+            return School::normalizeSchoolName($r->school_name) === $cleanTarget;
+        })->values();
+
+        $hasRegistrations = $registrations->isNotEmpty();
+        $allInRegistration = $registrations->first(fn($r) => $r->package_type === 'Paket All-In');
+        $hasAllIn = !is_null($allInRegistration);
+
+        // Check verification (2 verifikasi: verifikasi pendaftaran & verifikasi pembayaran)
+        $isAllInPaymentVerified = false;
+        $isAllInRegistrationVerified = false;
+
+        if ($allInRegistration) {
+            $pStatus = strtolower($allInRegistration->payment_status ?? '');
+            $isAllInPaymentVerified = in_array($pStatus, ['terverifikasi', 'lunas', 'verified']);
+
+            $rStatus = strtolower($allInRegistration->registration_status ?? 'terverifikasi');
+            $isAllInRegistrationVerified = in_array($rStatus, ['terverifikasi', 'verified']);
+        }
+
+        $isAllInFullyVerified = $hasAllIn && $isAllInPaymentVerified && $isAllInRegistrationVerified;
+
+        // Registered competitions mapping
+        $registeredCompetitions = $registrations->map(function ($r) {
+            $isPVerified = in_array(strtolower($r->payment_status ?? ''), ['terverifikasi', 'lunas', 'verified']);
+            $isRVerified = in_array(strtolower($r->registration_status ?? 'terverifikasi'), ['terverifikasi', 'verified']);
+
+            return [
+                'id' => $r->id,
+                'reg_code' => $r->reg_code,
+                'competition_id' => $r->competition_id,
+                'competition_title' => $r->competition_title,
+                'package_type' => $r->package_type,
+                'total_fee' => (int)$r->total_fee,
+                'registration_status' => $r->registration_status ?? 'Menunggu Verifikasi',
+                'payment_status' => $r->payment_status ?? 'Menunggu Verifikasi',
+                'is_registration_verified' => $isRVerified,
+                'is_payment_verified' => $isPVerified,
+                'is_fully_verified' => $isPVerified && $isRVerified,
+                'mentor_name' => $r->mentor_name,
+                'mentor_wa' => $r->mentor_wa,
+                'participants_names' => $r->participants_names,
+                'created_at' => $r->created_at ? $r->created_at->format('d/m/Y H:i') : null,
+            ];
+        });
+
+        $registeredCompIds = $registrations->pluck('competition_id')->filter()->unique()->values()->toArray();
+
+        // Primary package determining
+        $packageType = $hasAllIn ? 'Paket All-In' : ($hasRegistrations ? 'Paket Satuan' : null);
+
+        // Extract mentor / koordinator info from the latest registration if any
+        $latestReg = $registrations->first();
+        $coordinator = [
+            'name' => $latestReg?->mentor_name ?: '',
+            'wa' => $latestReg?->mentor_wa ?: ($school?->phone ?: ''),
+            'coordinators_list' => $allInRegistration && isset($allInRegistration->custom_fields['coordinators']) 
+                ? $allInRegistration->custom_fields['coordinators'] 
+                : [],
+        ];
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'school' => $school ? $this->formatSchool($school) : [
+                    'id' => null,
+                    'name' => $schoolName,
+                    'npsn' => '-',
+                    'jenjang' => 'SMP/MTs',
+                    'status' => 'Terdaftar Manual',
+                    'kecamatan' => '-',
+                    'kabupaten' => 'Kabupaten Jember',
+                ],
+                'has_registrations' => $hasRegistrations,
+                'package_type' => $packageType,
+                'is_all_in' => $hasAllIn,
+                'all_in_reg_code' => $allInRegistration?->reg_code,
+                'all_in_status' => [
+                    'is_payment_verified' => $isAllInPaymentVerified,
+                    'is_registration_verified' => $isAllInRegistrationVerified,
+                    'is_fully_verified' => $isAllInFullyVerified,
+                    'payment_status' => $allInRegistration?->payment_status ?? null,
+                    'registration_status' => $allInRegistration?->registration_status ?? null,
+                ],
+                'can_register_all_competitions_free' => $isAllInFullyVerified,
+                'registered_competitions' => $registeredCompetitions,
+                'registered_competition_ids' => $registeredCompIds,
+                'coordinator' => $coordinator,
+                'total_competitions_registered' => count($registeredCompIds),
+            ]
+        ]);
+    }
+
+    /**
+     * Verifikasi Kode Paket Komplit (All-In).
+     * Digunakan saat guru pendamping memasukkan kode paket sekolah secara manual
+     * untuk menautkan pendaftaran mandiri cabang lomba agar bebas biaya (Rp 0).
+     */
+    public function verifyPackageCode(Request $request)
+    {
+        $code = trim($request->input('code') ?? $request->input('allin_code') ?? '');
+        if (empty($code)) {
+            return response()->json([
+                'status' => 'error',
+                'valid' => false,
+                'message' => 'Silakan masukkan Kode Paket Komplit.'
+            ], 400);
+        }
+
+        $cleanCode = strtoupper($code);
+        $reg = Registration::where('package_type', 'Paket All-In')
+            ->where(function ($q) use ($cleanCode) {
+                $q->whereRaw('UPPER(reg_code) = ?', [$cleanCode])
+                  ->orWhereRaw('UPPER(barcode) = ?', [$cleanCode]);
+            })
+            ->orderBy('created_at', 'desc')
+            ->first();
+
+        if (!$reg) {
+            return response()->json([
+                'status' => 'error',
+                'valid' => false,
+                'message' => "Kode \"{$code}\" tidak ditemukan dalam database pendaftaran Paket Komplit (All-In). Periksa kembali format kode registrasi Anda."
+            ], 404);
+        }
+
+        $pStatus = strtolower($reg->payment_status ?? '');
+        $rStatus = strtolower($reg->registration_status ?? '');
+        $isPaymentVerified = in_array($pStatus, ['terverifikasi', 'lunas', 'verified']);
+        $isRegVerified = in_array($rStatus, ['terverifikasi', 'verified']);
+        $isFullyVerified = $isPaymentVerified && $isRegVerified;
+
+        $school = School::findExistingSchool($reg->school_name);
+        $schoolDistrict = $reg->custom_fields['school_district'] ?? ($school?->kecamatan ?? '');
+        $schoolNpsn = $reg->custom_fields['school_npsn'] ?? $reg->custom_fields['npsn'] ?? ($school?->npsn ?? '');
+        $schoolAddress = $reg->custom_fields['school_address'] ?? $reg->custom_fields['alamat'] ?? ($school?->alamat ?? '');
+
+        return response()->json([
+            'status' => 'success',
+            'valid' => true,
+            'data' => [
+                'reg_code' => $reg->reg_code,
+                'school_name' => $reg->school_name,
+                'school_district' => $schoolDistrict,
+                'school_npsn' => $schoolNpsn,
+                'school_address' => $schoolAddress,
+                'school_jenjang' => $school?->jenjang ?? null,
+                'mentor_name' => $reg->mentor_name,
+                'mentor_wa' => $reg->mentor_wa,
+                'payment_status' => $reg->payment_status ?? 'Menunggu Verifikasi',
+                'registration_status' => $reg->registration_status ?? 'Menunggu Verifikasi',
+                'is_payment_verified' => $isPaymentVerified,
+                'is_registration_verified' => $isRegVerified,
+                'is_fully_verified' => $isFullyVerified,
+                'message' => "Kode Paket Komplit valid untuk sekolah {$reg->school_name}."
+            ]
+        ]);
+    }
+
+    /**
+     * Public Self-Registration for New Schools not yet in database.
+     */
+    public function publicRegisterSchool(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|min:3|max:200',
+            'jenjang' => 'required|string|in:SMP,MTs,smp,mts,Smp,Mts',
+            'status' => 'nullable|string',
+            'kecamatan' => 'required|string',
+            'npsn' => 'nullable|string|max:30',
+            'alamat' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:30',
+        ]);
+
+        $name = trim($validated['name']);
+        $existing = School::findExistingSchool($name);
+
+        if ($existing) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Sekolah \"{$existing->name}\" sudah terdaftar dalam sistem.",
+                'data' => $this->formatSchool($existing),
+                'is_existing' => true
+            ]);
+        }
+
+        $jenjang = strtoupper($validated['jenjang']);
+        $status = !empty($validated['status']) ? ucfirst(strtolower($validated['status'])) : 'Terdaftar';
+        $kecamatan = trim($validated['kecamatan']);
+
+        $school = School::create([
+            'npsn' => $validated['npsn'] ?? null,
+            'name' => $name,
+            'jenjang' => $jenjang,
+            'status' => $status,
+            'kecamatan' => $kecamatan,
+            'kabupaten' => 'Kabupaten Jember',
+            'alamat' => $validated['alamat'] ?? ("Kecamatan {$kecamatan}, Kabupaten Jember"),
+            'phone' => $validated['phone'] ?? null,
+            'is_active' => true,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "Sekolah \"{$school->name}\" berhasil didaftarkan ke sistem!",
+            'data' => $this->formatSchool($school),
+            'is_existing' => false
+        ], 201);
     }
 }

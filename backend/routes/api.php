@@ -15,6 +15,9 @@ Route::prefix('schools')->group(function () {
     Route::get('/', [SchoolController::class, 'index']);
     Route::get('/kecamatan', [SchoolController::class, 'kecamatan']);
     Route::get('/stats', [SchoolController::class, 'stats']);
+    Route::get('/check-status', [SchoolController::class, 'checkRegistrationStatus']);
+    Route::get('/verify-package-code', [SchoolController::class, 'verifyPackageCode']);
+    Route::post('/public-register', [SchoolController::class, 'publicRegisterSchool']);
     Route::get('/{id}', [SchoolController::class, 'show']);
 });
 

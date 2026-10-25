@@ -155,22 +155,22 @@
                   <!-- Posisi Banner -->
                   <div class="col-md-6">
                     <label class="form-label fs-12 fw-semibold text-muted">Posisi Penempatan Banner</label>
-                    <select class="form-select" v-model="form.announcement_banner_position">
+                    <CustomSelect v-model="form.announcement_banner_position" size="md">
                       <option value="top">Di Bagian Paling Atas (Top of Header)</option>
                       <option value="bottom">Mengambang di Bawah Layar (Sticky Bottom)</option>
-                    </select>
+                    </CustomSelect>
                   </div>
 
                   <!-- Tipe Tema Warna -->
                   <div class="col-md-6">
                     <label class="form-label fs-12 fw-semibold text-muted">Tema & Gaya Visual</label>
-                    <select class="form-select" v-model="form.announcement_banner_type">
+                    <CustomSelect v-model="form.announcement_banner_type" size="md">
                       <option value="gold">✨ Gold Glow (Mewah Emas Semarak)</option>
                       <option value="primary">🟣 Violet Glow (Modern Ungu)</option>
                       <option value="success">🟢 Emerald Green (Hijau Prestasi)</option>
                       <option value="danger">🔴 Crimson Red (Penting / Mendesak)</option>
                       <option value="info">🔵 Ocean Cyan (Informasi Standar)</option>
-                    </select>
+                    </CustomSelect>
                   </div>
 
                   <!-- Teks Pesan Pengumuman -->
@@ -249,10 +249,10 @@
                   <!-- Frekuensi Kemunculan -->
                   <div class="col-md-6">
                     <label class="form-label fs-12 fw-semibold text-muted">Frekuensi Tampil ke Pengunjung</label>
-                    <select class="form-select" v-model="form.announcement_popup_frequency">
+                    <CustomSelect v-model="form.announcement_popup_frequency" size="md">
                       <option value="once_per_session">Sekali per sesi peramban (Rekomendasi agar ramah pengguna)</option>
                       <option value="always">Selalu muncul setiap halaman dimuat ulang</option>
-                    </select>
+                    </CustomSelect>
                   </div>
 
                   <!-- Label Badge Pop-up -->
@@ -378,20 +378,20 @@
                   <!-- Posisi Tombol -->
                   <div class="col-md-6">
                     <label class="form-label fs-12 fw-semibold text-muted">Posisi Tombol di Layar</label>
-                    <select class="form-select" v-model="form.floating_wa_position">
+                    <CustomSelect v-model="form.floating_wa_position" size="md">
                       <option value="bottom-right">Sudut Kanan Bawah (Standar Web)</option>
                       <option value="bottom-left">Sudut Kiri Bawah</option>
-                    </select>
+                    </CustomSelect>
                   </div>
 
                   <!-- Animasi Tombol -->
                   <div class="col-md-6">
                     <label class="form-label fs-12 fw-semibold text-muted">Efek Animasi Perhatian</label>
-                    <select class="form-select" v-model="form.floating_wa_animation">
+                    <CustomSelect v-model="form.floating_wa_animation" size="md">
                       <option value="pulse">Pulse Radar Gelombang (Halus & Elegan)</option>
                       <option value="bounce">Bounce Melompat Halus</option>
                       <option value="none">Statis (Tanpa Animasi)</option>
-                    </select>
+                    </CustomSelect>
                   </div>
 
                   <!-- Pesan Pembuka Otomatis -->

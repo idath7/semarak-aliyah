@@ -8,6 +8,24 @@ const page = usePage();
 const school = computed(() => page.props.schoolProfile || {});
 const cleanSchoolWa = computed(() => formatWaNumber(school.value.contact_wa, '6283850070767'));
 
+const ctaRegisterUrl = computed(() => {
+  const isRequired = page.props.registrationLoginRequired;
+  const user = page.props.auth?.user;
+  if (isRequired && !user) {
+    return '/pendaftar/login?redirect_to=register&notice=required';
+  }
+  return '/layanan-registrasi';
+});
+
+function getCompRegisterUrl(compId) {
+  const isRequired = page.props.registrationLoginRequired;
+  const user = page.props.auth?.user;
+  if (isRequired && !user) {
+    return `/pendaftar/login?redirect_to=register&notice=required&lomba=${compId}`;
+  }
+  return `/layanan-registrasi?lomba=${compId}`;
+}
+
 const props = defineProps({
   competitions: {
     type: Array,
@@ -1599,11 +1617,16 @@ function handleLightboxKey(e) {
 
             <!-- CTA Buttons -->
             <div class="hero-cta-group">
-              <Link href="/layanan-registrasi" class="btn-primary">
+              <Link :href="ctaRegisterUrl" class="btn-primary">
                 <i class="ri-user-follow-line"></i>
                 <span>Daftar Sekarang</span>
               </Link>
-              <a href="/assets/JUKNIS-SEMARAK-2026.pdf" download class="btn-secondary">
+              <a 
+                :href="$page.props.generalJuknis?.url || '/assets/JUKNIS-SEMARAK-2026.pdf'" 
+                :download="$page.props.generalJuknis?.filename || 'JUKNIS-SEMARAK-2026.pdf'" 
+                target="_blank" 
+                class="btn-secondary"
+              >
                 <i class="ri-file-download-line"></i>
                 <span>Unduh Juknis (PDF)</span>
               </a>
@@ -1826,7 +1849,7 @@ function handleLightboxKey(e) {
               </div>
             </div>
 
-            <Link href="/layanan-registrasi" class="pricing-action-btn btn-satuan">
+            <Link :href="ctaRegisterUrl" class="pricing-action-btn btn-satuan">
               <span>Pilih Cabang Lomba Satuan</span>
               <i class="ri-arrow-right-line"></i>
             </Link>
@@ -1900,7 +1923,7 @@ function handleLightboxKey(e) {
               </div>
             </div>
 
-            <Link href="/layanan-registrasi" class="pricing-action-btn btn-allin">
+            <Link :href="ctaRegisterUrl" class="pricing-action-btn btn-allin">
               <i class="ri-flashlight-fill"></i>
               <span>Daftar Paket All-In Sekarang</span>
             </Link>
@@ -2021,7 +2044,7 @@ function handleLightboxKey(e) {
               </button>
               <Link 
                 v-if="!getCompStatusInfo(comp).isClosed"
-                :href="`/layanan-registrasi?lomba=${comp.id}`" 
+                :href="getCompRegisterUrl(comp.id)" 
                 class="btn-card-register"
               >
                 <i class="ri-flashlight-line"></i>
@@ -2043,7 +2066,7 @@ function handleLightboxKey(e) {
         </div>
 
         <div style="text-align: center; margin-top: 45px;">
-          <Link href="/layanan-registrasi" class="btn-primary">
+          <Link :href="ctaRegisterUrl" class="btn-primary">
             <i class="ri-dashboard-line"></i>
             <span>Kunjungi Portal Layanan Registrasi Lengkap</span>
           </Link>
@@ -2190,7 +2213,7 @@ function handleLightboxKey(e) {
               </button>
               <Link 
                 v-if="!getCompStatusInfo(comp).isClosed"
-                :href="`/layanan-registrasi?lomba=${comp.id}`" 
+                :href="getCompRegisterUrl(comp.id)" 
                 class="btn-tm-register"
               >
                 <i class="ri-flashlight-line"></i>
@@ -2228,8 +2251,9 @@ function handleLightboxKey(e) {
             </div>
             <div>
               <a 
-                href="/assets/JUKNIS-SEMARAK-2026.pdf" 
-                download 
+                :href="$page.props.generalJuknis?.url || '/assets/JUKNIS-SEMARAK-2026.pdf'" 
+                :download="$page.props.generalJuknis?.filename || 'JUKNIS-SEMARAK-2026.pdf'" 
+                target="_blank"
                 class="btn-primary" 
               >
                 <i class="ri-file-download-line"></i>
@@ -2720,17 +2744,64 @@ function handleLightboxKey(e) {
                 </div>
               </div>
             </div>
+
+            <!-- Berkas Petunjuk Teknis (Juknis) Spesifik Cabang Lomba -->
+            <div class="modal-detail-juknis-card" style="margin-top: 14px; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); background: var(--bg-surface-elevated, rgba(255,255,255,0.03)); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
+                <div style="width: 38px; height: 38px; border-radius: 8px; background: rgba(239, 68, 68, 0.12); color: #ef4444; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0;">
+                  <i class="ri-file-pdf-2-fill"></i>
+                </div>
+                <div style="min-width: 0;">
+                  <div style="font-size: 0.86rem; font-weight: 700; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {{ selectedComp.juknis_url ? `Berkas Juknis Khusus ${selectedComp.title}` : `Buku Panduan Juknis: ${selectedComp.title}` }}
+                  </div>
+                  <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 2px;">
+                    <span v-if="selectedComp.juknis_url" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-right: 6px;">
+                      Juknis Spesifik
+                    </span>
+                    <span v-else class="badge" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-right: 6px;">
+                      Juknis Umum
+                    </span>
+                    {{ selectedComp.juknis_url ? (selectedComp.juknis_filename || 'Dokumen PDF') : 'Merujuk pada Buku Panduan Juknis Resmi Keseluruhan Lomba' }}
+                  </div>
+                </div>
+              </div>
+
+              <a 
+                :href="selectedComp.juknis_url || $page.props.generalJuknis?.url || '/assets/JUKNIS-SEMARAK-2026.pdf'"
+                :download="selectedComp.juknis_url ? (selectedComp.juknis_filename || `Juknis-${selectedComp.id}.pdf`) : ($page.props.generalJuknis?.filename || 'JUKNIS-SEMARAK-2026.pdf')"
+                target="_blank"
+                class="btn-modal-juknis"
+                :title="selectedComp.juknis_url ? `Unduh Juknis Spesifik ${selectedComp.title}` : 'Unduh Juknis Umum Semarak'"
+              >
+                <i class="ri-download-2-line"></i>
+                <span>{{ selectedComp.juknis_url ? 'Unduh Juknis Cabang' : 'Unduh Juknis' }}</span>
+              </a>
+            </div>
           </div>
         </div>
 
         <!-- Sleek & Balanced Modal Footer Actions -->
         <div class="modal-footer-actions">
+          <!-- Tombol Unduh Juknis Spesifik di Footer -->
+          <a 
+            :href="selectedComp.juknis_url || $page.props.generalJuknis?.url || '/assets/JUKNIS-SEMARAK-2026.pdf'"
+            :download="selectedComp.juknis_url ? (selectedComp.juknis_filename || `Juknis-${selectedComp.id}.pdf`) : ($page.props.generalJuknis?.filename || 'JUKNIS-SEMARAK-2026.pdf')"
+            target="_blank"
+            class="btn-modal-juknis me-auto"
+            style="margin-right: auto;"
+            title="Unduh Berkas Petunjuk Teknis Lomba"
+          >
+            <i class="ri-file-download-line"></i>
+            <span>{{ selectedComp.juknis_url ? 'Unduh Juknis Cabang (PDF)' : 'Unduh Juknis (PDF)' }}</span>
+          </a>
+
           <button type="button" class="btn-modal-close" @click="closeDetailModal">
             Tutup
           </button>
           <Link 
             v-if="!getCompStatusInfo(selectedComp).isClosed"
-            :href="`/layanan-registrasi?lomba=${selectedComp.id}`" 
+            :href="getCompRegisterUrl(selectedComp.id)" 
             class="btn-modal-primary"
             @click="closeDetailModal"
           >

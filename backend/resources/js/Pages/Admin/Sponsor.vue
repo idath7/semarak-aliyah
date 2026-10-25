@@ -546,12 +546,14 @@ async function deleteSponsor(sponsor) {
               </div>
 
               <!-- Filter Mode -->
-              <select class="form-select form-select-sm" style="width: auto;" v-model="filterMode">
-                <option value="all">Semua Mode</option>
-                <option value="logo_only">Hanya Logo (Logo-Only)</option>
-                <option value="standard">Mode Standar (Icon + Teks)</option>
-                <option value="active">Khusus yang Aktif</option>
-              </select>
+              <div style="min-width: 190px;">
+                <CustomSelect v-model="filterMode" size="sm">
+                  <option value="all">Semua Mode</option>
+                  <option value="logo_only">Hanya Logo (Logo-Only)</option>
+                  <option value="standard">Mode Standar (Icon + Teks)</option>
+                  <option value="active">Khusus yang Aktif</option>
+                </CustomSelect>
+              </div>
 
               <!-- View Mode Toggle -->
               <div class="btn-group btn-group-sm">

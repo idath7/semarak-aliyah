@@ -69,6 +69,7 @@ const tmForm = useForm({
   agenda: initialSettings.agenda || '',
   notes: initialSettings.notes || '',
   rules_summary: initialSettings.rules_summary || '',
+  juknis_file: null,
 });
 
 // Update form when activeComp changes
@@ -912,6 +913,44 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
                   class="form-control form-control-sm" 
                   placeholder="Sistem gugur tunggal, durasi penampilan 7 menit, kriteria penilaian dewan juri..."
                 ></textarea>
+              </div>
+
+              <!-- 10. Berkas Juknis Khusus Cabang Ini -->
+              <div class="mb-4 p-3 rounded-3 border bg-light">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <label class="form-label fs-12 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
+                    <i class="ri-file-pdf-2-line text-danger"></i>
+                    Berkas Juknis Khusus Cabang Ini
+                  </label>
+                  <Link href="/admin/juknis" class="btn btn-link p-0 fs-11 text-primary text-decoration-none">
+                    Kelola Juknis &rarr;
+                  </Link>
+                </div>
+                
+                <div v-if="activeComp.juknis_url" class="p-2.5 rounded bg-white border mb-2 d-flex align-items-center justify-content-between">
+                  <div class="d-flex align-items-center gap-2 overflow-hidden me-2">
+                    <i class="ri-file-pdf-fill text-danger fs-18 flex-shrink-0"></i>
+                    <div class="text-truncate">
+                      <span class="fs-12 fw-semibold text-dark text-truncate d-block">{{ activeComp.juknis_filename }}</span>
+                      <span class="badge bg-success-subtle text-success fs-10">Juknis Khusus Aktif</span>
+                    </div>
+                  </div>
+                  <a :href="activeComp.juknis_url" target="_blank" download class="btn btn-xs btn-outline-danger flex-shrink-0">
+                    <i class="ri-download-line"></i> Unduh
+                  </a>
+                </div>
+                <div v-else class="mb-2 fs-11 text-muted">
+                  <span class="badge bg-info-subtle text-info me-1">Default</span>
+                  Cabang ini saat ini merujuk ke Buku Panduan Juknis Umum Semarak.
+                </div>
+
+                <input 
+                  type="file" 
+                  class="form-control form-control-sm"
+                  accept=".pdf,.docx,.doc"
+                  @input="tmForm.juknis_file = $event.target.files[0]"
+                />
+                <small class="text-muted fs-10 mt-1 d-block">Pilih berkas PDF/DOCX baru jika ingin mengganti juknis khusus cabang ini.</small>
               </div>
 
               <!-- Tombol Simpan -->

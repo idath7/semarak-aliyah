@@ -27,19 +27,18 @@
       <div class="rte-divider"></div>
 
       <!-- Format Block (Paragraph, Headings) -->
-      <div class="rte-btn-group">
-        <select 
-          class="form-select form-select-sm rte-select" 
-          :value="activeBlock" 
-          @change="setBlockFormat($event.target.value)"
+      <div class="rte-btn-group" style="min-width: 170px;">
+        <CustomSelect 
+          :model-value="activeBlock" 
+          @change="setBlockFormat"
+          size="xs"
           :disabled="disabled || isCodeMode"
-          title="Pilih Format Paragraf / Heading"
         >
           <option value="p">Paragraf Normal</option>
           <option value="h4">Judul Bagian (H4)</option>
           <option value="h5">Sub Judul (H5)</option>
           <option value="blockquote">Kutipan / Catatan (Quote)</option>
-        </select>
+        </CustomSelect>
       </div>
 
       <div class="rte-divider"></div>

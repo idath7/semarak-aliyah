@@ -59,6 +59,24 @@ const isScrolled = ref(false);
 const showBackToTop = ref(false);
 const scrollProgress = ref(0);
 
+const ctaRegisterUrl = computed(() => {
+  const isRequired = page.props.registrationLoginRequired;
+  const user = page.props.auth?.user;
+  if (isRequired && !user) {
+    return '/pendaftar/login?redirect_to=register&notice=required';
+  }
+  return '/layanan-registrasi';
+});
+
+function getCompRegisterUrl(compId) {
+  const isRequired = page.props.registrationLoginRequired;
+  const user = page.props.auth?.user;
+  if (isRequired && !user) {
+    return `/pendaftar/login?redirect_to=register&notice=required&lomba=${compId}`;
+  }
+  return `/layanan-registrasi?lomba=${compId}`;
+}
+
 const { isDark, initTheme, toggleTheme } = useTheme();
 
 function closeMobileMenu() {
@@ -306,8 +324,9 @@ onUnmounted(() => {
               Jadwal & TM
             </a>
             <a 
-              href="/assets/JUKNIS-SEMARAK-2026.pdf" 
-              download 
+              :href="$page.props.generalJuknis?.url || '/assets/JUKNIS-SEMARAK-2026.pdf'" 
+              :download="$page.props.generalJuknis?.filename || 'JUKNIS-SEMARAK-2026.pdf'" 
+              target="_blank"
               class="nav-link"
             >
               Juknis
@@ -344,7 +363,7 @@ onUnmounted(() => {
               <i :class="isDark ? 'ri-sun-line text-warning' : 'ri-moon-line'"></i>
             </button>
 
-            <Link href="/layanan-registrasi" class="btn-header-cta">
+            <Link :href="ctaRegisterUrl" class="btn-header-cta">
               <i class="ri-flashlight-fill"></i>
               <span class="btn-cta-text-full">Layanan Registrasi</span>
               <span class="btn-cta-text-short">Daftar</span>
@@ -439,8 +458,9 @@ onUnmounted(() => {
           <span>Jadwal & Technical Meeting</span>
         </a>
         <a 
-          href="/assets/JUKNIS-SEMARAK-2026.pdf" 
-          download 
+          :href="$page.props.generalJuknis?.url || '/assets/JUKNIS-SEMARAK-2026.pdf'" 
+          :download="$page.props.generalJuknis?.filename || 'JUKNIS-SEMARAK-2026.pdf'" 
+          target="_blank"
           class="drawer-link" 
           @click="closeMobileMenu"
         >
@@ -478,7 +498,7 @@ onUnmounted(() => {
       </nav>
 
       <div class="drawer-actions">
-        <Link href="/layanan-registrasi" class="btn-primary drawer-btn-cta" @click="closeMobileMenu">
+        <Link :href="ctaRegisterUrl" class="btn-primary drawer-btn-cta" @click="closeMobileMenu">
           <i class="ri-flashlight-fill"></i>
           <span>Layanan Registrasi</span>
         </Link>
@@ -543,12 +563,12 @@ onUnmounted(() => {
             <div class="footer-col-lomba">
               <h4 class="footer-heading">Cabang Lomba</h4>
               <ul class="footer-links">
-                <li><Link href="/layanan-registrasi?lomba=mipa"><i class="ri-arrow-right-s-line"></i> Olimpiade MIPA</Link></li>
-                <li><Link href="/layanan-registrasi?lomba=ips"><i class="ri-arrow-right-s-line"></i> Olimpiade IPS</Link></li>
-                <li><Link href="/layanan-registrasi?lomba=storytelling"><i class="ri-arrow-right-s-line"></i> Storytelling</Link></li>
-                <li><Link href="/layanan-registrasi?lomba=albanjari"><i class="ri-arrow-right-s-line"></i> Festival Albanjari</Link></li>
-                <li><Link href="/layanan-registrasi?lomba=singer"><i class="ri-arrow-right-s-line"></i> Singer Lagu Islami</Link></li>
-                <li><Link href="/layanan-registrasi?lomba=mobile-legends"><i class="ri-arrow-right-s-line"></i> Mobile Legends</Link></li>
+                <li><Link :href="getCompRegisterUrl('mipa')"><i class="ri-arrow-right-s-line"></i> Olimpiade MIPA</Link></li>
+                <li><Link :href="getCompRegisterUrl('ips')"><i class="ri-arrow-right-s-line"></i> Olimpiade IPS</Link></li>
+                <li><Link :href="getCompRegisterUrl('storytelling')"><i class="ri-arrow-right-s-line"></i> Storytelling</Link></li>
+                <li><Link :href="getCompRegisterUrl('albanjari')"><i class="ri-arrow-right-s-line"></i> Festival Albanjari</Link></li>
+                <li><Link :href="getCompRegisterUrl('singer')"><i class="ri-arrow-right-s-line"></i> Singer Lagu Islami</Link></li>
+                <li><Link :href="getCompRegisterUrl('mobile-legends')"><i class="ri-arrow-right-s-line"></i> Mobile Legends</Link></li>
               </ul>
             </div>
           </div>

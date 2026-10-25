@@ -27,11 +27,28 @@ class RegistrationController extends Controller
         $package = $validated['package_type'] ?? 'Paket Satuan (Rp 50.000 / Cabang)';
         $totalFee = str_contains($package, '200.000') ? 200000 : 50000;
 
+        $cleanWa = Setting::formatWaNumber($validated['mentor_wa']);
+        $user = \App\Models\Registrant::where('phone', $cleanWa)->orWhere('phone', $validated['mentor_wa'])->first();
+        if (!$user) {
+            $user = \App\Models\Registrant::create([
+                'name' => $validated['mentor_name'],
+                'phone' => $cleanWa,
+                'email' => 'pendaftar_' . preg_replace('/\D/', '', $cleanWa) . '@semarak.id',
+                'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(16)),
+                'registrant_role' => 'Pendamping',
+                'school_name' => $validated['school_name'],
+                'gender' => 'Laki-laki',
+                'is_active' => true,
+            ]);
+        }
+
         $reg = Registration::create([
+            'registrant_id' => $user->id,
+            'user_id' => $user->id,
             'reg_code' => $regCode,
             'school_name' => $validated['school_name'],
             'mentor_name' => $validated['mentor_name'],
-            'mentor_wa' => $validated['mentor_wa'],
+            'mentor_wa' => $cleanWa,
             'package_type' => $package,
             'competition_id' => $validated['competition_id'] ?? 'all-in',
             'competition_title' => $validated['competition_title'] ?? ($validated['competition_id'] ?? 'Semarak Aliyah'),
@@ -45,6 +62,14 @@ class RegistrationController extends Controller
         // Increment competition quota if single competition
         if (!empty($validated['competition_id']) && $validated['competition_id'] !== 'all-in') {
             Competition::where('id', $validated['competition_id'])->increment('current_quota');
+        }
+
+        // Auto-sync school name to schools database
+        try {
+            $schoolDistrict = $validated['school_district'] ?? ($validated['kecamatan'] ?? null);
+            \App\Models\School::firstOrCreateFromRegistration($reg->school_name, $reg->mentor_wa, $schoolDistrict);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Auto sync school API error: ' . $e->getMessage());
         }
 
         // Generate WA Link

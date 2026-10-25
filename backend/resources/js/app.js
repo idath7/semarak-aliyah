@@ -3,6 +3,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import 'remixicon/fonts/remixicon.css';
 import { initEcho } from './echo';
+import CustomSelect from './Components/CustomSelect.vue';
 
 // Expose Echo to window for real-time Reverb events
 window.initEcho = initEcho;
@@ -20,6 +21,8 @@ createInertiaApp({
 
         const app = createApp({ render: () => h(App, props) });
         app.use(plugin);
+        app.component('CustomSelect', CustomSelect);
+        app.component('custom-select', CustomSelect);
         app.config.globalProperties.$echo = window.Echo;
         app.mount(el);
         return app;

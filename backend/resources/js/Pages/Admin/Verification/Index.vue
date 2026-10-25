@@ -11,12 +11,16 @@ const props = defineProps({
 const selectedItem = ref(props.registrations?.[0] || null);
 
 const verifyForm = useForm({
+  registration_status: 'Terverifikasi',
+  payment_status: 'Terverifikasi',
   status: 'Terverifikasi',
   verification_notes: '',
 });
 
 function selectForReview(item) {
   selectedItem.value = item;
+  verifyForm.registration_status = item.registration_status || 'Menunggu Verifikasi';
+  verifyForm.payment_status = item.payment_status || 'Menunggu Verifikasi';
   verifyForm.status = item.payment_status;
   verifyForm.verification_notes = item.verification_notes || '';
 }
@@ -76,14 +80,22 @@ function submitVerification() {
                 </div>
               </div>
 
-              <div>
+              <div class="flex flex-col items-end gap-1">
                 <span 
                   :class="[
-                    'px-2.5 py-0.5 rounded-full text-[10px] font-extrabold',
-                    item.payment_status === 'Terverifikasi' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                    'px-2 py-0.5 rounded-full text-[9px] font-bold',
+                    item.registration_status === 'Terverifikasi' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : (item.registration_status === 'Ditolak' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30' : 'bg-amber-500/10 text-amber-400 border border-amber-500/30')
                   ]"
                 >
-                  {{ item.payment_status }}
+                  Reg: {{ item.registration_status || 'Menunggu' }}
+                </span>
+                <span 
+                  :class="[
+                    'px-2 py-0.5 rounded-full text-[9px] font-bold',
+                    item.payment_status === 'Terverifikasi' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : (item.payment_status === 'Ditolak' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30' : 'bg-amber-500/10 text-amber-400 border border-amber-500/30')
+                  ]"
+                >
+                  Bayar: {{ item.payment_status || 'Menunggu' }}
                 </span>
               </div>
             </div>
@@ -97,7 +109,18 @@ function submitVerification() {
           <div class="pb-3 border-b border-slate-800">
             <div class="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Detail Dokumen</div>
             <h2 class="text-base font-black text-white mt-0.5">{{ selectedItem.school_name }}</h2>
-            <div class="text-xs text-slate-400 mt-0.5">{{ selectedItem.competition_title }}</div>
+            <div class="text-xs text-slate-400 mt-0.5">{{ selectedItem.competition_title }} • <span class="text-amber-300 font-semibold">{{ selectedItem.package_type }}</span></div>
+          </div>
+
+          <!-- Paket All-In Notice if applicable -->
+          <div v-if="selectedItem.package_type === 'Paket All-In'" class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs">
+            <div class="font-bold text-amber-300 flex items-center gap-1.5 mb-1">
+              <i class="ri-vip-crown-fill text-amber-400"></i>
+              <span>Paket All-In Komplit</span>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-relaxed mb-0">
+              Jika <strong>Verifikasi Pendaftaran</strong> & <strong>Verifikasi Pembayaran</strong> keduanya disetujui, sekolah ini bebas mengisi kontingen di semua cabang lomba gratis (Rp 0).
+            </p>
           </div>
 
           <div class="space-y-2 text-xs">
@@ -111,33 +134,47 @@ function submitVerification() {
             </div>
             <div class="flex justify-between py-1 border-b border-slate-800/60">
               <span class="text-slate-500">Peserta Terdaftar:</span>
-              <span class="text-slate-300 font-medium text-right max-w-[200px]">{{ selectedItem.participants_names }}</span>
+              <span class="text-slate-300 font-medium text-right max-w-[200px] whitespace-pre-line">{{ selectedItem.participants_names }}</span>
             </div>
             <div class="flex justify-between py-1 border-b border-slate-800/60">
               <span class="text-slate-500">Total Biaya:</span>
-              <span class="font-bold text-emerald-400 font-mono">Rp {{ Number(selectedItem.total_fee || 50000).toLocaleString('id-ID') }}</span>
+              <span class="font-bold text-emerald-400 font-mono">Rp {{ Number(selectedItem.total_fee || 0).toLocaleString('id-ID') }}</span>
             </div>
           </div>
 
-          <!-- Review Form -->
+          <!-- Review Form: 2 Verifications -->
           <form @submit.prevent="submitVerification" class="pt-2 space-y-3">
             <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-1">Keputusan Verifikasi:</label>
-              <select 
-                v-model="verifyForm.status"
-                class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
+              <label class="block text-xs font-semibold text-slate-300 mb-1">1. Verifikasi Pendaftaran (Berkas & Data):</label>
+              <CustomSelect 
+                v-model="verifyForm.registration_status"
+                size="md"
+                variant="dark-slate"
               >
-                <option value="Terverifikasi">Terverifikasi (Lunas & Berkas Sah)</option>
+                <option value="Terverifikasi">Terverifikasi (Berkas Lengkap & Sah)</option>
                 <option value="Menunggu Verifikasi">Menunggu Verifikasi Tambahan</option>
-                <option value="Ditolak">Ditolak / Berkas Tidak Sesuai</option>
-              </select>
+                <option value="Ditolak">Ditolak / Data Tidak Sesuai</option>
+              </CustomSelect>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1">2. Verifikasi Pembayaran (Bank / Lunas):</label>
+              <CustomSelect 
+                v-model="verifyForm.payment_status"
+                size="md"
+                variant="dark-slate"
+              >
+                <option value="Terverifikasi">Terverifikasi (Lunas / Transfer Diterima)</option>
+                <option value="Menunggu Verifikasi">Menunggu Konfirmasi Transfer</option>
+                <option value="Ditolak">Ditolak / Belum Ada Dana Masuk</option>
+              </CustomSelect>
             </div>
 
             <div>
               <label class="block text-xs font-semibold text-slate-300 mb-1">Catatan Verifikator:</label>
               <textarea 
                 v-model="verifyForm.verification_notes"
-                rows="3"
+                rows="2"
                 placeholder="Tuliskan catatan verifikasi bukti pembayaran atau kekurangan berkas..."
                 class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
               ></textarea>
@@ -149,7 +186,7 @@ function submitVerification() {
               class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-1.5"
             >
               <i class="ri-check-double-line text-sm"></i>
-              <span>{{ verifyForm.processing ? 'Menyimpan...' : 'Simpan Keputusan Verifikasi' }}</span>
+              <span>{{ verifyForm.processing ? 'Menyimpan...' : 'Simpan Keputusan 2 Verifikasi' }}</span>
             </button>
           </form>
         </div>

@@ -119,7 +119,7 @@ class TournamentMatchController extends Controller
             $msg .= " Pemenang: {$winnerReg?->school_name} lolos ke babak selanjutnya (Sistem Gugur).";
         }
 
-        if ($request->ajax() || $request->wantsJson()) {
+        if (!$request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
             return response()->json([
                 'success' => true,
                 'message' => $msg,

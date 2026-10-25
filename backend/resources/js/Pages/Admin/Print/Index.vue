@@ -38,15 +38,18 @@ function handlePrint() {
 
       <div class="flex items-center gap-3">
         <!-- Filter Lomba -->
-        <select 
-          v-model="selectedComp"
-          class="px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500"
-        >
-          <option value="all">Semua Cabang Lomba</option>
-          <option v-for="c in competitions" :key="c.id" :value="c.id">
-            {{ c.icon }} {{ c.title }}
-          </option>
-        </select>
+        <div style="min-width: 220px;">
+          <CustomSelect 
+            v-model="selectedComp"
+            size="sm"
+            variant="dark-slate"
+          >
+            <option value="all">Semua Cabang Lomba</option>
+            <option v-for="c in competitions" :key="c.id" :value="c.id">
+              {{ c.icon }} {{ c.title }}
+            </option>
+          </CustomSelect>
+        </div>
 
         <button 
           @click="handlePrint"

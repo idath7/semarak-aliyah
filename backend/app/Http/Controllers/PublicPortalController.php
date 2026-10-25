@@ -10,6 +10,7 @@ use App\Models\Sponsor;
 use App\Models\Gallery;
 use App\Models\Setting;
 use App\Models\Faq;
+use Illuminate\Support\Facades\Auth;
 
 class PublicPortalController extends Controller
 {
@@ -172,8 +173,26 @@ class PublicPortalController extends Controller
 
     public function register(Request $request)
     {
+        $isLoginRequired = Setting::get('registration_login_required', '0') === '1';
+        $lomba = $request->query('lomba');
+
+        $isRegistrantLoggedIn = Auth::check() && Auth::user()->isRegistrant();
+
+        // Jika pendaftaran diset Wajib Login dan pengguna belum login sebagai pendaftar:
+        if ($isLoginRequired && !$isRegistrantLoggedIn) {
+            $params = [
+                'redirect_to' => 'register',
+                'notice' => 'required',
+            ];
+            if ($lomba) {
+                $params['lomba'] = $lomba;
+            }
+            return redirect()->route('pendaftar.login', $params)
+                ->with('info', 'Pendaftaran mewajibkan login akun pendaftar terlebih dahulu. Silakan masuk atau daftar akun baru.');
+        }
+
         $competitions = Competition::orderBy('id')->get();
-        $preselectedLomba = $request->query('lomba', 'mipa');
+        $preselectedLomba = $request->query('lomba', null);
 
         $sumCompFees = (int)Competition::sum('fee');
         $isAutoOriginalPrice = Setting::get('package_allin_auto_original_price', '1') === '1';
@@ -198,11 +217,43 @@ class PublicPortalController extends Controller
             'cash_enabled' => Setting::get('payment_cash_enabled', '1') === '1',
         ];
 
-        return Inertia::render('Public/Register', compact('competitions', 'preselectedLomba', 'pricingSettings'));
+        $schools = \App\Models\School::active()->orderBy('name', 'asc')->get();
+
+        $authRegistrant = null;
+        if ($isRegistrantLoggedIn) {
+            $u = Auth::user();
+            $authRegistrant = [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+                'phone' => $u->phone,
+                'role' => $u->role,
+                'registrant_role' => $u->registrant_role,
+                'gender' => $u->gender,
+                'school_name' => $u->school_name,
+                'school_district' => $u->school_district,
+            ];
+        }
+
+        return Inertia::render('Public/Register', compact(
+            'competitions',
+            'preselectedLomba',
+            'pricingSettings',
+            'schools',
+            'isLoginRequired',
+            'authRegistrant'
+        ));
     }
 
     public function storeRegistration(Request $request)
     {
+        $isLoginRequired = Setting::get('registration_login_required', '0') === '1';
+        $isRegistrantLoggedIn = Auth::check() && Auth::user()->isRegistrant();
+        if ($isLoginRequired && !$isRegistrantLoggedIn) {
+            return redirect()->route('pendaftar.login', ['redirect_to' => 'register', 'notice' => 'required'])
+                ->withErrors(['login' => 'Pendaftaran mewajibkan login akun pendaftar. Silakan masuk terlebih dahulu.']);
+        }
+
         $validated = $request->validate([
             'competition_id' => 'required|string',
             'package_type' => 'nullable|string',
@@ -255,7 +306,7 @@ class PublicPortalController extends Controller
                 'school_name' => 'required|string',
                 'mentor_name' => 'required|string',
                 'mentor_wa' => 'required|string',
-                'participants_names' => 'required|string',
+                'participants_names' => $validated['competition_id'] === 'all-in' ? 'nullable|string' : 'required|string',
             ]);
         } else {
             // If form has custom_fields defined, validate based on those fields!
@@ -324,6 +375,21 @@ class PublicPortalController extends Controller
                     if ($isRequired && (is_null($val) || $val === '' || (is_array($val) && empty($val)))) {
                         $customErrors["cf_{$fName}"] = "Kolom \"{$fLabel}\" wajib diisi.";
                     } else {
+                        // Email validation
+                        if ($fType === 'email' && !empty($val) && !is_array($val)) {
+                            if (!filter_var($val, FILTER_VALIDATE_EMAIL)) {
+                                $customErrors["cf_{$fName}"] = "Format email pada \"{$fLabel}\" tidak valid (contoh: nama@domain.sch.id).";
+                                continue;
+                            }
+                        }
+
+                        // Number validation & WhatsApp cleaning
+                        if ($fType === 'number' && !empty($val) && !is_array($val)) {
+                            if ($fName === 'mentor_wa' || str_contains($fName, 'wa') || str_contains($fName, 'whatsapp') || str_contains($fName, 'telepon') || str_contains($fName, 'kontak')) {
+                                $val = preg_replace('/[^0-9]/', '', (string)$val);
+                            }
+                        }
+
                         $processedCustomFields[$fName] = $val;
                     }
                 }
@@ -358,6 +424,58 @@ class PublicPortalController extends Controller
             ?? ($processedCustomFields['nomor_kontak_pelatih'] ?? null)
             ?? ($processedCustomFields['nomor_wa_peserta'] ?? null)
             ?? '-';
+        if ($mentorWa !== '-') {
+            $mentorWa = preg_replace('/[^0-9]/', '', (string)$mentorWa);
+        }
+
+        $contactEmail = $request->input('mentor_email')
+            ?? $request->input('contact_email')
+            ?? ($processedCustomFields['mentor_email'] ?? null)
+            ?? ($processedCustomFields['contact_email'] ?? null)
+            ?? ($processedCustomFields['email'] ?? null)
+            ?? ($processedCustomFields['email_pendamping'] ?? null)
+            ?? ($processedCustomFields['alamat_email'] ?? null)
+            ?? ($processedCustomFields['email_kontak'] ?? null)
+            ?? null;
+        if ($contactEmail) {
+            if (empty($processedCustomFields['mentor_email'])) {
+                $processedCustomFields['mentor_email'] = $contactEmail;
+            }
+            if (empty($processedCustomFields['contact_email'])) {
+                $processedCustomFields['contact_email'] = $contactEmail;
+            }
+        }
+
+        $schoolDistrict = $request->input('school_district')
+            ?? ($processedCustomFields['school_district'] ?? null)
+            ?? ($processedCustomFields['kecamatan'] ?? null)
+            ?? ($processedCustomFields['kecamatan_sekolah'] ?? null)
+            ?? ($processedCustomFields['kecamatan_asal_sekolah'] ?? null)
+            ?? ($processedCustomFields['kecamatan_asal_sekolah_madrasah'] ?? null)
+            ?? ($processedCustomFields['wilayah_kecamatan'] ?? null)
+            ?? null;
+        if ($schoolDistrict && empty($processedCustomFields['school_district'])) {
+            $processedCustomFields['school_district'] = $schoolDistrict;
+        }
+
+        $schoolNpsn = $request->input('school_npsn')
+            ?? $request->input('npsn')
+            ?? ($processedCustomFields['school_npsn'] ?? null)
+            ?? ($processedCustomFields['npsn'] ?? null)
+            ?? null;
+        if ($schoolNpsn && empty($processedCustomFields['school_npsn'])) {
+            $processedCustomFields['school_npsn'] = $schoolNpsn;
+        }
+
+        $schoolAddress = $request->input('school_address')
+            ?? $request->input('alamat')
+            ?? ($processedCustomFields['school_address'] ?? null)
+            ?? ($processedCustomFields['alamat_sekolah'] ?? null)
+            ?? ($processedCustomFields['alamat'] ?? null)
+            ?? null;
+        if ($schoolAddress && empty($processedCustomFields['school_address'])) {
+            $processedCustomFields['school_address'] = $schoolAddress;
+        }
 
         $participantsNames = $request->input('participants_names') 
             ?? ($processedCustomFields['participants_names'] ?? null) 
@@ -394,31 +512,332 @@ class PublicPortalController extends Controller
             }
         }
 
-        $packageType = $request->input('package_type') ?? 'Paket Satuan';
+        // Handle Payment Proof File Upload if provided
+        if ($request->hasFile('payment_proof')) {
+            $proof = $request->file('payment_proof');
+            if ($proof && $proof->isValid()) {
+                $ext = strtolower($proof->getClientOriginalExtension());
+                $safeOriginalName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $proof->getClientOriginalName());
+                $storagePath = $proof->storeAs("uploads/registrations/{$regCode}", time() . "_bukti_{$safeOriginalName}", 'public');
+                $fileUrl = '/storage/' . $storagePath;
+                $fileDocuments[] = [
+                    'title' => 'Bukti Transfer Pembayaran Bank',
+                    'url' => $fileUrl,
+                    'filename' => $proof->getClientOriginalName(),
+                    'type' => $ext,
+                    'uploaded_at' => now()->toIso8601String(),
+                ];
+                $processedCustomFields['payment_proof'] = [
+                    'type' => 'file',
+                    'label' => 'Bukti Transfer Pembayaran Bank',
+                    'name' => $proof->getClientOriginalName(),
+                    'url' => $fileUrl,
+                ];
+            }
+        }
 
-        // Total fee calculation
-        $totalFee = $packageType === 'Paket All-In' 
-            ? (int)Setting::get('package_allin_price', 200000) 
-            : ($competition ? (int)$competition->fee : 50000);
+        // Handle specific Paket All-In fields: coordinators list & count, npsn
+        if ($request->filled('npsn') && empty($processedCustomFields['npsn'])) {
+            $processedCustomFields['npsn'] = $request->input('npsn');
+        }
+        if ($request->has('coordinators')) {
+            $rawCoordinators = $request->input('coordinators');
+            if (is_string($rawCoordinators)) {
+                $rawCoordinators = json_decode($rawCoordinators, true) ?: [];
+            }
+            $processedCustomFields['coordinators'] = $rawCoordinators;
+            $processedCustomFields['coordinators_count'] = count($rawCoordinators);
+
+            // Generate participants_names from coordinators if competition_id is all-in
+            if ($validated['competition_id'] === 'all-in' && ($participantsNames === '-' || empty(trim($participantsNames)))) {
+                $cLines = [];
+                foreach ($rawCoordinators as $cIdx => $c) {
+                    $cName = trim($c['name'] ?? $c['nama'] ?? '');
+                    if (empty($cName)) continue;
+                    $cRole = trim($c['role'] ?? $c['jabatan'] ?? 'Guru Pendamping');
+                    $cWa = trim($c['wa'] ?? $c['phone'] ?? '');
+                    $cLines[] = ($cIdx + 1) . ". {$cName} - {$cRole}" . ($cWa ? " (WA: {$cWa})" : '');
+                }
+                if (!empty($cLines)) {
+                    $participantsNames = "Kontingen All-In (" . count($cLines) . " Pendamping):\n" . implode("\n", $cLines);
+                }
+            }
+        }
+
+        if ($validated['competition_id'] === 'all-in' && ($participantsNames === '-' || empty(trim($participantsNames)))) {
+            $participantsNames = "Kontingen Resmi Paket All-In ({$mentorName})";
+        }
+
+        // Check if this school has already registered & verified Paket All-In (via manual code or school name)
+        $allInCodeInput = trim(
+            $request->input('custom_fields.allin_code') 
+            ?? $request->input('allin_code') 
+            ?? $request->input('package_code') 
+            ?? ''
+        );
+
+        $existingAllIn = null;
+        $isAllInFromCode = false;
+
+        // 1. Prioritas Utama: Cek jika pendamping memasukkan Kode Paket Komplit secara manual atau auto-filled
+        if (!empty($allInCodeInput)) {
+            $cleanCode = strtoupper($allInCodeInput);
+            $existingAllIn = Registration::where('package_type', 'Paket All-In')
+                ->where(function ($q) use ($cleanCode) {
+                    $q->whereRaw('UPPER(reg_code) = ?', [$cleanCode])
+                      ->orWhereRaw('UPPER(barcode) = ?', [$cleanCode]);
+                })
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($existingAllIn) {
+                $isAllInFromCode = true;
+            }
+        }
+
+        // 2. Fallback: Deteksi otomatis berdasarkan nama sekolah jika kode belum diinput
+        if (!$existingAllIn) {
+            $cleanTargetSchool = \App\Models\School::normalizeSchoolName($schoolName);
+            $existingAllIn = Registration::where('package_type', 'Paket All-In')
+                ->get()
+                ->first(function ($r) use ($schoolName, $cleanTargetSchool) {
+                    if (empty($r->school_name)) return false;
+                    if (strcasecmp(trim($r->school_name), trim($schoolName)) === 0) return true;
+                    return \App\Models\School::normalizeSchoolName($r->school_name) === $cleanTargetSchool;
+                });
+        }
+
+        $isAllInVerified = false;
+        if ($existingAllIn) {
+            $pStatus = strtolower($existingAllIn->payment_status ?? '');
+            $rStatus = strtolower($existingAllIn->registration_status ?? 'terverifikasi');
+            // Terverifikasi jika pembayaran terkonfirmasi atau kode paket komplit valid
+            $isAllInVerified = in_array($pStatus, ['terverifikasi', 'lunas', 'verified']) || $isAllInFromCode;
+
+            // Simpan kode all-in ke processedCustomFields agar tersimpan di database
+            if (!is_array($processedCustomFields)) {
+                $processedCustomFields = [];
+            }
+            $processedCustomFields['allin_code'] = $existingAllIn->reg_code;
+        }
+
+        $packageType = $request->input('package_type') ?? ($isAllInVerified ? 'Paket All-In' : 'Paket Satuan');
+
+        // Total fee calculation & payment status algorithm
+        if ($isAllInVerified && $validated['competition_id'] !== 'all-in') {
+            // Already paid & verified under Paket All-In Komplit! Free for all competitions!
+            $totalFee = 0;
+            $paymentStatus = 'Terverifikasi';
+            $regStatus = 'Menunggu Verifikasi';
+            $packageType = 'Paket All-In';
+        } elseif ($packageType === 'Paket All-In') {
+            // Initial Paket All-In registration
+            $totalFee = (int)Setting::get('package_allin_price', 200000);
+            $paymentStatus = 'Menunggu Verifikasi';
+            $regStatus = 'Menunggu Verifikasi';
+        } else {
+            // Paket Satuan
+            $totalFee = $competition ? (int)$competition->fee : 50000;
+            $paymentStatus = 'Menunggu Verifikasi';
+            $regStatus = 'Menunggu Verifikasi';
+        }
+
+        // Tambahan fallback komprehensif jika nomor WA, nama, atau email belum terdeteksi (misal pendaftaran tim/kapten)
+        if ($mentorWa === '-' || empty($mentorWa)) {
+            $possibleWaKeys = [
+                'wa_kapten', 'captain_wa', 'nomor_wa_kapten', 'kontak_kapten', 'no_wa_kapten', 'kapten_wa',
+                'nomor_wa_peserta', 'wa_peserta', 'telepon_peserta', 'kontak_peserta', 'nomor_hp_peserta',
+                'nomor_kontak_pelatih', 'kontak_pendamping', 'nomor_hp', 'no_hp', 'telepon', 'phone'
+            ];
+            foreach ($possibleWaKeys as $pwk) {
+                if (!empty($processedCustomFields[$pwk])) {
+                    $cWa = preg_replace('/[^0-9]/', '', (string)$processedCustomFields[$pwk]);
+                    if (!empty($cWa)) {
+                        $mentorWa = $cWa;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if ($mentorName === '-' || empty($mentorName)) {
+            $possibleNameKeys = [
+                'nama_kapten', 'captain_name', 'kapten_tim', 'nama_ketua_tim', 'nama_ketua',
+                'nama_koordinator', 'koordinator', 'nama_official', 'nama_pelatih', 'nama_peserta', 'nama_lengkap'
+            ];
+            foreach ($possibleNameKeys as $pnk) {
+                if (!empty($processedCustomFields[$pnk]) && is_string($processedCustomFields[$pnk])) {
+                    $mentorName = trim($processedCustomFields[$pnk]);
+                    break;
+                }
+            }
+        }
+
+        if (empty($contactEmail)) {
+            $possibleEmailKeys = [
+                'mentor_email', 'contact_email', 'email', 'email_pendamping', 
+                'email_kapten', 'captain_email', 'email_koordinator', 'email_pendaftar',
+                'alamat_email', 'email_kontak', 'email_resmi'
+            ];
+            foreach ($possibleEmailKeys as $pek) {
+                if (!empty($processedCustomFields[$pek]) && filter_var($processedCustomFields[$pek], FILTER_VALIDATE_EMAIL)) {
+                    $contactEmail = strtolower(trim($processedCustomFields[$pek]));
+                    break;
+                }
+            }
+        }
+
+        // Cek juga di array delegasi / peserta siswa repeater jika ada kapten
+        if (($mentorWa === '-' || empty($mentorWa)) || ($mentorName === '-' || empty($mentorName))) {
+            foreach ($processedCustomFields as $key => $val) {
+                if (is_array($val) && !empty($val) && isset($val[0]) && is_array($val[0])) {
+                    foreach ($val as $p) {
+                        if (!empty($p['is_captain']) || !empty($p['captain_wa']) || !empty($p['wa_number'])) {
+                            if (($mentorWa === '-' || empty($mentorWa)) && !empty($p['captain_wa'] ?? $p['wa_number'])) {
+                                $cDigits = preg_replace('/[^0-9]/', '', (string)($p['captain_wa'] ?? $p['wa_number']));
+                                if (!empty($cDigits)) {
+                                    $mentorWa = $cDigits;
+                                }
+                            }
+                            if (($mentorName === '-' || empty($mentorName)) && !empty($p['name'] ?? $p['nama_lengkap'])) {
+                                $mentorName = trim($p['name'] ?? $p['nama_lengkap']);
+                            }
+                            if (empty($contactEmail) && !empty($p['email']) && filter_var($p['email'], FILTER_VALIDATE_EMAIL)) {
+                                $contactEmail = strtolower(trim($p['email']));
+                            }
+                            break 2;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Simpan email kontak ke processedCustomFields agar tersimpan di database
+        if (!empty($contactEmail)) {
+            $processedCustomFields['mentor_email'] = $contactEmail;
+            $processedCustomFields['contact_email'] = $contactEmail;
+        }
+
+        // =========================================================================
+        // OTOMATIS MEMBUAT / MENGHUBUNGKAN AKUN PENDAFTAR (Registrant)
+        // Saat Kebijakan Pendaftaran Bebas (Tanpa Wajib Login), akun baru otomatis dibuat
+        // di tabel terpisah 'registrants' berdasarkan kontak & email koordinator/pendamping/kapten.
+        // =========================================================================
+        $registrantUser = null;
+        if (Auth::guard('pendaftar')->check()) {
+            $registrantUser = Auth::guard('pendaftar')->user();
+        } else {
+            $cleanWa = ($mentorWa !== '-' && !empty($mentorWa)) ? Setting::formatWaNumber($mentorWa) : null;
+            $rawWaDigits = ($mentorWa !== '-' && !empty($mentorWa)) ? preg_replace('/\D/', '', (string)$mentorWa) : null;
+
+            if (!empty($cleanWa) || !empty($contactEmail)) {
+                // 1. Cari apakah akun Registrant sudah ada sebelumnya berdasarkan nomor WA atau Email
+                $registrantUser = \App\Models\Registrant::where(function ($q) use ($cleanWa, $rawWaDigits, $contactEmail) {
+                    if (!empty($cleanWa)) {
+                        $q->where('phone', $cleanWa)
+                          ->orWhere('phone', $rawWaDigits);
+                    }
+                    if (!empty($contactEmail)) {
+                        $q->orWhere('email', strtolower($contactEmail));
+                    }
+                })->first();
+
+                if ($registrantUser) {
+                    // Update data profil jika ada email atau sekolah baru yang valid
+                    $isUpdated = false;
+                    if (!empty($contactEmail) && (empty($registrantUser->email) || str_ends_with($registrantUser->email, '@semarak.id'))) {
+                        if (!\App\Models\Registrant::where('email', strtolower($contactEmail))->where('id', '!=', $registrantUser->id)->exists()) {
+                            $registrantUser->email = strtolower($contactEmail);
+                            $isUpdated = true;
+                        }
+                    }
+                    if (empty($registrantUser->school_name) && $schoolName !== '-') {
+                        $registrantUser->school_name = $schoolName;
+                        $isUpdated = true;
+                    }
+                    if (empty($registrantUser->school_district) && !empty($schoolDistrict)) {
+                        $registrantUser->school_district = $schoolDistrict;
+                        $isUpdated = true;
+                    }
+                    if ($isUpdated) {
+                        $registrantUser->save();
+                    }
+                } else if (!empty($cleanWa)) {
+                    // 2. Buat akun baru pendaftar secara otomatis di tabel registrants
+                    $roleLabel = (stripos($mentorName, 'kapten') !== false) ? 'Siswa Peserta' : 'Pendamping';
+                    $generatedEmail = !empty($contactEmail) 
+                        ? strtolower($contactEmail) 
+                        : ('pendaftar_' . preg_replace('/\D/', '', $cleanWa) . '@semarak.id');
+
+                    if (\App\Models\Registrant::where('email', $generatedEmail)->exists()) {
+                        $generatedEmail = 'pendaftar_' . preg_replace('/\D/', '', $cleanWa) . '_' . rand(100, 999) . '@semarak.id';
+                    }
+
+                    $displayName = ($mentorName !== '-' && !empty($mentorName)) 
+                        ? $mentorName 
+                        : ($schoolName !== '-' ? 'Koordinator ' . $schoolName : 'Pendaftar ' . substr($cleanWa, -4));
+
+                    $registrantUser = \App\Models\Registrant::create([
+                        'name' => $displayName,
+                        'phone' => $cleanWa,
+                        'email' => $generatedEmail,
+                        'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(16)),
+                        'registrant_role' => $roleLabel,
+                        'school_name' => $schoolName !== '-' ? $schoolName : null,
+                        'school_district' => $schoolDistrict ?: null,
+                        'gender' => 'Laki-laki',
+                        'is_active' => true,
+                    ]);
+                }
+            }
+        }
 
         $registration = Registration::create([
+            'registrant_id' => $registrantUser ? $registrantUser->id : null,
+            'user_id' => $registrantUser ? $registrantUser->id : null,
             'reg_code' => $regCode,
             'barcode' => $regCode,
             'school_name' => $schoolName,
             'mentor_name' => $mentorName,
-            'mentor_wa' => $mentorWa,
+            'mentor_wa' => $cleanWa ?: $mentorWa,
             'package_type' => $packageType,
             'competition_id' => $validated['competition_id'],
             'competition_title' => $compTitle,
             'participants_names' => $participantsNames,
             'notes' => $validated['notes'] ?? null,
             'total_fee' => $totalFee,
-            'payment_status' => 'Menunggu Verifikasi',
+            'registration_status' => $regStatus,
+            'payment_status' => $paymentStatus,
             'checkin_status' => 'belum_hadir',
             'payment_method' => $validated['payment_method'] ?? 'Transfer Bank BSI',
             'custom_fields' => !empty($processedCustomFields) ? $processedCustomFields : null,
             'file_documents' => !empty($fileDocuments) ? $fileDocuments : null,
         ]);
+
+        // Tautkan pendaftaran orphan lama dengan nomor WA atau email yang sama ke akun pendaftar ini
+        if ($registrantUser) {
+            try {
+                $cleanWaDigits = preg_replace('/\D/', '', (string)$registrantUser->phone);
+                Registration::where(function ($q) {
+                        $q->whereNull('registrant_id')->orWhereNull('user_id');
+                    })
+                    ->where(function ($q) use ($registrantUser, $cleanWaDigits) {
+                        $q->where('mentor_wa', $registrantUser->phone)
+                          ->orWhere('mentor_wa', $cleanWaDigits);
+                        if (!empty($registrantUser->email) && !str_ends_with($registrantUser->email, '@semarak.id')) {
+                            $q->orWhere('custom_fields->mentor_email', $registrantUser->email)
+                              ->orWhere('custom_fields->contact_email', $registrantUser->email)
+                              ->orWhere('custom_fields->email', $registrantUser->email);
+                        }
+                    })
+                    ->update([
+                        'registrant_id' => $registrantUser->id,
+                        'user_id' => $registrantUser->id,
+                    ]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Link orphan registrations to user error: ' . $e->getMessage());
+            }
+        }
 
         // Increment competition current quota & auto-close if full
         if ($competition) {
@@ -427,6 +846,20 @@ class PublicPortalController extends Controller
                 $competition->status = 'closed';
                 $competition->save();
             }
+        }
+
+        // Auto-sync school name to schools database
+        try {
+            \App\Models\School::firstOrCreateFromRegistration($schoolName, $mentorWa, $schoolDistrict, $schoolNpsn, $schoolAddress);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Auto sync school error: ' . $e->getMessage());
+        }
+
+        // Auto-send WhatsApp notification via OpenWA if enabled
+        try {
+            \App\Services\WhatsAppService::sendNewRegistrationNotification($registration);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Auto WA notification error: ' . $e->getMessage());
         }
 
         return redirect()->back()->with([

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" data-bs-theme="{{ (request()->is('admin*') || request()->is('operasional*') || request()->is('login*')) ? 'dark' : 'light' }}">
+<html lang="id" data-bs-theme="{{ (request()->is('admin*') || request()->is('operasional*') || request()->is('login*') || request()->is('pendaftar*')) ? 'dark' : 'light' }}">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
@@ -92,25 +92,28 @@
     <meta name="twitter:description" content="{{ $ogDesc }}" />
     <meta name="twitter:image" content="{{ $ogImage . $ogImageVersion }}" />
 
-    @if(request()->is('admin*') || request()->is('operasional*') || request()->is('login*'))
-        <!-- Admin & Operasional Command Center Fonts & Assets (Synchronous Theme Restorer) -->
+    @if(request()->is('admin*') || request()->is('operasional*') || request()->is('login*') || request()->is('pendaftar*'))
+        <!-- Admin, Operasional & Pendaftar Portal Fonts & Assets (Synchronous Theme Restorer) -->
         <script>
             (function() {
                 try {
-                    var t = localStorage.getItem('velzon_theme_v2') || 'dark';
+                    var isPendaftar = window.location.pathname.startsWith('/pendaftar');
+                    var t = isPendaftar 
+                        ? (localStorage.getItem('semarak_theme') || localStorage.getItem('velzon_theme_v2') || 'dark')
+                        : (localStorage.getItem('velzon_theme_v2') || 'dark');
                     document.documentElement.setAttribute('data-bs-theme', t);
                     document.documentElement.style.colorScheme = t;
                     if (t === 'dark') {
                         document.documentElement.style.backgroundColor = '#0b0f19';
                     } else {
-                        document.documentElement.style.backgroundColor = '#f3f3f9';
+                        document.documentElement.style.backgroundColor = '#f8fafc';
                     }
                 } catch(e) {}
             })();
         </script>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Orbitron:wght@600;700;800;900&family=Syne:wght@700;800;900&family=Oswald:wght@600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Hanken+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=Orbitron:wght@600;700;800;900&family=Syne:wght@700;800;900&family=Oswald:wght@600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <style>
             [data-bs-theme="dark"] body {

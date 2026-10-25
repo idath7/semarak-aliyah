@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\School;
-use Database\Seeders\SchoolSeeder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -15,6 +14,9 @@ class SchoolController extends Controller
      */
     public function index(Request $request)
     {
+        // Notice: We intentionally do not auto-seed here so that if the admin clears/cleans the database,
+        // it stays clean until they explicitly click "Sinkron Master".
+
         $query = School::query();
 
         // 1. Search keyword
@@ -50,14 +52,49 @@ class SchoolController extends Controller
 
         $schools = $query->paginate(20)->withQueryString();
 
+        // Distinct registered school names from registrations table
+        $registeredSchoolNames = \App\Models\Registration::whereNotNull('school_name')
+            ->where('school_name', '!=', '')
+            ->where('school_name', '!=', '-')
+            ->pluck('school_name')
+            ->map(fn($n) => trim(preg_replace('/\s*\([^)]*\)\s*$/', '', $n)))
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $registrationCounts = \App\Models\Registration::select('school_name', \Illuminate\Support\Facades\DB::raw('count(*) as count'))
+            ->whereNotNull('school_name')
+            ->where('school_name', '!=', '')
+            ->where('school_name', '!=', '-')
+            ->groupBy('school_name')
+            ->get();
+
+        // Attach registrations_count for each school item
+        $schools->getCollection()->transform(function ($school) use ($registrationCounts) {
+            $count = 0;
+            $schoolNorm = School::normalizeSchoolName($school->name);
+            foreach ($registrationCounts as $rc) {
+                $rcNorm = School::normalizeSchoolName($rc->school_name);
+                if ($rcNorm === $schoolNorm || 
+                    strcasecmp(trim($rc->school_name), trim($school->name)) === 0 ||
+                    stripos($schoolNorm, $rcNorm) !== false ||
+                    stripos($rcNorm, $schoolNorm) !== false) {
+                    $count += $rc->count;
+                }
+            }
+            $school->registrations_count = $count;
+            return $school;
+        });
+
         // Metrics for summary cards
         $metrics = [
-            'total_schools' => School::count(),
-            'total_smp'     => School::where('jenjang', 'SMP')->count(),
-            'total_mts'     => School::where('jenjang', 'MTs')->count(),
-            'total_negeri'  => School::where('status', 'Negeri')->count(),
-            'total_swasta'  => School::where('status', 'Swasta')->count(),
-            'total_active'  => School::where('is_active', true)->count(),
+            'total_schools'            => School::count(),
+            'total_smp'                => School::where('jenjang', 'SMP')->count(),
+            'total_mts'                => School::where('jenjang', 'MTs')->count(),
+            'total_negeri'             => School::where('status', 'Negeri')->count(),
+            'total_swasta'             => School::where('status', 'Swasta')->count(),
+            'total_active'             => School::where('is_active', true)->count(),
+            'total_registered_schools' => count($registeredSchoolNames),
         ];
 
         // List of all distinct kecamatan in Jember with counts
@@ -69,10 +106,11 @@ class SchoolController extends Controller
             ->toArray();
 
         return Inertia::render('Admin/Schools/Index', [
-            'schools'    => $schools,
-            'metrics'    => $metrics,
-            'kecamatans' => $kecamatans,
-            'filters'    => $request->only(['search', 'jenjang', 'status', 'kecamatan', 'sort_by', 'order']),
+            'schools'            => $schools,
+            'metrics'            => $metrics,
+            'kecamatans'         => $kecamatans,
+            'registered_schools' => $registeredSchoolNames,
+            'filters'            => $request->only(['search', 'jenjang', 'status', 'kecamatan', 'sort_by', 'order']),
         ]);
     }
 
@@ -112,8 +150,12 @@ class SchoolController extends Controller
 
     /**
      * Update school record.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int|string  $id
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, int|string $id)
     {
         $school = School::findOrFail($id);
 
@@ -139,11 +181,38 @@ class SchoolController extends Controller
     }
 
     /**
-     * Delete school record.
+     * Delete school record with active registration relation protection.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int|string  $id
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function destroy($id)
+    public function destroy(Request $request, int|string $id)
     {
         $school = School::findOrFail($id);
+
+        // Check if school has active registrations
+        $schoolNorm = School::normalizeSchoolName($school->name);
+        $relatedRegistrations = \App\Models\Registration::whereNotNull('school_name')
+            ->where('school_name', '!=', '')
+            ->where('school_name', '!=', '-')
+            ->get()
+            ->filter(function ($reg) use ($school, $schoolNorm) {
+                $rNorm = School::normalizeSchoolName($reg->school_name);
+                return $rNorm === $schoolNorm ||
+                       strcasecmp(trim($reg->school_name), trim($school->name)) === 0 ||
+                       stripos($schoolNorm, $rNorm) !== false ||
+                       stripos($rNorm, $schoolNorm) !== false;
+            });
+
+        $count = $relatedRegistrations->count();
+        $force = $request->boolean('force');
+
+        if ($count > 0 && !$force) {
+            $sampleCodes = $relatedRegistrations->take(3)->pluck('reg_code')->join(', ');
+            return redirect()->back()->with('error', "PENGHAPUSAN DITOLAK: Sekolah \"{$school->name}\" memiliki relasi dengan {$count} data pendaftar aktif (Kode: {$sampleCodes}). Beri konfirmasi pemahaman resiko untuk melanjutkan penghapusan.");
+        }
+
         $name = $school->name;
         $school->delete();
 
@@ -151,14 +220,30 @@ class SchoolController extends Controller
     }
 
     /**
-     * Sync or reset to default dataset.
+     * Deprecated master sync: forward to sync from registrations.
      */
     public function syncDefaults()
     {
-        $seeder = new SchoolSeeder();
-        $seeder->run();
+        return $this->syncRegistrations();
+    }
 
-        return redirect()->back()->with('success', 'Database sekolah berhasil disinkronkan dengan 146+ dataset resmi SMP & MTs Kabupaten Jember.');
+    /**
+     * Sync schools from the registrations table into database.
+     */
+    public function syncRegistrations()
+    {
+        $synced = School::syncFromRegistrations();
+        $totalReg = \App\Models\Registration::whereNotNull('school_name')
+            ->where('school_name', '!=', '')
+            ->where('school_name', '!=', '-')
+            ->distinct('school_name')
+            ->count('school_name');
+
+        if ($synced === 0) {
+            return redirect()->back()->with('info', "Seluruh data sekolah dari {$totalReg} pendaftar sudah lengkap di database (tidak ada duplikasi data).");
+        }
+
+        return redirect()->back()->with('success', "Berhasil menarik data! {$synced} sekolah baru dari riwayat pendaftar berhasil dipulihkan ke database sekolah.");
     }
 
     /**
@@ -431,8 +516,11 @@ class SchoolController extends Controller
 
     /**
      * Toggle active/inactive status of a school.
+     *
+     * @param  int|string  $id
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function toggleActive($id)
+    public function toggleActive(int|string $id)
     {
         $school = School::findOrFail($id);
         $school->is_active = !$school->is_active;
@@ -443,23 +531,66 @@ class SchoolController extends Controller
     }
 
     /**
-     * Clean invalid or wipe all schools.
+     * Clean invalid or wipe schools with relation protection.
      */
     public function cleanInvalid(Request $request)
     {
-        $scope = $request->input('scope', 'all');
+        $scope = $request->input('scope', 'master_unregistered');
 
-        if ($scope === 'all') {
-            $deleted = School::count();
-            School::truncate();
-            return redirect()->back()->with('success', "Pembersihan selesai: Seluruh {$deleted} data sekolah hasil API/seeder berhasil dibersihkan dari database.");
+        // 1. Bersihkan Master Sekolah Tanpa Pendaftar Saja (Aman & Melindungi Data Pendaftar)
+        if ($scope === 'master_unregistered') {
+            $regs = \App\Models\Registration::whereNotNull('school_name')
+                ->where('school_name', '!=', '')
+                ->where('school_name', '!=', '-')
+                ->get();
+
+            $allSchools = School::all();
+            $deletableIds = [];
+            $protectedCount = 0;
+
+            foreach ($allSchools as $s) {
+                $sNorm = School::normalizeSchoolName($s->name);
+                $hasReg = $regs->contains(function ($r) use ($s, $sNorm) {
+                    $rNorm = School::normalizeSchoolName($r->school_name);
+                    return $rNorm === $sNorm ||
+                           strcasecmp(trim($r->school_name), trim($s->name)) === 0 ||
+                           stripos($sNorm, $rNorm) !== false ||
+                           stripos($rNorm, $sNorm) !== false;
+                });
+
+                if (!$hasReg) {
+                    $deletableIds[] = $s->id;
+                } else {
+                    $protectedCount++;
+                }
+            }
+
+            $deleted = School::whereIn('id', $deletableIds)->delete();
+            return redirect()->back()->with('success', "Pembersihan selesai: {$deleted} data sekolah tanpa pendaftar berhasil dibersihkan dari database. {$protectedCount} sekolah yang memiliki data pendaftar tetap dipertahankan dengan aman.");
         }
 
+        // 2. Kosongkan Total Seluruh Data Sekolah
+        if ($scope === 'all') {
+            $force = $request->boolean('force');
+            $regsCount = \App\Models\Registration::whereNotNull('school_name')->where('school_name', '!=', '')->where('school_name', '!=', '-')->count();
+
+            if ($regsCount > 0 && !$force) {
+                // If not forced, delete only unregistered to protect registrations!
+                return $this->cleanInvalid(new Request(['scope' => 'master_unregistered']));
+            }
+
+            $deleted = School::count();
+            School::truncate();
+            return redirect()->back()->with('success', "Pembersihan selesai: Seluruh {$deleted} data sekolah berhasil dikosongkan. Gunakan tombol 'Tarik dari Pendaftar' kapan saja jika ingin memulihkan sekolah dari data pendaftar.");
+        }
+
+        // 3. Sekolah Non-Aktif
         if ($scope === 'inactive') {
             $deleted = School::where('is_active', false)->delete();
             return redirect()->back()->with('success', "Pembersihan selesai: {$deleted} data sekolah non-aktif berhasil dihapus.");
         }
 
+        // 4. Data Dummy / Tidak Valid
         $deleted = School::where(function ($q) {
             $q->whereNull('name')
               ->orWhere('name', '')
@@ -474,16 +605,13 @@ class SchoolController extends Controller
     /**
      * Clear / truncate all schools.
      */
-    public function clearAll()
+    public function clearAll(Request $request)
     {
-        $count = School::count();
-        School::truncate();
-
-        return redirect()->back()->with('success', "Seluruh {$count} data sekolah & madrasah berhasil dikosongkan.");
+        return $this->cleanInvalid(new Request(['scope' => 'all', 'force' => $request->boolean('force')]));
     }
 
     /**
-     * Bulk delete selected schools.
+     * Bulk delete selected schools with relation protection.
      */
     public function bulkDelete(Request $request)
     {
@@ -492,8 +620,40 @@ class SchoolController extends Controller
             'ids.*' => 'integer',
         ]);
 
-        $count = School::whereIn('id', $validated['ids'])->delete();
+        $schools = School::whereIn('id', $validated['ids'])->get();
+        $regs = \App\Models\Registration::whereNotNull('school_name')->where('school_name', '!=', '')->where('school_name', '!=', '-')->get();
+        $force = $request->boolean('force');
 
+        $blocked = [];
+        $deletableIds = [];
+
+        foreach ($schools as $s) {
+            $sNorm = School::normalizeSchoolName($s->name);
+            $hasReg = $regs->contains(function ($r) use ($s, $sNorm) {
+                $rNorm = School::normalizeSchoolName($r->school_name);
+                return $rNorm === $sNorm ||
+                       strcasecmp(trim($r->school_name), trim($s->name)) === 0 ||
+                       stripos($sNorm, $rNorm) !== false ||
+                       stripos($rNorm, $sNorm) !== false;
+            });
+
+            if ($hasReg) {
+                $blocked[] = $s->name;
+            } else {
+                $deletableIds[] = $s->id;
+            }
+        }
+
+        if (!empty($blocked) && !$force) {
+            if (empty($deletableIds)) {
+                return redirect()->back()->with('error', "Penghapusan massal ditolak: Seluruh " . count($blocked) . " sekolah terpilih memiliki relasi dengan data pendaftar aktif (" . implode(', ', array_slice($blocked, 0, 5)) . (count($blocked) > 5 ? ' dll.' : '') . ").");
+            }
+            // Delete safe ones
+            $deletedCount = School::whereIn('id', $deletableIds)->delete();
+            return redirect()->back()->with('warning', "{$deletedCount} sekolah berhasil dihapus. Namun " . count($blocked) . " sekolah diproteksi & TIDAK dihapus karena memiliki relasi pendaftar aktif: " . implode(', ', array_slice($blocked, 0, 5)) . (count($blocked) > 5 ? ' dll.' : '') . ".");
+        }
+
+        $count = School::whereIn('id', $validated['ids'])->delete();
         return redirect()->back()->with('success', "{$count} data sekolah terpilih berhasil dihapus dari database.");
     }
 }

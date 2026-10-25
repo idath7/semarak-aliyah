@@ -123,6 +123,42 @@ function submitForm() {
                     <span>SEO & Open Graph</span>
                   </Link>
                 </li>
+                <li class="nav-item">
+                  <Link
+                    href="/admin/pengaturan/wa-gateway"
+                    class="nav-link px-3 py-2 d-flex align-items-center gap-2 rounded-pill text-muted fw-semibold fs-13 hover:text-white"
+                  >
+                    <i class="ri-whatsapp-line text-success"></i>
+                    <span>WA Gateway</span>
+                  </Link>
+                </li>
+                <li class="nav-item">
+                  <Link
+                    href="/admin/pengaturan/kebijakan-pendaftaran"
+                    class="nav-link px-3 py-2 d-flex align-items-center gap-2 rounded-pill text-muted fw-semibold fs-13 hover:text-white"
+                  >
+                    <i class="ri-user-settings-line text-primary"></i>
+                    <span>Kebijakan Pendaftaran</span>
+                  </Link>
+                </li>
+                <li class="nav-item">
+                  <Link
+                    href="/admin/pengaturan/login-admin"
+                    class="nav-link px-3 py-2 d-flex align-items-center gap-2 rounded-pill text-muted fw-semibold fs-13 hover:text-white"
+                  >
+                    <i class="ri-image-edit-line text-info"></i>
+                    <span>Login Panel Admin</span>
+                  </Link>
+                </li>
+                <li class="nav-item">
+                  <Link
+                    href="/admin/pengaturan/sipresensi"
+                    class="nav-link px-3 py-2 d-flex align-items-center gap-2 rounded-pill text-muted fw-semibold fs-13 hover:text-white"
+                  >
+                    <i class="ri-shield-keyhole-line text-success"></i>
+                    <span>API Sipresensi</span>
+                  </Link>
+                </li>
               </ul>
 
               <div class="d-flex align-items-center gap-2">
@@ -222,12 +258,12 @@ function submitForm() {
 
                   <div class="col-md-6">
                     <label class="form-label fs-12 fw-semibold text-dark-emphasis mb-1">Robots Indexing</label>
-                    <select v-model="form.seo_robots" class="form-select">
+                    <CustomSelect v-model="form.seo_robots" size="md">
                       <option value="index, follow">index, follow (Direkomendasikan - Izinkan Google indeks)</option>
                       <option value="noindex, follow">noindex, follow (Sembunyikan dari Google, telusuri link)</option>
                       <option value="index, nofollow">index, nofollow (Indeks halaman, jangan telusuri link)</option>
                       <option value="noindex, nofollow">noindex, nofollow (Tolak pengindeksan penuh)</option>
-                    </select>
+                    </CustomSelect>
                   </div>
 
                   <div class="col-md-8">
@@ -329,10 +365,10 @@ function submitForm() {
 
                   <div class="col-md-6">
                     <label class="form-label fs-12 fw-semibold text-dark-emphasis mb-1">Twitter / X Card Type</label>
-                    <select v-model="form.seo_twitter_card" class="form-select">
+                    <CustomSelect v-model="form.seo_twitter_card" size="md">
                       <option value="summary_large_image">summary_large_image (Gambar Banner Besar - Rekomendasi)</option>
                       <option value="summary">summary (Ikon Thumbnail Kecil di samping)</option>
-                    </select>
+                    </CustomSelect>
                   </div>
                 </div>
               </div>

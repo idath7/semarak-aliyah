@@ -262,7 +262,7 @@ class JuryScoringController extends Controller
 
         $typeLabel = $rubricType === 'point' ? 'Skor/Poin Maksimal' : 'Prosentase (%)';
 
-        if ($request->ajax() || $request->wantsJson()) {
+        if (!$request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
             return response()->json([
                 'success' => true,
                 'message' => "Rubrik kriteria ({$typeLabel}) untuk cabang {$competition->title} berhasil disimpan & disesuaikan!",
@@ -285,7 +285,7 @@ class JuryScoringController extends Controller
 
         $defaultRubric = $this->rubrics[$competition->id] ?? $this->rubrics['default'];
 
-        if ($request->ajax() || $request->wantsJson()) {
+        if (!$request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
             return response()->json([
                 'success' => true,
                 'message' => "Rubrik kriteria untuk cabang {$competition->title} berhasil direset ke standar resmi Juknis (Prosentase)!",

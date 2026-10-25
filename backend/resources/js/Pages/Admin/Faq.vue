@@ -223,21 +223,21 @@
 
             <!-- Filter Kategori -->
             <div class="col-lg-3 col-md-6">
-              <select class="form-select" v-model="filterCategory">
+              <CustomSelect v-model="filterCategory" size="md">
                 <option value="all">Semua Kategori ({{ totalCount }})</option>
                 <option v-for="cat in uniqueCategories" :key="cat" :value="cat">
                   {{ cat }} ({{ getCategoryCount(cat) }})
                 </option>
-              </select>
+              </CustomSelect>
             </div>
 
             <!-- Filter Status -->
             <div class="col-lg-3 col-md-6">
-              <select class="form-select" v-model="filterStatus">
+              <CustomSelect v-model="filterStatus" size="md">
                 <option value="all">Semua Status ({{ totalCount }})</option>
                 <option value="active">Hanya Aktif ({{ activeCount }})</option>
                 <option value="inactive">Hanya Tersembunyi ({{ inactiveCount }})</option>
-              </select>
+              </CustomSelect>
             </div>
 
             <!-- Reorder save indicator -->

@@ -1215,11 +1215,11 @@ function confirmDelete() {
                   <!-- Row 2: Kategori & Biaya & Kuota -->
                   <div class="col-md-4">
                     <label class="form-label fs-12 fw-semibold text-dark">Kategori Bidang *</label>
-                    <select v-model="createForm.category" class="form-select fs-13" :class="{ 'is-invalid': createForm.errors.category }" required>
+                    <CustomSelect v-model="createForm.category" size="md" placeholder="Pilih Kategori...">
                       <option v-for="cat in categoryList" :key="cat.id" :value="cat.id">
                         {{ cat.name || cat.label }}
                       </option>
-                    </select>
+                    </CustomSelect>
                     <div v-if="createForm.errors.category" class="invalid-feedback d-block fs-11">{{ createForm.errors.category }}</div>
                   </div>
 
@@ -1521,10 +1521,10 @@ function confirmDelete() {
                   <!-- Status & Deskripsi -->
                   <div class="col-md-6">
                     <label class="form-label fs-12 fw-semibold text-dark">Status Pendaftaran Awal</label>
-                    <select v-model="createForm.status" class="form-select fs-13">
+                    <CustomSelect v-model="createForm.status" size="md">
                       <option value="open">Buka (Terbuka untuk Pendaftaran)</option>
                       <option value="closed">Tutup (Pendaftaran Ditutup Sementara)</option>
-                    </select>
+                    </CustomSelect>
                   </div>
 
                   <div class="col-12">
@@ -1617,11 +1617,11 @@ function confirmDelete() {
 
                   <div class="col-md-4">
                     <label class="form-label fs-12 fw-semibold text-dark">Kategori Bidang *</label>
-                    <select v-model="editForm.category" class="form-select fs-13" :class="{ 'is-invalid': editForm.errors.category }" required>
+                    <CustomSelect v-model="editForm.category" size="md" placeholder="Pilih Kategori...">
                       <option v-for="cat in categoryList" :key="cat.id" :value="cat.id">
                         {{ cat.name || cat.label }}
                       </option>
-                    </select>
+                    </CustomSelect>
                     <div v-if="editForm.errors.category" class="invalid-feedback d-block fs-11">{{ editForm.errors.category }}</div>
                   </div>
 
@@ -1922,10 +1922,10 @@ function confirmDelete() {
                   <!-- Status & Deskripsi -->
                   <div class="col-md-6">
                     <label class="form-label fs-12 fw-semibold text-dark">Status Pendaftaran</label>
-                    <select v-model="editForm.status" class="form-select fs-13">
+                    <CustomSelect v-model="editForm.status" size="md">
                       <option value="open">Buka (Terbuka untuk Pendaftaran)</option>
                       <option value="closed">Tutup (Pendaftaran Ditutup Sementara)</option>
-                    </select>
+                    </CustomSelect>
                   </div>
 
                   <div class="col-12">
@@ -2059,7 +2059,7 @@ function confirmDelete() {
 
                       <div class="col-md-4">
                         <label class="form-label fs-11 fw-semibold text-dark mb-1">Warna Badge</label>
-                        <select v-model="categoryForm.color" class="form-select form-select-sm fs-12">
+                        <CustomSelect v-model="categoryForm.color" size="sm">
                           <option value="primary">Biru (Primary)</option>
                           <option value="success">Hijau (Success)</option>
                           <option value="warning">Kuning (Warning)</option>
@@ -2067,7 +2067,7 @@ function confirmDelete() {
                           <option value="danger">Merah (Danger)</option>
                           <option value="secondary">Abu-abu (Secondary)</option>
                           <option value="dark">Hitam (Dark)</option>
-                        </select>
+                        </CustomSelect>
                       </div>
 
                       <div class="col-md-8">

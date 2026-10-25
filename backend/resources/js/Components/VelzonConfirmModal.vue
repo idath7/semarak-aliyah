@@ -62,8 +62,11 @@ onUnmounted(() => {
 
               <button 
                 type="button" 
-                class="btn btn-sm px-3.5 py-1.5 rounded-3 shadow-sm d-inline-flex align-items-center gap-1 text-white"
-                :class="dialogConfig.confirmButtonClass"
+                class="btn btn-sm px-3.5 py-1.5 rounded-3 shadow-sm d-inline-flex align-items-center gap-1"
+                :class="[
+                  dialogConfig.confirmButtonClass,
+                  (dialogConfig.type === 'warning' || dialogConfig.confirmButtonClass?.includes('warning')) ? 'text-dark fw-bold' : 'text-white'
+                ]"
                 @click="handleConfirm"
               >
                 <i :class="dialogConfig.type === 'danger' ? 'ri-delete-bin-line' : 'ri-check-line'"></i>

@@ -62,6 +62,7 @@ const form = ref({
   id: null,
   name: '',
   email: '',
+  nip: '',
   password: '',
   role: 'panitia',
   division: 'Acara & Lomba',
@@ -80,6 +81,7 @@ function openCreateModal() {
     id: null,
     name: '',
     email: '',
+    nip: '',
     password: '',
     role: 'panitia',
     division: 'Acara & Lomba',
@@ -98,6 +100,7 @@ function openEditModal(user) {
     id: user.id,
     name: user.name,
     email: user.email,
+    nip: user.nip || '',
     password: '', // Kosongkan saat edit jika tidak ingin ubah password
     role: user.role || 'panitia',
     division: user.division || '',
@@ -231,6 +234,161 @@ function getWaLink(phone) {
   if (!phone) return null;
   return getWaChatUrl(phone);
 }
+
+// -----------------------------------------------------------------------------
+// SIPRESENSI SYNC STATE & ACTIONS
+// -----------------------------------------------------------------------------
+const isSyncModalOpen = ref(false);
+const isPreviewLoading = ref(false);
+const isSyncing = ref(false);
+const syncError = ref(null);
+const sipresensiData = ref({
+  connected: false,
+  message: '',
+  connection: {},
+  total: 0,
+  teachers: [],
+});
+const syncSearch = ref('');
+const selectedTeacherIds = ref([]);
+const syncSettings = ref({
+  default_role: 'panitia',
+  default_division: '',
+  default_password: 'panitia123',
+  update_existing: false,
+});
+const syncSummary = ref(null);
+
+const filteredTeachers = computed(() => {
+  if (!sipresensiData.value.teachers) return [];
+  const q = syncSearch.value.trim().toLowerCase();
+  if (!q) return sipresensiData.value.teachers;
+  return sipresensiData.value.teachers.filter(t => {
+    return (t.name && t.name.toLowerCase().includes(q)) ||
+           (t.email && t.email.toLowerCase().includes(q)) ||
+           (t.username && t.username.toLowerCase().includes(q)) ||
+           (t.sipresensi_position && t.sipresensi_position.toLowerCase().includes(q)) ||
+           (t.phone && t.phone.toLowerCase().includes(q));
+  });
+});
+
+const isAllSelected = computed(() => {
+  if (filteredTeachers.value.length === 0) return false;
+  return filteredTeachers.value.every(t => selectedTeacherIds.value.includes(t.sipresensi_id));
+});
+
+const newTeachersCount = computed(() => {
+  if (!sipresensiData.value.teachers) return 0;
+  return sipresensiData.value.teachers.filter(t => !t.already_exists).length;
+});
+
+const existingTeachersCount = computed(() => {
+  if (!sipresensiData.value.teachers) return 0;
+  return sipresensiData.value.teachers.filter(t => t.already_exists).length;
+});
+
+function toggleSelectAll(event) {
+  const checked = event.target.checked;
+  if (checked) {
+    const idsToAdd = filteredTeachers.value.map(t => t.sipresensi_id);
+    selectedTeacherIds.value = Array.from(new Set([...selectedTeacherIds.value, ...idsToAdd]));
+  } else {
+    const idsToRemove = new Set(filteredTeachers.value.map(t => t.sipresensi_id));
+    selectedTeacherIds.value = selectedTeacherIds.value.filter(id => !idsToRemove.has(id));
+  }
+}
+
+function selectOnlyNew() {
+  selectedTeacherIds.value = filteredTeachers.value
+    .filter(t => !t.already_exists)
+    .map(t => t.sipresensi_id);
+}
+
+function selectAllTeachers() {
+  selectedTeacherIds.value = filteredTeachers.value.map(t => t.sipresensi_id);
+}
+
+function clearTeacherSelection() {
+  selectedTeacherIds.value = [];
+}
+
+async function openSyncModal() {
+  isSyncModalOpen.value = true;
+  isPreviewLoading.value = true;
+  syncError.value = null;
+  syncSummary.value = null;
+  selectedTeacherIds.value = [];
+  syncSearch.value = '';
+
+  try {
+    const res = await fetch('/admin/pengguna/sipresensi/preview');
+    const data = await res.json();
+    if (res.ok && data.success) {
+      sipresensiData.value = data;
+      // Otomatis pilih semua guru yang belum memiliki akun di Semarak
+      selectedTeacherIds.value = (data.teachers || [])
+        .filter(t => !t.already_exists)
+        .map(t => t.sipresensi_id);
+    } else {
+      syncError.value = data.message || 'Gagal terhubung ke database Sipresensi.';
+      sipresensiData.value = { connected: false, message: data.message, connection: data.connection || {}, total: 0, teachers: [] };
+    }
+  } catch (err) {
+    syncError.value = 'Tidak dapat menghubungi server lokal untuk preview data Sipresensi: ' + err.message;
+    sipresensiData.value = { connected: false, message: err.message, connection: {}, total: 0, teachers: [] };
+  } finally {
+    isPreviewLoading.value = false;
+  }
+}
+
+function closeSyncModal() {
+  isSyncModalOpen.value = false;
+  syncSummary.value = null;
+}
+
+async function executeSync() {
+  if (selectedTeacherIds.value.length === 0) {
+    error('Silakan pilih setidaknya satu guru dari daftar untuk disinkronkan.');
+    return;
+  }
+
+  isSyncing.value = true;
+  syncError.value = null;
+
+  try {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const res = await fetch('/admin/pengguna/sipresensi/sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+      },
+      body: JSON.stringify({
+        teacher_ids: selectedTeacherIds.value,
+        default_role: syncSettings.value.default_role,
+        default_division: syncSettings.value.default_division || null,
+        default_password: syncSettings.value.default_password || 'panitia123',
+        update_existing: syncSettings.value.update_existing,
+      }),
+    });
+
+    const data = await res.json();
+    if (res.ok && data.success) {
+      syncSummary.value = data;
+      success(data.message || 'Sinkronisasi data guru berhasil dilakukan!');
+      router.reload({ preserveScroll: true });
+    } else {
+      syncError.value = data.message || 'Gagal memproses sinkronisasi guru.';
+      error(data.message || 'Terjadi kesalahan saat sinkronisasi.');
+    }
+  } catch (err) {
+    syncError.value = 'Terjadi kesalahan sistem: ' + err.message;
+    error(err.message);
+  } finally {
+    isSyncing.value = false;
+  }
+}
 </script>
 
 <template>
@@ -253,7 +411,15 @@ function getWaLink(phone) {
             Kelola data akun administrator, panitia pelaksana, koordinator divisi, dewan juri, dan wasit turnamen SEMARAK XIV 2026.
           </p>
         </div>
-        <div class="col-12 col-md-5 text-md-end mt-3 mt-md-0">
+        <div class="col-12 col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-wrap gap-2 justify-content-md-end">
+          <button 
+            type="button" 
+            class="btn btn-outline-success d-inline-flex align-items-center gap-2 shadow-sm rounded-3 px-3 py-2 fw-semibold"
+            @click="openSyncModal"
+          >
+            <i class="ri-refresh-line fs-16"></i>
+            <span>Sinkron Guru Sipresensi</span>
+          </button>
           <button 
             type="button" 
             class="btn btn-primary d-inline-flex align-items-center gap-2 shadow-sm rounded-3 px-3 py-2 fw-semibold"
@@ -371,31 +537,31 @@ function getWaLink(phone) {
 
             <!-- Role Filter -->
             <div class="col-6 col-md-2">
-              <select v-model="roleFilter" class="form-select form-select-sm" @change="applyFilters">
+              <CustomSelect v-model="roleFilter" size="sm" @change="applyFilters">
                 <option value="">Semua Peran</option>
                 <option v-for="(cfg, key) in roles" :key="key" :value="key">
                   {{ cfg.label }}
                 </option>
-              </select>
+              </CustomSelect>
             </div>
 
             <!-- Division Filter -->
             <div class="col-6 col-md-3">
-              <select v-model="divisionFilter" class="form-select form-select-sm" @change="applyFilters">
+              <CustomSelect v-model="divisionFilter" size="sm" @change="applyFilters">
                 <option value="">Semua Divisi Panitia</option>
                 <option v-for="div in divisions" :key="div" :value="div">
                   {{ div }}
                 </option>
-              </select>
+              </CustomSelect>
             </div>
 
             <!-- Status Filter -->
             <div class="col-6 col-md-2">
-              <select v-model="statusFilter" class="form-select form-select-sm" @change="applyFilters">
+              <CustomSelect v-model="statusFilter" size="sm" @change="applyFilters">
                 <option value="">Semua Status</option>
                 <option value="active">Aktif</option>
                 <option value="inactive">Non-aktif</option>
-              </select>
+              </CustomSelect>
             </div>
 
             <!-- Reset / Action -->
@@ -466,13 +632,21 @@ function getWaLink(phone) {
                       {{ getInitials(user.name) }}
                     </div>
                     <div>
-                      <div class="d-flex align-items-center gap-1.5">
+                      <div class="d-flex align-items-center gap-1.5 flex-wrap">
                         <span class="fw-semibold text-dark">{{ user.name }}</span>
                         <span v-if="user.id === currentUserId" class="badge bg-success-subtle text-success fs-10 px-1.5 py-0.5">
                           Anda
                         </span>
                       </div>
-                      <small class="text-muted font-monospace fs-11">{{ user.email }}</small>
+                      <div class="d-flex align-items-center gap-1.5 flex-wrap mt-0.5">
+                        <small class="text-muted font-monospace fs-11">{{ user.email }}</small>
+                        <span v-if="user.nip" class="badge bg-secondary-subtle text-secondary font-monospace fs-10 px-1.5 py-0.5" title="NIP Guru Sipresensi">
+                          <i class="ri-id-card-line me-0.5"></i>{{ user.nip }}
+                        </span>
+                        <span v-if="user.must_change_password || !user.has_password" class="badge bg-warning-subtle text-warning border border-warning-subtle fs-10 px-1.5 py-0.5" title="Belum memiliki kata sandi mandiri / Wajib buat sandi baru saat login">
+                          <i class="ri-key-line me-0.5"></i>Wajib Sandi
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </td>
@@ -650,6 +824,26 @@ function getWaLink(phone) {
                   </div>
                 </div>
 
+                <!-- NIP Guru / Pegawai -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label fs-12 fw-semibold text-dark">
+                    NIP Guru / Pegawai
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text bg-light text-muted fs-12">
+                      <i class="ri-id-card-line text-primary me-1"></i>
+                    </span>
+                    <input 
+                      v-model="form.nip" 
+                      type="text" 
+                      class="form-control" 
+                      :class="{ 'is-invalid': formErrors.nip }"
+                      placeholder="Contoh: 198001012005011001 atau 1001"
+                    />
+                  </div>
+                  <small class="text-muted fs-11">Username NIP untuk verifikasi login SSO Sipresensi.</small>
+                </div>
+
                 <!-- Email -->
                 <div class="col-12 col-md-6">
                   <label class="form-label fs-12 fw-semibold text-dark">
@@ -717,21 +911,21 @@ function getWaLink(phone) {
                 </div>
 
                 <!-- Peran / Hak Akses -->
+                <!-- Role / Hak Akses -->
                 <div class="col-12 col-md-6">
                   <label class="form-label fs-12 fw-semibold text-dark">
                     Peran / Hak Akses (Role) <span class="text-danger">*</span>
                   </label>
-                  <select 
+                  <CustomSelect 
                     v-model="form.role" 
-                    class="form-select"
-                    :class="{ 'is-invalid': formErrors.role }"
-                    required
+                    size="md"
+                    placeholder="Pilih Peran..."
                   >
                     <option v-for="(cfg, key) in roles" :key="key" :value="key">
                       {{ cfg.label }} — {{ cfg.description }}
                     </option>
-                  </select>
-                  <div v-if="formErrors.role" class="invalid-feedback fs-11">
+                  </CustomSelect>
+                  <div v-if="formErrors.role" class="invalid-feedback d-block fs-11">
                     {{ formErrors.role }}
                   </div>
                 </div>
@@ -741,12 +935,12 @@ function getWaLink(phone) {
                   <label class="form-label fs-12 fw-semibold text-dark">
                     Divisi / Bidang Tugas
                   </label>
-                  <select v-model="form.division" class="form-select">
+                  <CustomSelect v-model="form.division" size="md" placeholder="Pilih Divisi...">
                     <option value="">Pilih Divisi...</option>
                     <option v-for="div in divisions" :key="div" :value="div">
                       {{ div }}
                     </option>
-                  </select>
+                  </CustomSelect>
                 </div>
 
                 <!-- Penugasan Lomba Khusus (Opsional) -->
@@ -754,12 +948,12 @@ function getWaLink(phone) {
                   <label class="form-label fs-12 fw-semibold text-dark">
                     Penugasan Cabang Lomba Khusus <span class="text-muted fw-normal">(Khusus Juri / Wasit / PJ Lomba)</span>
                   </label>
-                  <select v-model="form.competition_id" class="form-select">
+                  <CustomSelect v-model="form.competition_id" size="md" placeholder="Tidak ada / Penugasan Umum Seluruh Lomba">
                     <option value="">Tidak ada / Penugasan Umum Seluruh Lomba</option>
                     <option v-for="comp in competitions" :key="comp.id" :value="comp.id">
                       {{ comp.title }} ({{ comp.category_label || comp.category }})
                     </option>
-                  </select>
+                  </CustomSelect>
                   <small class="text-muted fs-11">Jika diisi, personel ini diprioritaskan untuk mengelola penilaian/pertandingan cabang tersebut.</small>
                 </div>
 
@@ -830,6 +1024,345 @@ function getWaLink(phone) {
               >
                 <span v-if="isDeleting" class="spinner-border spinner-border-sm"></span>
                 <span>Ya, Hapus</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ============================================================== -->
+    <!-- MODAL SINKRONISASI DATA GURU SIPRESENSI                        -->
+    <!-- ============================================================== -->
+    <div 
+      v-if="isSyncModalOpen" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      style="background-color: rgba(0, 0, 0, 0.6); z-index: 1055;"
+    >
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-3">
+          <!-- Modal Header -->
+          <div class="modal-header bg-light border-bottom py-3">
+            <div class="d-flex align-items-center gap-2.5">
+              <span class="avatar-xs rounded-circle bg-success text-white d-flex align-items-center justify-content-center">
+                <i class="ri-refresh-line fs-16"></i>
+              </span>
+              <div>
+                <h5 class="modal-title fs-16 fw-bold mb-0 text-dark">
+                  Sinkronisasi Panitia dari Data Guru Sipresensi
+                </h5>
+                <small class="text-muted fs-12">
+                  Layanan Integrasi Sipresensi (REST API & Isolated Service)
+                </small>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span 
+                v-if="sipresensiData.connected" 
+                class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fs-11"
+              >
+                <i class="ri-checkbox-circle-fill me-1"></i>Layanan Sipresensi Terhubung
+              </span>
+              <span 
+                v-else-if="!isPreviewLoading" 
+                class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 fs-11"
+              >
+                <i class="ri-close-circle-fill me-1"></i>Layanan Terputus
+              </span>
+              <button type="button" class="btn-close ms-2" @click="closeSyncModal"></button>
+            </div>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body p-4">
+            <!-- 1. LOADING STATE -->
+            <div v-if="isPreviewLoading" class="text-center py-5">
+              <div class="spinner-border text-success mb-3" style="width: 2.5rem; height: 2.5rem;" role="status"></div>
+              <h6 class="fs-14 fw-bold text-dark mb-1">Menghubungkan ke Layanan Sipresensi...</h6>
+              <p class="text-muted fs-12 mb-0">Sedang menarik data guru dan memetakan akun panitia Semarak.</p>
+            </div>
+
+            <!-- 2. CONNECTION ERROR -->
+            <div v-else-if="syncError && !sipresensiData.connected" class="alert alert-danger border-danger-subtle rounded-3 p-3">
+              <div class="d-flex gap-3 align-items-start">
+                <i class="ri-error-warning-fill fs-24 text-danger flex-shrink-0"></i>
+                <div class="flex-grow-1">
+                  <h6 class="fs-14 fw-bold text-danger mb-1">Layanan Sipresensi Tidak Dapat Dihubungi</h6>
+                  <p class="fs-12 mb-2">{{ syncError }}</p>
+                  <small class="d-block text-muted mb-3">
+                    Pastikan REST API Sipresensi sedang aktif atau direktori instalasi Sipresensi lokal tersedia di sistem.
+                  </small>
+                  <button type="button" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5" @click="openSyncModal">
+                    <i class="ri-restart-line"></i>
+                    <span>Coba Hubungkan Ulang</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. HASIL SINKRONISASI (SUMMARY) -->
+            <div v-else-if="syncSummary" class="text-center py-4">
+              <div class="avatar-lg bg-success-subtle text-success rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center">
+                <i class="ri-checkbox-circle-line fs-36"></i>
+              </div>
+              <h5 class="fs-18 fw-bold text-dark mb-1">Sinkronisasi Selesai!</h5>
+              <p class="text-muted fs-13 mb-4">{{ syncSummary.message }}</p>
+
+              <div class="row g-3 justify-content-center mb-4">
+                <div class="col-4 col-md-3">
+                  <div class="p-3 bg-success-subtle border border-success-subtle rounded-3">
+                    <h3 class="fs-22 fw-bold text-success mb-0">+{{ syncSummary.created_count }}</h3>
+                    <small class="text-success fw-medium fs-11">Akun Baru Dibuat</small>
+                  </div>
+                </div>
+                <div class="col-4 col-md-3">
+                  <div class="p-3 bg-info-subtle border border-info-subtle rounded-3">
+                    <h3 class="fs-22 fw-bold text-info mb-0">{{ syncSummary.updated_count }}</h3>
+                    <small class="text-info fw-medium fs-11">Akun Diperbarui</small>
+                  </div>
+                </div>
+                <div class="col-4 col-md-3">
+                  <div class="p-3 bg-secondary-subtle border border-secondary-subtle rounded-3">
+                    <h3 class="fs-22 fw-bold text-secondary mb-0">{{ syncSummary.skipped_count }}</h3>
+                    <small class="text-secondary fw-medium fs-11">Akun Dilewati</small>
+                  </div>
+                </div>
+              </div>
+
+              <div class="d-flex gap-2 justify-content-center">
+                <button type="button" class="btn btn-primary px-4 fw-semibold" @click="closeSyncModal">
+                  <i class="ri-check-line me-1"></i>Selesai & Lihat Pengguna
+                </button>
+                <button type="button" class="btn btn-outline-secondary px-3" @click="openSyncModal">
+                  <i class="ri-refresh-line me-1"></i>Sinkronkan Lagi
+                </button>
+              </div>
+            </div>
+
+            <!-- 4. DAFTAR PREVIEW GURU & PENGATURAN SINKRONISASI -->
+            <div v-else>
+              <!-- Alert Informasi Sumber Data -->
+              <div class="alert alert-info border-info-subtle rounded-3 p-3 mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="ri-information-line fs-18 text-info"></i>
+                  <span class="fs-12 text-dark">
+                    Ditemukan <strong>{{ sipresensiData.total }}</strong> data guru di Sipresensi. Pilih guru yang ingin didaftarkan sebagai Panitia Semarak XIV.
+                  </span>
+                </div>
+                <div class="d-flex gap-2">
+                  <span class="badge bg-success-subtle text-success border border-success-subtle fs-11">
+                    {{ newTeachersCount }} Akun Baru
+                  </span>
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle fs-11">
+                    {{ existingTeachersCount }} Sudah Terdaftar
+                  </span>
+                </div>
+              </div>
+
+              <!-- Bar Pengaturan Parameter Akun Baru -->
+              <div class="card border border-light-subtle bg-light rounded-3 p-3 mb-3">
+                <h6 class="fs-12 fw-bold text-uppercase text-muted tracking-wider mb-2">
+                  <i class="ri-settings-4-line me-1"></i>Konfigurasi Akun Panitia Yang Diimpor
+                </h6>
+                <div class="row g-2 align-items-center">
+                  <!-- Peran Default -->
+                  <div class="col-12 col-md-3">
+                    <label class="form-label fs-11 fw-semibold text-dark mb-1">Peran (Role) Default</label>
+                    <CustomSelect v-model="syncSettings.default_role" size="sm">
+                      <option v-for="(cfg, key) in roles" :key="key" :value="key">
+                        {{ cfg.label }}
+                      </option>
+                    </CustomSelect>
+                  </div>
+
+                  <!-- Divisi Default -->
+                  <div class="col-12 col-md-3">
+                    <label class="form-label fs-11 fw-semibold text-dark mb-1">Divisi Default</label>
+                    <CustomSelect v-model="syncSettings.default_division" size="sm">
+                      <option value="">Otomatis Sesuai Jabatan Sipresensi</option>
+                      <option v-for="div in divisions" :key="div" :value="div">
+                        {{ div }}
+                      </option>
+                    </CustomSelect>
+                  </div>
+
+                  <!-- Sandi Awal Default -->
+                  <div class="col-12 col-md-3">
+                    <label class="form-label fs-11 fw-semibold text-dark mb-1">Kebijakan Sandi Awal</label>
+                    <div class="badge bg-warning-subtle text-warning border border-warning-subtle d-block text-start p-1.5 fs-11 text-truncate" title="Password awal dikosongkan. Panitia login pertama via SSO Sipresensi/OTP WA lalu wajib buat password.">
+                      <i class="ri-shield-keyhole-line me-1"></i>Dikosongkan (Wajib Buat Sandi)
+                    </div>
+                  </div>
+
+                  <!-- Checkbox Update Existing -->
+                  <div class="col-12 col-md-3 d-flex align-items-center pt-md-3">
+                    <div class="form-check form-switch mb-0">
+                      <input 
+                        id="updateExistingSwitch"
+                        v-model="syncSettings.update_existing" 
+                        type="checkbox" 
+                        class="form-check-input"
+                      />
+                      <label for="updateExistingSwitch" class="form-check-label fs-11 text-dark fw-medium ms-1">
+                        Perbarui data jika akun sudah ada
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Bar & Filter Cepat -->
+              <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                  <button type="button" class="btn btn-sm btn-outline-primary" @click="selectAllTeachers">
+                    <i class="ri-check-double-line me-1"></i>Pilih Semua ({{ filteredTeachers.length }})
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-success" @click="selectOnlyNew">
+                    <i class="ri-user-add-line me-1"></i>Pilih Hanya Akun Baru ({{ newTeachersCount }})
+                  </button>
+                  <button type="button" class="btn btn-sm btn-light border" @click="clearTeacherSelection">
+                    Batal Pilih
+                  </button>
+                </div>
+                <div class="position-relative" style="min-width: 240px;">
+                  <input 
+                    v-model="syncSearch" 
+                    type="text" 
+                    class="form-control form-control-sm ps-4" 
+                    placeholder="Cari guru, NIP, jabatan..."
+                  />
+                  <i class="ri-search-line position-absolute top-50 start-0 translate-middle-y ms-2 text-muted fs-13"></i>
+                </div>
+              </div>
+
+              <!-- Tabel Preview Data Guru -->
+              <div class="table-responsive border rounded-3 mb-2" style="max-height: 380px;">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light fs-11 text-muted text-uppercase sticky-top">
+                    <tr>
+                      <th scope="col" style="width: 40px;" class="text-center">
+                        <input 
+                          type="checkbox" 
+                          class="form-check-input" 
+                          :checked="isAllSelected" 
+                          @change="toggleSelectAll"
+                        />
+                      </th>
+                      <th scope="col">Nama Guru & Identitas</th>
+                      <th scope="col">Kontak (Email / WhatsApp)</th>
+                      <th scope="col">Jabatan Sipresensi</th>
+                      <th scope="col">Rekomendasi Divisi</th>
+                      <th scope="col" class="text-center">Status di Semarak</th>
+                    </tr>
+                  </thead>
+                  <tbody class="fs-12">
+                    <tr v-if="filteredTeachers.length === 0">
+                      <td colspan="6" class="text-center py-4 text-muted">
+                        Tidak ada guru yang cocok dengan kata kunci pencarian.
+                      </td>
+                    </tr>
+                    <tr 
+                      v-for="t in filteredTeachers" 
+                      :key="t.sipresensi_id"
+                      :class="{ 'table-active': selectedTeacherIds.includes(t.sipresensi_id) }"
+                    >
+                      <!-- Checkbox -->
+                      <td class="text-center">
+                        <input 
+                          type="checkbox" 
+                          class="form-check-input" 
+                          :value="t.sipresensi_id"
+                          v-model="selectedTeacherIds"
+                        />
+                      </td>
+
+                      <!-- Nama & Identitas -->
+                      <td>
+                        <div class="d-flex align-items-center gap-2">
+                          <span 
+                            class="avatar-xs rounded-circle d-flex align-items-center justify-content-center text-white fw-bold fs-10 flex-shrink-0"
+                            :class="t.gender === 'P' ? 'bg-danger' : 'bg-primary'"
+                          >
+                            {{ getInitials(t.name) }}
+                          </span>
+                          <div>
+                            <span class="fw-semibold text-dark d-block">{{ t.name }}</span>
+                            <div class="d-flex align-items-center gap-1.5 fs-11 text-muted">
+                              <span>NIP/ID: {{ t.username || '-' }}</span>
+                              <span v-if="t.status_guru" class="badge bg-light text-muted border py-0 px-1">
+                                {{ t.status_guru }}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <!-- Kontak -->
+                      <td>
+                        <span class="font-monospace fs-11 text-dark d-block">{{ t.email }}</span>
+                        <small v-if="t.phone" class="text-success fs-11">
+                          <i class="ri-whatsapp-line me-1"></i>{{ t.phone }}
+                        </small>
+                        <small v-else class="text-muted fs-11">Tanpa No. WhatsApp</small>
+                      </td>
+
+                      <!-- Jabatan Sipresensi -->
+                      <td>
+                        <span class="badge bg-light text-dark border fs-11">
+                          {{ t.sipresensi_position || 'Guru' }}
+                        </span>
+                      </td>
+
+                      <!-- Rekomendasi Divisi -->
+                      <td>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-11">
+                          <i class="ri-team-line me-1"></i>{{ t.suggested_division }}
+                        </span>
+                      </td>
+
+                      <!-- Status di Semarak -->
+                      <td class="text-center">
+                        <span 
+                          v-if="t.already_exists" 
+                          class="badge bg-warning-subtle text-warning border border-warning-subtle fs-11 px-2 py-1"
+                          :title="`Sudah terdaftar sebagai ${t.existing_user?.name} (${t.existing_user?.role})`"
+                        >
+                          <i class="ri-user-follow-line me-1"></i>Sudah Terdaftar
+                        </span>
+                        <span 
+                          v-else 
+                          class="badge bg-success-subtle text-success border border-success-subtle fs-11 px-2 py-1"
+                        >
+                          <i class="ri-user-add-line me-1"></i>Akun Baru
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div v-if="!syncSummary && sipresensiData.connected" class="modal-footer bg-light border-top py-2.5 d-flex align-items-center justify-content-between">
+            <div>
+              <span class="fs-12 text-muted">
+                Dipilih: <strong class="text-dark">{{ selectedTeacherIds.length }}</strong> dari {{ filteredTeachers.length }} guru
+              </span>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-light border px-3" @click="closeSyncModal">
+                Batal
+              </button>
+              <button 
+                type="button" 
+                class="btn btn-sm btn-success px-3 d-inline-flex align-items-center gap-1.5 fw-semibold"
+                :disabled="selectedTeacherIds.length === 0 || isSyncing"
+                @click="executeSync"
+              >
+                <span v-if="isSyncing" class="spinner-border spinner-border-sm"></span>
+                <i v-else class="ri-refresh-line"></i>
+                <span>Sinkronkan {{ selectedTeacherIds.length }} Guru Sekarang</span>
               </button>
             </div>
           </div>

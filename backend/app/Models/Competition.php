@@ -33,7 +33,10 @@ class Competition extends Model
         'scoring_rubrics',
         'custom_fields',
         'form_settings',
-        'tm_settings'
+        'tm_settings',
+        'juknis_file',
+        'juknis_original_name',
+        'juknis_size',
     ];
 
     protected $casts = [
@@ -42,6 +45,7 @@ class Competition extends Model
         'current_quota' => 'integer',
         'max_teams' => 'integer',
         'max_participants' => 'integer',
+        'juknis_size' => 'integer',
         'coordinators' => 'array',
         'scoring_rubrics' => 'array',
         'custom_fields' => 'array',
@@ -57,6 +61,8 @@ class Competition extends Model
         'quota_status_text',
         'is_tournament',
         'resolved_tm_settings',
+        'juknis_url',
+        'juknis_filename',
     ];
 
     public function isDeadlinePassed(): bool
@@ -278,5 +284,30 @@ class Competition extends Model
         return in_array($this->id, ['volleyball-putra', 'volleyball-putri', 'mobile-legends']) 
             || $this->category === 'olahraga' 
             || str_contains(strtolower($this->title), 'tournament');
+    }
+
+    public function getJuknisUrlAttribute(): ?string
+    {
+        if (!empty($this->juknis_file)) {
+            return asset($this->juknis_file);
+        }
+        if (!empty($this->tm_settings['juknis_file'])) {
+            return asset($this->tm_settings['juknis_file']);
+        }
+        return null;
+    }
+
+    public function getJuknisFilenameAttribute(): ?string
+    {
+        if (!empty($this->juknis_original_name)) {
+            return $this->juknis_original_name;
+        }
+        if (!empty($this->tm_settings['juknis_filename'])) {
+            return $this->tm_settings['juknis_filename'];
+        }
+        if (!empty($this->juknis_file)) {
+            return basename($this->juknis_file);
+        }
+        return null;
     }
 }

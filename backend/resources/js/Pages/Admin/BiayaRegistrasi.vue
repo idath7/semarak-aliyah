@@ -202,12 +202,12 @@
               </div>
 
               <div class="col-md-4">
-                <select class="form-select" v-model="filterCategory">
+                <CustomSelect v-model="filterCategory" size="md">
                   <option value="all">Semua Kategori Bidang</option>
                   <option v-for="cat in uniqueCategories" :key="cat" :value="cat">
                     {{ cat }}
                   </option>
-                </select>
+                </CustomSelect>
               </div>
 
               <div class="col-md-3 text-end">
@@ -589,66 +589,160 @@
           <!-- ============================================================== -->
           <!-- TAB 3: REKENING BANK & PETUNJUK PEMBAYARAN                     -->
           <!-- ============================================================== -->
+          <!-- ============================================================== -->
+          <!-- TAB 3: REKENING BANK & PETUNJUK PEMBAYARAN (MULTI-REKENING)    -->
+          <!-- ============================================================== -->
           <div v-show="activeTab === 'payment'">
             <form @submit.prevent="savePaymentSettings">
               <div class="row g-4">
+                <!-- Left: Bank Accounts List & Config -->
                 <div class="col-lg-7">
-                  <div class="card border shadow-none">
-                    <div class="card-header bg-light py-3 d-flex align-items-center gap-2">
-                      <i class="ri-bank-card-line text-success fs-18"></i>
-                      <h5 class="card-title mb-0 fs-14 fw-bold text-dark">Data Rekening Bank Penerima Transfer</h5>
+                  <!-- Section 1: Daftar Nomor Rekening Bank -->
+                  <div class="card border shadow-none mb-4">
+                    <div class="card-header bg-light py-3 d-flex align-items-center justify-content-between">
+                      <div class="d-flex align-items-center gap-2">
+                        <i class="ri-bank-card-2-line text-success fs-18"></i>
+                        <div>
+                          <h5 class="card-title mb-0 fs-14 fw-bold text-dark">Daftar Rekening Bank Tujuan Transfer</h5>
+                          <small class="text-muted fs-11">Mendukung lebih dari 1 rekening (BSI, BCA, BRI, Mandiri, dll)</small>
+                        </div>
+                      </div>
+                      <button 
+                        type="button" 
+                        class="btn btn-sm btn-primary d-flex align-items-center gap-1 shadow-sm"
+                        @click="openAddAccountModal"
+                      >
+                        <i class="ri-add-line"></i> Tambah Rekening
+                      </button>
                     </div>
-                    <div class="card-body">
+                    <div class="card-body p-3">
+                      <!-- List of Bank Accounts -->
+                      <div v-if="bankAccountsList.length === 0" class="text-center py-4 text-muted">
+                        <i class="ri-bank-line fs-36 text-muted mb-2 d-block"></i>
+                        <p class="mb-2 fs-13">Belum ada rekening bank yang ditambahkan.</p>
+                        <button type="button" class="btn btn-sm btn-outline-primary" @click="openAddAccountModal">
+                          Tambah Rekening Pertama
+                        </button>
+                      </div>
+
+                      <div v-else class="d-flex flex-column gap-3">
+                        <div 
+                          v-for="(acc, aIdx) in bankAccountsList" 
+                          :key="acc.id || aIdx"
+                          class="p-3 rounded-3 border position-relative transition-all"
+                          :class="acc.is_primary ? 'border-primary bg-primary-subtle' : (acc.is_active ? 'bg-light' : 'bg-light opacity-60')"
+                        >
+                          <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                            <div class="d-flex align-items-center gap-2">
+                              <div class="avatar-xs flex-shrink-0">
+                                <span class="avatar-title rounded-circle fs-14" :class="acc.is_primary ? 'bg-primary text-white' : 'bg-secondary-subtle text-secondary'">
+                                  <i class="ri-bank-line"></i>
+                                </span>
+                              </div>
+                              <div>
+                                <h6 class="mb-0 fs-14 fw-bold text-dark d-flex align-items-center gap-1.5 flex-wrap">
+                                  {{ acc.bank_name }}
+                                  <span v-if="acc.is_primary" class="badge bg-warning text-dark fs-10 fw-bold">
+                                    <i class="ri-star-fill me-0.5"></i> Rekening Utama
+                                  </span>
+                                  <span v-if="!acc.is_active" class="badge bg-secondary-subtle text-muted fs-10">
+                                    Nonaktif
+                                  </span>
+                                </h6>
+                                <span class="fs-12 text-muted">A.N. <strong>{{ acc.account_holder }}</strong></span>
+                              </div>
+                            </div>
+
+                            <!-- Actions dropdown / buttons -->
+                            <div class="d-flex align-items-center gap-1">
+                              <!-- Set Primary Button -->
+                              <button 
+                                v-if="!acc.is_primary"
+                                type="button" 
+                                class="btn btn-xs btn-outline-warning d-inline-flex align-items-center gap-1"
+                                @click="setPrimaryAccount(aIdx)"
+                                title="Jadikan Rekening Utama"
+                              >
+                                <i class="ri-star-line"></i> Set Utama
+                              </button>
+
+                              <!-- Toggle Active -->
+                              <button 
+                                type="button" 
+                                class="btn btn-xs"
+                                :class="acc.is_active ? 'btn-soft-success' : 'btn-soft-secondary'"
+                                @click="toggleAccountActive(aIdx)"
+                                :title="acc.is_active ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'"
+                              >
+                                {{ acc.is_active ? 'Aktif' : 'Nonaktif' }}
+                              </button>
+
+                              <!-- Edit Button -->
+                              <button 
+                                type="button" 
+                                class="btn btn-xs btn-soft-info"
+                                @click="openEditAccountModal(acc, aIdx)"
+                                title="Edit Rekening"
+                              >
+                                <i class="ri-edit-line"></i>
+                              </button>
+
+                              <!-- Delete Button -->
+                              <button 
+                                type="button" 
+                                class="btn btn-xs btn-soft-danger"
+                                :disabled="bankAccountsList.length <= 1"
+                                @click="deleteAccount(aIdx)"
+                                title="Hapus Rekening"
+                              >
+                                <i class="ri-delete-bin-line"></i>
+                              </button>
+                            </div>
+                          </div>
+
+                          <!-- Account Number with Copy -->
+                          <div class="d-flex align-items-center justify-content-between p-2 rounded bg-white border">
+                            <span class="font-monospace fs-16 fw-bold text-primary">{{ acc.account_number }}</span>
+                            <button 
+                              type="button" 
+                              class="btn btn-xs btn-outline-secondary d-flex align-items-center gap-1"
+                              @click="copyAccountText(acc.account_number)"
+                            >
+                              <i class="ri-file-copy-line"></i> Salin
+                            </button>
+                          </div>
+
+                          <div v-if="acc.notes" class="mt-2 fs-11 text-muted">
+                            <i class="ri-information-line me-1 text-info"></i> {{ acc.notes }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Section 2: Opsi Tambahan & Instruksi -->
+                  <div class="card border shadow-none">
+                    <div class="card-header bg-light py-3">
+                      <h5 class="card-title mb-0 fs-14 fw-bold text-dark">
+                        <i class="ri-settings-3-line text-primary me-1"></i> Pengaturan Konfirmasi & Petunjuk
+                      </h5>
+                    </div>
+                    <div class="card-body p-3">
                       <div class="row g-3">
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                           <label class="form-label fs-12 fw-semibold text-muted">
-                            Nama Bank <span class="text-danger">*</span>
+                            No. WhatsApp Konfirmasi Pembayaran Bendahara
                           </label>
-                          <input 
-                            type="text" 
-                            v-model="paymentForm.payment_bank_name" 
-                            class="form-control" 
-                            placeholder="Contoh: Bank Syariah Indonesia (BSI)"
-                            required
-                          />
-                        </div>
-
-                        <div class="col-md-6">
-                          <label class="form-label fs-12 fw-semibold text-muted">
-                            Nomor Rekening <span class="text-danger">*</span>
-                          </label>
-                          <input 
-                            type="text" 
-                            v-model="paymentForm.payment_account_number" 
-                            class="form-control fw-bold font-monospace fs-14" 
-                            placeholder="Contoh: 7123456789"
-                            required
-                          />
-                        </div>
-
-                        <div class="col-md-6">
-                          <label class="form-label fs-12 fw-semibold text-muted">
-                            Atas Nama Rekening (A.N.) <span class="text-danger">*</span>
-                          </label>
-                          <input 
-                            type="text" 
-                            v-model="paymentForm.payment_account_holder" 
-                            class="form-control fw-semibold" 
-                            placeholder="Contoh: Semarak Aliyah XIV"
-                            required
-                          />
-                        </div>
-
-                        <div class="col-md-6">
-                          <label class="form-label fs-12 fw-semibold text-muted">
-                            No. WhatsApp Konfirmasi Bendahara
-                          </label>
-                          <input 
-                            type="text" 
-                            v-model="paymentForm.payment_confirmation_wa" 
-                            class="form-control" 
-                            placeholder="Contoh: 0838 5007 0767"
-                          />
+                          <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="ri-whatsapp-line text-success"></i></span>
+                            <input 
+                              type="text" 
+                              v-model="paymentForm.payment_confirmation_wa" 
+                              class="form-control" 
+                              placeholder="Contoh: 0838 5007 0767"
+                            />
+                          </div>
+                          <small class="text-muted fs-11">Nomor ini menjadi kontak otomatis bantuan pembayaran pada invoice dan form pendaftaran.</small>
                         </div>
 
                         <div class="col-12">
@@ -675,54 +769,65 @@
                           <textarea 
                             v-model="paymentForm.payment_instructions" 
                             class="form-control" 
-                            rows="4" 
+                            rows="3" 
                             placeholder="Tuliskan petunjuk transfer dan konfirmasi pembayaran..."
                           ></textarea>
-                          <small class="text-muted fs-11">
-                            Petunjuk ini akan ditampilkan pada formulir pendaftaran dan rincian bukti tagihan.
-                          </small>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <!-- Preview Box Card -->
+                <!-- Right: Live Preview Box Card -->
                 <div class="col-lg-5">
                   <div class="card border shadow-none bg-light-subtle">
                     <div class="card-header bg-white py-3">
                       <h5 class="card-title mb-0 fs-13 fw-bold text-muted">
-                        <i class="ri-eye-line text-primary me-1"></i> Pratinjau Tampilan Kotak Transfer di Web
+                        <i class="ri-eye-line text-primary me-1"></i> Pratinjau Tampilan Rekening di Web Publik
                       </h5>
                     </div>
-                    <div class="card-body">
-                      <div class="p-3 rounded border bg-white shadow-sm">
-                        <div class="d-flex align-items-center justify-content-between pb-2 mb-3 border-bottom">
-                          <div class="d-flex align-items-center gap-2">
-                            <i class="ri-bank-card-2-fill fs-20 text-success"></i>
-                            <span class="fw-bold fs-14 text-dark">{{ paymentForm.payment_bank_name || 'Bank BSI' }}</span>
-                          </div>
-                          <span class="badge bg-success-subtle text-success fs-10">Rekening Resmi</span>
-                        </div>
+                    <div class="card-body p-4">
+                      <p class="text-muted fs-12 mb-3">
+                        Berikut tampilan opsi transfer yang dilihat peserta pada ringkasan pembayaran formulir pendaftaran:
+                      </p>
 
-                        <div class="mb-2">
-                          <div class="text-muted fs-11">Nomor Rekening:</div>
-                          <div class="fs-18 fw-bold font-monospace text-primary">
-                            {{ paymentForm.payment_account_number || '-' }}
+                      <div class="d-flex flex-column gap-2 mb-3">
+                        <div 
+                          v-for="(acc, prIdx) in activeBankAccounts" 
+                          :key="'preview-' + (acc.id || prIdx)"
+                          class="p-3 rounded border bg-white shadow-sm"
+                        >
+                          <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
+                            <div class="d-flex align-items-center gap-2">
+                              <i class="ri-bank-card-2-fill fs-18 text-success"></i>
+                              <span class="fw-bold fs-13 text-dark">{{ acc.bank_name }}</span>
+                            </div>
+                            <span v-if="acc.is_primary" class="badge bg-warning text-dark fs-10">Utama</span>
+                            <span v-else class="badge bg-secondary-subtle text-muted fs-10">Pilihan Bank</span>
+                          </div>
+
+                          <div class="mb-1.5">
+                            <div class="text-muted fs-10">Nomor Rekening:</div>
+                            <div class="d-flex align-items-center justify-content-between">
+                              <span class="fs-16 fw-bold font-monospace text-primary">{{ acc.account_number }}</span>
+                              <span class="badge bg-light text-muted border fs-10">Salin</span>
+                            </div>
+                          </div>
+
+                          <div class="fs-12">
+                            <span class="text-muted fs-10 d-block">Atas Nama (A.N.):</span>
+                            <span class="fw-semibold text-dark">{{ acc.account_holder }}</span>
+                          </div>
+
+                          <div v-if="acc.notes" class="mt-2 pt-1 border-top fs-11 text-muted">
+                            <i class="ri-information-line text-info me-1"></i>{{ acc.notes }}
                           </div>
                         </div>
+                      </div>
 
-                        <div class="mb-3">
-                          <div class="text-muted fs-11">Atas Nama:</div>
-                          <div class="fs-13 fw-semibold text-dark">
-                            {{ paymentForm.payment_account_holder || '-' }}
-                          </div>
-                        </div>
-
-                        <div v-if="paymentForm.payment_confirmation_wa" class="pt-2 border-top fs-12 text-muted">
-                          <i class="ri-whatsapp-line text-success me-1"></i>
-                          Konfirmasi WA: <strong>{{ paymentForm.payment_confirmation_wa }}</strong>
-                        </div>
+                      <div v-if="paymentForm.payment_confirmation_wa" class="p-2.5 rounded bg-white border fs-12 text-muted">
+                        <i class="ri-whatsapp-line text-success me-1"></i>
+                        Konfirmasi WA Bendahara: <strong>{{ paymentForm.payment_confirmation_wa }}</strong>
                       </div>
                     </div>
                   </div>
@@ -736,7 +841,7 @@
                     :disabled="isSavingPayment"
                   >
                     <i class="ri-save-line me-1"></i>
-                    {{ isSavingPayment ? 'Menyimpan...' : 'Simpan Data Rekening' }}
+                    {{ isSavingPayment ? 'Menyimpan...' : 'Simpan Seluruh Data Rekening' }}
                   </button>
                 </div>
               </div>
@@ -985,6 +1090,137 @@
         </div>
       </div>
     </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL TAMBAH / EDIT REKENING BANK                              -->
+    <!-- ============================================================== -->
+    <div v-if="isAccountModalOpen" class="modal-backdrop fade show"></div>
+    <div 
+      v-if="isAccountModalOpen" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-header bg-light py-3">
+            <h5 class="modal-title fw-bold fs-15 d-flex align-items-center gap-2">
+              <i class="ri-bank-card-fill text-primary"></i>
+              {{ isEditingAccount ? 'Edit Rekening Bank' : 'Tambah Rekening Bank Baru' }}
+            </h5>
+            <button type="button" class="btn-close" @click="closeAccountModal"></button>
+          </div>
+
+          <form @submit.prevent="saveAccountModal">
+            <div class="modal-body p-4">
+              <!-- Quick Bank Presets -->
+              <div class="mb-3">
+                <label class="form-label fs-11 text-muted d-block mb-1">Pilihan Cepat Bank Populer:</label>
+                <div class="d-flex gap-1.5 flex-wrap">
+                  <button 
+                    v-for="bPreset in ['BSI', 'BCA', 'BRI', 'Mandiri', 'BNI', 'Bank Jatim', 'Muamalat']" 
+                    :key="bPreset"
+                    type="button" 
+                    class="btn btn-xs btn-outline-secondary"
+                    @click="applyBankPreset(bPreset)"
+                  >
+                    {{ bPreset }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fs-12 fw-semibold text-dark">
+                  Nama Bank <span class="text-danger">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  v-model="accountForm.bank_name" 
+                  class="form-control" 
+                  placeholder="Contoh: Bank Syariah Indonesia (BSI)"
+                  required
+                />
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fs-12 fw-semibold text-dark">
+                  Nomor Rekening <span class="text-danger">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  v-model="accountForm.account_number" 
+                  class="form-control font-monospace fw-bold fs-15 text-primary" 
+                  placeholder="Contoh: 7123456789"
+                  required
+                />
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fs-12 fw-semibold text-dark">
+                  Atas Nama Rekening (A.N.) <span class="text-danger">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  v-model="accountForm.account_holder" 
+                  class="form-control fw-semibold" 
+                  placeholder="Contoh: Panitia Semarak Aliyah XIV"
+                  required
+                />
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fs-12 fw-semibold text-dark">
+                  Catatan / Keterangan Tambahan (Opsional)
+                </label>
+                <input 
+                  type="text" 
+                  v-model="accountForm.notes" 
+                  class="form-control" 
+                  placeholder="Contoh: Bebas biaya admin transfer sesama BSI"
+                />
+              </div>
+
+              <div class="d-flex flex-column gap-2 pt-2 border-top">
+                <div class="form-check form-switch">
+                  <input 
+                    class="form-check-input" 
+                    type="checkbox" 
+                    id="modalPrimarySwitch"
+                    v-model="accountForm.is_primary"
+                  />
+                  <label class="form-check-label fs-13 fw-semibold" for="modalPrimarySwitch">
+                    Jadikan Rekening Utama Panitia
+                  </label>
+                </div>
+
+                <div class="form-check form-switch">
+                  <input 
+                    class="form-check-input" 
+                    type="checkbox" 
+                    id="modalActiveSwitch"
+                    v-model="accountForm.is_active"
+                  />
+                  <label class="form-check-label fs-13" for="modalActiveSwitch">
+                    Status Aktif (Tampil di Formulir Pendaftaran Web)
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer bg-light py-2">
+              <button type="button" class="btn btn-light btn-sm" @click="closeAccountModal">Batal</button>
+              <button 
+                type="submit" 
+                class="btn btn-primary btn-sm px-4 shadow-sm"
+              >
+                {{ isEditingAccount ? 'Simpan Perubahan' : 'Tambahkan Rekening' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </VelzonLayout>
 </template>
 
@@ -1206,8 +1442,29 @@ function savePackageSettings() {
   });
 }
 
-// 4. Payment Settings Form State
+// 4. Payment Settings Form State (Multi-Bank Accounts)
 const isSavingPayment = ref(false);
+
+const bankAccountsList = ref(
+  Array.isArray(props.paymentSettings.bank_accounts) && props.paymentSettings.bank_accounts.length > 0
+    ? JSON.parse(JSON.stringify(props.paymentSettings.bank_accounts))
+    : [
+        {
+          id: 'acc-1',
+          bank_name: props.paymentSettings.bank_name || 'Bank Syariah Indonesia (BSI)',
+          account_number: props.paymentSettings.account_number || '7123456789',
+          account_holder: props.paymentSettings.account_holder || 'Semarak Aliyah',
+          is_primary: true,
+          is_active: true,
+          notes: 'Rekening Utama Panitia',
+        }
+      ]
+);
+
+const activeBankAccounts = computed(() => {
+  return bankAccountsList.value.filter(a => a.is_active !== false);
+});
+
 const paymentForm = ref({
   payment_bank_name: props.paymentSettings.bank_name || 'Bank Syariah Indonesia (BSI)',
   payment_account_number: props.paymentSettings.account_number || '7123456789',
@@ -1217,13 +1474,137 @@ const paymentForm = ref({
   payment_cash_enabled: props.paymentSettings.cash_enabled !== false,
 });
 
+// Modal State for Bank Accounts
+const isAccountModalOpen = ref(false);
+const isEditingAccount = ref(false);
+const editingAccountIndex = ref(-1);
+const accountForm = ref({
+  id: '',
+  bank_name: '',
+  account_number: '',
+  account_holder: '',
+  notes: '',
+  is_primary: false,
+  is_active: true,
+});
+
+function applyBankPreset(preset) {
+  const map = {
+    'BSI': { name: 'Bank Syariah Indonesia (BSI)', notes: 'Bebas biaya transfer sesama BSI' },
+    'BCA': { name: 'Bank Central Asia (BCA)', notes: 'Transfer via BCA Virtual/Rekening' },
+    'BRI': { name: 'Bank Rakyat Indonesia (BRI)', notes: 'Transfer via BRIMO / ATM BRI' },
+    'Mandiri': { name: 'Bank Mandiri', notes: 'Transfer via Livin by Mandiri' },
+    'BNI': { name: 'Bank Negara Indonesia (BNI)', notes: 'Transfer via BNI Mobile Banking' },
+    'Bank Jatim': { name: 'Bank Jatim', notes: 'Rekening Daerah Jawa Timur' },
+    'Muamalat': { name: 'Bank Muamalat', notes: 'Perbankan Syariah' },
+  };
+  if (map[preset]) {
+    accountForm.value.bank_name = map[preset].name;
+    if (!accountForm.value.notes) {
+      accountForm.value.notes = map[preset].notes;
+    }
+  }
+}
+
+function openAddAccountModal() {
+  isEditingAccount.value = false;
+  editingAccountIndex.value = -1;
+  accountForm.value = {
+    id: 'acc-' + Date.now(),
+    bank_name: '',
+    account_number: '',
+    account_holder: paymentForm.value.payment_account_holder || 'Semarak Aliyah XIV',
+    notes: '',
+    is_primary: bankAccountsList.value.length === 0,
+    is_active: true,
+  };
+  isAccountModalOpen.value = true;
+}
+
+function openEditAccountModal(acc, idx) {
+  isEditingAccount.value = true;
+  editingAccountIndex.value = idx;
+  accountForm.value = { ...acc };
+  isAccountModalOpen.value = true;
+}
+
+function closeAccountModal() {
+  isAccountModalOpen.value = false;
+  editingAccountIndex.value = -1;
+}
+
+function saveAccountModal() {
+  if (!accountForm.value.bank_name || !accountForm.value.account_number || !accountForm.value.account_holder) {
+    error('Nama Bank, Nomor Rekening, dan Atas Nama wajib diisi!');
+    return;
+  }
+
+  if (accountForm.value.is_primary) {
+    bankAccountsList.value.forEach(a => { a.is_primary = false; });
+  }
+
+  if (isEditingAccount.value && editingAccountIndex.value >= 0) {
+    bankAccountsList.value[editingAccountIndex.value] = { ...accountForm.value };
+    success('Data rekening berhasil diperbarui!');
+  } else {
+    bankAccountsList.value.push({ ...accountForm.value });
+    success('Rekening bank baru berhasil ditambahkan!');
+  }
+
+  // Ensure at least 1 primary account
+  const hasPrimary = bankAccountsList.value.some(a => a.is_primary);
+  if (!hasPrimary && bankAccountsList.value.length > 0) {
+    bankAccountsList.value[0].is_primary = true;
+  }
+
+  closeAccountModal();
+}
+
+function setPrimaryAccount(idx) {
+  bankAccountsList.value.forEach((a, i) => {
+    a.is_primary = (i === idx);
+  });
+  success(`"${bankAccountsList.value[idx].bank_name}" kini disetel sebagai rekening utama!`);
+}
+
+function toggleAccountActive(idx) {
+  bankAccountsList.value[idx].is_active = !bankAccountsList.value[idx].is_active;
+  const statusStr = bankAccountsList.value[idx].is_active ? 'diaktifkan' : 'dinonaktifkan';
+  success(`Rekening ${bankAccountsList.value[idx].bank_name} berhasil ${statusStr}.`);
+}
+
+function deleteAccount(idx) {
+  if (bankAccountsList.value.length <= 1) {
+    error('Minimal harus ada satu rekening bank yang tersimpan!');
+    return;
+  }
+  const deleted = bankAccountsList.value.splice(idx, 1)[0];
+  if (deleted.is_primary && bankAccountsList.value.length > 0) {
+    bankAccountsList.value[0].is_primary = true;
+  }
+  success(`Rekening ${deleted.bank_name} (${deleted.account_number}) berhasil dihapus.`);
+}
+
+function copyAccountText(text) {
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    success(`Nomor rekening ${text} berhasil disalin ke clipboard!`);
+  }).catch(() => {
+    // fallback
+  });
+}
+
 function savePaymentSettings() {
   isSavingPayment.value = true;
-  router.post('/admin/biaya/payment', paymentForm.value, {
+  const payload = {
+    ...paymentForm.value,
+    bank_accounts: bankAccountsList.value,
+  };
+  router.post('/admin/biaya/payment', payload, {
     preserveScroll: true,
     onSuccess: () => {
       isSavingPayment.value = false;
-      success('Data rekening bank dan petunjuk pembayaran berhasil diperbarui!');
+      success('Daftar nomor rekening bank dan petunjuk pembayaran berhasil disimpan!');
     },
     onError: (errs) => {
       isSavingPayment.value = false;

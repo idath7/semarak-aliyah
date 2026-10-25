@@ -11,6 +11,8 @@ const props = defineProps({
   required: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
   hasError: { type: Boolean, default: false },
+  inputClass: { type: String, default: '' },
+  iconClass: { type: String, default: 'ri-calendar-event-line fs-15 text-primary' },
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -91,17 +93,16 @@ function handleInput(e) {
       :placeholder="placeholder"
       :required="required"
       :disabled="disabled"
-      class="form-control fs-13 bg-white"
-      :class="{ 'is-invalid': hasError }"
+      :class="[inputClass || 'form-control fs-13 bg-white', { 'is-invalid': hasError }]"
       autocomplete="off"
-      style="padding-right: 38px; height: 37.5px;"
+      style="padding-right: 36px;"
       @input="handleInput"
     />
     <span 
       class="position-absolute end-0 top-50 translate-middle-y pe-2.5 text-muted d-flex align-items-center"
       style="pointer-events: none;"
     >
-      <i class="ri-calendar-event-line fs-15 text-primary"></i>
+      <i :class="iconClass"></i>
     </span>
   </div>
 </template>

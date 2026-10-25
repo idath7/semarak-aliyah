@@ -358,6 +358,26 @@ function logout() {
                   <i class="ri-search-eye-line text-base text-slate-400"></i>
                   <span>SEO & Open Graph</span>
                 </Link>
+                <Link 
+                  href="/admin/pengaturan/wa-gateway" 
+                  :class="[
+                    'flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all',
+                    $page.url.includes('/wa-gateway') ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  ]"
+                >
+                  <i class="ri-whatsapp-line text-base text-emerald-400"></i>
+                  <span>WA Gateway</span>
+                </Link>
+                <Link 
+                  href="/admin/pengaturan/login-admin" 
+                  :class="[
+                    'flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all',
+                    $page.url.includes('/login-admin') ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  ]"
+                >
+                  <i class="ri-image-edit-line text-base text-blue-400"></i>
+                  <span>Login Panel Admin</span>
+                </Link>
               </div>
             </div>
           </div>

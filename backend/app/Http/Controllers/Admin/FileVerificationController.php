@@ -51,18 +51,33 @@ class FileVerificationController extends Controller
      */
     public function updateStatus(Request $request, $id)
     {
-        $request->validate([
-            'status' => 'required|string',
-            'verification_notes' => 'nullable|string'
-        ]);
-
         $reg = Registration::findOrFail($id);
-        $reg->payment_status = $request->status;
-        if ($request->filled('verification_notes')) {
-            $reg->verification_notes = $request->verification_notes;
+
+        if ($request->has('registration_status')) {
+            $reg->registration_status = $request->input('registration_status');
+        }
+
+        if ($request->has('payment_status')) {
+            $reg->payment_status = $request->input('payment_status');
+        }
+
+        if ($request->has('status')) {
+            $type = $request->input('type', 'all');
+            if ($type === 'registration') {
+                $reg->registration_status = $request->input('status');
+            } elseif ($type === 'payment') {
+                $reg->payment_status = $request->input('status');
+            } else {
+                $reg->payment_status = $request->input('status');
+                $reg->registration_status = $request->input('status');
+            }
+        }
+
+        if ($request->filled('verification_notes') || $request->filled('notes')) {
+            $reg->verification_notes = $request->input('verification_notes', $request->input('notes'));
         }
         $reg->save();
 
-        return redirect()->back()->with('success', "Keputusan verifikasi berkas {$reg->reg_code} berhasil disimpan!");
+        return redirect()->back()->with('success', "Keputusan verifikasi pendaftaran & pembayaran {$reg->reg_code} berhasil disimpan!");
     }
 }

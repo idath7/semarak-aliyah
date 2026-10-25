@@ -269,14 +269,15 @@ function handleGenerateBracket() {
 
               <div>
                 <label class="block text-[11px] font-semibold text-slate-400 mb-1">Status Pertandingan:</label>
-                <select 
+                <CustomSelect 
                   v-model="scoreForm.status"
-                  class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-400"
+                  size="sm"
+                  variant="dark-slate"
                 >
                   <option value="scheduled">Terjadwal (Scheduled)</option>
                   <option value="ongoing">Sedang Bertanding (Ongoing - Live Scoreboard)</option>
                   <option value="completed">Selesai (Completed - Otomatis Loloskan Pemenang)</option>
-                </select>
+                </CustomSelect>
               </div>
 
               <div class="grid grid-cols-2 gap-3">

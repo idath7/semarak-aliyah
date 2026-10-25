@@ -38,22 +38,43 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => function () use ($request) {
+                    $isAdminOrOperasionalRoute = $request->is('admin', 'admin/*', 'operasional', 'operasional/*');
+                    if ($isAdminOrOperasionalRoute) {
+                        return \Illuminate\Support\Facades\Auth::guard('web')->user();
+                    }
+                    // Di portal pendaftar dan web publik, gunakan akun guard pendaftar
+                    return \Illuminate\Support\Facades\Auth::guard('pendaftar')->user();
+                },
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
             ],
+            'registrationLoginRequired' => \App\Models\Setting::get('registration_login_required', '0') === '1',
             'reverb' => [
                 'key' => config('reverb.apps.apps.0.key') ?? env('REVERB_APP_KEY', 'semarak-key-2026'),
                 'host' => $request->getHost(),
                 'port' => $request->isSecure() ? 443 : (int) env('REVERB_PORT', 8085),
                 'scheme' => $request->isSecure() ? 'https' : 'http',
             ],
-            'portal' => [
-                'publicUrl' => config('portal.public_url', 'http://localhost:8000'),
-                'adminUrl'  => config('portal.admin_url', 'http://localhost:8001'),
-            ],
+            'portal' => function () use ($request) {
+                $scheme = $request->getScheme();
+                $host = $request->getHost();
+                $adminPort = (int) config('portal.admin_port', 8001);
+                $publicPort = (int) config('portal.public_port', 8000);
+
+                $adminDomain = config('portal.admin_domain');
+                $publicDomain = config('portal.public_domain');
+
+                $defaultPublic = $publicDomain ? ($scheme . '://' . $publicDomain) : ($scheme . '://' . $host . ($publicPort === 80 || $publicPort === 443 ? '' : ':' . $publicPort));
+                $defaultAdmin  = $adminDomain ? ($scheme . '://' . $adminDomain) : ($scheme . '://' . $host . ($adminPort === 80 || $adminPort === 443 ? '' : ':' . $adminPort));
+
+                return [
+                    'publicUrl' => $publicDomain ? config('portal.public_url', $defaultPublic) : $defaultPublic,
+                    'adminUrl'  => $adminDomain ? config('portal.admin_url', $defaultAdmin) : $defaultAdmin,
+                ];
+            },
             'schoolProfile' => fn () => [
                 'school_name' => \App\Models\Setting::get('school_name', 'MA Unggulan Wahid Hasyim Balung'),
                 'school_short_name' => \App\Models\Setting::get('school_short_name', 'MA Wahid Hasyim'),
@@ -110,6 +131,8 @@ class HandleInertiaRequests extends Middleware
                 'visual_particles_type' => \App\Models\Setting::get('visual_particles_type', 'glitter'),
                 'back_to_top_active' => \App\Models\Setting::get('back_to_top_active', '1') === '1',
             ],
+            'generalJuknis' => fn () => \App\Models\Setting::getGeneralJuknis(),
+            'paymentBankAccounts' => fn () => \App\Models\Setting::getBankAccounts(),
         ];
     }
 }

@@ -10,11 +10,21 @@ const props = defineProps({
   schools: { type: Object, required: true },
   metrics: { type: Object, default: () => ({}) },
   kecamatans: { type: Array, default: () => [] },
+  registered_schools: { type: Array, default: () => [] },
   filters: { type: Object, default: () => ({}) },
 });
 
 const { success, error } = useToast();
 const { confirm: confirmDialog } = useConfirmDialog();
+
+function isRegistered(name) {
+  if (!name || !props.registered_schools || props.registered_schools.length === 0) return false;
+  const clean = name.trim().toLowerCase();
+  return props.registered_schools.some(r => {
+    const rc = r.toLowerCase();
+    return rc === clean || clean.includes(rc) || rc.includes(clean);
+  });
+}
 
 // -----------------------------------------------------------------------------
 // FILTER & SEARCH STATE
@@ -133,33 +143,45 @@ function submitForm() {
 }
 
 // -----------------------------------------------------------------------------
-// DELETE CONFIRMATION
+// DELETE CONFIRMATION & REGISTRATION PROTECTION
 // -----------------------------------------------------------------------------
 const isDeleteModalOpen = ref(false);
 const itemToDelete = ref(null);
 const isDeleting = ref(false);
+const confirmDeleteWithRegistrations = ref(false);
 
 function confirmDelete(school) {
   itemToDelete.value = school;
+  confirmDeleteWithRegistrations.value = false;
   isDeleteModalOpen.value = true;
 }
 
 function closeDeleteModal() {
   isDeleteModalOpen.value = false;
   itemToDelete.value = null;
+  confirmDeleteWithRegistrations.value = false;
 }
 
 function executeDelete() {
   if (!itemToDelete.value) return;
 
+  const hasRegistrations = (itemToDelete.value.registrations_count > 0) || isRegistered(itemToDelete.value.name);
+  if (hasRegistrations && !confirmDeleteWithRegistrations.value) {
+    error('Harap centang persetujuan pemahaman resiko untuk melanjutkan penghapusan sekolah ini.');
+    return;
+  }
+
   isDeleting.value = true;
-  router.delete(`/admin/sekolah/${itemToDelete.value.id}`, {
+  const isForced = hasRegistrations && confirmDeleteWithRegistrations.value;
+
+  router.delete(`/admin/sekolah/${itemToDelete.value.id}?force=${isForced ? 1 : 0}`, {
+    data: { force: isForced },
     onSuccess: () => {
       closeDeleteModal();
       success('Sekolah berhasil dihapus.');
     },
-    onError: () => {
-      error('Gagal menghapus sekolah.');
+    onError: (err) => {
+      error(Object.values(err)[0] || 'Gagal menghapus sekolah.');
     },
     onFinish: () => {
       isDeleting.value = false;
@@ -237,11 +259,11 @@ function toggleActiveStatus(school) {
 // CLEAN DATA MODAL STATE & HANDLERS
 // -----------------------------------------------------------------------------
 const isCleanModalOpen = ref(false);
-const cleanScope = ref('all');
+const cleanScope = ref('master_unregistered');
 const isCleaning = ref(false);
 
 function openCleanModal() {
-  cleanScope.value = 'all';
+  cleanScope.value = 'master_unregistered';
   isCleanModalOpen.value = true;
 }
 
@@ -251,14 +273,23 @@ function closeCleanModal() {
 
 async function executeClean() {
   const scopeLabels = {
-    all: 'seluruh data sekolah & madrasah hasil API/seeder',
+    master_unregistered: 'data sekolah yang TIDAK memiliki pendaftar (Sekolah berpendaftar akan tetap aman)',
+    all: 'seluruh data sekolah & madrasah di database',
     inactive: 'sekolah yang berstatus non-aktif',
     dummy: 'data uji coba / dummy'
   };
 
+  const isAll = cleanScope.value === 'all';
+  const hasReg = (props.metrics.total_registered_schools || 0) > 0;
+
+  let confirmMsg = `Apakah Anda yakin ingin menghapus ${scopeLabels[cleanScope.value]}? Tindakan ini tidak dapat dibatalkan.`;
+  if (isAll && hasReg) {
+    confirmMsg += ` PERHATIAN: Terdapat ${props.metrics.total_registered_schools} sekolah yang memiliki data pendaftar aktif.`;
+  }
+
   const ok = await confirmDialog({
     title: 'Konfirmasi Pembersihan Data',
-    message: `Apakah Anda yakin ingin menghapus ${scopeLabels[cleanScope.value]}? Tindakan ini tidak dapat dibatalkan. Data registrasi peserta yang sudah ada tetap aman.`,
+    message: confirmMsg,
     type: cleanScope.value === 'all' ? 'danger' : 'warning',
     confirmText: 'Ya, Bersihkan Sekarang',
     icon: 'ri-delete-bin-line'
@@ -267,7 +298,10 @@ async function executeClean() {
   if (!ok) return;
 
   isCleaning.value = true;
-  router.post('/admin/sekolah/clean-invalid', { scope: cleanScope.value }, {
+  router.post('/admin/sekolah/clean-invalid', { 
+    scope: cleanScope.value,
+    force: cleanScope.value === 'all'
+  }, {
     onSuccess: () => {
       closeCleanModal();
       selectedIds.value = [];
@@ -304,39 +338,51 @@ async function bulkDeleteSelected() {
   if (selectedIds.value.length === 0) return;
 
   const count = selectedIds.value.length;
+  const selectedSchools = (props.schools.data || []).filter(s => selectedIds.value.includes(s.id));
+  const schoolsWithRegs = selectedSchools.filter(s => (s.registrations_count > 0 || isRegistered(s.name)));
+
+  let msg = `Apakah Anda yakin ingin menghapus ${count} sekolah yang telah dicentang dari database?`;
+  let type = 'danger';
+
+  if (schoolsWithRegs.length > 0) {
+    type = 'warning';
+    const names = schoolsWithRegs.slice(0, 3).map(s => s.name).join(', ');
+    const more = schoolsWithRegs.length > 3 ? ` dan ${schoolsWithRegs.length - 3} lainnya` : '';
+    msg = `PERHATIAN PROTEKSI: Terdapat ${schoolsWithRegs.length} dari ${count} sekolah (${names}${more}) yang memiliki relasi dengan data pendaftar aktif!\n\nSistem secara otomatis akan MEMPROTEKSI sekolah tersebut agar riwayat pendaftaran tidak terganggu, dan hanya menghapus sekolah yang tidak memiliki pendaftar. Lanjutkan?`;
+  }
+
   const ok = await confirmDialog({
     title: `Hapus ${count} Sekolah Terpilih?`,
-    message: `Apakah Anda yakin ingin menghapus ${count} sekolah yang telah dicentang dari database?`,
-    type: 'danger',
-    confirmText: `Ya, Hapus ${count} Sekolah`,
+    message: msg,
+    type: type,
+    confirmText: schoolsWithRegs.length > 0 ? `Ya, Hapus Sekolah Tanpa Pendaftar` : `Ya, Hapus ${count} Sekolah`,
     icon: 'ri-delete-bin-line'
   });
 
   if (!ok) return;
 
-  router.post('/admin/sekolah/bulk-delete', { ids: selectedIds.value }, {
+  router.post('/admin/sekolah/bulk-delete', { ids: selectedIds.value, force: false }, {
     onSuccess: () => {
       selectedIds.value = [];
-      success(`${count} sekolah terpilih berhasil dihapus.`);
     },
-    onError: () => {
-      error('Gagal menghapus sekolah terpilih.');
+    onError: (err) => {
+      error(Object.values(err)[0] || 'Gagal menghapus sekolah terpilih.');
     }
   });
 }
 
 // -----------------------------------------------------------------------------
-// SYNC DEFAULT DATASET
+// SYNC FROM REGISTRATIONS
 // -----------------------------------------------------------------------------
 const isSyncing = ref(false);
 
-async function syncDefaults() {
+async function syncRegistrations() {
   const ok = await confirmDialog({
-    title: 'Sinkronisasi Master Sekolah?',
-    message: 'Apakah Anda yakin ingin menyinkronkan ulang database dengan 146+ sekolah & madrasah resmi se-Kabupaten Jember? Data yang sudah ada tidak akan hilang.',
+    title: 'Tarik Data Sekolah dari Pendaftar?',
+    message: 'Apakah Anda yakin ingin menarik data sekolah dari database pendaftar? Sistem akan mendeteksi seluruh lembaga peserta yang telah terdaftar dan memasukkannya ke database sekolah tanpa duplikasi.',
     type: 'info',
-    confirmText: 'Ya, Sinkronkan',
-    icon: 'ri-refresh-line',
+    confirmText: 'Ya, Tarik Data',
+    icon: 'ri-user-received-2-line',
   });
 
   if (!ok) {
@@ -344,12 +390,12 @@ async function syncDefaults() {
   }
 
   isSyncing.value = true;
-  router.post('/admin/sekolah/sync-defaults', {}, {
+  router.post('/admin/sekolah/sync-registrations', {}, {
     onSuccess: () => {
-      success('Database sekolah berhasil disinkronkan!');
+      // success flash handled by inertia / session
     },
-    onError: () => {
-      error('Gagal menyinkronkan data sekolah.');
+    onError: (err) => {
+      error(Object.values(err)[0] || 'Gagal menarik data sekolah dari pendaftar.');
     },
     onFinish: () => {
       isSyncing.value = false;
@@ -414,22 +460,22 @@ const allJemberKecamatan = [
             type="button" 
             class="btn btn-sm btn-outline-warning d-flex align-items-center gap-1.5"
             @click="openCleanModal"
-            title="Bersihkan / kosongkan database sekolah hasil API"
+            title="Bersihkan / kosongkan database sekolah"
           >
             <i class="ri-magic-line"></i>
             <span class="d-none d-lg-inline">Bersihkan Data</span>
           </button>
 
-          <!-- Button Sync Defaults -->
+          <!-- Button Tarik dari Pendaftar -->
           <button 
             type="button" 
-            class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1.5"
+            class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1.5"
             :disabled="isSyncing"
-            @click="syncDefaults"
-            title="Sinkronkan dengan master dataset 146+ SMP/MTs Kabupaten Jember"
+            @click="syncRegistrations"
+            title="Tarik data sekolah dari riwayat formulir pendaftar (antisipasi database sekolah terhapus)"
           >
-            <i class="ri-refresh-line" :class="{ 'ri-spin': isSyncing }"></i>
-            <span class="d-none d-sm-inline">{{ isSyncing ? 'Menyinkronkan...' : 'Sinkron Master' }}</span>
+            <i class="ri-user-received-2-line" :class="{ 'ri-spin': isSyncing }"></i>
+            <span class="d-none d-sm-inline">{{ isSyncing ? 'Menarik Data...' : 'Tarik dari Pendaftar' }}</span>
           </button>
 
           <!-- Button Tambah Sekolah -->
@@ -445,16 +491,15 @@ const allJemberKecamatan = [
       </div>
 
       <!-- ============================================================== -->
-      <!-- DATA QUALITY & API NOTICE BANNER                              -->
+      <!-- DATA QUALITY & NOTICE BANNER                                   -->
       <!-- ============================================================== -->
       <div class="alert alert-info border-0 shadow-sm rounded-3 d-flex align-items-start gap-3 mb-4 p-3" style="background: rgba(14, 165, 233, 0.08); border-left: 4px solid #0284c7 !important;">
         <div class="avatar-xs rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center flex-shrink-0 mt-0.5">
           <i class="ri-information-line fs-16"></i>
         </div>
         <div class="flex-grow-1 fs-12 text-dark">
-          <strong class="d-block mb-1 fs-13 text-dark">💡 Panduan Validitas Data Sekolah & Madrasah:</strong>
-          Data dari API publik pihak ketiga atau arsip Dapodik lama sering kali memiliki informasi yang kadaluarsa (sekolah dimerger/tutup) dan <strong>tidak mencakup Madrasah Tsanawiyah (MTs)</strong> karena MTs dikelola terpisah di sistem EMIS Kementerian Agama.
-          Anda dapat memperbarui data secara presisi dengan tombol <strong>Import CSV</strong> menggunakan format resmi dari Dispendik/Kemenag, mengedit langsung data lembaga di tabel, atau mengaktifkan/menonaktifkan sekolah dengan saklar status.
+          <strong class="d-block mb-1 fs-13 text-dark">💡 Panduan Kelola Database Sekolah & Madrasah:</strong>
+          Database sekolah otomatis terisi setiap kali ada pendaftar baru masuk ke sistem tanpa duplikasi data. Apabila database sekolah tidak sengaja terhapus, Anda dapat mengembalikannya kapan saja dengan menekan tombol <strong>Tarik dari Pendaftar</strong>. Anda juga dapat memperkaya data secara mandiri menggunakan tombol <strong>Import CSV</strong> atau <strong>Tambah Sekolah</strong>.
         </div>
       </div>
 
@@ -472,7 +517,12 @@ const allJemberKecamatan = [
                   <i class="ri-building-line fs-15"></i>
                 </div>
               </div>
-              <h4 class="fs-20 fw-bold mb-0 text-dark">{{ metrics.total_schools || 0 }}</h4>
+              <div class="d-flex align-items-baseline justify-content-between">
+                <h4 class="fs-20 fw-bold mb-0 text-dark">{{ metrics.total_schools || 0 }}</h4>
+                <span v-if="metrics.total_registered_schools" class="badge bg-success-subtle text-success fs-10 px-1.5 py-0.5 rounded-pill" title="Sekolah yang telah mendaftarkan delegasi">
+                  {{ metrics.total_registered_schools }} Pendaftar
+                </span>
+              </div>
               <small class="text-muted fs-10">Lembaga SMP & MTs</small>
             </div>
           </div>
@@ -580,30 +630,30 @@ const allJemberKecamatan = [
 
             <!-- Jenjang Filter -->
             <div class="col-6 col-md-2">
-              <select v-model="jenjangFilter" class="form-select form-select-sm" @change="applyFilters">
+              <CustomSelect v-model="jenjangFilter" size="sm" @change="applyFilters">
                 <option value="">Semua Jenjang</option>
                 <option value="SMP">SMP</option>
                 <option value="MTs">MTs</option>
-              </select>
+              </CustomSelect>
             </div>
 
             <!-- Status Filter -->
             <div class="col-6 col-md-2">
-              <select v-model="statusFilter" class="form-select form-select-sm" @change="applyFilters">
+              <CustomSelect v-model="statusFilter" size="sm" @change="applyFilters">
                 <option value="">Semua Status</option>
                 <option value="Negeri">Negeri</option>
                 <option value="Swasta">Swasta</option>
-              </select>
+              </CustomSelect>
             </div>
 
             <!-- Kecamatan Filter -->
             <div class="col-6 col-md-3">
-              <select v-model="kecamatanFilter" class="form-select form-select-sm" @change="applyFilters">
+              <CustomSelect v-model="kecamatanFilter" size="sm" @change="applyFilters" searchable search-placeholder="Cari kecamatan...">
                 <option value="">Semua Kecamatan (31)</option>
                 <option v-for="kec in allJemberKecamatan" :key="kec" :value="kec">
                   Kecamatan {{ kec }}
                 </option>
-              </select>
+              </CustomSelect>
             </div>
 
             <!-- Actions (Submit & Reset) -->
@@ -654,14 +704,6 @@ const allJemberKecamatan = [
             <span class="badge bg-light text-muted border px-2.5 py-1 fs-11">
               Total: {{ schools.total || 0 }} Lembaga
             </span>
-            <a 
-              href="/api/schools?all=1" 
-              target="_blank" 
-              class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill"
-              title="Lihat Raw JSON Endpoint API"
-            >
-              <i class="ri-code-s-slash-line"></i> Endpoint API
-            </a>
           </div>
         </div>
 
@@ -723,7 +765,16 @@ const allJemberKecamatan = [
                       {{ school.jenjang }}
                     </div>
                     <div>
-                      <span class="fw-semibold text-dark d-block">{{ school.name }}</span>
+                      <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                        <span class="fw-semibold text-dark">{{ school.name }}</span>
+                        <span 
+                          v-if="school.registrations_count > 0 || isRegistered(school.name)" 
+                          class="badge bg-success-subtle text-success fs-10 px-1.5 py-0.5 rounded-pill border border-success-subtle"
+                          :title="`Sekolah ini memiliki ${school.registrations_count || 1} delegasi peserta yang terdaftar`"
+                        >
+                          <i class="ri-user-follow-line me-0.5"></i> {{ school.registrations_count ? `${school.registrations_count} Pendaftar` : 'Pendaftar Terdata' }}
+                        </span>
+                      </div>
                       <small class="text-muted font-monospace fs-11">
                         NPSN: {{ school.npsn || '-' }}
                       </small>
@@ -804,11 +855,12 @@ const allJemberKecamatan = [
                     </button>
                     <button 
                       type="button" 
-                      class="btn btn-sm btn-light border py-1 px-2 text-danger"
-                      title="Hapus Sekolah"
+                      class="btn btn-sm border py-1 px-2"
+                      :class="(school.registrations_count > 0 || isRegistered(school.name)) ? 'btn-light text-warning border-warning-subtle' : 'btn-light text-danger'"
+                      :title="(school.registrations_count > 0 || isRegistered(school.name)) ? `Hapus Sekolah (Perhatian: Memiliki ${school.registrations_count || 1} data pendaftar)` : 'Hapus Sekolah'"
                       @click="confirmDelete(school)"
                     >
-                      <i class="ri-delete-bin-line"></i>
+                      <i :class="(school.registrations_count > 0 || isRegistered(school.name)) ? 'ri-error-warning-line' : 'ri-delete-bin-line'"></i>
                     </button>
                   </div>
                 </td>
@@ -889,10 +941,10 @@ const allJemberKecamatan = [
                   <label class="form-label fs-12 fw-semibold custom-modal-label">
                     Jenjang Lembaga <span class="text-danger">*</span>
                   </label>
-                  <select v-model="form.jenjang" class="form-select form-select-sm" required>
+                  <CustomSelect v-model="form.jenjang" size="sm">
                     <option value="SMP">SMP (Sekolah Menengah Pertama)</option>
                     <option value="MTs">MTs (Madrasah Tsanawiyah)</option>
-                  </select>
+                  </CustomSelect>
                 </div>
 
                 <!-- Status -->
@@ -900,10 +952,10 @@ const allJemberKecamatan = [
                   <label class="form-label fs-12 fw-semibold custom-modal-label">
                     Status Sekolah <span class="text-danger">*</span>
                   </label>
-                  <select v-model="form.status" class="form-select form-select-sm" required>
+                  <CustomSelect v-model="form.status" size="sm">
                     <option value="Negeri">Negeri</option>
                     <option value="Swasta">Swasta</option>
-                  </select>
+                  </CustomSelect>
                 </div>
 
                 <!-- Kecamatan -->
@@ -911,11 +963,11 @@ const allJemberKecamatan = [
                   <label class="form-label fs-12 fw-semibold custom-modal-label">
                     Kecamatan (Kabupaten Jember) <span class="text-danger">*</span>
                   </label>
-                  <select v-model="form.kecamatan" class="form-select form-select-sm" required>
+                  <CustomSelect v-model="form.kecamatan" size="sm" searchable search-placeholder="Cari kecamatan...">
                     <option v-for="kec in allJemberKecamatan" :key="kec" :value="kec">
                       Kecamatan {{ kec }}
                     </option>
-                  </select>
+                  </CustomSelect>
                 </div>
 
                 <!-- NPSN -->
@@ -1005,16 +1057,55 @@ const allJemberKecamatan = [
       tabindex="-1" 
       style="background-color: rgba(15, 23, 42, 0.65); backdrop-filter: blur(3px); z-index: 1055;"
     >
-      <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-dialog modal-dialog-centered" :class="(itemToDelete && (itemToDelete.registrations_count > 0 || isRegistered(itemToDelete.name))) ? 'modal-md' : 'modal-sm'">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden custom-modal-content">
           <div class="modal-body p-4 text-center">
-            <div class="avatar-md bg-danger-subtle text-danger rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center fs-24" style="width: 54px; height: 54px;">
-              <i class="ri-delete-bin-line"></i>
+            <div 
+              class="avatar-md rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center fs-24"
+              :class="(itemToDelete && (itemToDelete.registrations_count > 0 || isRegistered(itemToDelete.name))) ? 'bg-warning-subtle text-warning' : 'bg-danger-subtle text-danger'"
+              style="width: 56px; height: 56px;"
+            >
+              <i :class="(itemToDelete && (itemToDelete.registrations_count > 0 || isRegistered(itemToDelete.name))) ? 'ri-error-warning-line' : 'ri-delete-bin-line'"></i>
             </div>
-            <h5 class="fs-15 fw-bold custom-modal-title mb-1">Hapus Data Sekolah?</h5>
+            
+            <h5 class="fs-15 fw-bold custom-modal-title mb-1">
+              {{ (itemToDelete && (itemToDelete.registrations_count > 0 || isRegistered(itemToDelete.name))) ? 'Peringatan: Relasi Pendaftar Aktif!' : 'Hapus Data Sekolah?' }}
+            </h5>
+            
             <p class="custom-modal-subtitle fs-12 mb-3">
-              Apakah Anda yakin ingin menghapus <strong>{{ itemToDelete?.name }}</strong>? Tindakan ini tidak dapat dibatalkan.
+              Apakah Anda yakin ingin menghapus data <strong>{{ itemToDelete?.name }}</strong>?
             </p>
+
+            <!-- Proteksi Relasi Pendaftar Alert Box -->
+            <div 
+              v-if="itemToDelete && (itemToDelete.registrations_count > 0 || isRegistered(itemToDelete.name))"
+              class="alert alert-warning border border-warning-subtle rounded-3 p-3 text-start mb-3"
+            >
+              <div class="d-flex align-items-start gap-2 mb-2">
+                <i class="ri-alert-fill text-warning fs-18 flex-shrink-0 mt-0.5"></i>
+                <div>
+                  <strong class="d-block text-dark fs-12 fw-bold">Sekolah Ini Memiliki Hubungan dengan Peserta Pendaftar!</strong>
+                  <span class="fs-11 text-muted d-block mt-0.5">
+                    Ditemukan <strong class="text-danger fw-bold">{{ itemToDelete.registrations_count || 1 }} data pendaftar aktif</strong> yang berasal dari sekolah/madrasah ini.
+                  </span>
+                </div>
+              </div>
+              <p class="fs-11 text-muted mb-2">
+                Menghapus sekolah ini akan menghilangkan relasi master sekolah di sistem pencarian, meskipun data formulir pendaftaran peserta tetap tersimpan di database.
+              </p>
+              <div class="form-check border-top pt-2 mt-2">
+                <input 
+                  id="confirmRiskCheck" 
+                  v-model="confirmDeleteWithRegistrations" 
+                  type="checkbox" 
+                  class="form-check-input cursor-pointer"
+                />
+                <label for="confirmRiskCheck" class="form-check-label fs-11 fw-semibold text-danger cursor-pointer user-select-none">
+                  Saya memahami resiko ini dan tetap ingin menghapus sekolah ini secara manual.
+                </label>
+              </div>
+            </div>
+
             <div class="d-flex gap-2 justify-content-center">
               <button type="button" class="btn btn-sm custom-modal-cancel border px-3" @click="closeDeleteModal">
                 Batal
@@ -1022,10 +1113,10 @@ const allJemberKecamatan = [
               <button 
                 type="button" 
                 class="btn btn-sm btn-danger px-3 shadow-sm" 
-                :disabled="isDeleting" 
+                :disabled="isDeleting || (itemToDelete && (itemToDelete.registrations_count > 0 || isRegistered(itemToDelete.name)) && !confirmDeleteWithRegistrations)" 
                 @click="executeDelete"
               >
-                {{ isDeleting ? 'Menghapus...' : 'Ya, Hapus' }}
+                {{ isDeleting ? 'Menghapus...' : (itemToDelete && (itemToDelete.registrations_count > 0 || isRegistered(itemToDelete.name)) ? 'Konfirmasi Hapus Paksa' : 'Ya, Hapus') }}
               </button>
             </div>
           </div>
@@ -1151,7 +1242,30 @@ const allJemberKecamatan = [
                 Silakan pilih opsi pembersihan data sekolah & madrasah:
               </p>
 
-              <!-- Option 1: Clear All / Reset -->
+              <!-- Option 1: Safe Clean (Rekomendasi Aman) -->
+              <div 
+                class="form-check p-3 rounded-3 border mb-2.5 transition-all cursor-pointer custom-clean-opt"
+                :class="cleanScope === 'master_unregistered' ? 'border-success bg-success-subtle' : 'custom-modal-card'"
+                @click="cleanScope = 'master_unregistered'"
+              >
+                <input 
+                  id="scopeMasterUnreg"
+                  v-model="cleanScope"
+                  class="form-check-input cursor-pointer" 
+                  type="radio" 
+                  value="master_unregistered" 
+                />
+                <label class="form-check-label ms-1 cursor-pointer w-100" for="scopeMasterUnreg">
+                  <strong class="d-block text-success fs-13 mb-0.5">
+                    <i class="ri-shield-check-line me-1"></i> Bersihkan Sekolah Tanpa Pendaftar (Rekomendasi Aman)
+                  </strong>
+                  <span class="fs-11 text-muted d-block">
+                    Hanya menghapus data sekolah di database yang belum memiliki pendaftar. Sebanyak <strong>{{ metrics.total_registered_schools || 0 }} sekolah yang memiliki peserta terdaftar</strong> akan tetap dilindungi & aman.
+                  </span>
+                </label>
+              </div>
+
+              <!-- Option 2: Clear All / Reset Total -->
               <div 
                 class="form-check p-3 rounded-3 border mb-2.5 transition-all cursor-pointer custom-clean-opt"
                 :class="cleanScope === 'all' ? 'border-danger bg-danger-subtle' : 'custom-modal-card'"
@@ -1166,15 +1280,15 @@ const allJemberKecamatan = [
                 />
                 <label class="form-check-label ms-1 cursor-pointer w-100" for="scopeAll">
                   <strong class="d-block text-danger fs-13 mb-0.5">
-                    <i class="ri-refresh-line me-1"></i> Kosongkan Seluruh Data (Hasil API / Seeder)
+                    <i class="ri-refresh-line me-1"></i> Kosongkan Seluruh Database (Reset Total)
                   </strong>
                   <span class="fs-11 text-muted d-block">
-                    Menghapus seluruh {{ metrics.total_schools || 0 }} data sekolah saat ini agar database bersih total. Riwayat pendaftaran peserta yang sudah masuk tetap aman.
+                    Menghapus seluruh {{ metrics.total_schools || 0 }} data sekolah di tabel agar database bersih. Data formulir pendaftaran peserta di sistem tetap tersimpan aman. Jika tidak sengaja terhapus, Anda dapat memulihkannya kapan saja dengan tombol <em>Tarik dari Pendaftar</em>.
                   </span>
                 </label>
               </div>
 
-              <!-- Option 2: Only Inactive -->
+              <!-- Option 3: Only Inactive -->
               <div 
                 class="form-check p-3 rounded-3 border mb-2.5 transition-all cursor-pointer custom-clean-opt"
                 :class="cleanScope === 'inactive' ? 'border-warning bg-warning-subtle' : 'custom-modal-card'"
@@ -1197,7 +1311,7 @@ const allJemberKecamatan = [
                 </label>
               </div>
 
-              <!-- Option 3: Dummy / Test Data -->
+              <!-- Option 4: Dummy / Test Data -->
               <div 
                 class="form-check p-3 rounded-3 border transition-all cursor-pointer custom-clean-opt"
                 :class="cleanScope === 'dummy' ? 'border-primary bg-primary-subtle' : 'custom-modal-card'"
@@ -1271,6 +1385,12 @@ const allJemberKecamatan = [
   color: #1e293b;
 }
 
+.custom-clean-opt {
+  transition: all 0.2s ease;
+}
+.custom-clean-opt:hover {
+  transform: translateY(-1px);
+}
 </style>
 
 <style>
@@ -1281,6 +1401,42 @@ const allJemberKecamatan = [
   color: #f1f5f9 !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7) !important;
+}
+
+[data-bs-theme="dark"] .bg-success-subtle {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+  color: #86efac !important;
+}
+[data-bs-theme="dark"] .bg-danger-subtle {
+  background-color: rgba(239, 68, 68, 0.16) !important;
+  color: #fca5a5 !important;
+}
+[data-bs-theme="dark"] .bg-warning-subtle {
+  background-color: rgba(245, 158, 11, 0.16) !important;
+  color: #fde047 !important;
+}
+[data-bs-theme="dark"] .bg-primary-subtle {
+  background-color: rgba(59, 130, 246, 0.16) !important;
+  color: #93c5fd !important;
+}
+[data-bs-theme="dark"] .alert-warning {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+  color: #fef08a !important;
+}
+[data-bs-theme="dark"] .alert-warning strong,
+[data-bs-theme="dark"] .alert-warning .text-dark {
+  color: #ffffff !important;
+}
+[data-bs-theme="dark"] .alert-warning .text-muted {
+  color: #cbd5e1 !important;
+}
+[data-bs-theme="dark"] .alert-info {
+  background-color: rgba(14, 165, 233, 0.12) !important;
+  color: #7dd3fc !important;
+}
+[data-bs-theme="dark"] .alert-info .text-dark {
+  color: #f8fafc !important;
 }
 
 [data-bs-theme="dark"] .modal-header {

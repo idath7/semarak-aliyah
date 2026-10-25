@@ -58,8 +58,10 @@ class PortalSeparationMiddleware
 
             // Jika mengakses pendaftaran publik di portal admin, alihkan ke web publik
             if ($isPublicOnlyRoute) {
-                $publicUrl = rtrim(config('portal.public_url', 'http://localhost:8000'), '/');
-                return redirect($publicUrl . '/' . ltrim($request->path(), '/'));
+                $publicBase = $publicDomain
+                    ? ($request->getScheme() . '://' . $publicDomain)
+                    : ($request->getScheme() . '://' . $host . ($publicPort === 80 || $publicPort === 443 ? '' : ':' . $publicPort));
+                return redirect(rtrim($publicBase, '/') . '/' . ltrim($request->path(), '/'));
             }
 
             return $next($request);
@@ -71,8 +73,10 @@ class PortalSeparationMiddleware
         if ($isPublicChannel) {
             // Jika ada yang mencoba mengakses halaman admin atau login dari web publik
             if ($isAdminRoute) {
-                $adminUrl = rtrim(config('portal.admin_url', 'http://localhost:8001'), '/');
-                $target = $adminUrl . '/' . ltrim($request->path(), '/');
+                $adminBase = $adminDomain
+                    ? ($request->getScheme() . '://' . $adminDomain)
+                    : ($request->getScheme() . '://' . $host . ($adminPort === 80 || $adminPort === 443 ? '' : ':' . $adminPort));
+                $target = rtrim($adminBase, '/') . '/' . ltrim($request->path(), '/');
 
                 // Jika ada query string (misal: ?tab=...), sertakan
                 if ($query = $request->getQueryString()) {

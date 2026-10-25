@@ -79,9 +79,9 @@ function submitJuryScore() {
   });
 }
 
-function switchCompetition(event) {
-  const compId = event.target.value;
-  router.visit(`/admin/jury/arena/${compId}`);
+function switchCompetition(compId) {
+  const id = typeof compId === 'object' && compId?.target ? compId.target.value : compId;
+  router.visit(`/admin/jury/arena/${id}`);
 }
 
 onUnmounted(() => {
@@ -114,15 +114,18 @@ onUnmounted(() => {
       <!-- Quick Competition Switcher -->
       <div class="flex items-center gap-2">
         <label class="text-xs text-slate-400 font-medium">Pindah Lomba:</label>
-        <select 
-          :value="competition.id" 
-          @change="switchCompetition"
-          class="px-3 py-2 rounded-xl bg-slate-950 border border-amber-500/50 text-xs text-amber-300 font-bold focus:outline-none"
-        >
-          <option v-for="c in competitionsList" :key="c.id" :value="c.id">
-            {{ c.icon }} {{ c.title }}
-          </option>
-        </select>
+        <div style="min-width: 220px;">
+          <CustomSelect 
+            :model-value="competition.id" 
+            @change="switchCompetition"
+            size="sm"
+            variant="dark-slate"
+          >
+            <option v-for="c in competitionsList" :key="c.id" :value="c.id">
+              {{ c.icon }} {{ c.title }}
+            </option>
+          </CustomSelect>
+        </div>
       </div>
     </div>
 
@@ -166,16 +169,17 @@ onUnmounted(() => {
             <!-- Select Participant -->
             <div>
               <label class="block text-xs font-bold text-slate-300 mb-1">Pilih Delegasi / Peserta Tampil:</label>
-              <select 
+              <CustomSelect 
                 v-model="form.registration_id"
-                required
-                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-400"
+                size="md"
+                variant="dark-slate"
+                placeholder="-- Pilih Delegasi Peserta --"
               >
                 <option value="">-- Pilih Delegasi Peserta --</option>
                 <option v-for="p in participants" :key="p.id" :value="p.id">
                   {{ p.reg_code }} • {{ p.school_name }} ({{ p.participants_names }})
                 </option>
-              </select>
+              </CustomSelect>
             </div>
 
             <!-- Jury Name -->

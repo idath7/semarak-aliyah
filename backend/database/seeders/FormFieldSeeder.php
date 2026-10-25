@@ -7,46 +7,141 @@ use App\Models\Competition;
 
 class FormFieldSeeder extends Seeder
 {
+    /**
+     * 7 Standar Wajib Field Identitas Sekolah & Pembina untuk seluruh cabang lomba:
+     * 1. Nama Sekolah / Madrasah (text, required: true)
+     * 2. Kecamatan Sekolah (select, 31 Kec Jember + Luar Jember, required: true)
+     * 3. NPSN (opsional) (text, required: false)
+     * 4. Alamat Sekolah / Madrasah (textarea, required: true)
+     * 5. Nama Pendamping (text, required: true)
+     * 6. Nomor WA / Kontak Pendamping (number/hanya angka, required: true)
+     * 7. Email Pendamping (email, required: true)
+     */
+    public static function getMandatoryIdentityFields(): array
+    {
+        $kecamatanList = [
+            'Ajung', 'Ambulu', 'Arjasa', 'Balung', 'Bangsalsari', 'Gumukmas',
+            'Jelbuk', 'Jenggawah', 'Jombang', 'Kalisat', 'Kaliwates', 'Kencong',
+            'Ledokombo', 'Mayang', 'Mumbulsari', 'Pakusari', 'Panti', 'Patrang',
+            'Puger', 'Rambipuji', 'Semboro', 'Silo', 'Sukorambi', 'Sukowono',
+            'Sumberbaru', 'Sumberjambe', 'Sumbersari', 'Tanggul', 'Tempurejo',
+            'Umbulsari', 'Wuluhan', 'Luar Kabupaten Jember'
+        ];
+
+        return [
+            [
+                'id' => 'cf_school',
+                'name' => 'school_name',
+                'label' => 'Nama Sekolah / Madrasah',
+                'type' => 'text',
+                'placeholder' => 'Contoh: MTs Negeri 1 Jember / SMPN 1 Balung',
+                'help_text' => 'Nama resmi lembaga sekolah atau madrasah pengirim delegasi',
+                'required' => true,
+                'options' => [],
+                'allowed_extensions' => [],
+                'max_size_mb' => null,
+                'is_mandatory_identity' => true,
+            ],
+            [
+                'id' => 'cf_district',
+                'name' => 'school_district',
+                'label' => 'Kecamatan Sekolah',
+                'type' => 'select',
+                'placeholder' => 'Pilih Kecamatan Asal Sekolah...',
+                'help_text' => 'Wilayah kecamatan tempat sekolah / madrasah berada di Kabupaten Jember',
+                'required' => true,
+                'options' => $kecamatanList,
+                'allowed_extensions' => [],
+                'max_size_mb' => null,
+                'is_mandatory_identity' => true,
+            ],
+            [
+                'id' => 'cf_npsn',
+                'name' => 'school_npsn',
+                'label' => 'Nomor Pokok Sekolah Nasional (NPSN)',
+                'type' => 'text',
+                'placeholder' => 'Contoh: 20524589 (opsional jika ada)',
+                'help_text' => 'Nomor Pokok Sekolah Nasional resmi (opsional jika belum memiliki)',
+                'required' => false,
+                'options' => [],
+                'allowed_extensions' => [],
+                'max_size_mb' => null,
+                'is_mandatory_identity' => true,
+            ],
+            [
+                'id' => 'cf_address',
+                'name' => 'school_address',
+                'label' => 'Alamat Sekolah / Madrasah',
+                'type' => 'textarea',
+                'placeholder' => 'Contoh: Jl. Raya Puger No. 20, Balung Kulon, Kec. Balung',
+                'help_text' => 'Alamat lengkap jalan, desa/kelurahan, dan nomor bangunan sekolah/madrasah',
+                'required' => true,
+                'options' => [],
+                'allowed_extensions' => [],
+                'max_size_mb' => null,
+                'is_mandatory_identity' => true,
+            ],
+            [
+                'id' => 'cf_mentor',
+                'name' => 'mentor_name',
+                'label' => 'Nama Pendamping',
+                'type' => 'text',
+                'placeholder' => 'Contoh: Ustadz Ahmad Fauzi, S.Pd',
+                'help_text' => 'Nama lengkap guru atau official pembina pendamping peserta',
+                'required' => true,
+                'options' => [],
+                'allowed_extensions' => [],
+                'max_size_mb' => null,
+                'is_mandatory_identity' => true,
+            ],
+            [
+                'id' => 'cf_wa',
+                'name' => 'mentor_wa',
+                'label' => 'Nomor WA / Kontak Pendamping',
+                'type' => 'number',
+                'placeholder' => 'Contoh: 081234567890',
+                'help_text' => 'Nomor WhatsApp aktif untuk koordinasi teknis dan TM (hanya angka/nomor)',
+                'required' => true,
+                'options' => [],
+                'allowed_extensions' => [],
+                'max_size_mb' => null,
+                'is_mandatory_identity' => true,
+            ],
+            [
+                'id' => 'cf_email',
+                'name' => 'mentor_email',
+                'label' => 'Email Pendamping',
+                'type' => 'email',
+                'placeholder' => 'Contoh: pendamping@gmail.com / official@sekolah.sch.id',
+                'help_text' => 'Alamat email aktif untuk tanda terima dan surat pengantar lomba',
+                'required' => true,
+                'options' => [],
+                'allowed_extensions' => [],
+                'max_size_mb' => null,
+                'is_mandatory_identity' => true,
+            ],
+            [
+                'id' => 'cf_allin_code',
+                'name' => 'allin_code',
+                'label' => 'Kode Paket Komplit (All-In)',
+                'type' => 'text',
+                'placeholder' => 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)',
+                'help_text' => 'Masukkan kode paket jika sekolah Anda mendaftar Paket Komplit agar pendaftaran cabang mandiri ini bebas biaya (Rp 0).',
+                'required' => false,
+                'options' => [],
+                'allowed_extensions' => [],
+                'max_size_mb' => null,
+                'is_mandatory_identity' => true,
+            ],
+        ];
+    }
+
     public static function getPresets(): array
     {
+        $mandatory = self::getMandatoryIdentityFields();
+
         return [
-            'akademik' => [
-                [
-                    'id' => 'cf_school',
-                    'name' => 'school_name',
-                    'label' => 'Nama Sekolah / Madrasah Pengirim',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: MTs Negeri 1 Jember',
-                    'help_text' => 'Nama resmi lembaga atau sekolah delegasi',
-                    'required' => true,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
-                [
-                    'id' => 'cf_mentor',
-                    'name' => 'mentor_name',
-                    'label' => 'Nama Guru / Pembina Pendamping',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: Ustadz Ahmad, S.Pd',
-                    'help_text' => 'Nama guru pembina pendamping peserta',
-                    'required' => false,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
-                [
-                    'id' => 'cf_wa',
-                    'name' => 'mentor_wa',
-                    'label' => 'Nomor WhatsApp Pendamping',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: 081234567890',
-                    'help_text' => 'Nomor aktif untuk informasi grup teknis dan pengumuman',
-                    'required' => true,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
+            'akademik' => array_merge($mandatory, [
                 [
                     'id' => 'cf_participants',
                     'name' => 'participants_names',
@@ -83,45 +178,9 @@ class FormFieldSeeder extends Seeder
                     'allowed_extensions' => ['pdf', 'jpg', 'jpeg', 'png'],
                     'max_size_mb' => 5,
                 ],
-            ],
+            ]),
 
-            'tahfidz' => [
-                [
-                    'id' => 'cf_school',
-                    'name' => 'school_name',
-                    'label' => 'Nama Lembaga / Pondok / Madrasah Asal',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: Pondok Pesantren Baitul Hikmah',
-                    'help_text' => 'Nama lembaga pengirim delegasi santri/siswa',
-                    'required' => true,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
-                [
-                    'id' => 'cf_mentor',
-                    'name' => 'mentor_name',
-                    'label' => 'Nama Ustadz / Pembina Tahfidz',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: Ustadz Muhammad Hafizh, S.Ag',
-                    'help_text' => 'Nama pembina atau guru tahfidz pendamping',
-                    'required' => false,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
-                [
-                    'id' => 'cf_wa',
-                    'name' => 'mentor_wa',
-                    'label' => 'Nomor WhatsApp Pembina',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: 081234567890',
-                    'help_text' => 'Nomor kontak WhatsApp aktif untuk koordinasi undian giliran',
-                    'required' => true,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
+            'tahfidz' => array_merge($mandatory, [
                 [
                     'id' => 'cf_participants',
                     'name' => 'participants_names',
@@ -170,21 +229,9 @@ class FormFieldSeeder extends Seeder
                     'allowed_extensions' => [],
                     'max_size_mb' => null,
                 ],
-            ],
+            ]),
 
-            'seni' => [
-                [
-                    'id' => 'cf_school',
-                    'name' => 'school_name',
-                    'label' => 'Nama Sekolah / Madrasah / Sanggar',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: SMP Negeri 2 Jember',
-                    'help_text' => 'Asal lembaga pengirim',
-                    'required' => true,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
+            'seni' => array_merge($mandatory, [
                 [
                     'id' => 'cf_nama_grup',
                     'name' => 'nama_grup_atau_panggung',
@@ -192,30 +239,6 @@ class FormFieldSeeder extends Seeder
                     'type' => 'text',
                     'placeholder' => 'Contoh: Syauqul Qolbi / Al-Fath Nada',
                     'help_text' => 'Nama grup musik atau panggung yang akan dipanggil saat tampil',
-                    'required' => true,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
-                [
-                    'id' => 'cf_mentor',
-                    'name' => 'mentor_name',
-                    'label' => 'Nama Pembina / Pelatih',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: Ustadz Yusuf Al-Habsyi',
-                    'help_text' => 'Nama pembina pendamping',
-                    'required' => false,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
-                [
-                    'id' => 'cf_wa',
-                    'name' => 'mentor_wa',
-                    'label' => 'Nomor WhatsApp Kontak',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: 081234567890',
-                    'help_text' => 'Nomor kontak WhatsApp aktif penanggung jawab grup',
                     'required' => true,
                     'options' => [],
                     'allowed_extensions' => [],
@@ -257,9 +280,9 @@ class FormFieldSeeder extends Seeder
                     'allowed_extensions' => ['mp3', 'wav', 'pdf', 'docx'],
                     'max_size_mb' => 10,
                 ],
-            ],
+            ]),
 
-            'esport' => [
+            'esport' => array_merge($mandatory, [
                 [
                     'id' => 'cf_nama_squad',
                     'name' => 'nama_squad_ml',
@@ -267,18 +290,6 @@ class FormFieldSeeder extends Seeder
                     'type' => 'text',
                     'placeholder' => 'Contoh: Wahas Legion',
                     'help_text' => 'Nama resmi squad turnamen Mobile Legends',
-                    'required' => true,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
-                [
-                    'id' => 'cf_school',
-                    'name' => 'school_name',
-                    'label' => 'Asal Sekolah / Pangkalan Tim',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: SMP Negeri 1 Balung',
-                    'help_text' => 'Nama sekolah pangkalan squad',
                     'required' => true,
                     'options' => [],
                     'allowed_extensions' => [],
@@ -309,18 +320,6 @@ class FormFieldSeeder extends Seeder
                     'max_size_mb' => null,
                 ],
                 [
-                    'id' => 'cf_wa',
-                    'name' => 'mentor_wa',
-                    'label' => 'No. WhatsApp Kapten / Kontak Tim',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: 081234567890',
-                    'help_text' => 'Nomor WA aktif untuk grup koordinasi wasit dan jadwal tanding',
-                    'required' => true,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
-                [
                     'id' => 'cf_participants',
                     'name' => 'participants_names',
                     'label' => 'Roster Anggota Tim (Nickname & ID Game)',
@@ -344,21 +343,9 @@ class FormFieldSeeder extends Seeder
                     'allowed_extensions' => ['jpg', 'jpeg', 'png'],
                     'max_size_mb' => 5,
                 ],
-            ],
+            ]),
 
-            'olahraga' => [
-                [
-                    'id' => 'cf_school',
-                    'name' => 'school_name',
-                    'label' => 'Nama Sekolah / Kontingen Voli',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: MTs Negeri 1 Jember',
-                    'help_text' => 'Asal kontingen pengirim tim voli',
-                    'required' => true,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
+            'olahraga' => array_merge($mandatory, [
                 [
                     'id' => 'cf_nama_tim',
                     'name' => 'nama_tim_voli',
@@ -366,30 +353,6 @@ class FormFieldSeeder extends Seeder
                     'type' => 'text',
                     'placeholder' => 'Contoh: Tim Voli Garuda MTsN 1',
                     'help_text' => 'Nama tim resmi yang akan tercantum pada bagan turnamen',
-                    'required' => true,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
-                [
-                    'id' => 'cf_mentor',
-                    'name' => 'mentor_name',
-                    'label' => 'Nama Pelatih / Official Tim',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: Hendra Kusuma, S.Pd',
-                    'help_text' => 'Nama pelatih atau guru penanggung jawab teknis di lapangan',
-                    'required' => true,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
-                [
-                    'id' => 'cf_wa',
-                    'name' => 'mentor_wa',
-                    'label' => 'No. WhatsApp Pelatih / Official',
-                    'type' => 'text',
-                    'placeholder' => 'Contoh: 081234567890',
-                    'help_text' => 'Nomor kontak pelatih untuk koordinasi jadwal pertandingan dan line-up',
                     'required' => true,
                     'options' => [],
                     'allowed_extensions' => [],
@@ -419,33 +382,9 @@ class FormFieldSeeder extends Seeder
                     'allowed_extensions' => ['pdf'],
                     'max_size_mb' => 10,
                 ],
-            ],
+            ]),
 
-            'umum' => [
-                [
-                    'id' => 'cf_school',
-                    'name' => 'school_name',
-                    'label' => 'Nama Lembaga / Sekolah / Komunitas',
-                    'type' => 'text',
-                    'placeholder' => 'Masukkan nama instansi pengirim',
-                    'help_text' => 'Nama lembaga atau instansi resmi',
-                    'required' => true,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
-                [
-                    'id' => 'cf_wa',
-                    'name' => 'mentor_wa',
-                    'label' => 'Nomor WhatsApp Kontak',
-                    'type' => 'text',
-                    'placeholder' => '08xxxxxxxxxx',
-                    'help_text' => 'Nomor WhatsApp aktif untuk koordinasi',
-                    'required' => true,
-                    'options' => [],
-                    'allowed_extensions' => [],
-                    'max_size_mb' => null,
-                ],
+            'umum' => array_merge($mandatory, [
                 [
                     'id' => 'cf_participants',
                     'name' => 'participants_names',
@@ -458,7 +397,7 @@ class FormFieldSeeder extends Seeder
                     'allowed_extensions' => [],
                     'max_size_mb' => null,
                 ],
-            ]
+            ])
         ];
     }
 
@@ -476,8 +415,8 @@ class FormFieldSeeder extends Seeder
             'custom_fields' => $presets['seni']
         ]);
 
-        // 3. MHQ -> tahfidz
-        Competition::where('id', 'like', '%mhq%')->update([
+        // 3. MHQ / Tahfidz -> tahfidz
+        Competition::where('id', 'like', '%mhq%')->orWhere('id', 'like', '%tahfidz%')->update([
             'custom_fields' => $presets['tahfidz']
         ]);
 
@@ -489,6 +428,11 @@ class FormFieldSeeder extends Seeder
         // 5. Volleyball Putra & Putri -> olahraga
         Competition::whereIn('id', ['volleyball-putra', 'volleyball-putri'])->update([
             'custom_fields' => $presets['olahraga']
+        ]);
+
+        // 6. Any other competition without custom fields gets 'umum'
+        Competition::whereNull('custom_fields')->orWhere('custom_fields', '[]')->update([
+            'custom_fields' => $presets['umum']
         ]);
     }
 }

@@ -185,6 +185,54 @@ class AdminPanelController extends Controller
         ]);
     }
 
+    public function pendaftarDetail($id)
+    {
+        $registration = Registration::with(['competition', 'user'])->findOrFail($id);
+        $competition = $registration->competition;
+
+        // Skema Form Builder cabang lomba (jika ada form fields dinamis)
+        $formFields = is_array($competition?->custom_fields) ? $competition->custom_fields : [];
+        $formSettings = is_array($competition?->form_settings) ? $competition->form_settings : [];
+
+        // Navigasi cepat: pendaftar sebelumnya dan berikutnya
+        $prevReg = Registration::where('id', '<', $registration->id)
+            ->orderBy('id', 'desc')
+            ->select('id', 'reg_code', 'school_name', 'competition_title')
+            ->first();
+
+        $nextReg = Registration::where('id', '>', $registration->id)
+            ->orderBy('id', 'asc')
+            ->select('id', 'reg_code', 'school_name', 'competition_title')
+            ->first();
+
+        // Jika pendaftaran ini bagian dari Paket All-In, ambil pendaftaran kontingen yang sama
+        $relatedRegistrations = [];
+        if ($registration->package_type === 'Paket All-In') {
+            $relatedRegistrations = Registration::where('package_type', 'Paket All-In')
+                ->where(function ($q) use ($registration) {
+                    $ownerId = $registration->registrant_id ?: $registration->user_id;
+                    if ($ownerId) {
+                        $q->where('registrant_id', $ownerId)->orWhere('user_id', $ownerId);
+                    } else {
+                        $q->where('school_name', $registration->school_name);
+                    }
+                })
+                ->where('id', '!=', $registration->id)
+                ->orderBy('competition_title', 'asc')
+                ->get(['id', 'reg_code', 'competition_title', 'participants_names', 'registration_status', 'payment_status', 'total_fee']);
+        }
+
+        return \Inertia\Inertia::render('Admin/PendaftarDetail', [
+            'registration' => $registration,
+            'competition' => $competition,
+            'formFields' => $formFields,
+            'formSettings' => $formSettings,
+            'prevRegistration' => $prevReg,
+            'nextRegistration' => $nextReg,
+            'relatedRegistrations' => $relatedRegistrations,
+        ]);
+    }
+
     public function competitionsIndex(Request $request)
     {
         $query = Competition::withCount('registrations')->orderBy('id', 'asc');
@@ -584,21 +632,79 @@ class AdminPanelController extends Controller
     public function verify($id, Request $request)
     {
         $reg = Registration::findOrFail($id);
-        $newStatus = $request->input('status');
-        if (!$newStatus) {
-            $newStatus = $reg->payment_status === 'Terverifikasi' ? 'Menunggu Verifikasi' : 'Terverifikasi';
+
+        if ($request->has('registration_status')) {
+            $reg->registration_status = $request->input('registration_status');
         }
-        $reg->payment_status = $newStatus;
-        if ($request->filled('notes')) {
-            $reg->verification_notes = $request->notes;
+
+        if ($request->has('payment_status')) {
+            $reg->payment_status = $request->input('payment_status');
+        }
+
+        // Backward compatibility if only 'status' is passed
+        if ($request->has('status')) {
+            $targetType = $request->input('type', 'all'); // 'registration', 'payment', 'all'
+            if ($targetType === 'registration') {
+                $reg->registration_status = $request->input('status');
+            } elseif ($targetType === 'payment') {
+                $reg->payment_status = $request->input('status');
+            } else {
+                $reg->payment_status = $request->input('status');
+                $reg->registration_status = $request->input('status');
+            }
+        } elseif (!$request->has('registration_status') && !$request->has('payment_status')) {
+            // Quick toggle default: toggle both
+            $next = ($reg->payment_status === 'Terverifikasi' && $reg->registration_status === 'Terverifikasi') 
+                ? 'Menunggu Verifikasi' 
+                : 'Terverifikasi';
+            $reg->payment_status = $next;
+            $reg->registration_status = $next;
+        }
+
+        if ($request->filled('notes') || $request->filled('verification_notes')) {
+            $reg->verification_notes = $request->input('notes', $request->input('verification_notes'));
         }
         $reg->save();
 
-        if ($request->ajax() || $request->wantsJson()) {
-            return response()->json(['status' => 'success', 'message' => "Status pendaftaran {$reg->reg_code} diubah menjadi {$newStatus}!"]);
+        // Jika pendaftaran ini adalah bagian dari Paket All-In, sinkronkan status pembayaran ke seluruh cabang All-In kontingen yang sama
+        if ($reg->package_type === 'Paket All-In') {
+            $updateData = ['payment_status' => $reg->payment_status];
+            if ($reg->verification_notes) {
+                $updateData['verification_notes'] = $reg->verification_notes;
+            }
+            Registration::where('package_type', 'Paket All-In')
+                ->where(function ($q) use ($reg) {
+                    $ownerId = $reg->registrant_id ?: $reg->user_id;
+                    if ($ownerId) {
+                        $q->where('registrant_id', $ownerId)->orWhere('user_id', $ownerId);
+                    } else {
+                        $q->where('school_name', $reg->school_name);
+                    }
+                })
+                ->where('id', '!=', $reg->id)
+                ->update($updateData);
         }
 
-        return redirect()->back()->with('success', "Status pendaftaran {$reg->reg_code} berhasil diubah menjadi {$newStatus}!");
+        // Auto-send WhatsApp verification notification via OpenWA if enabled
+        try {
+            if ($reg->wasChanged('payment_status') && in_array(strtolower((string)$reg->payment_status), ['terverifikasi', 'lunas', 'verified'])) {
+                \App\Services\WhatsAppService::sendVerificationNotification($reg, 'payment');
+            } elseif ($reg->wasChanged('registration_status') && in_array(strtolower((string)$reg->registration_status), ['terverifikasi', 'verified'])) {
+                \App\Services\WhatsAppService::sendVerificationNotification($reg, 'registration');
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Auto WA verification notification error: ' . $e->getMessage());
+        }
+
+        if (!$request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
+            return response()->json([
+                'status' => 'success', 
+                'message' => "Verifikasi pendaftaran & pembayaran {$reg->reg_code} berhasil diperbarui!",
+                'data' => $reg
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Status verifikasi {$reg->reg_code} berhasil diperbarui!");
     }
 
     public function toggleQuota($id, Request $request)
@@ -650,13 +756,209 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', $message);
     }
 
+    public static function getDefaultPresetsList(): array
+    {
+        $rawPresets = \Database\Seeders\FormFieldSeeder::getPresets();
+        
+        $meta = [
+            'akademik' => [
+                'title' => 'Olimpiade MIPA & IPS',
+                'category' => 'Akademik & Sains',
+                'badge' => 'Akademik & Sains',
+                'badge_class' => 'bg-warning-subtle text-warning',
+                'icon' => 'ri-microscope-line',
+                'description' => 'Sekolah, pembina, WhatsApp, nama peserta & kelas, NISN siswa, dan scan kartu pelajar (KTS).',
+            ],
+            'tahfidz' => [
+                'title' => "MHQ & Tahfidz Al-Qur'an",
+                'category' => 'Keagamaan',
+                'badge' => 'Keagamaan',
+                'badge_class' => 'bg-info-subtle text-info',
+                'icon' => 'ri-book-read-line',
+                'description' => 'Lembaga pondok, pembina tahfidz, WhatsApp, nama santri, pilihan golongan juz, dan surat keterangan tashih.',
+            ],
+            'seni' => [
+                'title' => 'Albanjari, Singer & Storytelling',
+                'category' => 'Seni & Bahasa',
+                'badge' => 'Seni & Bahasa',
+                'badge_class' => 'bg-primary-subtle text-primary',
+                'icon' => 'ri-music-2-line',
+                'description' => 'Sekolah/sanggar, nama panggung, pembina, WhatsApp, personil grup, judul lagu, dan upload minus one.',
+            ],
+            'esport' => [
+                'title' => 'Mobile Legends (MSA S4)',
+                'category' => 'E-Sport',
+                'badge' => 'E-Sport',
+                'badge_class' => 'bg-danger-subtle text-danger',
+                'icon' => 'ri-gamepad-line',
+                'description' => 'Nama squad, User ID & Server kapten, nickname in-game, WhatsApp, roster 6 pemain, dan screenshot profil.',
+            ],
+            'olahraga' => [
+                'title' => 'Tournament Bola Voli',
+                'category' => 'Olahraga',
+                'badge' => 'Olahraga',
+                'badge_class' => 'bg-success-subtle text-success',
+                'icon' => 'ri-football-line',
+                'description' => 'Nama tim voli, nama & kontak pelatih, nomor punggung & posisi pemain, dan scan KTS kolektif PDF.',
+            ],
+            'umum' => [
+                'title' => 'Formulir Delegasi Umum',
+                'category' => 'Umum',
+                'badge' => 'Umum',
+                'badge_class' => 'bg-secondary-subtle text-secondary',
+                'icon' => 'ri-file-list-3-line',
+                'description' => 'Template dasar instansi, WhatsApp, dan daftar nama peserta.',
+            ],
+        ];
+
+        $presets = [];
+        foreach ($rawPresets as $key => $fields) {
+            $m = $meta[$key] ?? [
+                'title' => ucfirst($key),
+                'category' => 'Lomba',
+                'badge' => ucfirst($key),
+                'badge_class' => 'bg-secondary-subtle text-secondary',
+                'icon' => 'ri-file-list-3-line',
+                'description' => 'Template formulir preset ' . ucfirst($key),
+            ];
+
+            $presets[$key] = [
+                'key' => $key,
+                'title' => $m['title'],
+                'category' => $m['category'],
+                'badge' => $m['badge'],
+                'badge_class' => $m['badge_class'],
+                'icon' => $m['icon'],
+                'description' => $m['description'],
+                'fields' => $fields,
+                'is_custom' => false,
+            ];
+        }
+
+        return $presets;
+    }
+
+    public static function getMandatoryIdentityFields(): array
+    {
+        return \Database\Seeders\FormFieldSeeder::getMandatoryIdentityFields();
+    }
+
+    public static function ensureMandatoryFields(array $existingFields): array
+    {
+        $mandatory = self::getMandatoryIdentityFields();
+        $clean = [];
+
+        // Map existing fields by canonical name or alias
+        $nameMap = [
+            'school_name' => ['school_name', 'asal_sekolah', 'nama_sekolah', 'nama_lembaga', 'nama_sekolah_madrasah', 'nama_sekolah_madrasah_pengirim', 'nama_sekolah_madrasah_instansi_pengirim'],
+            'school_district' => ['school_district', 'kecamatan', 'kecamatan_sekolah', 'kecamatan_asal_sekolah', 'kecamatan_asal_sekolah_madrasah', 'wilayah_kecamatan'],
+            'school_npsn' => ['school_npsn', 'npsn', 'npsn_sekolah', 'nomor_pokok_sekolah_nasional', 'nomor_pokok_sekolah_nasional_npsn'],
+            'school_address' => ['school_address', 'alamat_sekolah', 'alamat_lengkap_sekolah', 'alamat_sekolah_madrasah', 'alamat_lengkap_sekolah_madrasah', 'alamat'],
+            'mentor_name' => ['mentor_name', 'nama_pendamping', 'nama_guru_pendamping', 'nama_pembina', 'nama_guru_pembina_pendamping', 'nama_pelatih_official'],
+            'mentor_wa' => ['mentor_wa', 'nomor_wa', 'whatsapp', 'nomor_whatsapp', 'nomor_whatsapp_pendamping', 'nomor_whatsapp_kontak', 'nomor_whatsapp_pembina', 'no_whatsapp_pelatih_official', 'no_whatsapp_kapten_kontak_tim'],
+            'mentor_email' => ['mentor_email', 'contact_email', 'email', 'alamat_email', 'email_pendamping', 'alamat_email_aktif', 'email_kontak', 'alamat_email_resmi_sekolah_pembina'],
+            'allin_code' => ['allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code', 'all_in_code', 'kode_paket_allin'],
+        ];
+
+        // Find existing field objects matching each mandatory key
+        $found = [];
+        $remainingFields = [];
+
+        foreach ($existingFields as $f) {
+            $fName = $f['name'] ?? '';
+            $matchedKey = null;
+
+            foreach ($nameMap as $targetKey => $aliases) {
+                if (!isset($found[$targetKey]) && in_array($fName, $aliases, true)) {
+                    $matchedKey = $targetKey;
+                    break;
+                }
+            }
+
+            if ($matchedKey) {
+                $found[$matchedKey] = $f;
+            } else {
+                $remainingFields[] = $f;
+            }
+        }
+
+        // Build the 7 canonical fields
+        foreach ($mandatory as $m) {
+            $key = $m['name'];
+            if (isset($found[$key])) {
+                $f = $found[$key];
+                $clean[] = [
+                    'id' => $f['id'] ?? $m['id'],
+                    'name' => $m['name'],
+                    'label' => !empty($f['label']) ? $f['label'] : $m['label'],
+                    'type' => $m['type'],
+                    'placeholder' => !empty($f['placeholder']) ? $f['placeholder'] : $m['placeholder'],
+                    'help_text' => !empty($f['help_text']) ? $f['help_text'] : $m['help_text'],
+                    'required' => $m['required'],
+                    'options' => $m['type'] === 'select' ? $m['options'] : ($f['options'] ?? []),
+                    'allowed_extensions' => $f['allowed_extensions'] ?? [],
+                    'max_size_mb' => $f['max_size_mb'] ?? null,
+                    'min_items' => $f['min_items'] ?? null,
+                    'max_items' => $f['max_items'] ?? null,
+                    'main_members' => $f['main_members'] ?? null,
+                    'reserve_members' => $f['reserve_members'] ?? null,
+                    'sub_fields' => $f['sub_fields'] ?? null,
+                    'conditional_logic' => $f['conditional_logic'] ?? null,
+                    'is_mandatory_identity' => true,
+                ];
+            } else {
+                $m['is_mandatory_identity'] = true;
+                $clean[] = $m;
+            }
+        }
+
+        // Append remaining custom fields
+        foreach ($remainingFields as $rf) {
+            $clean[] = $rf;
+        }
+
+        return $clean;
+    }
+
+    public static function getAllFormPresets(): array
+    {
+        $defaults = self::getDefaultPresetsList();
+
+        try {
+            $setting = \Illuminate\Support\Facades\DB::table('settings')->where('key', 'form_builder_presets')->first();
+            if ($setting && !empty($setting->value)) {
+                $saved = json_decode($setting->value, true);
+                if (is_array($saved)) {
+                    foreach ($saved as $k => $customPreset) {
+                        if (is_array($customPreset) && !empty($customPreset['title'])) {
+                            $customPreset['key'] = $k;
+                            $customPreset['is_custom'] = $customPreset['is_custom'] ?? true;
+                            $defaults[$k] = $customPreset;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fallback to defaults
+        }
+
+        return $defaults;
+    }
+
     public function formBuilderIndex(Request $request)
     {
         $competitions = Competition::orderBy('id', 'asc')->get();
+        foreach ($competitions as $comp) {
+            $comp->custom_fields = self::ensureMandatoryFields($comp->custom_fields ?? []);
+        }
+
         $selectedId = $request->query('comp', $competitions->first()?->id);
         $selectedComp = Competition::find($selectedId) ?: $competitions->first();
+        if ($selectedComp) {
+            $selectedComp->custom_fields = self::ensureMandatoryFields($selectedComp->custom_fields ?? []);
+        }
 
-        $presets = \Database\Seeders\FormFieldSeeder::getPresets();
+        $presets = self::getAllFormPresets();
 
         return \Inertia\Inertia::render('Admin/FormBuilder', [
             'competitions' => $competitions,
@@ -668,8 +970,13 @@ class AdminPanelController extends Controller
     public function formBuilderShow($competitionId, Request $request)
     {
         $competitions = Competition::orderBy('id', 'asc')->get();
+        foreach ($competitions as $comp) {
+            $comp->custom_fields = self::ensureMandatoryFields($comp->custom_fields ?? []);
+        }
+
         $selectedComp = Competition::findOrFail($competitionId);
-        $presets = \Database\Seeders\FormFieldSeeder::getPresets();
+        $selectedComp->custom_fields = self::ensureMandatoryFields($selectedComp->custom_fields ?? []);
+        $presets = self::getAllFormPresets();
 
         return \Inertia\Inertia::render('Admin/FormBuilder', [
             'competitions' => $competitions,
@@ -684,25 +991,8 @@ class AdminPanelController extends Controller
         $fields = $request->input('custom_fields', []);
         $settings = $request->input('form_settings', $comp->form_settings ?? []);
 
-        $cleanFields = [];
-        if (is_array($fields)) {
-            foreach ($fields as $f) {
-                if (empty($f['label'])) continue;
-                $name = !empty($f['name']) ? \Illuminate\Support\Str::slug($f['name'], '_') : \Illuminate\Support\Str::slug($f['label'], '_');
-                $cleanFields[] = [
-                    'id' => $f['id'] ?? ('cf_' . uniqid()),
-                    'name' => $name,
-                    'label' => $f['label'],
-                    'type' => $f['type'] ?? 'text',
-                    'placeholder' => $f['placeholder'] ?? '',
-                    'help_text' => $f['help_text'] ?? '',
-                    'required' => (bool) ($f['required'] ?? false),
-                    'options' => is_array($f['options'] ?? null) ? array_values(array_filter($f['options'])) : [],
-                    'allowed_extensions' => is_array($f['allowed_extensions'] ?? null) ? array_values(array_filter($f['allowed_extensions'])) : [],
-                    'max_size_mb' => !empty($f['max_size_mb']) ? (int) $f['max_size_mb'] : 5,
-                ];
-            }
-        }
+        $cleanFields = $this->cleanFormFields($fields);
+        $cleanFields = self::ensureMandatoryFields($cleanFields);
 
         $comp->custom_fields = $cleanFields;
         if (is_array($settings)) {
@@ -731,16 +1021,146 @@ class AdminPanelController extends Controller
     {
         $comp = Competition::findOrFail($competitionId);
         $presetKey = $request->input('preset', 'akademik');
-        $presets = \Database\Seeders\FormFieldSeeder::getPresets();
+        $presets = self::getAllFormPresets();
 
         if (!isset($presets[$presetKey])) {
             return redirect()->back()->with('error', "Preset \"{$presetKey}\" tidak ditemukan.");
         }
 
-        $comp->custom_fields = $presets[$presetKey];
+        $presetData = $presets[$presetKey];
+        $fields = is_array($presetData) && isset($presetData['fields']) ? $presetData['fields'] : $presetData;
+        $cleanFields = $this->cleanFormFields($fields);
+        $cleanFields = self::ensureMandatoryFields($cleanFields);
+        $comp->custom_fields = $cleanFields;
         $comp->save();
 
-        return redirect()->back()->with('success', "Preset formulir \"{$presetKey}\" berhasil diterapkan pada cabang {$comp->title}!");
+        return redirect()->back()->with('success', "Preset formulir \"{$presetData['title']}\" berhasil diterapkan pada cabang {$comp->title}!");
+    }
+
+    public function formBuilderSavePreset(Request $request)
+    {
+        $presetKey = $request->input('key');
+        $title = $request->input('title');
+        $category = $request->input('category', 'Kustom');
+        $description = $request->input('description', '');
+        $icon = $request->input('icon', 'ri-magic-line');
+        $badge = $request->input('badge', 'Kustom');
+        $badgeClass = $request->input('badge_class', 'bg-warning-subtle text-warning');
+        $fields = $request->input('fields', []);
+
+        if (empty($title)) {
+            return redirect()->back()->with('error', 'Nama/Judul Template Preset wajib diisi.');
+        }
+
+        if (empty($presetKey)) {
+            $presetKey = \Illuminate\Support\Str::slug($title, '_');
+        } else {
+            $presetKey = \Illuminate\Support\Str::slug($presetKey, '_');
+        }
+
+        $cleanFields = $this->cleanFormFields($fields);
+
+        // Fetch current custom presets from settings
+        $allPresets = self::getAllFormPresets();
+        $customOnly = [];
+
+        try {
+            $setting = \Illuminate\Support\Facades\DB::table('settings')->where('key', 'form_builder_presets')->first();
+            if ($setting && !empty($setting->value)) {
+                $customOnly = json_decode($setting->value, true) ?: [];
+            }
+        } catch (\Throwable $e) {}
+
+        $customOnly[$presetKey] = [
+            'key' => $presetKey,
+            'title' => $title,
+            'category' => $category,
+            'description' => $description,
+            'icon' => $icon,
+            'badge' => $badge,
+            'badge_class' => $badgeClass,
+            'fields' => $cleanFields,
+            'is_custom' => true,
+            'updated_at' => now()->toIso8601String(),
+        ];
+
+        \Illuminate\Support\Facades\DB::table('settings')->updateOrInsert(
+            ['key' => 'form_builder_presets'],
+            ['value' => json_encode($customOnly), 'updated_at' => now()]
+        );
+
+        if ($request->wantsJson() && !$request->header('X-Inertia')) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Template preset \"{$title}\" berhasil disimpan!",
+                'preset' => $customOnly[$presetKey],
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Template preset \"{$title}\" berhasil disimpan & dapat digunakan untuk cabang lomba mana pun!");
+    }
+
+    public function formBuilderDeletePreset(Request $request)
+    {
+        $presetKey = $request->input('key');
+
+        try {
+            $setting = \Illuminate\Support\Facades\DB::table('settings')->where('key', 'form_builder_presets')->first();
+            if ($setting && !empty($setting->value)) {
+                $customOnly = json_decode($setting->value, true) ?: [];
+                if (isset($customOnly[$presetKey])) {
+                    unset($customOnly[$presetKey]);
+                    \Illuminate\Support\Facades\DB::table('settings')->where('key', 'form_builder_presets')->update([
+                        'value' => json_encode($customOnly),
+                        'updated_at' => now()
+                    ]);
+                    return redirect()->back()->with('success', "Template preset kustom berhasil dihapus.");
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        return redirect()->back()->with('info', "Preset bawaan sistem di-reset ke nilai default.");
+    }
+
+    public function formBuilderResetPresets()
+    {
+        try {
+            \Illuminate\Support\Facades\DB::table('settings')->where('key', 'form_builder_presets')->delete();
+        } catch (\Throwable $e) {}
+
+        return redirect()->back()->with('success', "Semua template preset telah dikembalikan ke standar bawaan sistem.");
+    }
+
+    private function cleanFormFields($fields): array
+    {
+        $clean = [];
+        if (!is_array($fields)) return $clean;
+
+        foreach ($fields as $f) {
+            if (empty($f['label'])) continue;
+            $name = !empty($f['name']) ? \Illuminate\Support\Str::slug($f['name'], '_') : \Illuminate\Support\Str::slug($f['label'], '_');
+            $clean[] = [
+                'id' => $f['id'] ?? ('cf_' . uniqid()),
+                'name' => $name,
+                'label' => $f['label'],
+                'type' => $f['type'] ?? 'text',
+                'placeholder' => $f['placeholder'] ?? '',
+                'help_text' => $f['help_text'] ?? '',
+                'required' => (bool) ($f['required'] ?? false),
+                'options' => is_array($f['options'] ?? null) ? array_values(array_filter($f['options'])) : [],
+                'allowed_extensions' => is_array($f['allowed_extensions'] ?? null) ? array_values(array_filter($f['allowed_extensions'])) : [],
+                'max_size_mb' => !empty($f['max_size_mb']) ? (int) $f['max_size_mb'] : 5,
+                'min_items' => isset($f['min_items']) && $f['min_items'] !== null && $f['min_items'] !== '' ? (int) $f['min_items'] : null,
+                'max_items' => isset($f['max_items']) && $f['max_items'] !== null && $f['max_items'] !== '' ? (int) $f['max_items'] : null,
+                'main_members' => isset($f['main_members']) && $f['main_members'] !== null && $f['main_members'] !== '' ? (int) $f['main_members'] : null,
+                'reserve_members' => isset($f['reserve_members']) && $f['reserve_members'] !== null && $f['reserve_members'] !== '' ? (int) $f['reserve_members'] : null,
+                'sub_fields' => is_array($f['sub_fields'] ?? null) ? $f['sub_fields'] : null,
+                'conditional_logic' => is_array($f['conditional_logic'] ?? null) ? $f['conditional_logic'] : null,
+                'is_mandatory_identity' => !empty($f['is_mandatory_identity']),
+            ];
+        }
+
+        return $clean;
     }
 
     public function formBuilderCopyFrom($competitionId, Request $request)
@@ -1499,7 +1919,22 @@ class AdminPanelController extends Controller
             'agenda' => 'nullable|string|max:500',
             'notes' => 'nullable|string',
             'rules_summary' => 'nullable|string',
+            'juknis_file' => 'nullable|file|mimes:pdf,docx,doc|max:30720',
         ]);
+
+        if ($request->hasFile('juknis_file')) {
+            $file = $request->file('juknis_file');
+            $originalName = $file->getClientOriginalName();
+            $ext = $file->getClientOriginalExtension();
+            $safeName = 'JUKNIS_' . strtoupper(preg_replace('/[^a-zA-Z0-9]/', '_', $competition->id)) . '_' . date('Ymd_His') . '.' . $ext;
+            $path = $file->storeAs('uploads/juknis', $safeName, 'public');
+            $url = '/storage/' . $path;
+            $competition->juknis_file = $url;
+            $competition->juknis_original_name = $originalName;
+            $competition->juknis_size = $file->getSize();
+            $validated['juknis_file'] = $url;
+            $validated['juknis_filename'] = $originalName;
+        }
 
         $currentSettings = $competition->tm_settings ?? [];
         $merged = array_merge($currentSettings, $validated, [
@@ -1699,6 +2134,7 @@ class AdminPanelController extends Controller
             'confirmation_wa' => Setting::get('payment_confirmation_wa', '0838 5007 0767'),
             'instructions' => Setting::get('payment_instructions', '<p>Transfer sesuai nominal total tagihan ke rekening resmi panitia. Simpan tangkapan layar (screenshot) atau foto struk bukti pembayaran asli untuk diunggah pada form pendaftaran atau konfirmasikan ke WhatsApp panitia.</p>'),
             'cash_enabled' => Setting::get('payment_cash_enabled', '1') === '1',
+            'bank_accounts' => Setting::getBankAccounts(),
         ];
 
         return \Inertia\Inertia::render('Admin/BiayaRegistrasi', compact('competitions', 'stats', 'packageSettings', 'paymentSettings'));
@@ -1805,22 +2241,143 @@ class AdminPanelController extends Controller
     public function updatePaymentSettings(Request $request)
     {
         $validated = $request->validate([
-            'payment_bank_name' => 'required|string|max:150',
-            'payment_account_number' => 'required|string|max:100',
-            'payment_account_holder' => 'required|string|max:150',
+            'payment_bank_name' => 'nullable|string|max:150',
+            'payment_account_number' => 'nullable|string|max:100',
+            'payment_account_holder' => 'nullable|string|max:150',
             'payment_confirmation_wa' => 'nullable|string|max:30',
             'payment_instructions' => 'nullable|string',
             'payment_cash_enabled' => 'nullable',
+            'bank_accounts' => 'nullable|array',
+            'bank_accounts.*.id' => 'nullable|string|max:50',
+            'bank_accounts.*.bank_name' => 'required|string|max:150',
+            'bank_accounts.*.account_number' => 'required|string|max:100',
+            'bank_accounts.*.account_holder' => 'required|string|max:150',
+            'bank_accounts.*.notes' => 'nullable|string|max:255',
+            'bank_accounts.*.is_primary' => 'nullable',
+            'bank_accounts.*.is_active' => 'nullable',
         ]);
 
-        Setting::set('payment_bank_name', (string)$validated['payment_bank_name']);
-        Setting::set('payment_account_number', (string)$validated['payment_account_number']);
-        Setting::set('payment_account_holder', (string)$validated['payment_account_holder']);
+        if (!empty($validated['bank_accounts']) && is_array($validated['bank_accounts'])) {
+            Setting::setBankAccounts($validated['bank_accounts']);
+        } elseif (!empty($validated['payment_account_number'])) {
+            Setting::set('payment_bank_name', (string)$validated['payment_bank_name']);
+            Setting::set('payment_account_number', (string)$validated['payment_account_number']);
+            Setting::set('payment_account_holder', (string)$validated['payment_account_holder']);
+        }
+
         Setting::set('payment_confirmation_wa', (string)($validated['payment_confirmation_wa'] ?? ''));
         Setting::set('payment_instructions', (string)($validated['payment_instructions'] ?? ''));
         Setting::set('payment_cash_enabled', $request->boolean('payment_cash_enabled') ? '1' : '0');
 
-        return redirect()->back()->with('success', 'Informasi rekening bank dan petunjuk pembayaran berhasil diperbarui.');
+        return redirect()->back()->with('success', 'Daftar nomor rekening dan konfigurasi pembayaran berhasil disimpan.');
+    }
+
+    // =========================================================================
+    // FITUR KELOLA BUKU PANDUAN JUKNIS (JUKNIS UMUM & SPESIFIK CABANG LOMBA)
+    // =========================================================================
+    public function juknisIndex()
+    {
+        $generalJuknis = Setting::getGeneralJuknis();
+        $competitions = Competition::orderBy('id', 'asc')->get()->map(function ($c) {
+            return [
+                'id' => $c->id,
+                'title' => $c->title,
+                'category_label' => $c->category_label ?: 'Umum',
+                'category' => $c->category,
+                'juknis_file' => $c->juknis_file,
+                'juknis_original_name' => $c->juknis_original_name,
+                'juknis_size' => $c->juknis_size,
+                'juknis_url' => $c->juknis_url,
+                'juknis_filename' => $c->juknis_filename,
+            ];
+        });
+
+        return \Inertia\Inertia::render('Admin/Juknis', [
+            'generalJuknis' => $generalJuknis,
+            'competitions' => $competitions,
+        ]);
+    }
+
+    public function updateGeneralJuknis(Request $request)
+    {
+        $request->validate([
+            'juknis_file' => 'nullable|file|mimes:pdf,docx,doc|max:30720',
+            'external_url' => 'nullable|url|max:255',
+        ]);
+
+        if ($request->hasFile('juknis_file')) {
+            $file = $request->file('juknis_file');
+            $originalName = $file->getClientOriginalName();
+            $ext = $file->getClientOriginalExtension();
+            $safeName = 'JUKNIS_UMUM_SEMARAK_ALIYAH_' . date('Ymd_His') . '.' . $ext;
+            $path = $file->storeAs('uploads/juknis', $safeName, 'public');
+            $url = '/storage/' . $path;
+            $bytes = $file->getSize();
+            $formattedSize = number_format($bytes / (1024 * 1024), 2) . ' MB';
+
+            Setting::setGeneralJuknis($url, $originalName, $formattedSize);
+            return redirect()->back()->with('success', "File Juknis Umum [{$originalName}] berhasil diperbarui dan dipasang di seluruh tombol unduh web!");
+        }
+
+        if ($request->filled('external_url')) {
+            $url = $request->input('external_url');
+            Setting::setGeneralJuknis($url, 'Juknis Umum (Google Drive / Cloud)', 'Cloud Link');
+            return redirect()->back()->with('success', 'Tautan Juknis Umum Cloud/Google Drive berhasil diperbarui!');
+        }
+
+        return redirect()->back()->with('error', 'Silakan pilih file dokumen PDF Juknis atau masukkan URL eksternal.');
+    }
+
+    public function resetGeneralJuknis()
+    {
+        Setting::setGeneralJuknis('/assets/JUKNIS-SEMARAK-2026.pdf', 'JUKNIS-SEMARAK-2026.pdf', '2.50 MB');
+        return redirect()->back()->with('success', 'File Juknis Umum berhasil dikembalikan ke berkas master bawaan sistem.');
+    }
+
+    public function updateCompetitionJuknis(Request $request, $id)
+    {
+        $comp = Competition::findOrFail($id);
+        $request->validate([
+            'juknis_file' => 'required|file|mimes:pdf,docx,doc|max:30720',
+        ]);
+
+        $file = $request->file('juknis_file');
+        $originalName = $file->getClientOriginalName();
+        $ext = $file->getClientOriginalExtension();
+        $safeName = 'JUKNIS_' . strtoupper(preg_replace('/[^a-zA-Z0-9]/', '_', $comp->id)) . '_' . date('Ymd_His') . '.' . $ext;
+        $path = $file->storeAs('uploads/juknis', $safeName, 'public');
+        $url = '/storage/' . $path;
+        $bytes = $file->getSize();
+
+        $comp->juknis_file = $url;
+        $comp->juknis_original_name = $originalName;
+        $comp->juknis_size = $bytes;
+
+        // Merge into tm_settings for full redundancy
+        $tm = $comp->tm_settings ?: [];
+        $tm['juknis_file'] = $url;
+        $tm['juknis_filename'] = $originalName;
+        $comp->tm_settings = $tm;
+
+        $comp->save();
+
+        return redirect()->back()->with('success', "Berkas Juknis khusus cabang [{$comp->title}] berhasil diunggah!");
+    }
+
+    public function deleteCompetitionJuknis($id)
+    {
+        $comp = Competition::findOrFail($id);
+        $comp->juknis_file = null;
+        $comp->juknis_original_name = null;
+        $comp->juknis_size = null;
+
+        $tm = $comp->tm_settings ?: [];
+        unset($tm['juknis_file'], $tm['juknis_filename']);
+        $comp->tm_settings = $tm;
+
+        $comp->save();
+
+        return redirect()->back()->with('success', "Berkas Juknis khusus cabang [{$comp->title}] berhasil dihapus. Cabang ini kini menggunakan rujukan Juknis Umum.");
     }
 
     // =========================================================================
@@ -1994,6 +2551,502 @@ class AdminPanelController extends Controller
         }
 
         return redirect()->back()->with('success', 'Konfigurasi Kustomisasi Lanjutan berhasil dikembalikan ke standar awal.');
+    }
+
+    /**
+     * Halaman Rekapitulasi Sekolah / Madrasah Terdaftar Beserta Cabang Lomba yang Diikuti
+     */
+    public function registeredSchoolsIndex(Request $request)
+    {
+        $allCompetitions = Competition::orderBy('id', 'asc')->get();
+        $masterSchools = \App\Models\School::orderBy('name', 'asc')->get(['id', 'npsn', 'name', 'jenjang', 'kecamatan']);
+        $packageAllinPrice = (int)Setting::get('package_allin_price', 200000);
+
+        // Ambil semua pendaftaran dengan relasi competition
+        $registrationsQuery = Registration::with('competition')->orderBy('id', 'desc');
+
+        if ($request->filled('competition_id') && $request->competition_id !== 'all') {
+            $compId = $request->competition_id;
+            $schoolNamesWithComp = Registration::where('competition_id', $compId)
+                ->pluck('school_name')
+                ->filter()
+                ->unique()
+                ->toArray();
+            $registrationsQuery->whereIn('school_name', $schoolNamesWithComp);
+        }
+
+        $allRegistrations = $registrationsQuery->get();
+
+        // Grouping berdasarkan school_name
+        $grouped = $allRegistrations->groupBy(function($item) {
+            return trim($item->school_name ?: 'Tanpa Sekolah / Mandiri');
+        });
+
+        $schoolsData = [];
+        $totalAllInSchools = 0;
+        $totalUnitSchools = 0;
+        $globalTotalStudents = 0;
+        $globalTotalFee = 0;
+        $globalVerifiedFee = 0;
+
+        // Ambil lookup tabel School untuk mencocokkan NPSN & Kecamatan
+        $masterLookup = [];
+        foreach ($masterSchools as $ms) {
+            $norm = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $ms->name));
+            $masterLookup[$norm] = $ms;
+        }
+
+        foreach ($grouped as $schoolName => $regs) {
+            $hasAllIn = $regs->contains(fn($r) => $r->package_type === 'Paket All-In');
+            $packageType = $hasAllIn ? 'Paket All-In' : 'Paket Satuan';
+
+            if ($hasAllIn) {
+                $totalAllInSchools++;
+            } else {
+                $totalUnitSchools++;
+            }
+
+            // Info pembina / kontak
+            $mentorName = $regs->pluck('mentor_name')->filter()->first() ?: '-';
+            $mentorWa = $regs->pluck('mentor_wa')->filter()->first() ?: '-';
+
+            // Lookup ke database master sekolah
+            $normName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $schoolName));
+            $matchedMaster = $masterLookup[$normName] ?? null;
+            $npsn = $matchedMaster?->npsn ?? '-';
+            $jenjang = $matchedMaster?->jenjang ?? (stripos($schoolName, 'mts') !== false ? 'MTs' : (stripos($schoolName, 'smp') !== false ? 'SMP' : '-'));
+            $kecamatan = $matchedMaster?->kecamatan ?? '-';
+
+            // Jika di pendaftaran ada field custom kecamatan
+            if ($kecamatan === '-' || empty($kecamatan)) {
+                foreach ($regs as $r) {
+                    $cf = $r->custom_fields ?? [];
+                    $k = $cf['school_district'] ?? $cf['kecamatan'] ?? $cf['kecamatan_sekolah'] ?? null;
+                    if (!empty($k)) {
+                        $kecamatan = $k;
+                        break;
+                    }
+                }
+            }
+
+            // Breakdown Cabang Lomba yang Diikuti
+            $competitionsFollowed = [];
+            $schoolStudentCount = 0;
+            $schoolTotalFee = 0;
+            $schoolPaidFee = 0;
+            $allVerified = true;
+            $hasPending = false;
+
+            foreach ($regs as $reg) {
+                $schoolTotalFee += (int)$reg->total_fee;
+                if ($reg->payment_status === 'Terverifikasi') {
+                    $schoolPaidFee += (int)$reg->total_fee;
+                } else {
+                    $allVerified = false;
+                }
+                if ($reg->payment_status === 'Menunggu Verifikasi') {
+                    $hasPending = true;
+                }
+
+                // Hitung delegasi siswa
+                $studentsList = [];
+                $cf = $reg->custom_fields ?? [];
+
+                // 1. Cek dari field delegates manual
+                if (!empty($cf['delegates']) && is_array($cf['delegates'])) {
+                    $studentsList = $cf['delegates'];
+                } else {
+                    // 2. Cek dari form builder repeater
+                    foreach ($cf as $k => $val) {
+                        if (is_array($val) && count($val) > 0 && isset($val[0]) && (isset($val[0]['nama_lengkap']) || isset($val[0]['nama_siswa']) || isset($val[0]['name']))) {
+                            foreach ($val as $row) {
+                                $studentsList[] = [
+                                    'name' => $row['nama_lengkap'] ?? $row['nama_siswa'] ?? $row['name'] ?? 'Siswa Delegasi',
+                                    'nisn' => $row['nisn'] ?? '-',
+                                    'gender' => $row['jenis_kelamin'] ?? $row['gender'] ?? '-',
+                                    'grade' => $row['kelas'] ?? $row['tingkat'] ?? '-',
+                                ];
+                            }
+                        }
+                    }
+                }
+
+                // 3. Fallback parsing dari participants_names
+                if (empty($studentsList) && !empty($reg->participants_names)) {
+                    $pParts = preg_split('/[\r\n,;]+/', $reg->participants_names);
+                    foreach ($pParts as $pName) {
+                        $cleanP = trim(preg_replace('/^\d+[\.\)\-]\s*/', '', $pName));
+                        if (!empty($cleanP)) {
+                            $studentsList[] = [
+                                'name' => $cleanP,
+                                'nisn' => '-',
+                                'gender' => '-',
+                                'grade' => '-',
+                            ];
+                        }
+                    }
+                }
+
+                $cCount = max(1, count($studentsList));
+                $schoolStudentCount += $cCount;
+
+                $competitionsFollowed[] = [
+                    'registration_id' => $reg->id,
+                    'reg_code' => $reg->reg_code,
+                    'competition_id' => $reg->competition_id,
+                    'competition_title' => $reg->competition_title,
+                    'category_name' => $reg->competition?->category?->name ?? 'Umum',
+                    'package_type' => $reg->package_type,
+                    'total_fee' => (int)$reg->total_fee,
+                    'payment_status' => $reg->payment_status,
+                    'registration_status' => $reg->registration_status,
+                    'checkin_status' => $reg->checkin_status,
+                    'participants_count' => $cCount,
+                    'students' => $studentsList,
+                    'participants_names' => $reg->participants_names,
+                    'created_at' => $reg->created_at?->format('d/m/Y H:i'),
+                ];
+            }
+
+            $globalTotalStudents += $schoolStudentCount;
+            $globalTotalFee += $schoolTotalFee;
+            $globalVerifiedFee += $schoolPaidFee;
+
+            // Status ringkasan pembayaran sekolah
+            $paymentSummary = 'Belum Lunas';
+            if ($allVerified && count($regs) > 0) {
+                $paymentSummary = 'Lunas';
+            } elseif ($hasPending) {
+                $paymentSummary = 'Menunggu Verifikasi';
+            } elseif ($schoolPaidFee > 0) {
+                $paymentSummary = 'Sebagian';
+            }
+
+            $schoolsData[] = [
+                'school_name' => $schoolName,
+                'npsn' => $npsn,
+                'jenjang' => $jenjang,
+                'kecamatan' => $kecamatan,
+                'mentor_name' => $mentorName,
+                'mentor_wa' => $mentorWa,
+                'package_type' => $packageType,
+                'has_all_in' => $hasAllIn,
+                'total_competitions' => count($competitionsFollowed),
+                'total_students' => $schoolStudentCount,
+                'total_fee' => $schoolTotalFee,
+                'paid_fee' => $schoolPaidFee,
+                'payment_summary' => $paymentSummary,
+                'competitions' => $competitionsFollowed,
+                'registrations_count' => count($regs),
+            ];
+        }
+
+        // Apply filtering Search, Package, and Payment Status
+        if ($request->filled('search')) {
+            $s = strtolower($request->search);
+            $schoolsData = array_filter($schoolsData, function($item) use ($s) {
+                return str_contains(strtolower($item['school_name']), $s)
+                    || str_contains(strtolower($item['kecamatan']), $s)
+                    || str_contains(strtolower($item['npsn']), $s)
+                    || str_contains(strtolower($item['mentor_name']), $s);
+            });
+        }
+
+        if ($request->filled('package') && $request->package !== 'all') {
+            $schoolsData = array_filter($schoolsData, fn($item) => $item['package_type'] === $request->package);
+        }
+
+        if ($request->filled('payment_status') && $request->payment_status !== 'all') {
+            $schoolsData = array_filter($schoolsData, fn($item) => $item['payment_summary'] === $request->payment_status);
+        }
+
+        // Re-index array
+        $schoolsData = array_values($schoolsData);
+
+        // Sorting: pendaftaran dengan lomba terbanyak di atas
+        usort($schoolsData, fn($a, $b) => $b['total_competitions'] <=> $a['total_competitions']);
+
+        // Daftar unik nama sekolah terdaftar saat ini (untuk sumber merge sekolah)
+        $allRegisteredSchoolNames = Registration::select('school_name')
+            ->whereNotNull('school_name')
+            ->where('school_name', '!=', '')
+            ->distinct()
+            ->orderBy('school_name', 'asc')
+            ->pluck('school_name')
+            ->toArray();
+
+        return \Inertia\Inertia::render('Admin/RegisteredSchools', [
+            'schools' => $schoolsData,
+            'competitions' => $allCompetitions,
+            'master_schools' => $masterSchools,
+            'all_registered_school_names' => $allRegisteredSchoolNames,
+            'package_allin_price' => $packageAllinPrice,
+            'stats' => [
+                'total_schools' => count($grouped),
+                'total_all_in' => $totalAllInSchools,
+                'total_unit' => $totalUnitSchools,
+                'total_students' => $globalTotalStudents,
+                'total_revenue' => $globalTotalFee,
+                'total_verified_revenue' => $globalVerifiedFee,
+            ],
+            'filters' => $request->only(['search', 'package', 'payment_status', 'competition_id']),
+        ]);
+    }
+
+    /**
+     * Input Manual Data Pendaftaran dan Delegasi oleh Panitia (On The Spot di Meja Panitia)
+     */
+    public function storeManualRegistration(Request $request)
+    {
+        $validated = $request->validate([
+            'school_name' => 'required|string|max:255',
+            'jenjang' => 'nullable|string|in:SMP,MTs,Lainnya',
+            'kecamatan' => 'nullable|string|max:100',
+            'mentor_name' => 'required|string|max:255',
+            'mentor_wa' => 'required|string|max:30',
+            'mentor_email' => 'nullable|email|max:255',
+            'package_type' => 'required|string|in:Paket Satuan,Paket All-In',
+            'competition_id' => 'nullable|exists:competitions,id',
+            'competition_ids' => 'nullable|array',
+            'competition_ids.*' => 'exists:competitions,id',
+            'custom_fee' => 'nullable|numeric|min:0',
+            'package_price' => 'nullable|numeric|min:0',
+            'students' => 'nullable|array',
+            'participants_text' => 'nullable|string',
+            'payment_status' => 'required|string|in:Terverifikasi,Menunggu Verifikasi,Belum Bayar',
+            'payment_method' => 'required|string|max:100',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        $cleanWa = Setting::formatWaNumber($validated['mentor_wa']);
+        $schoolName = trim($validated['school_name']);
+
+        // Cari atau buat akun di tabel registrants untuk pembina ini agar tercatat di sistem
+        $user = \App\Models\Registrant::where('phone', $cleanWa)->first();
+        if (!$user) {
+            $email = !empty($validated['mentor_email']) 
+                ? $validated['mentor_email'] 
+                : 'kontingen_' . preg_replace('/\D/', '', $cleanWa) . '@semarak.id';
+            
+            if (\App\Models\Registrant::where('email', $email)->exists()) {
+                $email = 'kontingen_' . preg_replace('/\D/', '', $cleanWa) . '_' . rand(100, 999) . '@semarak.id';
+            }
+
+            $user = \App\Models\Registrant::create([
+                'name' => $validated['mentor_name'],
+                'phone' => $cleanWa,
+                'email' => $email,
+                'password' => \Illuminate\Support\Facades\Hash::make(\Illuminate\Support\Str::random(16)),
+                'registrant_role' => 'Pendamping',
+                'school_name' => $schoolName,
+                'gender' => 'Laki-laki',
+                'is_active' => true,
+            ]);
+        }
+
+        // Susun delegasi siswa
+        $students = $validated['students'] ?? [];
+        $namesList = [];
+        if (!empty($students) && is_array($students)) {
+            foreach ($students as $idx => $st) {
+                if (!empty($st['name'])) {
+                    $nisnText = !empty($st['nisn']) ? " (NISN: {$st['nisn']})" : "";
+                    $namesList[] = ($idx + 1) . ". " . trim($st['name']) . $nisnText;
+                }
+            }
+        }
+
+        if (empty($namesList) && !empty($validated['participants_text'])) {
+            $rawLines = preg_split('/[\r\n,]+/', $validated['participants_text']);
+            foreach ($rawLines as $i => $line) {
+                $c = trim($line);
+                if (!empty($c)) {
+                    $namesList[] = ($i + 1) . ". " . $c;
+                    $students[] = [
+                        'name' => $c,
+                        'nisn' => '-',
+                        'gender' => '-',
+                        'grade' => '-',
+                    ];
+                }
+            }
+        }
+
+        $participantsString = !empty($namesList) ? implode("\n", $namesList) : $validated['mentor_name'];
+        $createdRegistrations = [];
+
+        if ($validated['package_type'] === 'Paket Satuan') {
+            if (empty($validated['competition_id'])) {
+                return redirect()->back()->with('error', 'Cabang lomba wajib dipilih untuk pendaftaran Paket Satuan.');
+            }
+
+            $competition = Competition::findOrFail($validated['competition_id']);
+            $fee = isset($validated['custom_fee']) && $validated['custom_fee'] !== null 
+                ? (int)$validated['custom_fee'] 
+                : (int)$competition->price;
+
+            $regCode = 'SA26-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 6));
+
+            $reg = Registration::create([
+                'registrant_id' => $user->id,
+                'user_id' => $user->id,
+                'reg_code' => $regCode,
+                'barcode' => $regCode,
+                'school_name' => $schoolName,
+                'mentor_name' => $validated['mentor_name'],
+                'mentor_wa' => $cleanWa,
+                'package_type' => 'Paket Satuan',
+                'competition_id' => $competition->id,
+                'competition_title' => $competition->title,
+                'participants_names' => $participantsString,
+                'total_fee' => $fee,
+                'registration_status' => 'Terverifikasi',
+                'payment_status' => $validated['payment_status'],
+                'payment_method' => $validated['payment_method'],
+                'notes' => $validated['notes'] ?? 'Pendaftaran di tempat (Meja Panitia)',
+                'custom_fields' => [
+                    'kecamatan' => $validated['kecamatan'] ?? null,
+                    'jenjang' => $validated['jenjang'] ?? null,
+                    'delegates' => $students,
+                    'registered_by_admin' => auth()->user()?->name ?? 'Panitia Admin',
+                    'registered_at_desk' => now()->toIso8601String(),
+                ],
+            ]);
+
+            $createdRegistrations[] = $reg;
+
+        } else {
+            // Paket All-In
+            $compIds = $validated['competition_ids'] ?? [];
+            if (empty($compIds)) {
+                return redirect()->back()->with('error', 'Pilih minimal 1 cabang lomba untuk Paket Komplit (All-In).');
+            }
+
+            $competitions = Competition::whereIn('id', $compIds)->orderBy('id', 'asc')->get();
+            $defaultAllinPrice = (int)Setting::get('package_allin_price', 200000);
+            $packagePrice = isset($validated['package_price']) && $validated['package_price'] !== null 
+                ? (int)$validated['package_price'] 
+                : $defaultAllinPrice;
+
+            $isFirst = true;
+            foreach ($competitions as $comp) {
+                $regCode = 'SA26-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 6));
+                $fee = $isFirst ? $packagePrice : 0; // Hanya master cabang pertama yang memegang tagihan biaya all-in
+
+                $reg = Registration::create([
+                    'registrant_id' => $user->id,
+                    'user_id' => $user->id,
+                    'reg_code' => $regCode,
+                    'barcode' => $regCode,
+                    'school_name' => $schoolName,
+                    'mentor_name' => $validated['mentor_name'],
+                    'mentor_wa' => $cleanWa,
+                    'package_type' => 'Paket All-In',
+                    'competition_id' => $comp->id,
+                    'competition_title' => $comp->title,
+                    'participants_names' => $participantsString,
+                    'total_fee' => $fee,
+                    'registration_status' => 'Terverifikasi',
+                    'payment_status' => $validated['payment_status'],
+                    'payment_method' => $validated['payment_method'],
+                    'notes' => $validated['notes'] ?? 'Pendaftaran di tempat Paket Komplit (All-In)',
+                    'custom_fields' => [
+                        'kecamatan' => $validated['kecamatan'] ?? null,
+                        'jenjang' => $validated['jenjang'] ?? null,
+                        'delegates' => $students,
+                        'registered_by_admin' => auth()->user()?->name ?? 'Panitia Admin',
+                        'registered_at_desk' => now()->toIso8601String(),
+                    ],
+                ]);
+
+                $createdRegistrations[] = $reg;
+                $isFirst = false;
+            }
+        }
+
+        // Auto-sinkronisasi ke tabel master School
+        try {
+            \App\Models\School::firstOrCreateFromRegistration($schoolName, $cleanWa, $validated['kecamatan'] ?? null);
+        } catch (\Throwable $e) {}
+
+        $count = count($createdRegistrations);
+        return redirect()->back()->with('success', "Pendaftaran on-the-spot di meja panitia berhasil dibuat ({$count} cabang lomba terdata untuk kontingen {$schoolName})!");
+    }
+
+    /**
+     * Fitur Merge Sekolah yang Sama (Menyatukan variasi penulisan nama sekolah pendaftar)
+     */
+    public function mergeSchools(Request $request)
+    {
+        $validated = $request->validate([
+            'target_school_name' => 'required|string|max:255',
+            'source_school_names' => 'required|array|min:1',
+            'source_school_names.*' => 'string|max:255',
+        ]);
+
+        $targetSchool = trim($validated['target_school_name']);
+        $sourceSchools = array_values(array_filter(array_map('trim', $validated['source_school_names']), fn($s) => !empty($s) && $s !== $targetSchool));
+
+        if (empty($sourceSchools)) {
+            return redirect()->back()->with('error', 'Pilih minimal 1 nama sekolah sumber yang berbeda dengan sekolah target.');
+        }
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            // Hitung pendaftaran yang akan di-update
+            $affectedCount = Registration::whereIn('school_name', $sourceSchools)->count();
+
+            if ($affectedCount === 0) {
+                \Illuminate\Support\Facades\DB::rollBack();
+                return redirect()->back()->with('error', 'Tidak ditemukan pendaftaran yang cocok dengan nama sekolah sumber.');
+            }
+
+            // Update nama sekolah di registrations
+            Registration::whereIn('school_name', $sourceSchools)->update([
+                'school_name' => $targetSchool
+            ]);
+
+            // Sinkronisasi Paket All-In jika kontingen sekarang memiliki pendaftaran All-In
+            $targetAllInRegs = Registration::where('school_name', $targetSchool)
+                ->where('package_type', 'Paket All-In')
+                ->orderBy('id', 'asc')
+                ->get();
+
+            if ($targetAllInRegs->count() > 0) {
+                // Pastikan hanya 1 pendaftaran induk yang memegang total_fee > 0
+                $defaultAllinPrice = (int)Setting::get('package_allin_price', 200000);
+                $firstMaster = $targetAllInRegs->firstWhere('total_fee', '>', 0) ?: $targetAllInRegs->first();
+                $masterFee = $firstMaster->total_fee > 0 ? $firstMaster->total_fee : $defaultAllinPrice;
+
+                // Cek apakah ada pendaftaran yang sudah terverifikasi/lunas
+                $hasVerified = $targetAllInRegs->contains(fn($r) => $r->payment_status === 'Terverifikasi');
+
+                foreach ($targetAllInRegs as $r) {
+                    if ($r->id === $firstMaster->id) {
+                        $r->total_fee = $masterFee;
+                    } else {
+                        $r->total_fee = 0;
+                    }
+                    if ($hasVerified) {
+                        $r->payment_status = 'Terverifikasi';
+                        $r->registration_status = 'Terverifikasi';
+                    }
+                    $r->save();
+                }
+            }
+
+            // Update juga di tabel School jika perlu
+            try {
+                \App\Models\School::firstOrCreateFromRegistration($targetSchool);
+            } catch (\Throwable $e) {}
+
+            \Illuminate\Support\Facades\DB::commit();
+
+            return redirect()->back()->with('success', "Berhasil menggabungkan {$affectedCount} pendaftaran dari " . count($sourceSchools) . " variasi nama sekolah ke [{$targetSchool}]!");
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            return redirect()->back()->with('error', 'Gagal menggabungkan sekolah: ' . $e->getMessage());
+        }
     }
 }
 

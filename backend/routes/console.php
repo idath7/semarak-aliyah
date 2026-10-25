@@ -55,3 +55,20 @@ Artisan::command('app:update {--no-cache : Jangan optimasi cache produksi}', fun
     $this->info('======================================================================');
 })->purpose('Menjalankan pembaruan aplikasi otomatis: migrasi, optimasi cache, dan reload worker Octane');
 
+Artisan::command('competitions:sync-mandatory-fields', function () {
+    $this->info('Menyinkronkan 8 Field Identitas & Paket Standar ke seluruh cabang lomba...');
+    $competitions = \App\Models\Competition::all();
+    $updatedCount = 0;
+
+    foreach ($competitions as $comp) {
+        $existing = $comp->custom_fields ?? [];
+        $synced = \App\Http\Controllers\AdminPanelController::ensureMandatoryFields($existing);
+        $comp->custom_fields = $synced;
+        $comp->save();
+        $this->line("✓ Cabang [{$comp->id}] {$comp->title}: " . count($synced) . " field.");
+        $updatedCount++;
+    }
+
+    $this->info("Berhasil menyinkronkan {$updatedCount} cabang lomba dengan 8 field identitas & paket standar!");
+})->purpose('Sinkronisasi 8 field standar (Sekolah, Kecamatan, NPSN, Alamat, Pendamping, WA, Email, Kode Paket Komplit) ke seluruh cabang lomba');
+

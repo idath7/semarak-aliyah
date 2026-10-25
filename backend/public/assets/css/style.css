@@ -3814,6 +3814,23 @@ section[id] {
   color: #fff;
 }
 
+[data-bs-theme="dark"] .modal-card {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7);
+}
+
+[data-bs-theme="dark"] .modal-close {
+  background: #1e293b;
+  color: #94a3b8;
+}
+
+[data-bs-theme="dark"] .modal-close:hover {
+  background: var(--theme-pink);
+  color: #fff;
+}
+
 .modal-footer-actions {
   display: flex;
   align-items: center;
@@ -3884,6 +3901,32 @@ section[id] {
 .btn-modal-primary.btn-modal-disabled:hover {
   background: #1e293b !important;
   transform: none;
+}
+
+.btn-modal-juknis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444 !important;
+  font-family: var(--font-heading);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 7px 15px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.btn-modal-juknis:hover {
+  background: #ef4444;
+  color: #ffffff !important;
+  border-color: #ef4444;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+  transform: translateY(-1px);
 }
 
 .modal-detail-cp-section {

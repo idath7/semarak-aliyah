@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Models\Registrant;
 
 return [
 
@@ -42,6 +43,10 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        'pendaftar' => [
+            'driver' => 'session',
+            'provider' => 'registrants',
+        ],
     ],
 
     /*
@@ -65,6 +70,10 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+        'registrants' => [
+            'driver' => 'eloquent',
+            'model' => Registrant::class,
         ],
 
         // 'users' => [
@@ -96,6 +105,12 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+        'registrants' => [
+            'provider' => 'registrants',
+            'table' => 'registrant_password_reset_tokens',
             'expire' => 60,
             'throttle' => 60,
         ],

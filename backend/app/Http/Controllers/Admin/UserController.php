@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Competition;
 use App\Models\User;
+use App\Services\SipresensiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -75,13 +77,17 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $query = User::with('competition:id,title,category_label')
-            ->select('id', 'name', 'email', 'role', 'division', 'phone', 'competition_id', 'is_active', 'created_at');
+            ->select(
+                'id', 'name', 'email', 'nip', 'role', 'division', 'phone', 'competition_id', 'is_active', 'must_change_password', 'created_at',
+                DB::raw("(CASE WHEN password IS NOT NULL AND password != '' THEN 1 ELSE 0 END) as has_password")
+            );
 
-        // 1. Filter Pencarian Nama, Email, atau No. Telepon
+        // 1. Filter Pencarian Nama, Email, NIP, atau No. Telepon
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('nip', 'like', "%{$search}%")
                   ->orWhere('phone', 'like', "%{$search}%");
             });
         }
@@ -140,6 +146,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'name'           => ['required', 'string', 'max:255'],
             'email'          => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'nip'            => ['nullable', 'string', 'max:50'],
             'password'       => ['required', 'string', 'min:6'],
             'role'           => ['required', 'string', Rule::in(array_keys($this->roles))],
             'division'       => ['nullable', 'string', 'max:100'],
@@ -160,7 +167,9 @@ class UserController extends Controller
         $user = User::create([
             'name'           => $validated['name'],
             'email'          => strtolower(trim($validated['email'])),
+            'nip'            => !empty($validated['nip']) ? trim($validated['nip']) : null,
             'password'       => Hash::make($validated['password']),
+            'must_change_password' => false,
             'role'           => $validated['role'],
             'division'       => $validated['division'] ?? null,
             'phone'          => $validated['phone'] ?? null,
@@ -181,6 +190,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'name'           => ['required', 'string', 'max:255'],
             'email'          => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'nip'            => ['nullable', 'string', 'max:50'],
             'password'       => ['nullable', 'string', 'min:6'],
             'role'           => ['required', 'string', Rule::in(array_keys($this->roles))],
             'division'       => ['nullable', 'string', 'max:100'],
@@ -210,6 +220,7 @@ class UserController extends Controller
         $updateData = [
             'name'           => $validated['name'],
             'email'          => strtolower(trim($validated['email'])),
+            'nip'            => !empty($validated['nip']) ? trim($validated['nip']) : null,
             'role'           => $validated['role'],
             'division'       => $validated['division'] ?? null,
             'phone'          => $validated['phone'] ?? null,
@@ -219,6 +230,7 @@ class UserController extends Controller
 
         if (!empty($validated['password'])) {
             $updateData['password'] = Hash::make($validated['password']);
+            $updateData['must_change_password'] = false;
         }
 
         $user->update($updateData);
@@ -285,5 +297,297 @@ class UserController extends Controller
         $user->delete();
 
         return redirect()->back()->with('success', "Pengguna {$name} berhasil dihapus dari sistem.");
+    }
+
+    /**
+     * Preview data guru dari Sipresensi sebelum sinkronisasi
+     * (Menggunakan SipresensiService REST API / Isolated CLI Runner tanpa direct DB coupling)
+     */
+    public function previewSipresensiTeachers(Request $request)
+    {
+        try {
+            $fetch = SipresensiService::fetchTeachers();
+
+            if (empty($fetch['success'])) {
+                return response()->json([
+                    'success'   => false,
+                    'connected' => false,
+                    'message'   => $fetch['message'] ?? 'Layanan Sipresensi tidak dapat dihubungi.',
+                    'service'   => [
+                        'mode'   => 'Layanan API / Service Lokal',
+                        'status' => 'Terputus / Offline',
+                    ],
+                ], 500);
+            }
+
+            $teachers = $fetch['data'] ?? [];
+
+            // Ambil semua pengguna Semarak yang sudah ada untuk pengecekan duplikasi
+            $existingUsers = User::select('id', 'name', 'email', 'nip', 'phone', 'role', 'division')->get();
+            $existingEmails = $existingUsers->pluck('email')->map(fn($e) => strtolower(trim($e)))->all();
+            $existingNips = $existingUsers->whereNotNull('nip')->pluck('nip')->map(fn($n) => trim($n))->filter()->all();
+            $existingPhones = $existingUsers->whereNotNull('phone')->pluck('phone')->map(fn($p) => preg_replace('/[^0-9]/', '', $p))->filter()->all();
+
+            $mappedTeachers = [];
+            foreach ($teachers as $t) {
+                $positionStr = $t['position'] ?? (!empty($t['positions']) ? implode(', ', $t['positions']) : 'Guru');
+                $suggestedDivision = $this->mapPositionToDivision($positionStr);
+
+                // Normalisasi Email & NIP
+                $nip = trim($t['nip'] ?? $t['username'] ?? '');
+                $email = strtolower(trim($t['email'] ?? ''));
+                if (empty($email)) {
+                    $email = strtolower("{$nip}@sipresensi.local");
+                }
+
+                // Normalisasi Telepon / WhatsApp
+                $phone = !empty($t['phone']) ? trim($t['phone']) : null;
+                $cleanPhone = $phone ? preg_replace('/[^0-9]/', '', $phone) : null;
+
+                // Cek apakah sudah ada di Semarak (cek NIP, email, nomor telepon, atau nama)
+                $match = null;
+                if ($nip && in_array($nip, $existingNips)) {
+                    $match = $existingUsers->first(fn($u) => trim((string)$u->nip) === $nip);
+                } elseif ($email && in_array($email, $existingEmails)) {
+                    $match = $existingUsers->first(fn($u) => strtolower(trim($u->email)) === $email);
+                } elseif ($cleanPhone && in_array($cleanPhone, $existingPhones)) {
+                    $match = $existingUsers->first(fn($u) => preg_replace('/[^0-9]/', '', (string)$u->phone) === $cleanPhone);
+                } else {
+                    $cleanName = strtolower(trim($t['name'] ?? ''));
+                    $match = $existingUsers->first(fn($u) => strtolower(trim($u->name)) === $cleanName);
+                }
+
+                $mappedTeachers[] = [
+                    'sipresensi_id'       => $t['id'],
+                    'name'                => $t['name'],
+                    'email'               => $email,
+                    'nip'                 => $nip ?: null,
+                    'username'            => $t['username'] ?? null,
+                    'phone'               => $phone,
+                    'gender'              => $t['gender'] ?? null,
+                    'status_guru'         => $t['status_guru'] ?? null,
+                    'sipresensi_position' => $positionStr,
+                    'suggested_division'  => $suggestedDivision,
+                    'already_exists'      => (bool) $match,
+                    'existing_user'       => $match ? [
+                        'id'       => $match->id,
+                        'name'     => $match->name,
+                        'email'    => $match->email,
+                        'nip'      => $match->nip,
+                        'role'     => $match->role,
+                        'division' => $match->division,
+                    ] : null,
+                ];
+            }
+
+            return response()->json([
+                'success'    => true,
+                'connected'  => true,
+                'source'     => $fetch['source'] ?? 'service',
+                'service'    => [
+                    'mode'   => ($fetch['source'] === 'http_api') ? 'REST API Sipresensi' : 'Isolated Artisan Service Lokal',
+                    'status' => 'Terhubung Aktif',
+                ],
+                'total'      => count($mappedTeachers),
+                'teachers'   => $mappedTeachers,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success'    => false,
+                'connected'  => false,
+                'message'    => 'Gagal mengambil data dari Sipresensi: ' . $e->getMessage(),
+                'service'    => [
+                    'mode'   => 'Layanan API / Service Lokal',
+                    'status' => 'Error: ' . $e->getMessage(),
+                ],
+            ], 500);
+        }
+    }
+
+    /**
+     * Proses sinkronisasi guru dari Sipresensi ke tabel users Semarak
+     */
+    public function syncSipresensiTeachers(Request $request)
+    {
+        $validated = $request->validate([
+            'teacher_ids'      => ['nullable', 'array'],
+            'teacher_ids.*'    => ['integer'],
+            'default_role'     => ['required', 'string', Rule::in(array_keys($this->roles))],
+            'default_division' => ['nullable', 'string', 'max:100'],
+            'update_existing'  => ['boolean'],
+        ]);
+
+        $defaultRole = $validated['default_role'] ?? 'panitia';
+        $updateExisting = (bool) ($validated['update_existing'] ?? false);
+        $targetIds = $validated['teacher_ids'] ?? [];
+
+        try {
+            $fetch = SipresensiService::fetchTeachers();
+            if (empty($fetch['success'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal mengambil data guru dari Sipresensi: ' . ($fetch['message'] ?? 'Layanan tidak dapat dihubungi.'),
+                ], 500);
+            }
+
+            $allTeachers = $fetch['data'] ?? [];
+            if (!empty($targetIds)) {
+                $teachers = array_filter($allTeachers, fn($t) => in_array($t['id'], $targetIds));
+            } else {
+                $teachers = $allTeachers;
+            }
+
+            $createdCount = 0;
+            $updatedCount = 0;
+            $skippedCount = 0;
+            $syncedDetails = [];
+
+            DB::beginTransaction();
+
+            foreach ($teachers as $t) {
+                // Email & NIP
+                $nip = trim($t['nip'] ?? $t['username'] ?? '');
+                $email = strtolower(trim($t['email'] ?? ''));
+                if (empty($email)) {
+                    $email = strtolower("{$nip}@sipresensi.local");
+                }
+
+                // Phone
+                $phone = !empty($t['phone']) ? trim($t['phone']) : null;
+                $cleanPhone = $phone ? preg_replace('/[^0-9]/', '', $phone) : null;
+
+                // Suggested Division
+                $positionStr = $t['position'] ?? (!empty($t['positions']) ? implode(', ', $t['positions']) : 'Guru');
+                $division = $validated['default_division'] ?: $this->mapPositionToDivision($positionStr);
+
+                // Cek user yang sudah ada by NIP, email, atau phone
+                $existing = User::where(function ($q) use ($nip, $email, $cleanPhone) {
+                    if ($nip) {
+                        $q->where('nip', $nip);
+                    }
+                    if ($email) {
+                        $q->orWhere('email', $email);
+                    }
+                    if ($cleanPhone) {
+                        $q->orWhere('phone', $cleanPhone);
+                    }
+                })->first();
+
+                if ($existing) {
+                    if ($updateExisting) {
+                        $existingUpdate = [
+                            'name'   => $t['name'],
+                            'gender' => $t['gender'] ?? $existing->gender,
+                        ];
+                        if ($nip && empty($existing->nip)) {
+                            $existingUpdate['nip'] = $nip;
+                        }
+                        if ($phone && empty($existing->phone)) {
+                            $existingUpdate['phone'] = $phone;
+                        }
+                        if (empty($existing->division) && $division) {
+                            $existingUpdate['division'] = $division;
+                        }
+                        // Jika akun belum punya password, pastikan flag must_change_password tetap true
+                        if (empty($existing->password)) {
+                            $existingUpdate['must_change_password'] = true;
+                        }
+                        $existing->update($existingUpdate);
+
+                        $updatedCount++;
+                        $syncedDetails[] = [
+                            'name'   => $t['name'],
+                            'email'  => $email,
+                            'nip'    => $nip,
+                            'status' => 'updated',
+                        ];
+                    } else {
+                        $skippedCount++;
+                        $syncedDetails[] = [
+                            'name'   => $t['name'],
+                            'email'  => $email,
+                            'nip'    => $nip,
+                            'status' => 'skipped',
+                        ];
+                    }
+                } else {
+                    // Password hasil sinkron Sipresensi sengaja KOSONG (belum diatur)
+                    // Panitia masuk via SSO Sipresensi atau OTP WA, dan wajib buat password saat pertama kali login
+                    User::create([
+                        'name'                 => $t['name'],
+                        'email'                => $email,
+                        'nip'                  => $nip ?: null,
+                        'password'             => null,
+                        'must_change_password' => true,
+                        'role'                 => $defaultRole,
+                        'division'             => $division,
+                        'phone'                => $phone,
+                        'gender'               => $t['gender'] ?? null,
+                        'is_active'            => true,
+                        'competition_id'       => null,
+                    ]);
+
+                    $createdCount++;
+                    $syncedDetails[] = [
+                        'name'   => $t['name'],
+                        'email'  => $email,
+                        'nip'    => $nip,
+                        'status' => 'created',
+                    ];
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success'       => true,
+                'message'       => "Sinkronisasi berhasil: {$createdCount} akun baru ditambahkan, {$updatedCount} akun diperbarui, {$skippedCount} akun dilewati.",
+                'created_count' => $createdCount,
+                'updated_count' => $updatedCount,
+                'skipped_count' => $skippedCount,
+                'details'       => $syncedDetails,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat melakukan sinkronisasi: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Petakan nama jabatan di Sipresensi ke divisi panitia Semarak
+     */
+    protected function mapPositionToDivision(?string $position): string
+    {
+        if (!$position) return 'Acara & Lomba';
+        $pos = strtolower($position);
+
+        if (str_contains($pos, 'kepala madrasah') || str_contains($pos, 'pimpinan') || str_contains($pos, 'waka') || str_contains($pos, 'direktur')) {
+            return 'BPH / Pimpinan';
+        }
+        if (str_contains($pos, 'tata usaha') || str_contains($pos, 'sekretariat') || str_contains($pos, 'administrasi')) {
+            return 'Kesekretariatan & Pendaftaran';
+        }
+        if (str_contains($pos, 'bendahara') || str_contains($pos, 'keuangan')) {
+            return 'Bendahara & Keuangan';
+        }
+        if (str_contains($pos, 'humas') || str_contains($pos, 'it') || str_contains($pos, 'komputer') || str_contains($pos, 'lab') || str_contains($pos, 'media') || str_contains($pos, 'publikasi')) {
+            return 'Publikasi & IT';
+        }
+        if (str_contains($pos, 'sarpras') || str_contains($pos, 'perlengkapan') || str_contains($pos, 'venue') || str_contains($pos, 'sarana')) {
+            return 'Perlengkapan & Venue';
+        }
+        if (str_contains($pos, 'wasit') || str_contains($pos, 'juri')) {
+            return 'Wasit & Juri';
+        }
+        if (str_contains($pos, 'keamanan') || str_contains($pos, 'medis') || str_contains($pos, 'kesehatan') || str_contains($pos, 'satpam')) {
+            return 'Keamanan & Medis';
+        }
+        if (str_contains($pos, 'konsumsi') || str_contains($pos, 'dapur') || str_contains($pos, 'makan')) {
+            return 'Konsumsi';
+        }
+        return 'Acara & Lomba';
     }
 }

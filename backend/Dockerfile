@@ -12,14 +12,14 @@ COPY . .
 RUN npm run build
 
 # ==============================================================================
-# STAGE 2: PRODUCTION RUNTIME (FRANKENPHP 1.x LATEST + PHP 8.4.26 ALPINE + OCTANE)
+# STAGE 2: PRODUCTION RUNTIME (FRANKENPHP 1.x LATEST + PHP 8.4.27 ALPINE + OCTANE)
 # ==============================================================================
 FROM dunglas/frankenphp:1-php8.4-alpine
 
 LABEL maintainer="SEMARAK ALIYAH XIV"
-LABEL php.version="8.4.26"
+LABEL php.version="8.4.27"
 
-ENV PHP_VERSION=8.4.26
+ENV PHP_VERSION=8.4.27
 
 WORKDIR /var/www/html
 

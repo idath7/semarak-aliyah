@@ -46,6 +46,20 @@ class AdminController extends Controller
         $reg->payment_status = $request->status;
         $reg->save();
 
+        if ($reg->package_type === 'Paket All-In') {
+            Registration::where('package_type', 'Paket All-In')
+                ->where(function ($q) use ($reg) {
+                    $ownerId = $reg->registrant_id ?: $reg->user_id;
+                    if ($ownerId) {
+                        $q->where('registrant_id', $ownerId)->orWhere('user_id', $ownerId);
+                    } else {
+                        $q->where('school_name', $reg->school_name);
+                    }
+                })
+                ->where('id', '!=', $reg->id)
+                ->update(['payment_status' => $reg->payment_status]);
+        }
+
         return response()->json([
             'status' => 'success',
             'message' => 'Status verifikasi berhasil diperbarui oleh Laravel!'

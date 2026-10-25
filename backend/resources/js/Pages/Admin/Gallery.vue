@@ -584,18 +584,22 @@ function executeDelete() {
                 </div>
 
                 <!-- Row Filter -->
-                <select class="form-select" style="max-width: 170px;" v-model="filterRow">
-                  <option value="all">Semua Baris</option>
-                  <option value="1">Baris 1 (Atas - Kiri)</option>
-                  <option value="2">Baris 2 (Bawah - Kanan)</option>
-                </select>
+                <div style="min-width: 170px;">
+                  <CustomSelect v-model="filterRow" size="md">
+                    <option value="all">Semua Baris</option>
+                    <option value="1">Baris 1 (Atas - Kiri)</option>
+                    <option value="2">Baris 2 (Bawah - Kanan)</option>
+                  </CustomSelect>
+                </div>
 
                 <!-- Status Filter -->
-                <select class="form-select" style="max-width: 140px;" v-model="filterStatus">
-                  <option value="all">Semua Status</option>
-                  <option value="active">Aktif Saja</option>
-                  <option value="inactive">Nonaktif</option>
-                </select>
+                <div style="min-width: 140px;">
+                  <CustomSelect v-model="filterStatus" size="md">
+                    <option value="all">Semua Status</option>
+                    <option value="active">Aktif Saja</option>
+                    <option value="inactive">Nonaktif</option>
+                  </CustomSelect>
+                </div>
               </div>
 
               <!-- View Mode & Counter -->

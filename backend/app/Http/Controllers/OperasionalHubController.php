@@ -264,6 +264,24 @@ class OperasionalHubController extends Controller
         }
         $delegate->save();
 
+        if ($delegate->package_type === 'Paket All-In') {
+            $updateData = ['payment_status' => $delegate->payment_status];
+            if ($delegate->verification_notes) {
+                $updateData['verification_notes'] = $delegate->verification_notes;
+            }
+            Registration::where('package_type', 'Paket All-In')
+                ->where(function ($q) use ($delegate) {
+                    $ownerId = $delegate->registrant_id ?: $delegate->user_id;
+                    if ($ownerId) {
+                        $q->where('registrant_id', $ownerId)->orWhere('user_id', $ownerId);
+                    } else {
+                        $q->where('school_name', $delegate->school_name);
+                    }
+                })
+                ->where('id', '!=', $delegate->id)
+                ->update($updateData);
+        }
+
         return response()->json([
             'success' => true,
             'message' => "Status verifikasi berkas diperbarui menjadi [{$delegate->payment_status}]."

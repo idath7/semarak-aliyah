@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'sipresensi' => [
+        'url'   => env('SIPRESENSI_API_URL', 'http://localhost:8000'),
+        'token' => env('SIPRESENSI_API_TOKEN', 'secret_token_123'),
+        'path'  => env('SIPRESENSI_PATH', 'D:\\1Laravel\\sipresensi'),
+    ],
+
 ];

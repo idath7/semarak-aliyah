@@ -2,6 +2,8 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
+import IndoDatePicker from '@/Components/IndoDatePicker.vue';
+import CustomSelect from '@/Components/CustomSelect.vue';
 import { useToast } from '@/Composables/useToast';
 import { useConfirmDialog } from '@/Composables/useConfirmDialog';
 
@@ -21,6 +23,7 @@ const previewDevice = ref('desktop'); // 'desktop' | 'mobile'
 const toolboxTab = ref('types'); // 'types' | 'presets' | 'identity'
 const toolboxSearch = ref('');
 const canvasSearch = ref('');
+const previewValues = ref({});
 
 // Form Data State
 const fields = ref([]);
@@ -88,7 +91,266 @@ function createDefaultSubFields() {
     captain_option: { active: false, required: false, label: 'Tandai Kapten Tim & Nomor WA Khusus Kapten' },
     photo_formal: { active: false, required: false, label: 'Upload Pas Foto Formal Siswa' },
     photo_freestyle: { active: false, required: false, label: 'Upload Foto Pose Gaya Bebas (Bisa >1 Foto)', multiple: true },
+    custom_columns: [],
   };
+}
+
+function addCustomSubField(field) {
+  if (!field.sub_fields) field.sub_fields = createDefaultSubFields();
+  if (!Array.isArray(field.sub_fields.custom_columns)) {
+    field.sub_fields.custom_columns = [];
+  }
+  field.sub_fields.custom_columns.push({
+    id: 'col_' + Date.now(),
+    label: '',
+    type: 'text',
+    required: false,
+  });
+  isDirty.value = true;
+}
+
+function removeCustomSubField(field, idx) {
+  if (Array.isArray(field.sub_fields?.custom_columns)) {
+    field.sub_fields.custom_columns.splice(idx, 1);
+    isDirty.value = true;
+  }
+}
+
+// Helpers
+function generateId() {
+  return 'cf_' + Math.random().toString(36).substr(2, 9);
+}
+
+function makeSlug(text) {
+  return (text || '')
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '_')
+    .replace(/^-+|-+$/g, '');
+}
+ 
+// 31 Kecamatan Resmi Kabupaten Jember + Pilihan Luar Jember
+const JEMBER_KECAMATAN_LIST = [
+  'Ajung',
+  'Ambulu',
+  'Arjasa',
+  'Balung',
+  'Bangsalsari',
+  'Gumukmas',
+  'Jelbuk',
+  'Jenggawah',
+  'Jombang',
+  'Kalisat',
+  'Kaliwates',
+  'Kencong',
+  'Ledokombo',
+  'Mayang',
+  'Mumbulsari',
+  'Pakusari',
+  'Panti',
+  'Patrang',
+  'Puger',
+  'Rambipuji',
+  'Semboro',
+  'Silo',
+  'Sukorambi',
+  'Sukowono',
+  'Sumberbaru',
+  'Sumberjambe',
+  'Sumbersari',
+  'Tanggul',
+  'Tempurejo',
+  'Umbulsari',
+  'Wuluhan',
+  'Luar Kabupaten Jember'
+];
+
+// 7 Standar Wajib Field Identitas Sekolah & Pembina
+const MANDATORY_IDENTITY_CONFIG = [
+  {
+    name: 'school_name',
+    label: 'Nama Sekolah / Madrasah',
+    type: 'text',
+    placeholder: 'Contoh: MTs Negeri 1 Jember / SMPN 1 Balung',
+    help_text: 'Nama resmi lembaga sekolah atau madrasah pengirim delegasi',
+    required: true,
+    aliases: ['school_name', 'asal_sekolah', 'nama_sekolah', 'nama_lembaga', 'nama_sekolah_madrasah', 'nama_sekolah_madrasah_pengirim', 'nama_sekolah_madrasah_instansi_pengirim'],
+    icon: 'ri-community-line',
+    desc: 'Wajib ada pada setiap formulir cabang lomba'
+  },
+  {
+    name: 'school_district',
+    label: 'Kecamatan Sekolah',
+    type: 'select',
+    placeholder: 'Pilih Kecamatan Asal Sekolah...',
+    help_text: 'Wilayah kecamatan tempat sekolah / madrasah berada di Kabupaten Jember',
+    required: true,
+    options: [...JEMBER_KECAMATAN_LIST],
+    aliases: ['school_district', 'kecamatan', 'kecamatan_sekolah', 'kecamatan_asal_sekolah', 'kecamatan_asal_sekolah_madrasah', 'wilayah_kecamatan'],
+    icon: 'ri-map-pin-2-line',
+    desc: 'Dropdown 31 kecamatan se-Kabupaten Jember & Luar Jember'
+  },
+  {
+    name: 'school_npsn',
+    label: 'Nomor Pokok Sekolah Nasional (NPSN)',
+    type: 'text',
+    placeholder: 'Contoh: 20524589 (opsional jika ada)',
+    help_text: 'Nomor Pokok Sekolah Nasional resmi (opsional jika belum memiliki)',
+    required: false,
+    aliases: ['school_npsn', 'npsn', 'npsn_sekolah', 'nomor_pokok_sekolah_nasional', 'nomor_pokok_sekolah_nasional_npsn'],
+    icon: 'ri-hashtag',
+    desc: 'Nomor NPSN resmi sekolah/madrasah (opsional)'
+  },
+  {
+    name: 'school_address',
+    label: 'Alamat Sekolah / Madrasah',
+    type: 'textarea',
+    placeholder: 'Contoh: Jl. Raya Puger No. 20, Balung Kulon, Kec. Balung',
+    help_text: 'Alamat lengkap jalan, desa/kelurahan, dan nomor bangunan sekolah/madrasah',
+    required: true,
+    aliases: ['school_address', 'alamat_sekolah', 'alamat_lengkap_sekolah', 'alamat_sekolah_madrasah', 'alamat_lengkap_sekolah_madrasah', 'alamat'],
+    icon: 'ri-road-map-line',
+    desc: 'Alamat fisik sekolah/madrasah pengirim delegasi'
+  },
+  {
+    name: 'mentor_name',
+    label: 'Nama Pendamping',
+    type: 'text',
+    placeholder: 'Contoh: Ustadz Ahmad Fauzi, S.Pd',
+    help_text: 'Nama lengkap guru atau official pembina pendamping peserta',
+    required: true,
+    aliases: ['mentor_name', 'nama_pendamping', 'nama_guru_pendamping', 'nama_pembina', 'nama_guru_pembina_pendamping', 'nama_pelatih_official'],
+    icon: 'ri-user-star-line',
+    desc: 'Nama guru pembina pendamping delegasi peserta'
+  },
+  {
+    name: 'mentor_wa',
+    label: 'Nomor WA / Kontak Pendamping',
+    type: 'number',
+    placeholder: 'Contoh: 081234567890',
+    help_text: 'Nomor WhatsApp aktif untuk koordinasi teknis dan TM (hanya angka/nomor)',
+    required: true,
+    aliases: ['mentor_wa', 'nomor_wa', 'whatsapp', 'nomor_whatsapp', 'nomor_whatsapp_pendamping', 'nomor_whatsapp_kontak', 'nomor_whatsapp_pembina', 'no_whatsapp_pelatih_official', 'no_whatsapp_kapten_kontak_tim'],
+    icon: 'ri-whatsapp-line',
+    desc: 'Nomor WhatsApp aktif pendamping (hanya angka/nomor)'
+  },
+  {
+    name: 'mentor_email',
+    label: 'Email Pendamping',
+    type: 'email',
+    placeholder: 'Contoh: pendamping@gmail.com / official@sekolah.sch.id',
+    help_text: 'Alamat email aktif untuk tanda terima dan surat pengantar lomba',
+    required: true,
+    aliases: ['mentor_email', 'contact_email', 'email', 'alamat_email', 'email_pendamping', 'alamat_email_aktif', 'email_kontak', 'alamat_email_resmi_sekolah_pembina'],
+    icon: 'ri-mail-line',
+    desc: 'Email aktif pendamping untuk tanda terima pendaftaran'
+  },
+  {
+    name: 'allin_code',
+    label: 'Kode Paket Komplit (All-In)',
+    type: 'text',
+    placeholder: 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)',
+    help_text: 'Masukkan kode paket jika sekolah Anda mendaftar Paket Komplit agar pendaftaran cabang mandiri ini bebas biaya (Rp 0).',
+    required: false,
+    aliases: ['allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code', 'all_in_code', 'kode_paket_allin'],
+    icon: 'ri-vip-crown-line',
+    desc: 'Penanda pendaftaran cabang mandiri bagian dari Paket Komplit (Rp 0)'
+  }
+];
+
+// Presets in Toolbox (Tab 3: Identitas)
+const coreIdentityPresets = MANDATORY_IDENTITY_CONFIG.map(m => ({
+  name: m.label,
+  type: m.type,
+  default_name: m.name,
+  label: m.label,
+  placeholder: m.placeholder,
+  help_text: m.help_text,
+  required: m.required,
+  icon: m.icon,
+  desc: m.desc,
+  options: m.options ? [...m.options] : [],
+  is_mandatory_identity: true,
+}));
+
+function isMandatoryIdentity(field) {
+  if (!field) return false;
+  if (field.is_mandatory_identity) return true;
+  return MANDATORY_IDENTITY_CONFIG.some(m => m.name === field.name || m.aliases.includes(field.name));
+}
+
+function ensureMandatoryIdentityFields() {
+  const current = fields.value || [];
+  const foundMap = {};
+  const remaining = [];
+
+  current.forEach(f => {
+    let matchedConfig = null;
+    for (const m of MANDATORY_IDENTITY_CONFIG) {
+      if (!foundMap[m.name] && (f.name === m.name || m.aliases.includes(f.name))) {
+        matchedConfig = m;
+        break;
+      }
+    }
+    if (matchedConfig) {
+      foundMap[matchedConfig.name] = f;
+    } else {
+      remaining.push(f);
+    }
+  });
+
+  const mandatoryOrdered = MANDATORY_IDENTITY_CONFIG.map(m => {
+    const existing = foundMap[m.name];
+    if (existing) {
+      return {
+        ...existing,
+        id: existing.id || generateId(),
+        name: m.name,
+        label: existing.label || m.label,
+        type: m.type,
+        placeholder: existing.placeholder || m.placeholder,
+        help_text: existing.help_text || m.help_text,
+        required: m.required,
+        options: m.type === 'select' ? [...m.options] : (existing.options || []),
+        is_mandatory_identity: true,
+      };
+    } else {
+      return {
+        id: generateId(),
+        name: m.name,
+        label: m.label,
+        type: m.type,
+        placeholder: m.placeholder,
+        help_text: m.help_text,
+        required: m.required,
+        options: m.options ? [...m.options] : [],
+        allowed_extensions: [],
+        max_size_mb: null,
+        is_mandatory_identity: true,
+        conditional_logic: {
+          enabled: false,
+          depend_on_field: '',
+          operator: '==',
+          value: '',
+        }
+      };
+    }
+  });
+
+  fields.value = [...mandatoryOrdered, ...remaining];
+}
+
+function restoreMandatoryFields() {
+  ensureMandatoryIdentityFields();
+  fields.value.forEach((f, idx) => {
+    if (idx < 7) {
+      expandedMap.value[f.id] = true;
+    }
+  });
+  isDirty.value = true;
+  toast.success('7 Field Identitas Wajib Standar berhasil dipulihkan lengkap!');
 }
 
 // Initialize Data from Props
@@ -99,6 +361,9 @@ function initializeData() {
   } else {
     fields.value = [];
   }
+
+  // Enforce 7 mandatory identity fields
+  ensureMandatoryIdentityFields();
 
   // Ensure every field has conditional_logic and repeater properties initialized
   fields.value.forEach(f => {
@@ -187,69 +452,6 @@ async function switchCompetition(compId) {
   router.visit(`/admin/form-builder/${compId}`, { preserveScroll: true });
 }
 
-// Helpers
-function generateId() {
-  return 'cf_' + Math.random().toString(36).substr(2, 9);
-}
-
-function makeSlug(text) {
-  return (text || '')
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_-]+/g, '_')
-    .replace(/^-+|-+$/g, '');
-}
-
-// 1. Core Identity Field Presets
-const coreIdentityPresets = [
-  {
-    name: 'Asal Sekolah / Lembaga',
-    type: 'text',
-    default_name: 'school_name',
-    label: 'Nama Sekolah / Madrasah / Instansi Pengirim',
-    placeholder: 'Contoh: MTs Negeri 1 Jember',
-    help_text: 'Nama resmi instansi atau pangkalan delegasi',
-    required: true,
-    icon: 'ri-community-line',
-    desc: 'Wajib untuk sertifikat & administrasi sekolah'
-  },
-  {
-    name: 'Guru / Pembina Pendamping',
-    type: 'text',
-    default_name: 'mentor_name',
-    label: 'Nama Guru / Pembina Pendamping',
-    placeholder: 'Contoh: Ustadz Ahmad, S.Pd',
-    help_text: 'Nama pembina atau guru penanggung jawab delegasi',
-    required: false,
-    icon: 'ri-user-star-line',
-    desc: 'Untuk kontak koordinasi guru & presensi'
-  },
-  {
-    name: 'Nomor WhatsApp Kontak',
-    type: 'text',
-    default_name: 'mentor_wa',
-    label: 'Nomor WhatsApp Kontak Aktif',
-    placeholder: 'Contoh: 081234567890',
-    help_text: 'Nomor kontak aktif untuk informasi koordinasi teknis dan TM',
-    required: true,
-    icon: 'ri-whatsapp-line',
-    desc: 'Untuk undangan grup TM & notifikasi pendaftaran'
-  },
-  {
-    name: 'Daftar Peserta / Kontingen',
-    type: 'textarea',
-    default_name: 'participants_names',
-    label: 'Daftar Nama Siswa Peserta & Kelas',
-    placeholder: "1. Ahmad Fauzi (Kelas 9A)\n2. Siti Nurhaliza (Kelas 8B)",
-    help_text: 'Tuliskan nama lengkap peserta delegasi dan tingkat kelas',
-    required: true,
-    icon: 'ri-team-line',
-    desc: 'Format fleksibel teks roster umum'
-  },
-];
-
 // 2. Toolbox Component Types (Including Dynamic Participant Repeater with Logic)
 const fieldTypes = [
   { 
@@ -263,14 +465,123 @@ const fieldTypes = [
   },
   { type: 'text', label: 'Teks Singkat', icon: 'ri-input-field', desc: 'Nama, NISN, ID, Judul', defaultOptions: [], badge: 'Umum' },
   { type: 'number', label: 'Angka / Nominal', icon: 'ri-hashtag', desc: 'Jumlah peserta, usia, skor, no. urut', defaultOptions: [], badge: 'Numerik' },
+  { 
+    type: 'number', 
+    label: 'Nomor WhatsApp', 
+    icon: 'ri-whatsapp-line', 
+    desc: 'Nomor WhatsApp kontak (mode angka numerik)', 
+    defaultOptions: [], 
+    defaultName: 'mentor_wa',
+    defaultLabel: 'Nomor WhatsApp Kontak Aktif',
+    defaultPlaceholder: 'Contoh: 081234567890',
+    defaultHelpText: 'Nomor WhatsApp aktif untuk koordinasi teknis (hanya angka)',
+    defaultRequired: true,
+    badge: 'Kontak' 
+  },
+  { 
+    type: 'email', 
+    label: 'Alamat Email', 
+    icon: 'ri-mail-line', 
+    desc: 'Alamat email aktif (validasi format @)', 
+    defaultOptions: [], 
+    defaultName: 'contact_email',
+    defaultLabel: 'Alamat Email Aktif',
+    defaultPlaceholder: 'nama@sekolah.sch.id',
+    defaultHelpText: 'Email untuk bukti pendaftaran atau pengiriman berkas',
+    defaultRequired: false,
+    badge: 'Kontak' 
+  },
   { type: 'textarea', label: 'Paragraf / Roster', icon: 'ri-text', desc: 'Deskripsi, daftar anggota, biodata', defaultOptions: [], badge: 'Teks Panjang' },
   { type: 'select', label: 'Pilihan Dropdown', icon: 'ri-arrow-down-s-line', desc: 'Pilih 1 dari daftar opsi', defaultOptions: ['Pilihan 1', 'Pilihan 2', 'Pilihan 3'], badge: 'Pilihan' },
+  { 
+    type: 'select', 
+    label: 'Kecamatan Sekolah / Madrasah', 
+    icon: 'ri-map-pin-2-line', 
+    desc: 'Dropdown 31 kecamatan se-Kabupaten Jember & Luar Jember', 
+    defaultOptions: [...JEMBER_KECAMATAN_LIST],
+    defaultName: 'school_district',
+    defaultLabel: 'Kecamatan Asal Sekolah / Madrasah',
+    defaultHelpText: 'Pilih wilayah kecamatan tempat sekolah / madrasah berada',
+    defaultPlaceholder: 'Pilih Kecamatan...',
+    defaultRequired: true,
+    badge: 'Wilayah'
+  },
   { type: 'radio', label: 'Pilihan Tunggal (Radio)', icon: 'ri-radio-button-line', desc: 'Pilihan eksklusif radio button', defaultOptions: ['Pilihan A', 'Pilihan B'], badge: 'Pilihan' },
   { type: 'checkbox', label: 'Pilihan Ganda (Checkbox)', icon: 'ri-checkbox-line', desc: 'Centang satu atau beberapa opsi', defaultOptions: ['Item 1', 'Item 2', 'Item 3'], badge: 'Pilihan' },
   { type: 'file', label: 'Upload Berkas / File', icon: 'ri-upload-cloud-2-line', desc: 'Unggah PDF, JPG, PNG, dll.', defaultOptions: [], badge: 'Media' },
   { type: 'url', label: 'Tautan / Link URL', icon: 'ri-link', desc: 'Link Google Drive, YouTube, dll.', defaultOptions: [], badge: 'Tautan' },
   { type: 'date', label: 'Tanggal', icon: 'ri-calendar-line', desc: 'Tanggal lahir, tanggal terbit', defaultOptions: [], badge: 'Waktu' },
 ];
+
+// Dropdown Options for CustomSelect UI
+const competitionOptions = computed(() => {
+  return (props.competitions || []).map(c => ({
+    value: c.id,
+    label: `${c.icon ? c.icon + ' ' : ''}${c.title}`,
+    desc: `${c.custom_fields?.length || 0} Pertanyaan • ${c.category_label || c.category || 'Cabang Lomba'}`,
+    badge: c.category_label || c.category,
+    icon: 'ri-trophy-line',
+  }));
+});
+
+const fieldTypeOptions = computed(() => {
+  const seen = new Set();
+  const list = [];
+  for (const ft of fieldTypes) {
+    if (!seen.has(ft.type)) {
+      seen.add(ft.type);
+      list.push({
+        value: ft.type,
+        label: ft.type === 'select' ? 'Pilihan Dropdown' : (ft.type === 'number' ? 'Angka / Nominal (Mode Nomor)' : ft.label),
+        desc: ft.desc,
+        icon: ft.icon,
+        badge: ft.badge,
+        badgeClass: ft.isRepeater ? 'bg-warning text-dark' : 'bg-primary-subtle text-primary'
+      });
+    }
+  }
+  return list;
+});
+
+const columnTypeOptions = [
+  { value: 'text', label: 'Teks Singkat', icon: 'ri-input-field' },
+  { value: 'number', label: 'Angka', icon: 'ri-hashtag' },
+  { value: 'email', label: 'Email', icon: 'ri-mail-line' },
+  { value: 'date', label: 'Tanggal (dd/mm/yyyy)', icon: 'ri-calendar-line' },
+  { value: 'select', label: 'Dropdown Pilihan', icon: 'ri-arrow-down-s-line' },
+];
+
+const conditionOperatorOptions = [
+  { value: '==', label: 'Sama dengan (==)', icon: 'ri-equal-line' },
+  { value: '!=', label: 'Tidak sama dengan (!=)', icon: 'ri-not-equal-line' },
+  { value: '>=', label: 'Lebih besar / sama (>=)', icon: 'ri-arrow-right-s-line' },
+  { value: '<=', label: 'Lebih kecil / sama (<=)', icon: 'ri-arrow-left-s-line' },
+  { value: '>', label: 'Lebih besar dari (>)', icon: 'ri-arrow-right-line' },
+  { value: '<', label: 'Lebih kecil dari (<)', icon: 'ri-arrow-left-line' },
+  { value: 'contains', label: 'Mengandung kata', icon: 'ri-text' },
+];
+
+function getConditionalTargetOptions(currentFieldId) {
+  return (fields.value || [])
+    .filter(f => f.id !== currentFieldId)
+    .map(other => ({
+      value: other.name,
+      label: `${other.label || 'Field'} (${other.name})`,
+      icon: 'ri-questionnaire-line'
+    }));
+}
+
+const copySourceCompetitionOptions = computed(() => {
+  return (props.competitions || [])
+    .filter(c => String(c.id) !== String(currentCompId.value))
+    .map(c => ({
+      value: c.id,
+      label: `${c.icon ? c.icon + ' ' : ''}${c.title}`,
+      desc: `${c.custom_fields?.length || 0} Pertanyaan`,
+      badge: c.category_label || c.category,
+      icon: 'ri-trophy-line'
+    }));
+});
 
 // 3. Quick Preset Library (Preset Berbagai Cabang Lomba: Tim, Turnamen, Beregu, Musik/Banjari)
 const quickPresets = [
@@ -441,6 +752,34 @@ const quickPresets = [
     max_size_mb: 5,
     category: 'Verifikasi',
   },
+  {
+    name: 'Kecamatan Asal Sekolah / Madrasah (Jember)',
+    type: 'select',
+    label: 'Kecamatan Asal Sekolah / Madrasah',
+    placeholder: 'Pilih Kecamatan...',
+    help_text: 'Wilayah kecamatan tempat sekolah/madrasah berada di Kabupaten Jember',
+    required: true,
+    options: [...JEMBER_KECAMATAN_LIST],
+    category: 'Identitas Sekolah',
+  },
+  {
+    name: 'Nomor WhatsApp Kontak (Mode Angka)',
+    type: 'number',
+    label: 'Nomor WhatsApp Kontak Aktif',
+    placeholder: 'Contoh: 081234567890',
+    help_text: 'Nomor WhatsApp aktif untuk koordinasi teknis dan TM (hanya angka)',
+    required: true,
+    category: 'Kontak',
+  },
+  {
+    name: 'Alamat Email Resmi Sekolah / Pembina',
+    type: 'email',
+    label: 'Alamat Email Resmi Sekolah / Pembina',
+    placeholder: 'nama@sekolah.sch.id',
+    help_text: 'Email aktif untuk pengiriman surat tanda terima dan juknis lomba',
+    required: false,
+    category: 'Kontak',
+  },
 ];
 
 // Filtered Toolbox Items based on Search
@@ -472,17 +811,17 @@ const displayedFields = computed(() => {
 // Add Field from Toolbox
 function addField(typeObj) {
   const id = generateId();
-  const label = typeObj.type === 'participant_repeater' ? 'Biodata Siswa Delegasi' : `Pertanyaan Baru (${typeObj.label})`;
-  const name = makeSlug(label);
+  const label = typeObj.defaultLabel || (typeObj.type === 'participant_repeater' ? 'Biodata Siswa Delegasi' : `Pertanyaan Baru (${typeObj.label})`);
+  const name = typeObj.defaultName || makeSlug(label);
 
   const newField = {
     id: id,
     name: name,
     label: label,
     type: typeObj.type,
-    placeholder: '',
-    help_text: typeObj.type === 'participant_repeater' ? 'Jumlah biodata siswa yang tampil otomatis menyesuaikan angka yang dipilih pendaftar.' : '',
-    required: typeObj.type === 'participant_repeater',
+    placeholder: typeObj.defaultPlaceholder || '',
+    help_text: typeObj.defaultHelpText || (typeObj.type === 'participant_repeater' ? 'Jumlah biodata siswa yang tampil otomatis menyesuaikan angka yang dipilih pendaftar.' : ''),
+    required: typeObj.defaultRequired !== undefined ? typeObj.defaultRequired : (typeObj.type === 'participant_repeater'),
     options: typeObj.defaultOptions ? [...typeObj.defaultOptions] : [],
     allowed_extensions: typeObj.type === 'file' ? ['pdf', 'jpg', 'jpeg', 'png'] : [],
     max_size_mb: typeObj.type === 'file' ? 5 : null,
@@ -515,10 +854,11 @@ function addCorePreset(preset) {
     type: preset.type,
     placeholder: preset.placeholder || '',
     help_text: preset.help_text || '',
-    required: !!preset.required,
-    options: [],
+    required: preset.required !== undefined ? preset.required : true,
+    options: preset.options ? [...preset.options] : [],
     allowed_extensions: [],
     max_size_mb: null,
+    is_mandatory_identity: !!preset.is_mandatory_identity,
     conditional_logic: {
       enabled: false,
       depend_on_field: '',
@@ -569,6 +909,23 @@ function addQuickPreset(preset) {
 // Field Operations
 async function removeField(index) {
   const f = fields.value[index];
+  if (isMandatoryIdentity(f)) {
+    const ok = await confirmDialog({
+      title: 'Hapus Field Identitas Standar?',
+      message: `Pertanyaan "${f.label}" merupakan salah satu dari 7 field identitas standar (Nama Sekolah, Kecamatan, NPSN, Alamat, Pendamping, WA, Email). Anda yakin ingin menghapusnya? (Dapat dipulihkan kapan saja via tombol 'Pulihkan 7 Field Standar').`,
+      type: 'warning',
+      confirmText: 'Tetap Hapus',
+      cancelText: 'Batal',
+      icon: 'ri-alert-line',
+    });
+    if (ok) {
+      fields.value.splice(index, 1);
+      delete expandedMap.value[f.id];
+      toast.info(`Field "${f.label}" dihapus. (Dapat dipulihkan via tombol 'Pulihkan 7 Field Standar')`);
+    }
+    return;
+  }
+
   const ok = await confirmDialog({
     title: 'Hapus Pertanyaan?',
     message: `Apakah Anda yakin ingin menghapus "${f.label}"? Pertanyaan ini tidak akan muncul lagi di formulir pendaftaran.`,
@@ -660,6 +1017,8 @@ function applyOptionPreset(field, type) {
     field.options = ['Laki-laki', 'Perempuan'];
   } else if (type === 'classes') {
     field.options = ['Kelas 7 SMP/MTs', 'Kelas 8 SMP/MTs', 'Kelas 9 SMP/MTs'];
+  } else if (type === 'kecamatan_jember') {
+    field.options = [...JEMBER_KECAMATAN_LIST];
   }
   toast.info('Preset opsi diterapkan.');
 }
@@ -765,6 +1124,14 @@ function onDrop(targetIndex, event) {
 function saveFormFields() {
   if (!currentCompId.value) return;
 
+  // Pastikan 7 Field Identitas Wajib Standar selalu lengkap sebelum disimpan
+  const existingNames = fields.value.map(f => f.name);
+  const missing = MANDATORY_IDENTITY_CONFIG.filter(m => !existingNames.includes(m.name) && !m.aliases.some(a => existingNames.includes(a)));
+  if (missing.length > 0) {
+    ensureMandatoryIdentityFields();
+    toast.info('7 Field Identitas Standar otomatis dilengkapi sebelum penyimpanan.');
+  }
+
   // Validation
   for (let i = 0; i < fields.value.length; i++) {
     const f = fields.value[i];
@@ -803,16 +1170,259 @@ function saveFormFields() {
   });
 }
 
-// Modals
+// Modals & Presets
 const showPresetModal = ref(false);
 const showCopyModal = ref(false);
 const showSettingsModal = ref(false);
+const showEditPresetModal = ref(false);
+const isSavingPreset = ref(false);
 const sourceCompIdToCopy = ref('');
+const showOptionsMenu = ref(false);
+const optionsDropdownRef = ref(null);
+
+const presetList = computed(() => {
+  const p = props.presets || {};
+  return Object.values(p);
+});
+
+const editPresetForm = ref({
+  key: '',
+  title: '',
+  category: 'Kustom',
+  description: '',
+  icon: 'ri-magic-line',
+  badge: 'Kustom',
+  badge_class: 'bg-primary-subtle text-primary',
+  fields: [],
+  is_custom: true,
+});
+
+const expandedPresetFields = ref({});
+
+function togglePresetFieldExpand(id) {
+  expandedPresetFields.value[id] = !expandedPresetFields.value[id];
+}
+
+function ensurePresetFieldDefaults(pf) {
+  if (pf.type === 'participant_repeater') {
+    if (!pf.min_items) pf.min_items = 1;
+    if (pf.max_items === undefined || pf.max_items === null) pf.max_items = 10;
+    const defs = createDefaultSubFields();
+    if (!pf.sub_fields || typeof pf.sub_fields !== 'object') {
+      pf.sub_fields = defs;
+    } else {
+      for (const k in defs) {
+        if (!pf.sub_fields[k]) {
+          pf.sub_fields[k] = { ...defs[k] };
+        }
+      }
+      if (!Array.isArray(pf.sub_fields.custom_columns)) {
+        pf.sub_fields.custom_columns = [];
+      }
+    }
+  }
+}
+
+function onPresetFieldTypeChange(pf) {
+  if (pf.type === 'participant_repeater') {
+    ensurePresetFieldDefaults(pf);
+    if (!pf.label || pf.label === 'Pertanyaan Baru') {
+      pf.label = 'Biodata Siswa Delegasi (Tim / Roster)';
+    }
+    expandedPresetFields.value[pf.id] = true;
+  }
+}
+
+function addCustomSubFieldToPreset(pf) {
+  ensurePresetFieldDefaults(pf);
+  pf.sub_fields.custom_columns.push({
+    id: 'col_' + Date.now(),
+    label: '',
+    type: 'text',
+    required: false,
+  });
+}
+
+function removeCustomSubFieldFromPreset(pf, idx) {
+  if (Array.isArray(pf.sub_fields?.custom_columns)) {
+    pf.sub_fields.custom_columns.splice(idx, 1);
+  }
+}
+
+function openEditPresetModal(preset) {
+  editPresetForm.value = {
+    key: preset.key || '',
+    title: preset.title || '',
+    category: preset.category || 'Kustom',
+    description: preset.description || '',
+    icon: preset.icon || 'ri-magic-line',
+    badge: preset.badge || 'Kustom',
+    badge_class: preset.badge_class || 'bg-primary-subtle text-primary',
+    fields: JSON.parse(JSON.stringify(preset.fields || [])),
+    is_custom: !!preset.is_custom,
+  };
+  editPresetForm.value.fields.forEach(pf => {
+    ensurePresetFieldDefaults(pf);
+    if (pf.type === 'participant_repeater') {
+      expandedPresetFields.value[pf.id] = true;
+    }
+  });
+  showEditPresetModal.value = true;
+}
+
+function openSaveCurrentAsPresetModal() {
+  const comp = props.selectedCompetition;
+  const compTitle = comp?.title || 'Kustom';
+  editPresetForm.value = {
+    key: '',
+    title: `Preset Formulir: ${compTitle}`,
+    category: comp?.category_label || 'Kustom',
+    description: `Template formulir preset yang disesuaikan untuk ${compTitle}`,
+    icon: 'ri-magic-line',
+    badge: 'Kustom Baru',
+    badge_class: 'bg-success-subtle text-success',
+    fields: JSON.parse(JSON.stringify(fields.value)),
+    is_custom: true,
+  };
+  editPresetForm.value.fields.forEach(pf => {
+    ensurePresetFieldDefaults(pf);
+    if (pf.type === 'participant_repeater') {
+      expandedPresetFields.value[pf.id] = true;
+    }
+  });
+  showEditPresetModal.value = true;
+}
+
+function addPresetField(type = 'text') {
+  const isRepeater = type === 'participant_repeater';
+  const newId = 'cf_' + Math.random().toString(36).substr(2, 9);
+  const newPf = {
+    id: newId,
+    name: 'field_' + (editPresetForm.value.fields.length + 1),
+    label: isRepeater ? 'Biodata Siswa Delegasi (Tim / Roster)' : 'Pertanyaan Baru',
+    type: type,
+    placeholder: '',
+    help_text: isRepeater ? 'Jumlah biodata otomatis menyesuaikan dengan angka yang dipilih pendaftar.' : '',
+    required: isRepeater,
+    options: [],
+    allowed_extensions: [],
+    max_size_mb: 5,
+    min_items: isRepeater ? 1 : null,
+    max_items: isRepeater ? 10 : null,
+    main_members: null,
+    reserve_members: null,
+    sub_fields: isRepeater ? createDefaultSubFields() : null,
+  };
+  editPresetForm.value.fields.push(newPf);
+  if (isRepeater) {
+    expandedPresetFields.value[newId] = true;
+  }
+}
+
+function removePresetField(idx) {
+  editPresetForm.value.fields.splice(idx, 1);
+}
+
+function savePresetTemplate() {
+  if (!editPresetForm.value.title || !editPresetForm.value.title.trim()) {
+    toast.error('Nama/Judul Template Preset wajib diisi!');
+    return;
+  }
+  editPresetForm.value.fields.forEach(pf => {
+    if (pf.type === 'participant_repeater') {
+      ensurePresetFieldDefaults(pf);
+    }
+  });
+  isSavingPreset.value = true;
+  router.post('/admin/form-builder/presets/save', editPresetForm.value, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSavingPreset.value = false;
+      showEditPresetModal.value = false;
+      toast.success(`Template preset "${editPresetForm.value.title}" berhasil disimpan & dapat digunakan!`);
+    },
+    onError: () => {
+      isSavingPreset.value = false;
+      toast.error('Gagal menyimpan template preset.');
+    }
+  });
+}
+
+async function deleteCustomPreset(presetKey) {
+  const ok = await confirmDialog({
+    title: 'Hapus Preset Kustom?',
+    message: `Apakah Anda yakin ingin menghapus template preset ini? Tindakan ini tidak dapat dibatalkan.`,
+    type: 'danger',
+    confirmText: 'Ya, Hapus Preset',
+    icon: 'ri-delete-bin-line',
+  });
+  if (ok) {
+    router.post('/admin/form-builder/presets/delete', { key: presetKey }, {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast.info('Template preset telah dihapus.');
+      }
+    });
+  }
+}
+
+async function resetAllPresetsToDefault() {
+  const ok = await confirmDialog({
+    title: 'Kembalikan Preset ke Standar Bawaan?',
+    message: 'Apakah Anda yakin ingin me-reset semua template preset ke susunan awal sistem?',
+    type: 'warning',
+    confirmText: 'Ya, Kembalikan Standar',
+    icon: 'ri-refresh-line',
+  });
+  if (ok) {
+    router.post('/admin/form-builder/presets/reset-default', {}, {
+      preserveScroll: true,
+      onSuccess: () => {
+        toast.success('Semua template preset telah di-reset ke standar bawaan sistem.');
+      }
+    });
+  }
+}
+
+function syncWithCompetitionRules(field) {
+  const comp = props.selectedCompetition;
+  if (!comp) return;
+
+  const isTeam = comp.participant_type === 'tim';
+  const rule = comp.participants_rule || '';
+  let max = comp.max_participants ? Number(comp.max_participants) : (isTeam ? 10 : 1);
+  let min = isTeam ? Math.min(max, 3) : 1;
+  let main = max;
+  let reserve = 0;
+
+  if (rule) {
+    const matchInti = rule.match(/(\d+)\s*(?:pemain|orang)?\s*inti/i);
+    const matchCadangan = rule.match(/(\d+)\s*cadangan/i);
+    if (matchInti) {
+      main = parseInt(matchInti[1], 10);
+      min = main;
+      if (matchCadangan) {
+        reserve = parseInt(matchCadangan[1], 10);
+      }
+      max = main + reserve;
+    }
+  }
+
+  field.min_items = min;
+  field.max_items = max;
+  field.main_members = main;
+  field.reserve_members = reserve;
+
+  isDirty.value = true;
+  toast.success(`Berhasil disinkronkan dengan ${comp.title}: Maks. ${max} siswa (${main} Inti${reserve ? ' + ' + reserve + ' Cadangan' : ''}).`);
+}
 
 async function applyPreset(presetKey) {
+  const presetObj = props.presets?.[presetKey];
+  const presetTitle = presetObj?.title || presetKey;
   const ok = await confirmDialog({
     title: 'Terapkan Template Preset?',
-    message: `Terapkan template "${presetKey}"? Susunan pertanyaan saat ini akan digantikan dengan template siap pakai terpilih.`,
+    message: `Terapkan template "${presetTitle}"? Susunan pertanyaan saat ini akan digantikan dengan template siap pakai terpilih.`,
     type: 'warning',
     confirmText: 'Ya, Terapkan',
     cancelText: 'Batal',
@@ -825,7 +1435,7 @@ async function applyPreset(presetKey) {
       preserveScroll: true,
       onSuccess: () => {
         showPresetModal.value = false;
-        toast.success(`Template preset "${presetKey}" berhasil diterapkan!`);
+        toast.success(`Template preset "${presetTitle}" berhasil diterapkan!`);
       }
     });
   }
@@ -871,16 +1481,23 @@ function handleKeyDown(e) {
   }
 }
 
+function handleClickOutside(e) {
+  if (optionsDropdownRef.value && !optionsDropdownRef.value.contains(e.target)) {
+    showOptionsMenu.value = false;
+  }
+}
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('click', handleClickOutside);
 });
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
+  document.removeEventListener('click', handleClickOutside);
 });
 
-// Interactive Live Preview Simulation State
-const previewValues = ref({});
+// Interactive Live Preview Simulation Helpers
 
 function changeParticipantCount(field, delta) {
   const min = Number(field.min_items) || 1;
@@ -909,12 +1526,12 @@ function setParticipantCountDirect(field, val) {
       <!-- TOP COMMAND BAR: SWITCHER, STATUS, VIEW MODES, SAVE            -->
       <!-- ============================================================== -->
       <div class="card border-0 shadow-sm mb-3 top-command-bar">
-        <div class="card-body p-3">
-          <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="card-body p-2 px-3">
+          <div class="d-flex align-items-center justify-content-between gap-2 flex-nowrap top-bar-nav-row">
             
             <!-- Left: Competition Selector & Navigation -->
-            <div class="d-flex align-items-center gap-2 flex-grow-1 flex-md-grow-0">
-              <div class="d-flex align-items-center gap-1">
+            <div class="d-flex align-items-center gap-1.5 flex-shrink-1 min-w-0">
+              <div class="d-flex align-items-center gap-1 flex-shrink-0">
                 <button 
                   type="button" 
                   class="btn btn-sm btn-icon btn-outline-secondary" 
@@ -936,97 +1553,125 @@ function setParticipantCountDirect(field, val) {
               </div>
 
               <!-- Sleek Competition Selector Dropdown -->
-              <div class="dropdown flex-grow-1">
-                <div class="input-group input-group-sm">
-                  <span class="input-group-text bg-warning-subtle text-warning border-0 px-2.5">
-                    <i class="ri-trophy-line fs-14"></i>
-                  </span>
-                  <select 
-                    class="form-select form-select-sm fw-bold border-0 bg-light-subtle comp-select shadow-none"
-                    :value="currentCompId"
-                    @change="switchCompetition($event.target.value)"
-                  >
-                    <option v-for="c in competitions" :key="c.id" :value="c.id">
-                      {{ c.icon }} {{ c.title }} ({{ c.custom_fields?.length || 0 }} Pertanyaan) — {{ c.category_label || c.category }}
-                    </option>
-                  </select>
-                </div>
+              <div class="comp-selector-box flex-shrink-1 min-w-0">
+                <CustomSelect
+                  :model-value="currentCompId"
+                  :options="competitionOptions"
+                  @change="switchCompetition"
+                  size="sm"
+                  prefix-icon="ri-trophy-line text-warning"
+                  searchable
+                  search-placeholder="Cari cabang lomba..."
+                  placeholder="Pilih Cabang Lomba..."
+                  custom-class="fw-bold comp-select shadow-none"
+                />
               </div>
 
               <!-- Unsaved Status Indicator -->
-              <div v-if="isDirty" class="d-flex align-items-center gap-1.5 px-2 py-1 rounded-pill bg-warning-subtle text-warning-emphasis fs-11 fw-semibold text-nowrap">
+              <div v-if="isDirty" class="d-flex align-items-center gap-1.5 px-2 py-1 rounded-pill bg-warning-subtle text-warning-emphasis fs-11 fw-semibold text-nowrap flex-shrink-0">
                 <span class="pulse-dot bg-warning"></span>
-                <span>Belum Disimpan</span>
+                <span class="d-none d-xl-inline">Belum Disimpan</span>
+                <span class="d-inline d-xl-none">Belum Simpan</span>
               </div>
-              <div v-else class="d-flex align-items-center gap-1 px-2 py-1 rounded-pill bg-success-subtle text-success fs-11 fw-semibold text-nowrap">
+              <div v-else class="d-flex align-items-center gap-1 px-2 py-1 rounded-pill bg-success-subtle text-success fs-11 fw-semibold text-nowrap flex-shrink-0">
                 <i class="ri-check-line"></i>
                 <span>Tersimpan</span>
               </div>
             </div>
 
             <!-- Center: View Mode Switcher (Editor / Split / Preview) -->
-            <div class="d-flex align-items-center justify-content-center">
+            <div class="d-flex align-items-center justify-content-center flex-shrink-0 mx-1">
               <div class="view-mode-pill p-1 rounded-pill bg-light d-flex gap-1 border">
                 <button 
                   type="button" 
-                  class="btn btn-xs rounded-pill px-2.5 py-1 fw-bold transition-all"
+                  class="btn btn-xs rounded-pill px-2.5 py-1 fw-bold transition-all text-nowrap"
                   :class="viewMode === 'builder' ? 'btn-primary shadow-sm text-white' : 'btn-ghost-secondary text-muted'"
                   @click="viewMode = 'builder'"
                 >
-                  <i class="ri-layout-masonry-line me-1"></i> Editor Penuh
+                  <i class="ri-layout-masonry-line me-1"></i>
+                  <span class="d-none d-xxl-inline">Editor Penuh</span>
+                  <span class="d-inline d-xxl-none">Editor</span>
                 </button>
                 <button 
                   type="button" 
-                  class="btn btn-xs rounded-pill px-2.5 py-1 fw-bold transition-all"
+                  class="btn btn-xs rounded-pill px-2.5 py-1 fw-bold transition-all text-nowrap"
                   :class="viewMode === 'split' ? 'btn-primary shadow-sm text-white' : 'btn-ghost-secondary text-muted'"
                   @click="viewMode = 'split'"
                   title="Editor dan Live Pratinjau berdampingan secara real-time"
                 >
-                  <i class="ri-side-bar-line me-1"></i> Berdampingan (Split)
+                  <i class="ri-side-bar-line me-1"></i>
+                  <span class="d-none d-xxl-inline">Berdampingan (Split)</span>
+                  <span class="d-none d-xl-inline d-xxl-none">Split View</span>
+                  <span class="d-inline d-xl-none">Split</span>
                 </button>
                 <button 
                   type="button" 
-                  class="btn btn-xs rounded-pill px-2.5 py-1 fw-bold transition-all"
+                  class="btn btn-xs rounded-pill px-2.5 py-1 fw-bold transition-all text-nowrap"
                   :class="viewMode === 'preview' ? 'btn-info shadow-sm text-white' : 'btn-ghost-secondary text-muted'"
                   @click="viewMode = 'preview'"
                   title="Simulasi formulir publik penuh layar"
                 >
-                  <i class="ri-eye-line me-1"></i> Pratinjau Penuh
+                  <i class="ri-eye-line me-1"></i>
+                  <span class="d-none d-xxl-inline">Pratinjau Penuh</span>
+                  <span class="d-inline d-xxl-none">Pratinjau</span>
                 </button>
               </div>
             </div>
 
             <!-- Right: Quick Tools & Save Button -->
-            <div class="d-flex align-items-center gap-2">
-              <div class="btn-group">
+            <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+              <!-- Dedicated Button for Preset & Template Form -->
+              <button 
+                type="button" 
+                class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1 fw-bold px-2.5 shadow-sm text-nowrap"
+                @click="showPresetModal = true"
+                title="Kelola & Kustomisasi Template / Preset Formulir"
+              >
+                <i class="ri-magic-line text-warning"></i>
+                <span class="d-none d-xxl-inline">Template &amp; Preset</span>
+                <span class="d-inline d-xxl-none">Preset</span>
+              </button>
+
+              <div class="btn-group position-relative flex-shrink-0" ref="optionsDropdownRef">
                 <button 
                   type="button" 
-                  class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1.5"
-                  data-bs-toggle="dropdown" 
-                  aria-expanded="false"
+                  class="btn btn-sm btn-outline-primary dropdown-toggle d-inline-flex align-items-center gap-1 fw-bold px-2.5 shadow-sm text-nowrap"
+                  :class="{ active: showOptionsMenu }"
+                  @click="showOptionsMenu = !showOptionsMenu"
+                  :aria-expanded="showOptionsMenu"
                 >
                   <i class="ri-more-2-fill"></i>
-                  <span class="d-none d-sm-inline">Opsi Formulir</span>
+                  <span class="d-none d-xxl-inline">Opsi Formulir</span>
+                  <span class="d-inline d-xxl-none">Opsi</span>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-1 fs-12">
+                <ul 
+                  v-show="showOptionsMenu"
+                  class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-1 fs-12 show animate__animated animate__fadeIn animate__faster"
+                  style="position: absolute; right: 0; top: 100%; margin-top: 4px; z-index: 1050; min-width: 220px;"
+                >
                   <li>
-                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 cursor-pointer" @click="showSettingsModal = true">
-                      <i class="ri-settings-3-line text-primary"></i> Pengaturan Judul & Paket
+                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 cursor-pointer" @click="showOptionsMenu = false; showSettingsModal = true">
+                      <i class="ri-settings-3-line text-primary"></i> Pengaturan Judul &amp; Paket
                     </a>
                   </li>
                   <li>
-                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 cursor-pointer" @click="showPresetModal = true">
+                    <Link href="/admin/pengaturan/kebijakan-pendaftaran" class="dropdown-item py-2 d-flex align-items-center gap-2 cursor-pointer">
+                      <i class="ri-user-settings-line text-warning"></i> Kebijakan Akses &amp; Login Pendaftar
+                    </Link>
+                  </li>
+                  <li>
+                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 cursor-pointer" @click="showOptionsMenu = false; showPresetModal = true">
                       <i class="ri-magic-line text-warning"></i> Terapkan Template Siap Pakai
                     </a>
                   </li>
                   <li>
-                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 cursor-pointer" @click="showCopyModal = true">
+                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 cursor-pointer" @click="showOptionsMenu = false; showCopyModal = true">
                       <i class="ri-file-copy-line text-info"></i> Salin dari Cabang Lomba Lain
                     </a>
                   </li>
                   <li><hr class="dropdown-divider my-1"></li>
                   <li>
-                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 text-danger cursor-pointer" @click="resetForm">
+                    <a class="dropdown-item py-2 d-flex align-items-center gap-2 text-danger cursor-pointer" @click="showOptionsMenu = false; resetForm()">
                       <i class="ri-refresh-line"></i> Kosongkan Seluruh Field
                     </a>
                   </li>
@@ -1035,14 +1680,14 @@ function setParticipantCountDirect(field, val) {
 
               <button 
                 type="button" 
-                class="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 fw-bold px-3 shadow-sm save-btn"
+                class="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 fw-bold px-2.5 px-md-3 shadow-sm save-btn text-nowrap"
                 :disabled="isSaving"
                 @click="saveFormFields"
                 title="Simpan formulir (Ctrl + S)"
               >
                 <i v-if="!isSaving" class="ri-save-line fs-14"></i>
                 <span v-if="isSaving" class="spinner-border spinner-border-sm"></span>
-                <span>{{ isSaving ? 'Menyimpan...' : 'Simpan Formulir' }}</span>
+                <span>Simpan<span class="d-none d-xxl-inline"> Formulir</span></span>
                 <span class="badge bg-dark-subtle text-white font-mono fs-10 px-1 py-0.5 rounded ms-1 opacity-75 d-none d-md-inline">^S</span>
               </button>
             </div>
@@ -1061,29 +1706,29 @@ function setParticipantCountDirect(field, val) {
           <div class="card border-0 shadow-sm sticky-toolbox">
             
             <!-- Toolbox Header with Search -->
-            <div class="card-header bg-transparent border-bottom p-3">
-              <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="card-header bg-transparent border-bottom p-3 d-flex flex-column gap-2.5">
+              <div class="d-flex align-items-center justify-content-between">
                 <h6 class="fs-13 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
                   <i class="ri-tools-line text-primary fs-15"></i>
                   <span>Tambah Komponen</span>
                 </h6>
-                <span class="badge bg-primary-subtle text-primary fs-10">Klik untuk Tambah</span>
+                <span class="badge bg-primary-subtle text-primary fs-10 px-2 py-0.5 rounded-pill">Klik untuk Tambah</span>
               </div>
 
               <!-- Quick Search Input -->
-              <div class="input-group input-group-sm">
-                <span class="input-group-text bg-light border-end-0 text-muted ps-2.5">
+              <div class="input-group input-group-sm toolbox-search-group">
+                <span class="input-group-text ps-2.5">
                   <i class="ri-search-line fs-12"></i>
                 </span>
                 <input 
                   type="text" 
                   v-model="toolboxSearch"
-                  class="form-control form-control-sm border-start-0 bg-light fs-12"
+                  class="form-control form-control-sm fs-12"
                   placeholder="Cari tipe input atau preset..."
                 />
                 <button 
                   v-if="toolboxSearch" 
-                  class="btn btn-sm btn-light border" 
+                  class="btn btn-sm btn-clear-search" 
                   @click="toolboxSearch = ''"
                   type="button"
                 >
@@ -1092,10 +1737,10 @@ function setParticipantCountDirect(field, val) {
               </div>
 
               <!-- Segmented Tabs for Toolbox -->
-              <div class="d-flex gap-1 mt-2.5 pt-1">
+              <div class="d-flex gap-1 pt-0.5">
                 <button 
                   type="button" 
-                  class="btn btn-xs flex-fill rounded-2 fw-semibold py-1.5 transition-all"
+                  class="btn btn-xs flex-fill rounded-2 fw-semibold py-1.5 transition-all text-nowrap"
                   :class="toolboxTab === 'types' ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary'"
                   @click="toolboxTab = 'types'"
                 >
@@ -1103,7 +1748,7 @@ function setParticipantCountDirect(field, val) {
                 </button>
                 <button 
                   type="button" 
-                  class="btn btn-xs flex-fill rounded-2 fw-semibold py-1.5 transition-all"
+                  class="btn btn-xs flex-fill rounded-2 fw-semibold py-1.5 transition-all text-nowrap"
                   :class="toolboxTab === 'presets' ? 'btn-warning text-dark shadow-sm' : 'btn-outline-secondary'"
                   @click="toolboxTab = 'presets'"
                 >
@@ -1111,7 +1756,7 @@ function setParticipantCountDirect(field, val) {
                 </button>
                 <button 
                   type="button" 
-                  class="btn btn-xs flex-fill rounded-2 fw-semibold py-1.5 transition-all"
+                  class="btn btn-xs flex-fill rounded-2 fw-semibold py-1.5 transition-all text-nowrap"
                   :class="toolboxTab === 'identity' ? 'btn-info text-white shadow-sm' : 'btn-outline-secondary'"
                   @click="toolboxTab = 'identity'"
                 >
@@ -1130,24 +1775,25 @@ function setParticipantCountDirect(field, val) {
                 </div>
                 <button 
                   v-for="ft in filteredFieldTypes" 
-                  :key="ft.type"
+                  :key="ft.label || ft.type"
                   type="button" 
                   class="btn btn-sm btn-outline-light text-start p-2 rounded-2 border d-flex align-items-center justify-content-between transition-all hover-tool-card"
-                  :class="{ 'border-warning-subtle bg-warning-subtle/10': ft.isRepeater }"
+                  :class="{ 'border-warning-subtle bg-warning-subtle/10': ft.isRepeater, 'border-info-subtle bg-info-subtle/10': ft.badge === 'Wilayah' }"
                   @click="addField(ft)"
                   :title="`Klik untuk menambahkan pertanyaan bertipe ${ft.label}`"
                 >
                   <div class="d-flex align-items-center gap-2 text-truncate">
                     <div 
                       class="tool-icon-box rounded-2 flex-shrink-0 d-flex align-items-center justify-content-center"
-                      :class="ft.isRepeater ? 'bg-warning-subtle text-warning' : ''"
+                      :class="ft.isRepeater ? 'bg-warning-subtle text-warning' : (ft.badge === 'Wilayah' ? 'bg-info-subtle text-info' : 'bg-primary-subtle text-primary')"
                     >
-                      <i :class="[ft.icon, ft.isRepeater ? 'text-warning' : 'text-primary']" class="fs-15"></i>
+                      <i :class="[ft.icon, ft.isRepeater ? 'text-warning' : (ft.badge === 'Wilayah' ? 'text-info' : 'text-primary')]" class="fs-15"></i>
                     </div>
                     <div class="text-truncate">
                       <div class="fs-12 fw-bold text-dark text-truncate lh-sm d-flex align-items-center gap-1">
                         <span>{{ ft.label }}</span>
-                        <span v-if="ft.isRepeater" class="badge bg-warning text-dark fs-9 px-1 py-0">Baru</span>
+                        <span v-if="ft.isRepeater" class="badge bg-warning text-dark fs-9 px-1 py-0 fw-bold">Baru</span>
+                        <span v-else-if="ft.badge === 'Wilayah'" class="badge bg-info-subtle text-info fs-9 px-1 py-0 fw-bold">Wilayah</span>
                       </div>
                       <div class="text-muted fs-10 text-truncate lh-sm mt-0.5">{{ ft.desc }}</div>
                     </div>
@@ -1158,6 +1804,27 @@ function setParticipantCountDirect(field, val) {
 
               <!-- Tab 2: Quick Presets -->
               <div v-show="toolboxTab === 'presets'" class="d-flex flex-column gap-1.5">
+                <!-- Action Banner for Template & Preset Customization -->
+                <div class="p-2.5 mb-1 rounded-3 bg-warning-subtle border border-warning-subtle d-flex flex-column gap-1.5 shadow-sm">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <span class="fs-11 fw-bold text-warning-emphasis d-flex align-items-center gap-1">
+                      <i class="ri-magic-line"></i> Template Preset Formulir
+                    </span>
+                    <span class="badge bg-warning text-dark fs-10 px-1.5 py-0.5 fw-bold font-mono">{{ presetList.length }} Template</span>
+                  </div>
+                  <div class="fs-10 text-muted">
+                    Gunakan template siap pakai atau sesuaikan susunan field/kolom formulir.
+                  </div>
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-warning text-dark fw-bold d-flex align-items-center justify-content-center gap-1 py-1 mt-0.5 shadow-sm"
+                    @click="showPresetModal = true"
+                  >
+                    <i class="ri-edit-line"></i>
+                    <span>Kelola & Kustomisasi Preset</span>
+                  </button>
+                </div>
+
                 <div v-if="filteredQuickPresets.length === 0" class="text-center py-4 text-muted fs-12">
                   Tidak ada preset cocok dengan "{{ toolboxSearch }}"
                 </div>
@@ -1170,9 +1837,12 @@ function setParticipantCountDirect(field, val) {
                   :title="`Klik untuk menambahkan preset ${qp.name}`"
                 >
                   <div class="d-flex align-items-center gap-2 text-truncate">
-                    <div class="tool-icon-box rounded-2 flex-shrink-0 d-flex align-items-center justify-content-center bg-warning-subtle text-warning">
+                    <div 
+                      class="tool-icon-box rounded-2 flex-shrink-0 d-flex align-items-center justify-content-center"
+                      :class="qp.type === 'email' ? 'bg-info-subtle text-info' : (qp.type === 'number' ? 'bg-secondary-subtle text-secondary' : 'bg-warning-subtle text-warning')"
+                    >
                       <i 
-                        :class="qp.type === 'participant_repeater' ? 'ri-group-line text-warning' : (qp.type === 'file' ? 'ri-upload-cloud-2-line text-danger' : (qp.type === 'url' ? 'ri-link text-info' : (qp.type === 'radio' ? 'ri-radio-button-line text-success' : 'ri-flashlight-line text-warning')))"
+                        :class="qp.type === 'participant_repeater' ? 'ri-group-line text-warning' : (qp.type === 'file' ? 'ri-upload-cloud-2-line text-danger' : (qp.type === 'url' ? 'ri-link text-info' : (qp.type === 'email' ? 'ri-mail-line text-info' : (qp.type === 'radio' ? 'ri-radio-button-line text-success' : (qp.type === 'number' ? 'ri-hashtag text-secondary' : 'ri-flashlight-line text-warning')))))"
                         class="fs-15"
                       ></i>
                     </div>
@@ -1187,6 +1857,27 @@ function setParticipantCountDirect(field, val) {
 
               <!-- Tab 3: Core Identity Presets -->
               <div v-show="toolboxTab === 'identity'" class="d-flex flex-column gap-1.5">
+                <!-- Informational Banner for Mandatory Identity Fields -->
+                <div class="p-2.5 mb-1 rounded-3 bg-primary-subtle border border-primary-subtle d-flex flex-column gap-1.5 shadow-sm">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <span class="fs-11 fw-bold text-primary d-flex align-items-center gap-1">
+                      <i class="ri-shield-check-line"></i> 8 Field Identitas & Paket Standar
+                    </span>
+                    <span class="badge bg-primary text-white fs-10 px-1.5 py-0.5 rounded-pill font-mono">Standar</span>
+                  </div>
+                  <div class="fs-10 text-muted">
+                    Setiap formulir cabang lomba memuat: Nama Sekolah, Kecamatan, NPSN, Alamat Sekolah, Nama Pendamping, No. WA (hanya angka), Email, dan Kode Paket Komplit (All-In).
+                  </div>
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-primary text-white fw-bold d-flex align-items-center justify-content-center gap-1 py-1 mt-0.5 shadow-sm"
+                    @click="restoreMandatoryFields"
+                  >
+                    <i class="ri-refresh-line"></i>
+                    <span>Lengkapi 8 Field Standar</span>
+                  </button>
+                </div>
+
                 <div v-if="filteredCorePresets.length === 0" class="text-center py-4 text-muted fs-12">
                   Tidak ada identitas cocok dengan "{{ toolboxSearch }}"
                 </div>
@@ -1238,7 +1929,7 @@ function setParticipantCountDirect(field, val) {
           <div class="card border-0 shadow-sm form-canvas-card">
             
             <!-- Canvas Header Bar with Controls -->
-            <div class="card-header bg-transparent border-bottom py-3 px-3 px-sm-4">
+            <div class="card-header bg-transparent border-bottom py-3 px-3 px-sm-4 d-flex flex-column gap-2.5">
               <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
                 <div>
                   <h5 class="fs-14 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
@@ -1254,6 +1945,15 @@ function setParticipantCountDirect(field, val) {
 
                 <!-- Global Expand/Collapse & Filter Controls -->
                 <div class="d-flex align-items-center gap-1.5">
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1"
+                    @click="restoreMandatoryFields"
+                    title="Lengkapi & sinkronkan 8 field identitas & paket standar (Sekolah, Kecamatan, NPSN, Alamat, Pendamping, WA, Email, Kode Paket)"
+                  >
+                    <i class="ri-shield-star-line text-primary"></i>
+                    <span class="d-none d-sm-inline">Lengkapi 8 Field Standar</span>
+                  </button>
                   <button 
                     type="button" 
                     class="btn btn-xs btn-outline-secondary d-inline-flex align-items-center gap-1"
@@ -1277,15 +1977,15 @@ function setParticipantCountDirect(field, val) {
 
               <!-- Quick Canvas Field Search -->
               <div v-if="fields.length > 5" class="mt-2.5">
-                <div class="input-group input-group-sm">
-                  <span class="input-group-text bg-light border-0 text-muted"><i class="ri-search-line"></i></span>
+                <div class="input-group input-group-sm toolbox-search-group">
+                  <span class="input-group-text ps-2.5"><i class="ri-search-line fs-12"></i></span>
                   <input 
                     type="text" 
                     v-model="canvasSearch"
-                    class="form-control form-control-sm border-0 bg-light fs-12"
+                    class="form-control form-control-sm fs-12"
                     placeholder="Saring pertanyaan pada kanvas..."
                   />
-                  <button v-if="canvasSearch" class="btn btn-sm btn-light border-0" @click="canvasSearch = ''">
+                  <button v-if="canvasSearch" class="btn btn-sm btn-clear-search" @click="canvasSearch = ''">
                     <i class="ri-close-line"></i>
                   </button>
                 </div>
@@ -1317,7 +2017,28 @@ function setParticipantCountDirect(field, val) {
                     class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-1.5"
                     @click="addCorePreset(coreIdentityPresets[0])"
                   >
-                    <i class="ri-community-line"></i> Tambah Identitas Sekolah
+                    <i class="ri-community-line"></i> Identitas Sekolah
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5"
+                    @click="addCorePreset(coreIdentityPresets.find(c => c.default_name === 'school_district') || coreIdentityPresets[1])"
+                  >
+                    <i class="ri-map-pin-2-line"></i> Kecamatan Sekolah
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1.5"
+                    @click="addCorePreset(coreIdentityPresets.find(c => c.default_name === 'mentor_wa') || coreIdentityPresets[2])"
+                  >
+                    <i class="ri-whatsapp-line"></i> WhatsApp Kontak
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-1.5"
+                    @click="addCorePreset(coreIdentityPresets.find(c => c.type === 'email') || coreIdentityPresets[3])"
+                  >
+                    <i class="ri-mail-line"></i> Email Kontak
                   </button>
                 </div>
               </div>
@@ -1370,13 +2091,13 @@ function setParticipantCountDirect(field, val) {
                         :class="{
                           'bg-warning-subtle text-warning-emphasis border border-warning-subtle': field.type === 'participant_repeater',
                           'bg-primary-subtle text-primary': field.type === 'text',
-                          'bg-info-subtle text-info': field.type === 'textarea' || field.type === 'url',
+                          'bg-info-subtle text-info': field.type === 'textarea' || field.type === 'url' || field.type === 'email',
                           'bg-success-subtle text-success': field.type === 'select' || field.type === 'radio' || field.type === 'checkbox',
                           'bg-danger-subtle text-danger': field.type === 'file',
                           'bg-secondary-subtle text-secondary': field.type === 'number' || field.type === 'date'
                         }"
                       >
-                        <i :class="field.type === 'participant_repeater' ? 'ri-group-line' : (field.type === 'file' ? 'ri-upload-cloud-2-line' : (field.type === 'url' ? 'ri-link' : (field.type === 'select' ? 'ri-arrow-down-s-line' : 'ri-input-field')))"></i>
+                        <i :class="field.type === 'participant_repeater' ? 'ri-group-line' : (field.type === 'file' ? 'ri-upload-cloud-2-line' : (field.type === 'url' ? 'ri-link' : (field.type === 'email' ? 'ri-mail-line' : (field.type === 'select' ? 'ri-arrow-down-s-line' : (field.type === 'number' ? 'ri-hashtag' : 'ri-input-field')))))"></i>
                         <span v-if="field.type === 'participant_repeater'">Multi-Peserta Dinamis <template v-if="field.max_items">(Maks. {{ field.max_items }})</template></span>
                         <span v-else>{{ field.type }}</span>
                       </span>
@@ -1384,6 +2105,16 @@ function setParticipantCountDirect(field, val) {
                       <!-- Question Label Title -->
                       <span class="fs-13 fw-bold text-dark text-truncate field-title-text">
                         {{ field.label || '(Pertanyaan Tanpa Judul)' }}
+                      </span>
+
+                      <!-- Mandatory Standard Badge -->
+                      <span 
+                        v-if="isMandatoryIdentity(field)"
+                        class="badge bg-primary-subtle text-primary border border-primary-subtle fs-10 px-2 py-0.5 rounded-pill d-inline-flex align-items-center gap-1"
+                        :title="['school_npsn', 'allin_code'].includes(field.name) ? 'Field standar identitas & paket (opsional)' : 'Field identitas standar wajib untuk seluruh cabang lomba'"
+                      >
+                        <i class="ri-shield-check-line"></i>
+                        <span>{{ ['school_npsn', 'allin_code'].includes(field.name) ? 'Standar (Opsional)' : 'Wajib Standar' }}</span>
                       </span>
 
                       <!-- Conditional Logic Active Badge -->
@@ -1395,10 +2126,6 @@ function setParticipantCountDirect(field, val) {
                         <i class="ri-flashlight-line"></i> Bersyarat
                       </span>
 
-                      <!-- Variable Key Tag -->
-                      <span class="badge bg-light text-muted font-mono fs-10 d-none d-md-inline" title="Nama variabel / key di database">
-                        {{ field.name }}
-                      </span>
                     </div>
 
                     <!-- Right Controls: Required Switch, Reorder Arrows, Duplicate, Delete, Chevron -->
@@ -1409,9 +2136,11 @@ function setParticipantCountDirect(field, val) {
                         type="button" 
                         class="btn btn-xs rounded-pill px-2 py-0.5 fw-semibold transition-all"
                         :class="field.required ? 'btn-danger-subtle text-danger border border-danger-subtle' : 'btn-light text-muted border'"
-                        @click="field.required = !field.required"
-                        :title="field.required ? 'Pertanyaan ini wajib diisi oleh pendaftar' : 'Pertanyaan ini opsional'"
+                        @click="isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name) ? null : (field.required = !field.required)"
+                        :disabled="isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name)"
+                        :title="isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name) ? 'Field identitas ini wajib diisi sesuai standar lomba' : (field.required ? 'Pertanyaan ini wajib diisi oleh pendaftar' : 'Pertanyaan ini opsional')"
                       >
+                        <i v-if="isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name)" class="ri-lock-line me-0.5"></i>
                         {{ field.required ? 'Wajib' : 'Opsional' }}
                       </button>
 
@@ -1499,11 +2228,12 @@ function setParticipantCountDirect(field, val) {
                         <label class="form-label fs-11 fw-bold text-dark mb-1">
                           Tipe Komponen Input
                         </label>
-                        <select v-model="field.type" class="form-select form-select-sm fs-12">
-                          <option v-for="ft in fieldTypes" :key="ft.type" :value="ft.type">
-                            {{ ft.label }} ({{ ft.type }})
-                          </option>
-                        </select>
+                        <CustomSelect 
+                          v-model="field.type" 
+                          :options="fieldTypeOptions"
+                          size="sm"
+                          placeholder="Pilih tipe input..."
+                        />
                       </div>
 
                       <!-- Placeholder Input (Except for repeater, file, radio, checkbox) -->
@@ -1542,15 +2272,47 @@ function setParticipantCountDirect(field, val) {
                               <i class="ri-group-line text-warning fs-16"></i>
                               <span>Konfigurasi Kuota & Biodata Multi-Peserta (Tim / Turnamen / Beregu)</span>
                             </label>
-                            <span class="badge bg-warning text-dark fs-10 font-mono">Otomatisasi Form</span>
+                            <span class="badge bg-warning text-dark fs-10 font-mono fw-bold">Otomatisasi Form</span>
                           </div>
 
-                          <p class="text-muted fs-11 mb-3">
-                            Atur batas kuota peserta per tim/kontingen untuk cabang lomba ini (misal regu 3 siswa, turnamen 10-12 pemain, grup musik/banjari, atau bebas). Form biodata yang tampil di pendaftar secara otomatis menyesuaikan dengan jumlah siswa yang didaftarkan.
+                          <p class="text-muted fs-11 mb-2">
+                            Atur batas kuota peserta per tim/kontingen untuk cabang lomba ini. Form biodata yang tampil di pendaftar secara otomatis menyesuaikan dengan jumlah siswa yang didaftarkan.
                           </p>
 
+                          <!-- Sinkronisasi Otomatis dengan Manajemen Lomba -->
+                          <div class="mb-3 p-2.5 rounded-3 border bg-body d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                              <div class="avatar-xs rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px;">
+                                <i class="ri-refresh-line fs-14"></i>
+                              </div>
+                              <div>
+                                <div class="fs-11 fw-bold text-dark d-flex align-items-center gap-1.5">
+                                  <span>Pengaturan Cabang: {{ selectedCompetition?.title }}</span>
+                                  <span class="badge" :class="selectedCompetition?.participant_type === 'tim' ? 'bg-info-subtle text-info' : 'bg-secondary-subtle text-secondary'" style="font-size: 9px;">
+                                    {{ selectedCompetition?.participant_type === 'tim' ? 'Tim / Beregu' : 'Individu' }}
+                                  </span>
+                                </div>
+                                <div class="fs-10 text-muted">
+                                  Kapasitas: Maks. {{ selectedCompetition?.max_participants || 1 }} Siswa
+                                  <template v-if="selectedCompetition?.participants_rule">
+                                    • Aturan: <strong class="text-warning-emphasis">{{ selectedCompetition?.participants_rule }}</strong>
+                                  </template>
+                                </div>
+                              </div>
+                            </div>
+                            <button 
+                              type="button" 
+                              class="btn btn-xs btn-primary d-flex align-items-center gap-1 fw-semibold py-1 px-2"
+                              @click="syncWithCompetitionRules(field)"
+                              title="Terapkan kuota peserta, anggota inti & cadangan dari Manajemen Lomba"
+                            >
+                              <i class="ri-sync-line"></i>
+                              <span>Sinkronkan Pengaturan Lomba</span>
+                            </button>
+                          </div>
+
                           <div class="row g-3">
-                            <!-- Min & Max Items -->
+                            <!-- Min & Max Items & Inti/Cadangan -->
                             <div class="col-md-6">
                               <div class="row g-2 mb-2">
                                 <div class="col-6">
@@ -1584,15 +2346,53 @@ function setParticipantCountDirect(field, val) {
                                   </div>
                                 </div>
                               </div>
+
+                              <!-- Inti vs Cadangan Distribution -->
+                              <div class="row g-2 mb-2 pt-1 border-top">
+                                <div class="col-6">
+                                  <label class="form-label fs-10 fw-bold text-dark mb-1 d-flex align-items-center gap-1">
+                                    <i class="ri-shield-user-line text-success"></i> Personel Inti:
+                                  </label>
+                                  <div class="input-group input-group-sm">
+                                    <input 
+                                      type="number" 
+                                      v-model.number="field.main_members"
+                                      class="form-control fs-11 font-mono"
+                                      min="1"
+                                      placeholder="Cth: 5"
+                                    />
+                                    <span class="input-group-text bg-light text-muted fs-10">Inti</span>
+                                  </div>
+                                </div>
+                                <div class="col-6">
+                                  <label class="form-label fs-10 fw-bold text-dark mb-1 d-flex align-items-center gap-1">
+                                    <i class="ri-user-shared-line text-warning"></i> Personel Cadangan:
+                                  </label>
+                                  <div class="input-group input-group-sm">
+                                    <input 
+                                      type="number" 
+                                      v-model.number="field.reserve_members"
+                                      class="form-control fs-11 font-mono"
+                                      min="0"
+                                      placeholder="Cth: 1"
+                                    />
+                                    <span class="input-group-text bg-light text-muted fs-10">Cadangan</span>
+                                  </div>
+                                </div>
+                                <div class="col-12">
+                                  <span class="text-muted fs-10">Siswa #1 s/d #{{ field.main_members || field.max_items || 'N' }} akan dilabeli <strong>"Pemain Inti"</strong> di form, dan selanjutnya <strong>"Cadangan"</strong>.</span>
+                                </div>
+                              </div>
+
                               <!-- Quick preset chips -->
                               <div class="d-flex gap-1.5 mt-1.5 flex-wrap">
                                 <span class="text-muted fs-10 w-100 mb-0.5">Preset Batas Kuota Cepat:</span>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = 2">2 (Duo/Riset)</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 3; field.max_items = 3">3 (Regu LCC)</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = 5">5 (Futsal/E-Sport)</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = 10">10 (Musik/Hadrah)</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 5; field.max_items = 12">12 (Line-up Turnamen)</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = null">Bebas (Tanpa Batas)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = 2; field.main_members = 2; field.reserve_members = 0;">2 (Duo/Riset)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 3; field.max_items = 3; field.main_members = 3; field.reserve_members = 0;">3 (Regu LCC)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 5; field.max_items = 6; field.main_members = 5; field.reserve_members = 1;">6 (5 Inti + 1 Cadangan MLBB)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 6; field.max_items = 10; field.main_members = 6; field.reserve_members = 4;">10 (6 Inti + 4 Cadangan Voli)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = 10; field.main_members = 10; field.reserve_members = 0;">10 (Hadrah/Banjari)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = null; field.main_members = null; field.reserve_members = null;">Bebas (Tanpa Batas)</button>
                               </div>
                             </div>
 
@@ -1687,6 +2487,72 @@ function setParticipantCountDirect(field, val) {
                                   </div>
                                 </div>
 
+                                <!-- Group 4: Kolom / Field Kustom Tambahan Biodata Siswa -->
+                                <div class="pt-2.5 border-top">
+                                  <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                                    <div>
+                                      <div class="text-dark fs-11 fw-bold d-flex align-items-center gap-1.5">
+                                        <i class="ri-add-box-line text-primary fs-14"></i>
+                                        <span>4. Kolom Tambahan Biodata Siswa (Kustomisasi Kolom Bebas)</span>
+                                      </div>
+                                      <span class="text-muted fs-10">Tambah kolom khusus untuk tiap biodata siswa (misal: Ukuran Kaos/Jersey, Akun Instagram, Role Game, dll.)</span>
+                                    </div>
+                                    <button 
+                                      type="button" 
+                                      class="btn btn-xs btn-outline-primary d-flex align-items-center gap-1 py-1 px-2.5 fw-semibold"
+                                      @click="addCustomSubField(field)"
+                                    >
+                                      <i class="ri-add-line"></i>
+                                      <span>Tambah Kolom Biodata</span>
+                                    </button>
+                                  </div>
+
+                                  <div v-if="!field.sub_fields?.custom_columns || field.sub_fields.custom_columns.length === 0" class="p-2 rounded bg-light-subtle text-muted fs-10 fst-italic">
+                                    Belum ada kolom kustom tambahan. Klik <strong>"+ Tambah Kolom Biodata"</strong> di atas jika Anda ingin menambah kolom isian siswa lainnya.
+                                  </div>
+                                  <div v-else class="d-flex flex-column gap-2">
+                                    <div 
+                                      v-for="(col, colIdx) in field.sub_fields.custom_columns" 
+                                      :key="col.id || colIdx"
+                                      class="p-2 rounded border bg-light-subtle d-flex align-items-center gap-2"
+                                    >
+                                      <span class="badge bg-secondary-subtle text-secondary font-mono fs-9">#{{ colIdx + 1 }}</span>
+                                      <div class="flex-grow-1 row g-2 align-items-center">
+                                        <div class="col-md-5">
+                                          <input 
+                                            type="text" 
+                                            v-model="col.label" 
+                                            class="form-control form-control-sm fs-11" 
+                                            placeholder="Nama Kolom (contoh: Ukuran Baju)"
+                                          />
+                                        </div>
+                                        <div class="col-md-4">
+                                          <CustomSelect 
+                                            v-model="col.type" 
+                                            :options="columnTypeOptions"
+                                            size="xs"
+                                            placeholder="Tipe..."
+                                          />
+                                        </div>
+                                        <div class="col-md-3 d-flex align-items-center gap-2">
+                                          <label class="form-check form-check-sm mb-0 cursor-pointer fs-10 d-flex align-items-center gap-1">
+                                            <input type="checkbox" v-model="col.required" class="form-check-input" />
+                                            <span>Wajib</span>
+                                          </label>
+                                        </div>
+                                      </div>
+                                      <button 
+                                        type="button" 
+                                        class="btn btn-xs btn-outline-danger p-1" 
+                                        @click="removeCustomSubField(field, colIdx)"
+                                        title="Hapus kolom ini"
+                                      >
+                                        <i class="ri-delete-bin-line"></i>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+
                               </div>
                             </div>
                           </div>
@@ -1720,6 +2586,8 @@ function setParticipantCountDirect(field, val) {
                                   <li><a class="dropdown-item cursor-pointer" @click="applyOptionPreset(field, 'yesno')">Ya / Tidak</a></li>
                                   <li><a class="dropdown-item cursor-pointer" @click="applyOptionPreset(field, 'genders')">Laki-laki / Perempuan</a></li>
                                   <li><a class="dropdown-item cursor-pointer" @click="applyOptionPreset(field, 'classes')">Kelas 7 / 8 / 9 SMP</a></li>
+                                  <li><hr class="dropdown-divider my-1"></li>
+                                  <li><a class="dropdown-item cursor-pointer text-primary fw-medium" @click="applyOptionPreset(field, 'kecamatan_jember')"><i class="ri-map-pin-line me-1 text-primary"></i> 31 Kecamatan Jember</a></li>
                                 </ul>
                               </div>
 
@@ -1848,29 +2716,21 @@ function setParticipantCountDirect(field, val) {
                             <div class="row g-2 align-items-center">
                               <div class="col-sm-4">
                                 <label class="form-label fs-10 text-muted mb-1">Tampilkan Jika Pertanyaan:</label>
-                                <select v-model="field.conditional_logic.depend_on_field" class="form-select form-select-sm fs-11">
-                                  <option value="" disabled selected>-- Pilih Pertanyaan Target --</option>
-                                  <option 
-                                    v-for="other in fields.filter(f => f.id !== field.id)" 
-                                    :key="other.id" 
-                                    :value="other.name"
-                                  >
-                                    {{ other.label }} ({{ other.name }})
-                                  </option>
-                                </select>
+                                <CustomSelect 
+                                  v-model="field.conditional_logic.depend_on_field" 
+                                  :options="getConditionalTargetOptions(field.id)"
+                                  size="xs"
+                                  placeholder="-- Pilih Pertanyaan Target --"
+                                />
                               </div>
 
                               <div class="col-sm-3">
                                 <label class="form-label fs-10 text-muted mb-1">Operator Kondisi:</label>
-                                <select v-model="field.conditional_logic.operator" class="form-select form-select-sm fs-11">
-                                  <option value="==">Sama dengan (==)</option>
-                                  <option value="!=">Tidak sama dengan (!=)</option>
-                                  <option value=">=">Lebih besar / sama (>=)</option>
-                                  <option value="<=">Lebih kecil / sama (<=)</option>
-                                  <option value=">">Lebih besar dari (>)</option>
-                                  <option value="<">Lebih kecil dari (<)</option>
-                                  <option value="contains">Mengandung kata</option>
-                                </select>
+                                <CustomSelect 
+                                  v-model="field.conditional_logic.operator" 
+                                  :options="conditionOperatorOptions"
+                                  size="xs"
+                                />
                               </div>
 
                               <div class="col-sm-5">
@@ -1909,7 +2769,7 @@ function setParticipantCountDirect(field, val) {
                 Total <strong>{{ fields.length }} pertanyaan</strong> dikonfigurasi • 
                 <span class="text-danger fw-semibold">{{ fields.filter(f => f.required).length }} Wajib</span>, 
                 <span class="text-secondary">{{ fields.filter(f => !f.required).length }} Opsional</span> •
-                <span class="text-warning-emphasis fw-semibold">{{ fields.filter(f => f.conditional_logic?.enabled).length }} Logika Bersyarat</span>
+                <span class="badge bg-warning-subtle text-warning-emphasis fw-semibold px-2 py-0.5 rounded-pill">{{ fields.filter(f => f.conditional_logic?.enabled).length }} Logika Bersyarat</span>
               </div>
               <button 
                 type="button" 
@@ -1929,18 +2789,18 @@ function setParticipantCountDirect(field, val) {
           <div class="card border-0 shadow-sm sticky-preview-card">
             
             <!-- Live Preview Header -->
-            <div class="card-header bg-slate-900 text-white py-2.5 px-3 d-flex align-items-center justify-content-between">
+            <div class="card-header py-2.5 px-3 d-flex align-items-center justify-content-between border-bottom">
               <div class="d-flex align-items-center gap-2">
                 <span class="badge bg-emerald-500 text-slate-950 fw-bold fs-10">LIVE PREVIEW</span>
-                <span class="fs-12 fw-semibold text-slate-300">Formulir Publik & Logika</span>
+                <span class="fs-12 fw-semibold preview-header-title">Formulir Publik &amp; Logika</span>
               </div>
 
               <!-- Device Switcher -->
               <div class="btn-group btn-group-xs" role="group">
                 <button 
                   type="button" 
-                  class="btn btn-xs"
-                  :class="previewDevice === 'desktop' ? 'btn-light' : 'btn-outline-light'"
+                  class="btn btn-xs preview-toggle-btn"
+                  :class="previewDevice === 'desktop' ? 'active' : ''"
                   @click="previewDevice = 'desktop'"
                   title="Simulasi Desktop"
                 >
@@ -1948,8 +2808,8 @@ function setParticipantCountDirect(field, val) {
                 </button>
                 <button 
                   type="button" 
-                  class="btn btn-xs"
-                  :class="previewDevice === 'mobile' ? 'btn-light' : 'btn-outline-light'"
+                  class="btn btn-xs preview-toggle-btn"
+                  :class="previewDevice === 'mobile' ? 'active' : ''"
                   @click="previewDevice = 'mobile'"
                   title="Simulasi Mobile"
                 >
@@ -2067,9 +2927,16 @@ function setParticipantCountDirect(field, val) {
                               class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 transition-all"
                             >
                               <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-b border-slate-800/80">
-                                <span class="text-[11px] font-bold text-amber-300 d-flex align-items-center gap-1.5">
+                                <span class="text-[11px] font-bold text-amber-300 d-flex align-items-center gap-1.5 flex-wrap">
                                   <i class="ri-user-line text-emerald-400"></i>
                                   <span>Biodata Siswa #{{ pIdx }}</span>
+                                  
+                                  <!-- Inti vs Cadangan Badge -->
+                                  <span v-if="field.main_members" class="badge text-[9px] py-0 d-inline-flex align-items-center gap-1 font-bold" :class="pIdx <= (field.main_members || 1) ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'">
+                                    <i :class="pIdx <= (field.main_members || 1) ? 'ri-shield-user-line' : 'ri-user-shared-line'"></i>
+                                    {{ pIdx <= (field.main_members || 1) ? `Inti #${pIdx}` : `Cadangan #${pIdx - (field.main_members || 1)}` }}
+                                  </span>
+
                                   <span v-if="previewValues[field.name + '_captain'] === pIdx" class="badge bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] py-0 d-inline-flex align-items-center gap-1 font-bold">
                                     <i class="ri-vip-crown-fill text-amber-400"></i> KAPTEN TIM
                                   </span>
@@ -2120,21 +2987,25 @@ function setParticipantCountDirect(field, val) {
                                   <!-- Kelas -->
                                   <div v-if="field.sub_fields?.grade?.active !== false">
                                     <label class="block text-[10px] text-slate-400 mb-0.5">Kelas / Tingkat</label>
-                                    <select class="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-[11px]">
-                                      <option value="Kelas 7">Kelas 7</option>
-                                      <option value="Kelas 8">Kelas 8</option>
-                                      <option value="Kelas 9" selected>Kelas 9</option>
-                                    </select>
+                                    <CustomSelect 
+                                      v-model="previewValues[field.name + '_grade_' + pIdx]"
+                                      :options="['Kelas 7', 'Kelas 8', 'Kelas 9']"
+                                      placeholder="Kelas 9"
+                                      size="xs"
+                                      variant="dark-slate"
+                                    />
                                   </div>
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-2">
-                                  <!-- Tanggal Lahir -->
+                                  <!-- Tanggal Lahir (dd/mm/yyyy Flatpickr) -->
                                   <div v-if="field.sub_fields?.birth_date?.active !== false">
-                                    <label class="block text-[10px] text-slate-400 mb-0.5">Tgl Lahir</label>
-                                    <input 
-                                      type="date" 
-                                      class="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white text-[11px]"
+                                    <label class="block text-[10px] text-slate-400 mb-0.5">Tgl Lahir (dd/mm/yyyy)</label>
+                                    <IndoDatePicker 
+                                      v-model="previewValues[field.name + '_birth_' + pIdx]"
+                                      placeholder="dd/mm/yyyy"
+                                      inputClass="w-full px-2 py-1 rounded bg-slate-900 border border-slate-800 text-white text-[11px]"
+                                      iconClass="ri-calendar-line text-amber-400 text-xs"
                                     />
                                   </div>
 
@@ -2219,6 +3090,19 @@ function setParticipantCountDirect(field, val) {
                                     <div class="text-[9px] text-slate-500">Mendukung upload lebih dari 1 file foto sekaligus</div>
                                   </div>
                                 </div>
+
+                                <!-- Kolom Kustom Tambahan Biodata Siswa -->
+                                <div v-for="col in (field.sub_fields?.custom_columns || [])" :key="col.id || col.label">
+                                  <label class="block text-[10px] text-slate-400 mb-0.5 d-flex align-items-center justify-content-between">
+                                    <span>{{ col.label || 'Kolom Tambahan' }}</span>
+                                    <span v-if="col.required" class="text-rose-400 ms-1">*</span>
+                                  </label>
+                                  <input 
+                                    :type="col.type === 'number' ? 'number' : 'text'" 
+                                    :placeholder="`Masukkan ${col.label || 'data'}`"
+                                    class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono"
+                                  />
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -2226,10 +3110,12 @@ function setParticipantCountDirect(field, val) {
                         </div>
 
                         <!-- STANDARD INPUT TYPES -->
-                        <div v-else-if="['text', 'number', 'url'].includes(field.type)">
+                        <div v-else-if="['text', 'number', 'url', 'email'].includes(field.type)">
                           <input 
                             :type="field.type" 
+                            :inputmode="field.type === 'number' ? 'numeric' : (field.type === 'email' ? 'email' : undefined)"
                             v-model="previewValues[field.name]"
+                            @input="field.type === 'number' ? (previewValues[field.name] = String($event.target.value).replace(/\D/g, '')) : null"
                             :placeholder="field.placeholder || `Masukkan ${field.label}...`"
                             class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
                           />
@@ -2245,15 +3131,13 @@ function setParticipantCountDirect(field, val) {
                         </div>
 
                         <div v-else-if="field.type === 'select'">
-                          <select 
+                          <CustomSelect 
                             v-model="previewValues[field.name]"
-                            class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
-                          >
-                            <option value="" disabled selected>-- Pilih {{ field.label }} --</option>
-                            <option v-for="(opt, optIdx) in field.options" :key="optIdx" :value="opt">
-                              {{ opt }}
-                            </option>
-                          </select>
+                            :options="field.options || []"
+                            :placeholder="`-- Pilih ${field.label} --`"
+                            size="xs"
+                            variant="dark-slate"
+                          />
                         </div>
 
                         <div v-else-if="field.type === 'radio'" class="space-y-1.5 pt-0.5">
@@ -2299,10 +3183,11 @@ function setParticipantCountDirect(field, val) {
                         </div>
 
                         <div v-else-if="field.type === 'date'">
-                          <input 
-                            type="date" 
+                          <IndoDatePicker 
                             v-model="previewValues[field.name]"
-                            class="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                            placeholder="dd/mm/yyyy"
+                            inputClass="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                            iconClass="ri-calendar-line text-amber-400 text-xs"
                           />
                         </div>
 
@@ -2336,26 +3221,26 @@ function setParticipantCountDirect(field, val) {
 
       <!-- MODE 2: FULL PREVIEW VIEW -->
       <div v-show="viewMode === 'preview'" class="card border-0 shadow-sm full-preview-card">
-        <div class="card-header bg-slate-900 text-white py-3 px-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="card-header py-3 px-4 d-flex align-items-center justify-content-between flex-wrap gap-2 border-bottom">
           <div class="d-flex align-items-center gap-2">
             <span class="badge bg-emerald-500 text-slate-950 fw-bold fs-11">SIMULASI FORMULIR LENGKAP & LOGIKA</span>
-            <h5 class="fs-15 fw-bold text-white mb-0">{{ selectedCompetition?.title }}</h5>
+            <h5 class="fs-15 fw-bold preview-header-title mb-0">{{ selectedCompetition?.title }}</h5>
           </div>
 
           <div class="d-flex align-items-center gap-2">
             <div class="btn-group btn-group-sm" role="group">
               <button 
                 type="button" 
-                class="btn"
-                :class="previewDevice === 'desktop' ? 'btn-light' : 'btn-outline-light'"
+                class="btn preview-toggle-btn px-2.5 py-1"
+                :class="previewDevice === 'desktop' ? 'active' : ''"
                 @click="previewDevice = 'desktop'"
               >
                 <i class="ri-macbook-line me-1"></i> Desktop
               </button>
               <button 
                 type="button" 
-                class="btn"
-                :class="previewDevice === 'mobile' ? 'btn-light' : 'btn-outline-light'"
+                class="btn preview-toggle-btn px-2.5 py-1"
+                :class="previewDevice === 'mobile' ? 'active' : ''"
                 @click="previewDevice = 'mobile'"
               >
                 <i class="ri-smartphone-line me-1"></i> Mobile
@@ -2364,7 +3249,7 @@ function setParticipantCountDirect(field, val) {
 
             <button 
               type="button" 
-              class="btn btn-sm btn-outline-light"
+              class="btn btn-sm preview-back-btn"
               @click="viewMode = 'split'"
             >
               <i class="ri-arrow-left-line me-1"></i> Kembali ke Editor
@@ -2474,9 +3359,16 @@ function setParticipantCountDirect(field, val) {
                           class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 transition-all"
                         >
                           <div class="d-flex align-items-center justify-content-between mb-2.5 pb-1.5 border-b border-slate-800">
-                            <span class="text-xs font-bold text-amber-300 d-flex align-items-center gap-1.5">
+                            <span class="text-xs font-bold text-amber-300 d-flex align-items-center gap-1.5 flex-wrap">
                               <i class="ri-user-line text-emerald-400"></i>
                               <span>Biodata Peserta Siswa #{{ pIdx }}</span>
+
+                              <!-- Inti vs Cadangan Badge in Full Preview -->
+                              <span v-if="field.main_members" class="badge text-[10px] py-0.5 d-inline-flex align-items-center gap-1 font-bold" :class="pIdx <= (field.main_members || 1) ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'">
+                                <i :class="pIdx <= (field.main_members || 1) ? 'ri-shield-user-line' : 'ri-user-shared-line'"></i>
+                                {{ pIdx <= (field.main_members || 1) ? `Pemain Inti #${pIdx}` : `Cadangan #${pIdx - (field.main_members || 1)}` }}
+                              </span>
+
                               <span v-if="previewValues[field.name + '_captain'] === pIdx" class="badge bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] py-0.5 d-inline-flex align-items-center gap-1 font-bold">
                                 <i class="ri-vip-crown-fill text-amber-400"></i> KAPTEN TIM
                               </span>
@@ -2523,18 +3415,22 @@ function setParticipantCountDirect(field, val) {
 
                             <div v-if="field.sub_fields?.grade?.active !== false">
                               <label class="block text-[11px] text-slate-400 mb-1">Kelas / Tingkat *</label>
-                              <select class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs">
-                                <option value="Kelas 7 SMP/MTs">Kelas 7 SMP/MTs</option>
-                                <option value="Kelas 8 SMP/MTs">Kelas 8 SMP/MTs</option>
-                                <option value="Kelas 9 SMP/MTs" selected>Kelas 9 SMP/MTs</option>
-                              </select>
+                              <CustomSelect 
+                                v-model="previewValues[field.name + '_grade_' + pIdx]"
+                                :options="['Kelas 7 SMP/MTs', 'Kelas 8 SMP/MTs', 'Kelas 9 SMP/MTs']"
+                                placeholder="Kelas 9 SMP/MTs"
+                                size="sm"
+                                variant="dark-slate"
+                              />
                             </div>
 
                             <div v-if="field.sub_fields?.birth_date?.active !== false">
-                              <label class="block text-[11px] text-slate-400 mb-1">Tanggal Lahir</label>
-                              <input 
-                                type="date" 
-                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                              <label class="block text-[11px] text-slate-400 mb-1">Tanggal Lahir (dd/mm/yyyy)</label>
+                              <IndoDatePicker 
+                                v-model="previewValues[field.name + '_birth_' + pIdx]"
+                                placeholder="dd/mm/yyyy"
+                                inputClass="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                                iconClass="ri-calendar-line text-amber-400 text-sm"
                               />
                             </div>
 
@@ -2619,16 +3515,31 @@ function setParticipantCountDirect(field, val) {
                                 <div class="text-[10px] text-slate-500">Mendukung upload lebih dari 1 foto</div>
                               </div>
                             </div>
+
+                            <!-- Kolom Kustom Tambahan Biodata Siswa -->
+                            <div v-for="col in (field.sub_fields?.custom_columns || [])" :key="col.id || col.label" class="sm:col-span-1">
+                              <label class="block text-[11px] text-slate-400 mb-1 d-flex align-items-center justify-content-between">
+                                <span>{{ col.label || 'Kolom Tambahan' }}</span>
+                                <span v-if="col.required" class="text-rose-400">*</span>
+                              </label>
+                              <input 
+                                :type="col.type === 'number' ? 'number' : 'text'" 
+                                :placeholder="`Masukkan ${col.label || 'data'}...`" 
+                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono"
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
 
                     <!-- STANDARD FIELD TYPES IN FULL PREVIEW -->
-                    <div v-else-if="['text', 'number', 'url'].includes(field.type)">
+                    <div v-else-if="['text', 'number', 'url', 'email'].includes(field.type)">
                       <input 
                         :type="field.type" 
+                        :inputmode="field.type === 'number' ? 'numeric' : (field.type === 'email' ? 'email' : undefined)"
                         v-model="previewValues[field.name]"
+                        @input="field.type === 'number' ? (previewValues[field.name] = String($event.target.value).replace(/\D/g, '')) : null"
                         :placeholder="field.placeholder || `Masukkan ${field.label}...`"
                         class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
                       />
@@ -2644,15 +3555,13 @@ function setParticipantCountDirect(field, val) {
                     </div>
 
                     <div v-else-if="field.type === 'select'">
-                      <select 
+                      <CustomSelect 
                         v-model="previewValues[field.name]"
-                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
-                      >
-                        <option value="" disabled selected>-- Pilih Opsi {{ field.label }} --</option>
-                        <option v-for="(opt, optIdx) in field.options" :key="optIdx" :value="opt">
-                          {{ opt }}
-                        </option>
-                      </select>
+                        :options="field.options || []"
+                        :placeholder="`-- Pilih Opsi ${field.label} --`"
+                        size="sm"
+                        variant="dark-slate"
+                      />
                     </div>
 
                     <div v-else-if="field.type === 'radio'" class="space-y-2 pt-1">
@@ -2698,10 +3607,11 @@ function setParticipantCountDirect(field, val) {
                     </div>
 
                     <div v-else-if="field.type === 'date'">
-                      <input 
-                        type="date" 
+                      <IndoDatePicker 
                         v-model="previewValues[field.name]"
-                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                        placeholder="dd/mm/yyyy"
+                        inputClass="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                        iconClass="ri-calendar-line text-amber-400 text-sm"
                       />
                     </div>
 
@@ -2866,117 +3776,531 @@ function setParticipantCountDirect(field, val) {
     >
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow-lg">
-          <div class="modal-header bg-primary-subtle border-bottom py-3">
-            <h5 class="modal-title fs-14 fw-bold text-dark d-flex align-items-center gap-2">
+          <div class="modal-header bg-primary-subtle border-bottom py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <h5 class="modal-title fs-14 fw-bold text-dark d-flex align-items-center gap-2 mb-0">
               <i class="ri-magic-line text-primary fs-18"></i>
-              Pilih Template Preset Formulir Lomba
+              <span>Pilih Template Preset Formulir Lomba</span>
             </h5>
-            <button type="button" class="btn-close" @click="showPresetModal = false"></button>
+            <div class="d-flex align-items-center gap-2">
+              <button 
+                type="button" 
+                class="btn btn-sm btn-success d-flex align-items-center gap-1 fs-11 fw-semibold py-1 px-2.5 shadow-sm"
+                @click="openSaveCurrentAsPresetModal()"
+                title="Simpan konfigurasi pertanyaan yang sedang dibuka sebagai template baru"
+              >
+                <i class="ri-save-line"></i>
+                <span>Simpan Form Ini Jadi Preset</span>
+              </button>
+              <button 
+                type="button" 
+                class="btn btn-sm btn-outline-secondary fs-11 py-1 px-2"
+                @click="resetAllPresetsToDefault()"
+                title="Kembalikan semua preset ke standar sistem"
+              >
+                <i class="ri-refresh-line"></i>
+              </button>
+              <button type="button" class="btn-close ms-1" @click="showPresetModal = false"></button>
+            </div>
           </div>
           <div class="modal-body p-4">
             <p class="text-muted fs-12 mb-3">
-              Pilih template yang sesuai dengan kategori lomba <strong>{{ selectedCompetition?.title }}</strong>. Susunan pertanyaan akan otomatis disesuaikan secara instan.
+              Pilih template yang sesuai dengan kategori lomba <strong>{{ selectedCompetition?.title }}</strong> atau sesuaikan isinya dengan tombol edit pada kartu.
             </p>
             <div class="row g-3">
-              <div class="col-md-6">
+              <div v-for="p in presetList" :key="p.key" class="col-md-6">
                 <div class="card h-100 border p-3 rounded-3 hover-preset-card">
                   <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="badge bg-warning-subtle text-warning fs-11">Akademik & Sains</span>
-                    <i class="ri-microscope-line fs-20 text-warning"></i>
+                    <span 
+                      class="badge fs-11"
+                      :class="p.badge_class || 'bg-primary-subtle text-primary'"
+                    >
+                      {{ p.badge || p.category || 'Preset' }}
+                    </span>
+                    <div class="d-flex align-items-center gap-1.5">
+                      <span v-if="p.is_custom" class="badge bg-info-subtle text-info fs-10 font-mono">Kustom</span>
+                      <i :class="[p.icon || 'ri-magic-line', 'fs-20 text-warning']"></i>
+                    </div>
                   </div>
-                  <h6 class="fs-13 fw-bold text-dark mb-1">Olimpiade MIPA & IPS</h6>
-                  <p class="text-muted fs-11 mb-3">
-                    Sekolah, pembina, WhatsApp, nama peserta & kelas, NISN siswa, dan scan kartu pelajar (KTS).
+                  <h6 class="fs-13 fw-bold text-dark mb-1">{{ p.title }}</h6>
+                  <p class="text-muted fs-11 mb-2">
+                    {{ p.description }}
                   </p>
-                  <button type="button" class="btn btn-sm btn-outline-warning mt-auto w-100 fw-semibold" @click="applyPreset('akademik')">
-                    Terapkan Template Ini
-                  </button>
-                </div>
-              </div>
+                  <div class="fs-10 text-muted mb-3 d-flex align-items-center gap-2">
+                    <span><i class="ri-list-check fs-12 text-primary me-1"></i>{{ (p.fields || []).length }} Field Pertanyaan</span>
+                  </div>
 
-              <div class="col-md-6">
-                <div class="card h-100 border p-3 rounded-3 hover-preset-card">
-                  <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="badge bg-info-subtle text-info fs-11">Keagamaan</span>
-                    <i class="ri-book-read-line fs-20 text-info"></i>
+                  <div class="mt-auto d-flex gap-2">
+                    <button 
+                      type="button" 
+                      class="btn btn-sm btn-outline-warning flex-grow-1 fw-semibold d-flex align-items-center justify-content-center gap-1" 
+                      @click="applyPreset(p.key)"
+                    >
+                      <i class="ri-check-line"></i>
+                      <span>Terapkan</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      class="btn btn-sm btn-soft-primary px-2.5" 
+                      @click="openEditPresetModal(p)"
+                      title="Kustomisasi & Edit Template Ini"
+                    >
+                      <i class="ri-edit-line"></i>
+                      <span class="fs-11 ms-1 d-none d-sm-inline">Edit</span>
+                    </button>
+                    <button 
+                      v-if="p.is_custom"
+                      type="button" 
+                      class="btn btn-sm btn-soft-danger px-2" 
+                      @click="deleteCustomPreset(p.key)"
+                      title="Hapus Preset Kustom"
+                    >
+                      <i class="ri-delete-bin-line"></i>
+                    </button>
                   </div>
-                  <h6 class="fs-13 fw-bold text-dark mb-1">MHQ & Tahfidz Al-Qur'an</h6>
-                  <p class="text-muted fs-11 mb-3">
-                    Lembaga pondok, pembina tahfidz, WhatsApp, nama santri, pilihan golongan juz, dan surat keterangan tashih.
-                  </p>
-                  <button type="button" class="btn btn-sm btn-outline-info mt-auto w-100 fw-semibold" @click="applyPreset('tahfidz')">
-                    Terapkan Template Ini
-                  </button>
-                </div>
-              </div>
-
-              <div class="col-md-6">
-                <div class="card h-100 border p-3 rounded-3 hover-preset-card">
-                  <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="badge bg-primary-subtle text-primary fs-11">Seni & Bahasa</span>
-                    <i class="ri-music-2-line fs-20 text-primary"></i>
-                  </div>
-                  <h6 class="fs-13 fw-bold text-dark mb-1">Albanjari, Singer & Storytelling</h6>
-                  <p class="text-muted fs-11 mb-3">
-                    Sekolah/sanggar, nama panggung, pembina, WhatsApp, personil grup, judul lagu, dan upload minus one.
-                  </p>
-                  <button type="button" class="btn btn-sm btn-outline-primary mt-auto w-100 fw-semibold" @click="applyPreset('seni')">
-                    Terapkan Template Ini
-                  </button>
-                </div>
-              </div>
-
-              <div class="col-md-6">
-                <div class="card h-100 border p-3 rounded-3 hover-preset-card">
-                  <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="badge bg-danger-subtle text-danger fs-11">E-Sport</span>
-                    <i class="ri-gamepad-line fs-20 text-danger"></i>
-                  </div>
-                  <h6 class="fs-13 fw-bold text-dark mb-1">Mobile Legends (MSA S4)</h6>
-                  <p class="text-muted fs-11 mb-3">
-                    Nama squad, User ID & Server kapten, nickname in-game, WhatsApp, roster 6 pemain, dan screenshot profil.
-                  </p>
-                  <button type="button" class="btn btn-sm btn-outline-danger mt-auto w-100 fw-semibold" @click="applyPreset('esport')">
-                    Terapkan Template Ini
-                  </button>
-                </div>
-              </div>
-
-              <div class="col-md-6">
-                <div class="card h-100 border p-3 rounded-3 hover-preset-card">
-                  <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="badge bg-success-subtle text-success fs-11">Olahraga</span>
-                    <i class="ri-football-line fs-20 text-success"></i>
-                  </div>
-                  <h6 class="fs-13 fw-bold text-dark mb-1">Tournament Bola Voli</h6>
-                  <p class="text-muted fs-11 mb-3">
-                    Nama tim voli, nama & kontak pelatih, nomor punggung & posisi pemain, dan scan KTS kolektif PDF.
-                  </p>
-                  <button type="button" class="btn btn-sm btn-outline-success mt-auto w-100 fw-semibold" @click="applyPreset('olahraga')">
-                    Terapkan Template Ini
-                  </button>
-                </div>
-              </div>
-
-              <div class="col-md-6">
-                <div class="card h-100 border p-3 rounded-3 hover-preset-card">
-                  <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="badge bg-secondary-subtle text-secondary fs-11">Umum Ringkas</span>
-                    <i class="ri-settings-4-line fs-20 text-secondary"></i>
-                  </div>
-                  <h6 class="fs-13 fw-bold text-dark mb-1">Data Pendaftaran Fleksibel</h6>
-                  <p class="text-muted fs-11 mb-3">
-                    Nama instansi/sekolah, nomor kontak WhatsApp, dan daftar nama peserta kontingen.
-                  </p>
-                  <button type="button" class="btn btn-sm btn-outline-secondary mt-auto w-100 fw-semibold" @click="applyPreset('umum')">
-                    Terapkan Template Ini
-                  </button>
                 </div>
               </div>
             </div>
           </div>
-          <div class="modal-footer bg-light border-top py-2 px-4">
+          <div class="modal-footer bg-light border-top py-2 px-4 d-flex justify-content-between align-items-center">
+            <span class="text-muted fs-11">Total {{ presetList.length }} Template Preset Siap Pakai</span>
             <button type="button" class="btn btn-sm btn-secondary" @click="showPresetModal = false">Tutup</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL 3B: KUSTOMISASI / EDIT TEMPLATE PRESET                    -->
+    <!-- ============================================================== -->
+    <div 
+      v-if="showEditPresetModal" 
+      class="modal fade show d-block preset-builder-modal" 
+      style="background: rgba(0,0,0,0.65); z-index: 1080;"
+      @click.self="showEditPresetModal = false"
+    >
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content preset-modal-content border-0 shadow-lg">
+          <div class="modal-header preset-modal-header py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
+            <h5 class="modal-title fs-14 fw-bold preset-modal-title d-flex align-items-center gap-2 mb-0">
+              <span class="preset-header-icon-box">
+                <i class="ri-edit-2-line fs-16"></i>
+              </span>
+              <span>{{ editPresetForm.key ? 'Kustomisasi Template Preset: ' + editPresetForm.title : 'Buat Template Preset Formulir Baru' }}</span>
+            </h5>
+            <button type="button" class="btn-close" @click="showEditPresetModal = false"></button>
+          </div>
+          
+          <div class="modal-body p-4 preset-modal-body">
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label fs-11 fw-bold preset-form-label mb-1">Nama / Judul Template Preset *</label>
+                <input 
+                  type="text" 
+                  v-model="editPresetForm.title" 
+                  class="form-control form-control-sm preset-form-input fs-12"
+                  placeholder="Contoh: Format Khusus Futsal & E-Sport"
+                  required
+                />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fs-11 fw-bold preset-form-label mb-1">Kategori Preset</label>
+                <input 
+                  type="text" 
+                  v-model="editPresetForm.category" 
+                  class="form-control form-control-sm preset-form-input fs-12"
+                  placeholder="Olahraga / Seni / Sains"
+                />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label fs-11 fw-bold preset-form-label mb-1">Badge Tag</label>
+                <input 
+                  type="text" 
+                  v-model="editPresetForm.badge" 
+                  class="form-control form-control-sm preset-form-input fs-12"
+                  placeholder="Contoh: Populer / Tim"
+                />
+              </div>
+              <div class="col-12">
+                <label class="form-label fs-11 fw-bold preset-form-label mb-1">Deskripsi Singkat Template</label>
+                <textarea 
+                  v-model="editPresetForm.description" 
+                  rows="2" 
+                  class="form-control form-control-sm preset-form-input fs-12"
+                  placeholder="Jelaskan ringkas field apa saja yang tercakup dalam template ini..."
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- Susunan Field Pertanyaan Preset -->
+            <div class="preset-section-divider pt-3">
+              <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                <div>
+                  <h6 class="fs-12 fw-bold preset-section-title mb-0 d-flex align-items-center gap-1.5">
+                    <i class="ri-list-settings-line"></i>
+                    <span>Susunan Field Pertanyaan ({{ editPresetForm.fields?.length || 0 }} Field)</span>
+                  </h6>
+                  <span class="fs-10 preset-subtext">Atur field yang akan otomatis diterapkan saat template ini dipilih.</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <button 
+                    type="button" 
+                    class="btn btn-xs preset-btn-outline d-flex align-items-center gap-1 py-1 px-2.5 fw-semibold"
+                    @click="addPresetField('text')"
+                    title="Tambah pertanyaan biasa (teks/angka/berkas)"
+                  >
+                    <i class="ri-add-line"></i>
+                    <span>+ Pertanyaan Biasa</span>
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-warning text-dark d-flex align-items-center gap-1.5 py-1 px-2.5 fw-bold shadow-sm"
+                    @click="addPresetField('participant_repeater')"
+                    title="Tambah blok biodata multi-peserta dinamis untuk tim/roster/beregu"
+                  >
+                    <i class="ri-group-line"></i>
+                    <span>+ Multi-Peserta (Dinamis)</span>
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="!editPresetForm.fields || editPresetForm.fields.length === 0" class="text-center py-4 preset-subtext fs-11">
+                Belum ada pertanyaan pada preset ini. Klik tombol di atas untuk menambah pertanyaan.
+              </div>
+
+              <div v-else class="d-flex flex-column gap-2.5 preset-fields-scrollable" style="max-height: 520px; overflow-y: auto;">
+                <div 
+                  v-for="(pf, pfIdx) in editPresetForm.fields" 
+                  :key="pf.id || pfIdx"
+                  class="p-2.5 rounded-3 preset-field-card border d-flex flex-column gap-2 transition-all"
+                  :class="pf.type === 'participant_repeater' ? 'preset-field-repeater-active' : ''"
+                >
+                  <!-- Top Row: Field Basic Configuration -->
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge preset-idx-badge font-mono text-[10px]">#{{ pfIdx + 1 }}</span>
+                    
+                    <div class="flex-grow-1 row g-2 align-items-center">
+                      <div class="col-md-5">
+                        <input 
+                          type="text" 
+                          v-model="pf.label" 
+                          class="form-control form-control-sm preset-form-input fs-11"
+                          placeholder="Label Pertanyaan (contoh: Nama Sekolah / Biodata Personil)"
+                        />
+                      </div>
+                      <div class="col-md-4">
+                        <CustomSelect 
+                          v-model="pf.type" 
+                          :options="fieldTypeOptions"
+                          @change="() => onPresetFieldTypeChange(pf)"
+                          size="xs"
+                          placeholder="Pilih tipe..."
+                        />
+                      </div>
+                      <div class="col-md-3 d-flex align-items-center gap-2">
+                        <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-1 cursor-pointer fs-10 preset-check-label">
+                          <input type="checkbox" v-model="pf.required" class="form-check-input text-warning" />
+                          <span>Wajib</span>
+                        </label>
+
+                        <!-- Dedicated Toggle Button for Participant Repeater -->
+                        <button 
+                          v-if="pf.type === 'participant_repeater'"
+                          type="button" 
+                          class="btn btn-xs py-1 px-2 fw-semibold d-flex align-items-center gap-1 text-nowrap ms-auto"
+                          :class="expandedPresetFields[pf.id] ? 'btn-warning text-dark' : 'btn-outline-warning'"
+                          @click="togglePresetFieldExpand(pf.id)"
+                          title="Kustomisasi kuota & kolom biodata siswa"
+                        >
+                          <i class="ri-settings-3-line"></i>
+                          <span>{{ expandedPresetFields[pf.id] ? 'Tutup Atur' : 'Atur Kuota & Kolom' }}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <button 
+                      type="button" 
+                      class="btn btn-xs btn-outline-danger p-1" 
+                      @click="removePresetField(pfIdx)"
+                      title="Hapus field dari preset ini"
+                    >
+                      <i class="ri-delete-bin-line"></i>
+                    </button>
+                  </div>
+
+                  <!-- ============================================================ -->
+                  <!-- SPECIAL CUSTOMIZATION: MULTI-PESERTA DINAMIS IN PRESET BUILDER -->
+                  <!-- ============================================================ -->
+                  <div 
+                    v-if="pf.type === 'participant_repeater' && expandedPresetFields[pf.id]"
+                    class="p-3 rounded-3 preset-repeater-box border d-flex flex-column gap-3 mt-1 animate__animated animate__fadeIn"
+                  >
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 pb-2 preset-section-divider">
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="avatar-xs rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold" style="width: 24px; height: 24px;">
+                          <i class="ri-group-line fs-13"></i>
+                        </span>
+                        <div>
+                          <div class="fs-12 fw-bold preset-repeater-title lh-sm">
+                            Kustomisasi Khusus: Kuota &amp; Biodata Multi-Peserta (Tim/Roster)
+                          </div>
+                          <div class="preset-subtext fs-10 lh-sm">
+                            Atur kuota delegasi, anggota inti &amp; cadangan, dan checklist kolom isian biodata per siswa.
+                          </div>
+                        </div>
+                      </div>
+                      <span class="badge bg-warning text-dark fs-10 fw-bold font-mono">⚡ Logika Dinamis</span>
+                    </div>
+
+                    <!-- Kuota Minimal, Maksimal, Inti, Cadangan -->
+                    <div class="row g-2">
+                      <div class="col-md-3 col-6">
+                        <label class="form-label fs-10 fw-bold preset-form-label mb-1">Kuota Minimal Siswa</label>
+                        <div class="input-group input-group-sm">
+                          <input 
+                            type="number" 
+                            v-model.number="pf.min_items"
+                            class="form-control form-control-sm preset-form-input fs-11 font-mono fw-bold"
+                            min="1"
+                            placeholder="1"
+                          />
+                          <span class="input-group-text preset-input-addon fs-10">Siswa</span>
+                        </div>
+                      </div>
+                      <div class="col-md-3 col-6">
+                        <label class="form-label fs-10 fw-bold preset-form-label mb-1">Kuota Maksimal Siswa</label>
+                        <div class="input-group input-group-sm">
+                          <input 
+                            type="number" 
+                            v-model.number="pf.max_items"
+                            class="form-control form-control-sm preset-form-input fs-11 font-mono fw-bold"
+                            min="1"
+                            placeholder="Bebas"
+                          />
+                          <span class="input-group-text preset-input-addon fs-10">Siswa</span>
+                        </div>
+                      </div>
+                      <div class="col-md-3 col-6">
+                        <label class="form-label fs-10 fw-bold preset-label-success mb-1 d-flex align-items-center gap-1">
+                          <i class="ri-shield-user-line"></i> Pemain Inti
+                        </label>
+                        <div class="input-group input-group-sm">
+                          <input 
+                            type="number" 
+                            v-model.number="pf.main_members"
+                            class="form-control form-control-sm preset-form-input fs-11 font-mono"
+                            min="1"
+                            placeholder="Cth: 5"
+                          />
+                          <span class="input-group-text preset-input-addon fs-10">Inti</span>
+                        </div>
+                      </div>
+                      <div class="col-md-3 col-6">
+                        <label class="form-label fs-10 fw-bold preset-label-warning mb-1 d-flex align-items-center gap-1">
+                          <i class="ri-user-shared-line"></i> Pemain Cadangan
+                        </label>
+                        <div class="input-group input-group-sm">
+                          <input 
+                            type="number" 
+                            v-model.number="pf.reserve_members"
+                            class="form-control form-control-sm preset-form-input fs-11 font-mono"
+                            min="0"
+                            placeholder="Cth: 1"
+                          />
+                          <span class="input-group-text preset-input-addon fs-10">Cadangan</span>
+                        </div>
+                      </div>
+
+                      <!-- Quick Preset Chips -->
+                      <div class="col-12 pt-1">
+                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                          <span class="preset-subtext fs-10 me-1">Preset Batas Kuota Cepat:</span>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 1; pf.max_items = 2; pf.main_members = 2; pf.reserve_members = 0;">2 (Duo/Riset)</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 3; pf.max_items = 3; pf.main_members = 3; pf.reserve_members = 0;">3 (Regu LCC)</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 5; pf.max_items = 6; pf.main_members = 5; pf.reserve_members = 1;">6 (5 Inti + 1 Cadangan MLBB)</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 6; pf.max_items = 10; pf.main_members = 6; pf.reserve_members = 4;">10 (6 Inti + 4 Cadangan Voli)</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 1; pf.max_items = 10; pf.main_members = 10; pf.reserve_members = 0;">10 (Hadrah/Banjari)</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 1; pf.max_items = null; pf.main_members = null; pf.reserve_members = null;">Bebas</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Checklist Kolom Biodata Siswa -->
+                    <div class="preset-section-divider pt-2">
+                      <div class="fs-11 fw-bold preset-form-label mb-2">Kolom Biodata Siswa yang Diaktifkan di Template Ini:</div>
+                      
+                      <div class="row g-2">
+                        <!-- Group 1: Identitas -->
+                        <div class="col-md-4">
+                          <div class="p-2.5 rounded preset-subcard border h-100 d-flex flex-column gap-1.5">
+                            <div class="preset-group-title-amber fs-10 fw-bold text-uppercase mb-1 d-flex align-items-center gap-1">
+                              <i class="ri-user-line"></i> Identitas &amp; Akademik
+                            </div>
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 fs-11 preset-subtext opacity-75">
+                              <input type="checkbox" class="form-check-input" checked disabled />
+                              <span class="preset-check-label">Nama Lengkap Siswa</span>
+                              <span class="badge bg-danger-subtle text-danger fs-9 ms-auto">Wajib</span>
+                            </label>
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                              <input type="checkbox" class="form-check-input text-warning" v-model="pf.sub_fields.gender.active" />
+                              <span>Jenis Kelamin (L/P)</span>
+                            </label>
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                              <input type="checkbox" class="form-check-input text-warning" v-model="pf.sub_fields.grade.active" />
+                              <span>Kelas / Tingkat</span>
+                            </label>
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                              <input type="checkbox" class="form-check-input text-warning" v-model="pf.sub_fields.birth_date.active" />
+                              <span>Tanggal Lahir Siswa</span>
+                            </label>
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                              <input type="checkbox" class="form-check-input text-warning" v-model="pf.sub_fields.nisn.active" />
+                              <span>Nomor Induk Siswa (NISN)</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        <!-- Group 2: ID & Kontak WhatsApp -->
+                        <div class="col-md-4">
+                          <div class="p-2.5 rounded preset-subcard border h-100 d-flex flex-column gap-1.5">
+                            <div class="preset-group-title-info fs-10 fw-bold text-uppercase mb-1 d-flex align-items-center gap-1">
+                              <i class="ri-smartphone-line"></i> ID &amp; Kontak Komunikasi
+                            </div>
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                              <input type="checkbox" class="form-check-input text-info" v-model="pf.sub_fields.custom_id.active" />
+                              <div>
+                                <span>ID Siswa / No. Game / Punggung</span>
+                                <div class="preset-subtext fs-10">Teks bebas</div>
+                              </div>
+                            </label>
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                              <input type="checkbox" class="form-check-input text-info" v-model="pf.sub_fields.wa_number.active" />
+                              <div>
+                                <span>Nomor WhatsApp Siswa</span>
+                                <div class="preset-subtext fs-10">Khusus nomor WA tiap personil</div>
+                              </div>
+                            </label>
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-start gap-2 cursor-pointer fs-11 preset-captain-highlight p-1.5 rounded border">
+                              <input type="checkbox" class="form-check-input text-warning mt-0.5" v-model="pf.sub_fields.captain_option.active" />
+                              <div>
+                                <span class="fw-bold d-flex align-items-center gap-1">
+                                  <i class="ri-vip-crown-line"></i> Tandai Kapten &amp; WA Khusus
+                                </span>
+                                <div class="preset-subtext fs-10">Pendaftar memilih 1 kapten tim</div>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+
+                        <!-- Group 3: Foto & Berkas Siswa -->
+                        <div class="col-md-4">
+                          <div class="p-2.5 rounded preset-subcard border h-100 d-flex flex-column gap-1.5">
+                            <div class="preset-group-title-rose fs-10 fw-bold text-uppercase mb-1 d-flex align-items-center gap-1">
+                              <i class="ri-image-line"></i> Berkas &amp; Foto Siswa
+                            </div>
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                              <input type="checkbox" class="form-check-input text-danger" v-model="pf.sub_fields.photo_formal.active" />
+                              <div>
+                                <span>Upload Pas Foto Formal Siswa</span>
+                                <div class="preset-subtext fs-10">Foto resmi 3x4 / berseragam (1 file)</div>
+                              </div>
+                            </label>
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                              <input type="checkbox" class="form-check-input text-danger" v-model="pf.sub_fields.photo_freestyle.active" />
+                              <div>
+                                <span>Upload Foto Pose Gaya Bebas</span>
+                                <div class="preset-subtext fs-10">Bisa &gt;1 file foto sekaligus</div>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Group 4: Kolom Tambahan Bebas di Preset -->
+                    <div class="preset-section-divider pt-2">
+                      <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                          <div class="fs-11 fw-bold preset-form-label d-flex align-items-center gap-1.5">
+                            <i class="ri-add-box-line text-warning"></i>
+                            <span>Kolom Tambahan Kustom Biodata Siswa:</span>
+                          </div>
+                          <div class="preset-subtext fs-10">Tambah kolom khusus yang akan otomatis hadir di tiap biodata siswa saat template ini diterapkan.</div>
+                        </div>
+                        <button 
+                          type="button" 
+                          class="btn btn-xs preset-btn-outline py-1 px-2 fs-10 d-flex align-items-center gap-1 fw-semibold"
+                          @click="addCustomSubFieldToPreset(pf)"
+                        >
+                          <i class="ri-add-line"></i>
+                          <span>+ Tambah Kolom Biodata</span>
+                        </button>
+                      </div>
+
+                      <div v-if="!pf.sub_fields?.custom_columns || pf.sub_fields.custom_columns.length === 0" class="p-2.5 rounded preset-empty-state border fs-10 fst-italic">
+                        Belum ada kolom kustom tambahan di preset ini (contoh: Ukuran Baju/Jersey, Role Hero, Akun IG, dll.). Klik <strong>"+ Tambah Kolom Biodata"</strong> di atas jika diperlukan.
+                      </div>
+                      <div v-else class="d-flex flex-column gap-2">
+                        <div 
+                          v-for="(col, colIdx) in pf.sub_fields.custom_columns" 
+                          :key="col.id || colIdx"
+                          class="p-2 rounded preset-custom-col-row border d-flex align-items-center gap-2"
+                        >
+                          <span class="badge preset-idx-badge font-mono text-[9px]">#{{ colIdx + 1 }}</span>
+                          <div class="flex-grow-1 row g-2 align-items-center">
+                            <div class="col-md-5">
+                              <input 
+                                type="text" 
+                                v-model="col.label" 
+                                class="form-control form-control-sm preset-form-input fs-11"
+                                placeholder="Nama Kolom (contoh: Ukuran Jersey)"
+                              />
+                            </div>
+                            <div class="col-md-4">
+                              <CustomSelect 
+                                v-model="col.type" 
+                                :options="columnTypeOptions"
+                                size="xs"
+                                placeholder="Tipe..."
+                              />
+                            </div>
+                            <div class="col-md-3 d-flex align-items-center gap-2">
+                              <label class="form-check form-check-sm mb-0 cursor-pointer fs-10 preset-check-label d-flex align-items-center gap-1">
+                                <input type="checkbox" v-model="col.required" class="form-check-input text-warning" />
+                                <span>Wajib</span>
+                              </label>
+                            </div>
+                          </div>
+                          <button 
+                            type="button" 
+                            class="btn btn-xs btn-outline-danger p-1" 
+                            @click="removeCustomSubFieldFromPreset(pf, colIdx)"
+                            title="Hapus kolom ini dari preset"
+                          >
+                            <i class="ri-delete-bin-line"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer preset-modal-footer py-2.5 px-4 d-flex justify-content-between align-items-center">
+            <button type="button" class="btn btn-sm btn-secondary" @click="showEditPresetModal = false">Batal</button>
+            <div class="d-flex align-items-center gap-2">
+              <button 
+                type="button" 
+                class="btn btn-sm btn-primary d-flex align-items-center gap-1 fw-semibold shadow-sm"
+                :disabled="isSavingPreset"
+                @click="savePresetTemplate"
+              >
+                <i class="ri-save-line"></i>
+                <span>{{ isSavingPreset ? 'Menyimpan...' : 'Simpan Perubahan Template Preset' }}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -3007,16 +4331,14 @@ function setParticipantCountDirect(field, val) {
             </p>
             <div class="mb-3">
               <label class="form-label fs-12 fw-semibold text-dark">Pilih Cabang Lomba Sumber:</label>
-              <select v-model="sourceCompIdToCopy" class="form-select fs-13">
-                <option value="" disabled selected>-- Pilih Cabang Sumber --</option>
-                <option 
-                  v-for="c in competitions.filter(item => item.id !== currentCompId)" 
-                  :key="c.id" 
-                  :value="c.id"
-                >
-                  {{ c.icon }} {{ c.title }} ({{ c.custom_fields?.length || 0 }} Field)
-                </option>
-              </select>
+              <CustomSelect 
+                v-model="sourceCompIdToCopy"
+                :options="copySourceCompetitionOptions"
+                size="md"
+                placeholder="-- Pilih Cabang Sumber --"
+                searchable
+                search-placeholder="Cari cabang sumber..."
+              />
             </div>
           </div>
           <div class="modal-footer bg-light border-top py-2 px-4 d-flex justify-content-between">
@@ -3039,6 +4361,26 @@ function setParticipantCountDirect(field, val) {
 
 <style scoped>
 /* Top Command Bar & Comp Select */
+.top-bar-nav-row {
+  flex-wrap: nowrap !important;
+}
+.min-w-0 {
+  min-width: 0 !important;
+}
+.comp-selector-box {
+  max-width: 260px;
+  min-width: 160px;
+}
+@media (min-width: 1400px) {
+  .comp-selector-box {
+    max-width: 380px;
+  }
+}
+@media (min-width: 1600px) {
+  .comp-selector-box {
+    max-width: 500px;
+  }
+}
 .comp-select {
   border-radius: 0 0.375rem 0.375rem 0;
 }
@@ -3064,6 +4406,8 @@ function setParticipantCountDirect(field, val) {
 .toolbox-scroll-area {
   max-height: calc(100vh - 270px);
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
 }
 .sticky-preview-card {
   position: sticky;
@@ -3073,9 +4417,38 @@ function setParticipantCountDirect(field, val) {
 .preview-scroll-area {
   max-height: calc(100vh - 165px);
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 .canvas-scroll-area {
   min-height: 480px;
+}
+
+/* Elegant Slim Scrollbar Rules */
+.toolbox-scroll-area::-webkit-scrollbar,
+.preview-scroll-area::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.toolbox-scroll-area::-webkit-scrollbar-track,
+.preview-scroll-area::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+.toolbox-scroll-area::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.28);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+.toolbox-scroll-area::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 116, 139, 0.55);
+}
+.preview-scroll-area::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+.preview-scroll-area::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.35);
 }
 
 /* Tool Cards */
@@ -3093,7 +4466,11 @@ function setParticipantCountDirect(field, val) {
 /* Field Cards */
 .field-card {
   transition: all 0.2s ease;
-  overflow: hidden;
+  overflow: visible;
+}
+.field-card:has(.custom-select-wrapper.is-open) {
+  z-index: 30;
+  position: relative;
 }
 .field-card:hover {
   box-shadow: 0 3px 10px rgba(0,0,0,0.04);
@@ -3131,6 +4508,14 @@ function setParticipantCountDirect(field, val) {
 
 <!-- Non-scoped Dark Mode Styles for Form Builder to ensure 100% theme fidelity -->
 <style>
+/* Card Stacking Context Fix for Custom Select Dropdowns */
+.field-card:has(.custom-select-wrapper.is-open),
+.card:has(.custom-select-wrapper.is-open),
+.col-md-5:has(.custom-select-wrapper.is-open) {
+  z-index: 100 !important;
+  position: relative !important;
+}
+
 [data-bs-theme="dark"] .top-command-bar,
 [data-bs-theme="dark"] .sticky-toolbox,
 [data-bs-theme="dark"] .form-canvas-card,
@@ -3208,5 +4593,374 @@ function setParticipantCountDirect(field, val) {
   background-color: #0b1120 !important;
   border-color: #1e293b !important;
   color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .text-warning-emphasis,
+[data-bs-theme="dark"] .text-warning-emphasis * {
+  color: #fde047 !important;
+}
+
+/* ============================================================== */
+/* PRESET BUILDER MODAL: FULL LIGHT & DARK MODE ADAPTIVE SYSTEM    */
+/* ============================================================== */
+
+/* Modal Content Container */
+.preset-modal-content {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-bs-theme="dark"] .preset-modal-content {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #1e293b !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Modal Header */
+.preset-modal-header {
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .preset-modal-header {
+  background-color: #0b0f19 !important;
+  border-bottom-color: #1e293b !important;
+}
+
+.preset-modal-title {
+  color: #0f172a !important;
+}
+
+[data-bs-theme="dark"] .preset-modal-title {
+  color: #f8fafc !important;
+}
+
+.preset-header-icon-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+[data-bs-theme="dark"] .preset-header-icon-box {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #fbbf24 !important;
+}
+
+/* Modal Body */
+.preset-modal-body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+[data-bs-theme="dark"] .preset-modal-body {
+  background-color: #090d16 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Form Labels & Subtext */
+.preset-form-label {
+  color: #1e293b !important;
+}
+
+[data-bs-theme="dark"] .preset-form-label {
+  color: #e2e8f0 !important;
+}
+
+.preset-subtext {
+  color: #475569 !important;
+}
+
+[data-bs-theme="dark"] .preset-subtext {
+  color: #94a3b8 !important;
+}
+
+.preset-check-label {
+  color: #1e293b !important;
+}
+
+[data-bs-theme="dark"] .preset-check-label {
+  color: #e2e8f0 !important;
+}
+
+/* Section Title & Dividers */
+.preset-section-title {
+  color: #b45309 !important;
+}
+
+[data-bs-theme="dark"] .preset-section-title {
+  color: #fbbf24 !important;
+}
+
+.preset-section-divider {
+  border-top: 1px solid #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .preset-section-divider {
+  border-top-color: #1e293b !important;
+}
+
+/* Inputs & Textareas */
+.preset-form-input {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.preset-form-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.preset-form-input:focus {
+  background-color: #ffffff !important;
+  border-color: #3b82f6 !important;
+  color: #0f172a !important;
+  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.15) !important;
+}
+
+[data-bs-theme="dark"] .preset-form-input {
+  background-color: #111827 !important;
+  border-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .preset-form-input::placeholder {
+  color: #64748b !important;
+}
+
+[data-bs-theme="dark"] .preset-form-input:focus {
+  background-color: #1e293b !important;
+  border-color: #6366f1 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Input Addon */
+.preset-input-addon {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+[data-bs-theme="dark"] .preset-input-addon {
+  background-color: #1e293b !important;
+  border-color: #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+/* Field Cards */
+.preset-field-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.preset-field-card.preset-field-repeater-active {
+  border-color: #f59e0b !important;
+  box-shadow: 0 2px 6px 0 rgba(245, 158, 11, 0.12);
+}
+
+[data-bs-theme="dark"] .preset-field-card {
+  background-color: #111827 !important;
+  border-color: #1e293b !important;
+}
+
+[data-bs-theme="dark"] .preset-field-card.preset-field-repeater-active {
+  border-color: rgba(245, 158, 11, 0.5) !important;
+  box-shadow: 0 2px 8px 0 rgba(245, 158, 11, 0.15);
+}
+
+/* Field Index Badge */
+.preset-idx-badge {
+  background-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+[data-bs-theme="dark"] .preset-idx-badge {
+  background-color: #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+/* Buttons */
+.preset-btn-outline {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #1e293b !important;
+}
+
+.preset-btn-outline:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+[data-bs-theme="dark"] .preset-btn-outline {
+  background-color: #111827 !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .preset-btn-outline:hover {
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+  color: #ffffff !important;
+}
+
+/* Repeater Configuration Box */
+.preset-repeater-box {
+  background-color: #fffdf5 !important;
+  border-color: #fde68a !important;
+}
+
+[data-bs-theme="dark"] .preset-repeater-box {
+  background-color: #0b1120 !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+}
+
+.preset-repeater-title {
+  color: #92400e !important;
+}
+
+[data-bs-theme="dark"] .preset-repeater-title {
+  color: #fde047 !important;
+}
+
+.preset-label-success {
+  color: #166534 !important;
+}
+
+[data-bs-theme="dark"] .preset-label-success {
+  color: #86efac !important;
+}
+
+.preset-label-warning {
+  color: #b45309 !important;
+}
+
+[data-bs-theme="dark"] .preset-label-warning {
+  color: #fde047 !important;
+}
+
+/* Preset Chips */
+.preset-builder-modal .btn-preset-chip {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  transition: all 0.15s ease-in-out;
+}
+
+.preset-builder-modal .btn-preset-chip:hover {
+  background-color: #fef3c7 !important;
+  border-color: #f59e0b !important;
+  color: #92400e !important;
+}
+
+[data-bs-theme="dark"] .preset-builder-modal .btn-preset-chip {
+  background-color: #0f172a !important;
+  border: 1px solid #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+[data-bs-theme="dark"] .preset-builder-modal .btn-preset-chip:hover {
+  background-color: #1e293b !important;
+  border-color: #f59e0b !important;
+  color: #fde047 !important;
+}
+
+/* Subfield Cards */
+.preset-subcard {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .preset-subcard {
+  background-color: #111827 !important;
+  border-color: #1e293b !important;
+}
+
+.preset-group-title-amber {
+  color: #b45309 !important;
+}
+
+[data-bs-theme="dark"] .preset-group-title-amber {
+  color: #fde047 !important;
+}
+
+.preset-group-title-info {
+  color: #0369a1 !important;
+}
+
+[data-bs-theme="dark"] .preset-group-title-info {
+  color: #7dd3fc !important;
+}
+
+.preset-group-title-rose {
+  color: #be123c !important;
+}
+
+[data-bs-theme="dark"] .preset-group-title-rose {
+  color: #fca5a5 !important;
+}
+
+/* Captain Highlight Box */
+.preset-captain-highlight {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+  color: #92400e !important;
+}
+
+.preset-captain-highlight .preset-subtext {
+  color: #b45309 !important;
+}
+
+[data-bs-theme="dark"] .preset-captain-highlight {
+  background-color: #0b1120 !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+  color: #fbbf24 !important;
+}
+
+[data-bs-theme="dark"] .preset-captain-highlight .preset-subtext {
+  color: #94a3b8 !important;
+}
+
+/* Custom Columns State */
+.preset-empty-state {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #64748b !important;
+}
+
+[data-bs-theme="dark"] .preset-empty-state {
+  background-color: #111827 !important;
+  border-color: #1e293b !important;
+  color: #94a3b8 !important;
+}
+
+.preset-custom-col-row {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .preset-custom-col-row {
+  background-color: #111827 !important;
+  border-color: #1e293b !important;
+}
+
+/* Modal Footer */
+.preset-modal-footer {
+  background-color: #f8fafc !important;
+  border-top: 1px solid #e2e8f0 !important;
+}
+
+[data-bs-theme="dark"] .preset-modal-footer {
+  background-color: #0b0f19 !important;
+  border-top-color: #1e293b !important;
 }
 </style>

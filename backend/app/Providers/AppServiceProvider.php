@@ -12,7 +12,27 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(\Illuminate\Foundation\Vite::class, function () {
+            return new class extends \Illuminate\Foundation\Vite {
+                public function devServerUrl()
+                {
+                    $url = parent::devServerUrl();
+                    if (! $url) {
+                        return null;
+                    }
+
+                    $host = request()->getHost();
+                    if ($host && !in_array($host, ['0.0.0.0', ''])) {
+                        $parsed = parse_url($url);
+                        $scheme = $parsed['scheme'] ?? 'http';
+                        $port = isset($parsed['port']) ? ':' . $parsed['port'] : ':5173';
+                        return "{$scheme}://{$host}{$port}";
+                    }
+
+                    return str_replace('0.0.0.0', 'localhost', $url);
+                }
+            };
+        });
     }
 
     /**

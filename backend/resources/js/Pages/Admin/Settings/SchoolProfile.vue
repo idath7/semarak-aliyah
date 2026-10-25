@@ -130,6 +130,42 @@ function submitForm() {
                     <span>SEO & Open Graph</span>
                   </Link>
                 </li>
+                <li class="nav-item">
+                  <Link
+                    href="/admin/pengaturan/wa-gateway"
+                    class="nav-link px-3 py-2 d-flex align-items-center gap-2 rounded-pill text-muted fw-semibold fs-13 hover:text-white"
+                  >
+                    <i class="ri-whatsapp-line text-success"></i>
+                    <span>WA Gateway</span>
+                  </Link>
+                </li>
+                <li class="nav-item">
+                  <Link
+                    href="/admin/pengaturan/kebijakan-pendaftaran"
+                    class="nav-link px-3 py-2 d-flex align-items-center gap-2 rounded-pill text-muted fw-semibold fs-13 hover:text-white"
+                  >
+                    <i class="ri-user-settings-line text-primary"></i>
+                    <span>Kebijakan Pendaftaran</span>
+                  </Link>
+                </li>
+                <li class="nav-item">
+                  <Link
+                    href="/admin/pengaturan/login-admin"
+                    class="nav-link px-3 py-2 d-flex align-items-center gap-2 rounded-pill text-muted fw-semibold fs-13 hover:text-white"
+                  >
+                    <i class="ri-image-edit-line text-info"></i>
+                    <span>Login Panel Admin</span>
+                  </Link>
+                </li>
+                <li class="nav-item">
+                  <Link
+                    href="/admin/pengaturan/sipresensi"
+                    class="nav-link px-3 py-2 d-flex align-items-center gap-2 rounded-pill text-muted fw-semibold fs-13 hover:text-white"
+                  >
+                    <i class="ri-shield-keyhole-line text-success"></i>
+                    <span>API Sipresensi</span>
+                  </Link>
+                </li>
               </ul>
 
               <div class="d-flex align-items-center gap-2">

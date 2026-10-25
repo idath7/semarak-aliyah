@@ -1270,15 +1270,18 @@ onUnmounted(() => {
 
               <div class="flex items-center gap-2">
                 <!-- Status Filter -->
-                <select 
-                  v-model="berkasFilterStatus"
-                  class="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="all">Semua Status</option>
-                  <option value="Menunggu Verifikasi">Menunggu Verifikasi</option>
-                  <option value="Terverifikasi">Terverifikasi</option>
-                  <option value="Ditolak">Ditolak / Belum Sah</option>
-                </select>
+                <div style="min-width: 190px;">
+                  <CustomSelect 
+                    v-model="berkasFilterStatus"
+                    size="sm"
+                    variant="dark-slate"
+                  >
+                    <option value="all">Semua Status</option>
+                    <option value="Menunggu Verifikasi">Menunggu Verifikasi</option>
+                    <option value="Terverifikasi">Terverifikasi</option>
+                    <option value="Ditolak">Ditolak / Belum Sah</option>
+                  </CustomSelect>
+                </div>
               </div>
             </div>
 
@@ -1975,11 +1978,11 @@ onUnmounted(() => {
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
           <div>
             <label class="block text-slate-400 text-xs mb-1 font-semibold">Status Pertandingan:</label>
-            <select v-model="refereeStatus" class="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white">
+            <CustomSelect v-model="refereeStatus" size="sm" variant="dark-slate">
               <option value="scheduled">Dijadwalkan</option>
               <option value="ongoing">Sedang Berlangsung (LIVE)</option>
               <option value="completed">Selesai Pertandingan</option>
-            </select>
+            </CustomSelect>
           </div>
           <div>
             <label class="block text-slate-400 text-xs mb-1 font-semibold">Lokasi Lapangan:</label>
@@ -2018,13 +2021,16 @@ onUnmounted(() => {
         </div>
 
         <div class="flex items-center gap-3">
-          <select 
-            v-model="printCompFilter"
-            class="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white"
-          >
-            <option value="all">Semua Cabang Lomba</option>
-            <option v-for="c in competitions" :key="c.id" :value="c.id">{{ c.title }}</option>
-          </select>
+          <div style="min-width: 220px;">
+            <CustomSelect 
+              v-model="printCompFilter"
+              size="sm"
+              variant="dark-slate"
+            >
+              <option value="all">Semua Cabang Lomba</option>
+              <option v-for="c in competitions" :key="c.id" :value="c.id">{{ c.title }}</option>
+            </CustomSelect>
+          </div>
 
           <button 
             @click="triggerPrint"

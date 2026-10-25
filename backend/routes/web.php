@@ -19,8 +19,8 @@ Route::post('/layanan-registrasi', [PublicPortalController::class, 'storeRegistr
 Route::get('/scoreboard', [LiveScoreboardController::class, 'index'])->name('public.scoreboard');
 Route::get('/portal/live-scoreboard', [LiveScoreboardController::class, 'index'])->name('portal.scoreboard');
 
-// Operational Command Center (Pusat Komando Lapangan Hari-H - Dark UI) - Protected with Auth
-Route::middleware('auth')->group(function () {
+// Operational Command Center (Pusat Komando Lapangan Hari-H - Dark UI) - Protected with Auth & Admin Role
+Route::middleware(['auth:web', 'admin'])->group(function () {
     Route::get('/operasional', [\App\Http\Controllers\OperasionalHubController::class, 'index'])->name('operasional');
     Route::get('/operasional/turnamen', function () { return redirect('/operasional?tab=turnamen'); });
     Route::get('/operasional/turnamen/{comp}', function ($comp) { return redirect("/operasional?tab=turnamen&comp={$comp}"); });
@@ -33,14 +33,63 @@ Route::middleware('auth')->group(function () {
 
 // Authentication Routes (Rate limited against brute-force)
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1')->name('login.post');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:15,1')->name('login.post');
+Route::post('/login/sso-sipresensi', [AuthController::class, 'loginSsoSipresensi'])->middleware('throttle:15,1')->name('login.sso');
+Route::post('/login/wa-otp/send', [AuthController::class, 'sendWaOtp'])->middleware('throttle:10,1')->name('login.otp.send');
+Route::post('/login/wa-otp/verify', [AuthController::class, 'verifyWaOtp'])->middleware('throttle:15,1')->name('login.otp.verify');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// Google OAuth & Direct Login untuk Admin / Panitia
+Route::get('/admin/auth/google', [AuthController::class, 'adminGoogleLogin'])->name('admin.auth.google');
+Route::post('/admin/auth/google/direct', [AuthController::class, 'adminGoogleDirectLogin'])->name('admin.auth.google.direct');
+Route::get('/admin/auth/google/callback', [AuthController::class, 'handleAdminGoogleCallback'])->name('admin.auth.google.callback');
+
+// =========================================================================
+// PORTAL & OTENTIKASI AKUN PENDAFTAR
+// =========================================================================
+Route::prefix('pendaftar')->name('pendaftar.')->group(function () {
+    Route::get('/login', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'login'])->middleware('throttle:10,1')->name('login.post');
+    Route::get('/register', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'showRegister'])->name('register');
+    Route::post('/register', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'register'])->middleware('throttle:10,1')->name('register.post');
+    Route::post('/send-otp', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'sendOtp'])->middleware('throttle:6,1')->name('send-otp');
+    Route::post('/verify-otp', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'verifyOtp'])->middleware('throttle:10,1')->name('verify-otp');
+    Route::get('/lupa-password', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'showForgotPassword'])->name('forgot-password');
+    Route::post('/lupa-password/send-otp', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'sendResetOtp'])->middleware('throttle:6,1')->name('forgot-password.send-otp');
+    Route::post('/lupa-password/reset', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'resetPasswordWithOtp'])->middleware('throttle:10,1')->name('forgot-password.reset');
+    Route::post('/logout', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'logout'])->name('logout');
+
+    // Protected Registrant Portal Routes
+    Route::middleware(['auth:pendaftar', 'registrant'])->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/daftar-lomba', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'createRegistration'])->name('registrations.create');
+        Route::post('/daftar-lomba', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'storeRegistration'])->name('registrations.store');
+        Route::post('/registrations/{id}/update', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'updateRegistration'])->name('registrations.update');
+        Route::post('/registrations/{id}/assign-pic', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'assignPic'])->name('registrations.assign-pic');
+        Route::post('/registrations/{id}/remove-pic', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'removePic'])->name('registrations.remove-pic');
+        Route::post('/paket/all-in/activate', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'activateAllInPackage'])->name('paket.all-in.activate');
+        Route::post('/paket/all-in/upload-proof', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'uploadPackageProof'])->name('paket.all-in.upload-proof');
+        Route::post('/profile/update', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'updateProfile'])->name('profile.update');
+    });
+});
+
+// Google OAuth & Registered Email Login
+Route::get('/auth/google', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'googleLogin'])->name('auth.google');
+Route::post('/auth/google', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'googleLogin'])->name('auth.google.post');
+Route::get('/auth/google/callback', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
+
 // Protected Admin Panel Routes (Velzon Theme for Registrations & Quota)
-Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     // 1. Dashboard & Management Pages (Velzon Theme)
     Route::get('/', [AdminPanelController::class, 'index'])->name('dashboard');
+    Route::get('/buat-password', [AuthController::class, 'showFirstTimePassword'])->name('password.first');
+    Route::post('/buat-password', [AuthController::class, 'storeFirstTimePassword'])->name('password.first.store');
     Route::get('/pendaftar', [AdminPanelController::class, 'pendaftar'])->name('pendaftar');
+    Route::post('/pendaftar/manual-store', [AdminPanelController::class, 'storeManualRegistration'])->name('pendaftar.manual-store');
+    Route::post('/pendaftar/merge-schools', [AdminPanelController::class, 'mergeSchools'])->name('pendaftar.merge-schools');
+    Route::get('/sekolah-terdaftar', [AdminPanelController::class, 'registeredSchoolsIndex'])->name('sekolah-terdaftar.index');
+    Route::get('/pendaftar/{id}', [AdminPanelController::class, 'pendaftarDetail'])->name('pendaftar.detail');
+    Route::post('/pendaftar/{id}/verify', [AdminPanelController::class, 'verify'])->name('pendaftar.verify');
     Route::get('/lomba', [AdminPanelController::class, 'competitionsIndex'])->name('competitions.index');
     Route::post('/lomba', [AdminPanelController::class, 'storeCompetition'])->name('competitions.store');
     Route::put('/lomba/{id}', [AdminPanelController::class, 'updateCompetition'])->name('competitions.update');
@@ -54,6 +103,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     // Manajemen Pengguna & Panitia (Users & Committee Management)
     Route::get('/pengguna', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
     Route::post('/pengguna', [\App\Http\Controllers\Admin\UserController::class, 'store'])->name('users.store');
+    Route::get('/pengguna/sipresensi/preview', [\App\Http\Controllers\Admin\UserController::class, 'previewSipresensiTeachers'])->name('users.sipresensi.preview');
+    Route::post('/pengguna/sipresensi/sync', [\App\Http\Controllers\Admin\UserController::class, 'syncSipresensiTeachers'])->name('users.sipresensi.sync');
     Route::put('/pengguna/{id}', [\App\Http\Controllers\Admin\UserController::class, 'update'])->name('users.update');
     Route::post('/pengguna/{id}/toggle-status', [\App\Http\Controllers\Admin\UserController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::delete('/pengguna/{id}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
@@ -64,6 +115,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::put('/sekolah/{id}', [\App\Http\Controllers\Admin\SchoolController::class, 'update'])->name('schools.update');
     Route::delete('/sekolah/{id}', [\App\Http\Controllers\Admin\SchoolController::class, 'destroy'])->name('schools.destroy');
     Route::post('/sekolah/sync-defaults', [\App\Http\Controllers\Admin\SchoolController::class, 'syncDefaults'])->name('schools.sync-defaults');
+    Route::post('/sekolah/sync-registrations', [\App\Http\Controllers\Admin\SchoolController::class, 'syncRegistrations'])->name('schools.sync-registrations');
     Route::get('/sekolah/export-csv', [\App\Http\Controllers\Admin\SchoolController::class, 'exportCsv'])->name('schools.export-csv');
     Route::get('/sekolah/template-csv', [\App\Http\Controllers\Admin\SchoolController::class, 'templateCsv'])->name('schools.template-csv');
     Route::post('/sekolah/import-csv', [\App\Http\Controllers\Admin\SchoolController::class, 'importCsv'])->name('schools.import-csv');
@@ -87,8 +139,18 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::post('/tm/{competitionId}/order', [AdminPanelController::class, 'updateParticipantOrder'])->name('tm.order');
     Route::post('/tm/{competitionId}/reset', [AdminPanelController::class, 'resetDraw'])->name('tm.reset');
 
+    // Manajemen Buku Panduan Juknis (Juknis Umum & Spesifik Cabang)
+    Route::get('/juknis', [AdminPanelController::class, 'juknisIndex'])->name('juknis.index');
+    Route::post('/juknis/general', [AdminPanelController::class, 'updateGeneralJuknis'])->name('juknis.general.update');
+    Route::post('/juknis/general/reset', [AdminPanelController::class, 'resetGeneralJuknis'])->name('juknis.general.reset');
+    Route::post('/juknis/competition/{id}', [AdminPanelController::class, 'updateCompetitionJuknis'])->name('juknis.competition.update');
+    Route::delete('/juknis/competition/{id}', [AdminPanelController::class, 'deleteCompetitionJuknis'])->name('juknis.competition.delete');
+
     // Form Builder untuk Pendaftaran Cabang Lomba
     Route::get('/form-builder', [AdminPanelController::class, 'formBuilderIndex'])->name('form-builder.index');
+    Route::post('/form-builder/presets/save', [AdminPanelController::class, 'formBuilderSavePreset'])->name('form-builder.presets.save');
+    Route::post('/form-builder/presets/delete', [AdminPanelController::class, 'formBuilderDeletePreset'])->name('form-builder.presets.delete');
+    Route::post('/form-builder/presets/reset-default', [AdminPanelController::class, 'formBuilderResetPresets'])->name('form-builder.presets.reset');
     Route::get('/form-builder/{competitionId}', [AdminPanelController::class, 'formBuilderShow'])->name('form-builder.show');
     Route::post('/form-builder/{competitionId}', [AdminPanelController::class, 'formBuilderSave'])->name('form-builder.save');
     Route::post('/form-builder/{competitionId}/preset', [AdminPanelController::class, 'formBuilderApplyPreset'])->name('form-builder.preset');
@@ -156,6 +218,34 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
 
         // 4. Quick Update Master Edisi & Tahun Event
         Route::post('/update-edisi', [\App\Http\Controllers\Admin\SettingsController::class, 'updateEdition'])->name('edition.update');
+
+        // 5. Fitur WhatsApp Gateway (OpenWA Production)
+        Route::get('/wa-gateway', [\App\Http\Controllers\Admin\SettingsController::class, 'waGateway'])->name('wa-gateway');
+        Route::get('/wa-gateway/sessions', [\App\Http\Controllers\Admin\SettingsController::class, 'fetchWaSessions'])->name('wa-gateway.sessions');
+        Route::get('/wa-gateway/groups', [\App\Http\Controllers\Admin\SettingsController::class, 'fetchWaGroups'])->name('wa-gateway.groups');
+        Route::post('/wa-gateway', [\App\Http\Controllers\Admin\SettingsController::class, 'updateWaGateway'])->name('wa-gateway.update');
+        Route::post('/wa-gateway/test-connection', [\App\Http\Controllers\Admin\SettingsController::class, 'testWaConnection'])->name('wa-gateway.test-connection');
+        Route::post('/wa-gateway/send-test', [\App\Http\Controllers\Admin\SettingsController::class, 'sendTestWaMessage'])->name('wa-gateway.send-test');
+        Route::post('/wa-gateway/resend/{id}', [\App\Http\Controllers\Admin\SettingsController::class, 'resendWaLog'])->name('wa-gateway.resend');
+        Route::post('/wa-gateway/clear-logs', [\App\Http\Controllers\Admin\SettingsController::class, 'clearWaLogs'])->name('wa-gateway.clear-logs');
+        Route::post('/wa-gateway/logs/{id}/delete', [\App\Http\Controllers\Admin\SettingsController::class, 'deleteWaLog'])->name('wa-gateway.logs.delete');
+        Route::post('/wa-gateway/send-manual', [\App\Http\Controllers\Admin\SettingsController::class, 'sendManualRegistrantWa'])->name('wa-gateway.send-manual');
+
+        // 6. Kebijakan Pendaftaran & Akun Pendaftar
+        Route::get('/kebijakan-pendaftaran', [\App\Http\Controllers\Admin\SettingsController::class, 'registrationPolicy'])->name('registration-policy');
+        Route::post('/kebijakan-pendaftaran', [\App\Http\Controllers\Admin\SettingsController::class, 'updateRegistrationPolicy'])->name('registration-policy.update');
+        Route::post('/kebijakan-pendaftaran/toggle-login', [\App\Http\Controllers\Admin\SettingsController::class, 'toggleRegistrationLoginRequired'])->name('registration-policy.toggle-login');
+
+        // 7. Kustomisasi Gambar & Tampilan Login Admin
+        Route::get('/login-admin', [\App\Http\Controllers\Admin\SettingsController::class, 'adminLoginCustomization'])->name('login-admin');
+        Route::post('/login-admin', [\App\Http\Controllers\Admin\SettingsController::class, 'updateAdminLoginCustomization'])->name('login-admin.update');
+        Route::post('/login-admin/reset', [\App\Http\Controllers\Admin\SettingsController::class, 'resetAdminLoginCustomization'])->name('login-admin.reset');
+
+        // 8. Konfigurasi API Sipresensi (SSO & Integrasi Guru)
+        Route::get('/sipresensi', [\App\Http\Controllers\Admin\SettingsController::class, 'sipresensiSettings'])->name('sipresensi');
+        Route::post('/sipresensi', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSipresensiSettings'])->name('sipresensi.update');
+        Route::post('/sipresensi/test-connection', [\App\Http\Controllers\Admin\SettingsController::class, 'testSipresensiConnection'])->name('sipresensi.test-connection');
+        Route::post('/sipresensi/test-sync', [\App\Http\Controllers\Admin\SettingsController::class, 'testSipresensiSync'])->name('sipresensi.test-sync');
     });
 
     // 2. Redirect all operational routes to Dark Operational UI

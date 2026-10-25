@@ -774,11 +774,11 @@ function saveSettings() {
                       >
                     </div>
                     <div class="col-md-3">
-                      <select class="form-select form-select-sm" v-model="newPhrase.style">
+                      <CustomSelect v-model="newPhrase.style" size="sm">
                         <option value="gradient">🟣 Gradient Luminous</option>
                         <option value="outline">⚪ Stroked Outline</option>
                         <option value="filled">⚫ Solid Bold</option>
-                      </select>
+                      </CustomSelect>
                     </div>
                     <div class="col-md-2">
                       <button 
@@ -841,11 +841,11 @@ function saveSettings() {
 
                     <!-- Style Selector -->
                     <div class="col-md-3">
-                      <select class="form-select form-select-sm" v-model="item.style">
+                      <CustomSelect v-model="item.style" size="sm">
                         <option value="gradient">🟣 Gradient Luminous</option>
                         <option value="outline">⚪ Stroked Outline</option>
                         <option value="filled">⚫ Solid Bold</option>
-                      </select>
+                      </CustomSelect>
                     </div>
 
                     <!-- Active Toggle Switch -->

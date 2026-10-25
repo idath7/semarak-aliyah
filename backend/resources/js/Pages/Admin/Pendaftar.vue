@@ -22,6 +22,8 @@ const competitionsList = ref([...props.competitions]);
 // Detail modal state
 const showDetailModal = ref(false);
 const activeDetailItem = ref(null);
+const detailRegistrationStatus = ref('Menunggu Verifikasi');
+const detailPaymentStatus = ref('Menunggu Verifikasi');
 const verificationNotes = ref('');
 const isProcessingVerification = ref(false);
 
@@ -36,7 +38,9 @@ const filteredRegistrations = computed(() => {
       reg.participants_names?.toLowerCase().includes(q) ||
       reg.competition_title?.toLowerCase().includes(q);
 
-    const matchStatus = selectedStatus.value === 'all' || reg.payment_status === selectedStatus.value;
+    const matchStatus = selectedStatus.value === 'all' || 
+      reg.payment_status === selectedStatus.value ||
+      reg.registration_status === selectedStatus.value;
     const matchComp = selectedCompetition.value === 'all' || reg.competition_id === selectedCompetition.value;
 
     return matchQuery && matchStatus && matchComp;
@@ -45,9 +49,9 @@ const filteredRegistrations = computed(() => {
 
 // Dynamic counts for filter pills
 const countAll = computed(() => registrationsList.value.length);
-const countPending = computed(() => registrationsList.value.filter(r => r.payment_status === 'Menunggu Verifikasi').length);
-const countVerified = computed(() => registrationsList.value.filter(r => r.payment_status === 'Terverifikasi').length);
-const countRejected = computed(() => registrationsList.value.filter(r => r.payment_status === 'Ditolak').length);
+const countPending = computed(() => registrationsList.value.filter(r => r.payment_status === 'Menunggu Verifikasi' || r.registration_status === 'Menunggu Verifikasi').length);
+const countVerified = computed(() => registrationsList.value.filter(r => r.payment_status === 'Terverifikasi' && r.registration_status === 'Terverifikasi').length);
+const countRejected = computed(() => registrationsList.value.filter(r => r.payment_status === 'Ditolak' || r.registration_status === 'Ditolak').length);
 
 // Format Indonesian Currency
 function formatRupiah(num) {
@@ -72,14 +76,19 @@ function formatDate(dateStr) {
   return `${day}/${month}/${year}`;
 }
 
-// 1-Click Quick Verification Toggle
+// 1-Click Quick Verification Toggle for both pendaftaran & pembayaran
 function toggleVerification(reg) {
-  const nextStatus = reg.payment_status === 'Terverifikasi' ? 'Menunggu Verifikasi' : 'Terverifikasi';
-  router.post(`/admin/verify/${reg.id}`, { status: nextStatus }, {
+  const isFullyVerified = reg.payment_status === 'Terverifikasi' && reg.registration_status === 'Terverifikasi';
+  const nextStatus = isFullyVerified ? 'Menunggu Verifikasi' : 'Terverifikasi';
+  router.post(`/admin/verify/${reg.id}`, { 
+    registration_status: nextStatus,
+    payment_status: nextStatus
+  }, {
     preserveScroll: true,
     onSuccess: () => {
+      reg.registration_status = nextStatus;
       reg.payment_status = nextStatus;
-      toast.success(`Status pendaftaran #${reg.reg_code} diubah menjadi "${nextStatus}"!`, 'Verifikasi Diperbarui');
+      toast.success(`Status pendaftaran & pembayaran #${reg.reg_code} diubah menjadi "${nextStatus}"!`, 'Verifikasi Diperbarui');
     },
     onError: () => {
       toast.error(`Gagal mengubah status pendaftaran #${reg.reg_code}.`, 'Terjadi Kesalahan');
@@ -87,40 +96,85 @@ function toggleVerification(reg) {
   });
 }
 
-// Open Detail Modal
+// Open Detail Modal with dual verification state
 function openDetailModal(reg) {
   activeDetailItem.value = reg;
+  detailRegistrationStatus.value = reg.registration_status || 'Menunggu Verifikasi';
+  detailPaymentStatus.value = reg.payment_status || 'Menunggu Verifikasi';
   verificationNotes.value = reg.verification_notes || '';
   showDetailModal.value = true;
 }
 
-// Submit Verification Decision from Modal
-function submitVerificationDecision(status) {
+// Submit Verification Decision from Modal for both Pendaftaran & Pembayaran
+function submitVerificationDecision(regStatus, payStatus) {
   if (!activeDetailItem.value) return;
   isProcessingVerification.value = true;
   const regCode = activeDetailItem.value.reg_code;
+  const targetReg = regStatus !== undefined ? regStatus : detailRegistrationStatus.value;
+  const targetPay = payStatus !== undefined ? payStatus : detailPaymentStatus.value;
+
   router.post(`/admin/verify/${activeDetailItem.value.id}`, {
-    status: status,
+    registration_status: targetReg,
+    payment_status: targetPay,
     notes: verificationNotes.value,
   }, {
     preserveScroll: true,
     onSuccess: () => {
-      activeDetailItem.value.payment_status = status;
+      activeDetailItem.value.registration_status = targetReg;
+      activeDetailItem.value.payment_status = targetPay;
       activeDetailItem.value.verification_notes = verificationNotes.value;
       const idx = registrationsList.value.findIndex(r => r.id === activeDetailItem.value.id);
       if (idx !== -1) {
-        registrationsList.value[idx].payment_status = status;
+        registrationsList.value[idx].registration_status = targetReg;
+        registrationsList.value[idx].payment_status = targetPay;
         registrationsList.value[idx].verification_notes = verificationNotes.value;
       }
       isProcessingVerification.value = false;
       showDetailModal.value = false;
-      toast.success(`Status registrasi #${regCode} berhasil ditetapkan: "${status}"!`, 'Verifikasi Berhasil');
+      toast.success(`Verifikasi pendaftaran & pembayaran #${regCode} berhasil disimpan!`, 'Verifikasi Berhasil');
     },
     onError: () => {
       isProcessingVerification.value = false;
       toast.error(`Gagal memperbarui status registrasi #${regCode}.`, 'Gagal Verifikasi');
     }
   });
+}
+
+// Quick WhatsApp Notification Dispatcher via OpenWA
+const isSendingManualWa = ref(false);
+
+async function sendQuickWa(msgType, customText = '') {
+  if (!activeDetailItem.value) return;
+  if (!activeDetailItem.value.mentor_wa || activeDetailItem.value.mentor_wa === '-') {
+    toast.error('Nomor WhatsApp koordinator tidak tersedia untuk pendaftar ini.');
+    return;
+  }
+
+  isSendingManualWa.value = true;
+  try {
+    const res = await fetch('/admin/pengaturan/wa-gateway/send-manual', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+      },
+      body: JSON.stringify({
+        registration_id: activeDetailItem.value.id,
+        message_type: msgType,
+        custom_message: customText,
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast.success('Notifikasi WhatsApp berhasil dikirim ke nomor koordinator!', 'Pesan Terkirim');
+    } else {
+      toast.error(data.message || 'Gagal mengirim pesan WhatsApp.');
+    }
+  } catch (err) {
+    toast.error('Kesalahan koneksi ke server: ' + err.message);
+  } finally {
+    isSendingManualWa.value = false;
+  }
 }
 
 // Listen to Reverb broadcast events
@@ -161,12 +215,18 @@ onMounted(() => {
           Pantau seluruh kontingen pendaftar, periksa berkas persyaratan, dan kelola status verifikasi pembayaran.
         </p>
       </div>
-      <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex justify-content-md-end align-items-center gap-2">
+      <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-wrap justify-content-md-end align-items-center gap-2">
+        <Link href="/admin/sekolah-terdaftar" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm">
+          <i class="ri-user-add-line"></i> + Input Manual (Meja Panitia)
+        </Link>
+        <Link href="/admin/sekolah-terdaftar" class="btn btn-sm btn-info text-white d-inline-flex align-items-center gap-1 shadow-xs">
+          <i class="ri-community-line"></i> Sekolah Terdaftar & Merge
+        </Link>
         <Link href="/admin/lomba" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
           <i class="ri-medal-line"></i> Kelola Lomba
         </Link>
         <a href="/admin/export" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 shadow-sm">
-          <i class="ri-file-excel-2-line"></i> Export Data CSV
+          <i class="ri-file-excel-2-line"></i> Export CSV
         </a>
       </div>
     </div>
@@ -306,10 +366,12 @@ onMounted(() => {
                   </div>
 
                   <!-- Competition Dropdown Filter -->
-                  <select v-model="selectedCompetition" class="form-select form-select-sm" style="width: auto;">
-                    <option value="all">Semua Cabang Lomba</option>
-                    <option v-for="c in competitionsList" :key="c.id" :value="c.id">{{ c.title }}</option>
-                  </select>
+                  <div style="min-width: 220px;">
+                    <CustomSelect v-model="selectedCompetition" size="sm">
+                      <option value="all">Semua Cabang Lomba</option>
+                      <option v-for="c in competitionsList" :key="c.id" :value="c.id">{{ c.title }}</option>
+                    </CustomSelect>
+                  </div>
                 </div>
               </div>
             </div>
@@ -391,14 +453,24 @@ onMounted(() => {
                     </td>
                     <td>
                       <div class="fw-semibold fs-12 text-dark">{{ reg.mentor_name }}</div>
-                      <a 
-                        :href="getWaChatUrl(reg.mentor_wa, `Halo Bapak/Ibu ${reg.mentor_name || 'Pembina'} (${reg.school_name || ''}), kami dari Panitia Semarak Aliyah terkait pendaftaran (Kode: ${reg.reg_code}) pada cabang ${reg.competition_title || reg.competition_id}: `)" 
-                        target="_blank" 
-                        class="badge bg-success-subtle text-success fs-10 text-decoration-none"
-                        :title="`Kirim WhatsApp ke ${reg.mentor_name}`"
-                      >
-                        <i class="ri-whatsapp-line align-middle me-0.5"></i> {{ reg.mentor_wa }}
-                      </a>
+                      <div class="d-flex flex-column gap-1 mt-1">
+                        <a 
+                          :href="getWaChatUrl(reg.mentor_wa, `Halo Bapak/Ibu ${reg.mentor_name || 'Pembina'} (${reg.school_name || ''}), kami dari Panitia Semarak Aliyah terkait pendaftaran (Kode: ${reg.reg_code}) pada cabang ${reg.competition_title || reg.competition_id}: `)" 
+                          target="_blank" 
+                          class="badge bg-success-subtle text-success fs-10 text-decoration-none d-inline-flex align-items-center gap-1 w-fit"
+                          :title="`Kirim WhatsApp ke ${reg.mentor_name}`"
+                        >
+                          <i class="ri-whatsapp-line align-middle"></i> {{ reg.mentor_wa }}
+                        </a>
+                        <a 
+                          v-if="reg.custom_fields?.contact_email || reg.custom_fields?.email" 
+                          :href="`mailto:${reg.custom_fields?.contact_email || reg.custom_fields?.email}`" 
+                          class="badge bg-info-subtle text-info fs-10 text-decoration-none d-inline-flex align-items-center gap-1 w-fit"
+                          :title="`Kirim Email ke ${reg.custom_fields?.contact_email || reg.custom_fields?.email}`"
+                        >
+                          <i class="ri-mail-line align-middle"></i> {{ reg.custom_fields?.contact_email || reg.custom_fields?.email }}
+                        </a>
+                      </div>
                     </td>
                     <td>
                       <div class="fw-semibold fs-12 text-dark">{{ reg.competition_title || reg.competition_id }}</div>
@@ -415,26 +487,57 @@ onMounted(() => {
                       </div>
                     </td>
                     <td>
-                      <span 
-                        class="badge fs-11 px-2 py-1 cursor-pointer"
-                        :class="{
-                          'bg-success-subtle text-success': reg.payment_status === 'Terverifikasi',
-                          'bg-warning-subtle text-warning': reg.payment_status === 'Menunggu Verifikasi',
-                          'bg-danger-subtle text-danger': reg.payment_status === 'Ditolak'
-                        }"
-                        @click="toggleVerification(reg)"
-                        title="Klik untuk ubah verifikasi"
-                      >
-                        <i 
-                          class="align-middle me-1"
-                          :class="{
-                            'ri-checkbox-circle-line': reg.payment_status === 'Terverifikasi',
-                            'ri-time-line': reg.payment_status === 'Menunggu Verifikasi',
-                            'ri-close-circle-line': reg.payment_status === 'Ditolak'
-                          }"
-                        ></i>
-                        {{ reg.payment_status }}
-                      </span>
+                      <div class="d-flex flex-column gap-1">
+                        <!-- Verifikasi Pendaftaran -->
+                        <div class="d-flex align-items-center gap-1">
+                          <span class="text-muted fs-10" style="min-width: 44px;">Berkas:</span>
+                          <span 
+                            class="badge fs-10 px-1.5 py-0.5 cursor-pointer"
+                            :class="{
+                              'bg-success-subtle text-success': reg.registration_status === 'Terverifikasi',
+                              'bg-warning-subtle text-warning': reg.registration_status === 'Menunggu Verifikasi',
+                              'bg-danger-subtle text-danger': reg.registration_status === 'Ditolak'
+                            }"
+                            @click="openDetailModal(reg)"
+                            title="Klik untuk ubah status pendaftaran"
+                          >
+                            <i 
+                              class="align-middle me-0.5"
+                              :class="{
+                                'ri-checkbox-circle-line': reg.registration_status === 'Terverifikasi',
+                                'ri-time-line': reg.registration_status === 'Menunggu Verifikasi',
+                                'ri-close-circle-line': reg.registration_status === 'Ditolak'
+                              }"
+                            ></i>
+                            {{ reg.registration_status || 'Menunggu' }}
+                          </span>
+                        </div>
+
+                        <!-- Verifikasi Pembayaran -->
+                        <div class="d-flex align-items-center gap-1">
+                          <span class="text-muted fs-10" style="min-width: 44px;">Bayar:</span>
+                          <span 
+                            class="badge fs-10 px-1.5 py-0.5 cursor-pointer"
+                            :class="{
+                              'bg-success-subtle text-success': reg.payment_status === 'Terverifikasi',
+                              'bg-warning-subtle text-warning': reg.payment_status === 'Menunggu Verifikasi',
+                              'bg-danger-subtle text-danger': reg.payment_status === 'Ditolak'
+                            }"
+                            @click="toggleVerification(reg)"
+                            title="Klik untuk toggle status pembayaran"
+                          >
+                            <i 
+                              class="align-middle me-0.5"
+                              :class="{
+                                'ri-money-dollar-circle-line': reg.payment_status === 'Terverifikasi',
+                                'ri-time-line': reg.payment_status === 'Menunggu Verifikasi',
+                                'ri-close-circle-line': reg.payment_status === 'Ditolak'
+                              }"
+                            ></i>
+                            {{ reg.payment_status || 'Menunggu' }}
+                          </span>
+                        </div>
+                      </div>
                     </td>
                     <td class="text-center">
                       <span 
@@ -454,22 +557,31 @@ onMounted(() => {
                         <button 
                           type="button" 
                           class="btn btn-sm"
-                          :class="reg.payment_status === 'Terverifikasi' ? 'btn-outline-warning' : 'btn-outline-success'"
+                          :class="(reg.payment_status === 'Terverifikasi' && reg.registration_status === 'Terverifikasi') ? 'btn-outline-warning' : 'btn-outline-success'"
                           @click="toggleVerification(reg)"
-                          :title="reg.payment_status === 'Terverifikasi' ? 'Tarik Verifikasi' : 'Verifikasi Cepat'"
+                          :title="(reg.payment_status === 'Terverifikasi' && reg.registration_status === 'Terverifikasi') ? 'Tarik Verifikasi' : 'Verifikasi Cepat Keduanya'"
                         >
-                          <i :class="reg.payment_status === 'Terverifikasi' ? 'ri-close-line' : 'ri-check-line'"></i>
+                          <i :class="(reg.payment_status === 'Terverifikasi' && reg.registration_status === 'Terverifikasi') ? 'ri-close-line' : 'ri-check-line'"></i>
                         </button>
 
-                        <!-- Detail & Berkas Modal Trigger -->
+                        <!-- Aksi Cepat: Modal Detail -->
                         <button 
                           type="button" 
                           class="btn btn-sm btn-outline-primary"
                           @click="openDetailModal(reg)"
-                          title="Lihat Detail & Berkas"
+                          title="Aksi Cepat: Ringkasan & Verifikasi Modal"
                         >
                           <i class="ri-eye-line"></i>
                         </button>
+
+                        <!-- Halaman Penuh: Verifikasi Detail & Formulir Cabang -->
+                        <Link 
+                          :href="'/admin/pendaftar/' + reg.id" 
+                          class="btn btn-sm btn-outline-info"
+                          title="Buka Halaman Khusus Verifikasi Mendetail & Output Form Builder"
+                        >
+                          <i class="ri-survey-line"></i>
+                        </Link>
                       </div>
                     </td>
                   </tr>
@@ -492,12 +604,24 @@ onMounted(() => {
     >
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow-lg">
-          <div class="modal-header bg-light border-bottom">
+          <div class="modal-header bg-light border-bottom d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2">
               <span class="badge bg-primary fs-12 font-mono">{{ activeDetailItem.reg_code }}</span>
-              <h5 class="modal-title fs-15 fw-bold text-dark mb-0">Detail Pendaftar Delegasi</h5>
+              <div>
+                <h5 class="modal-title fs-14 fw-bold text-dark mb-0">Aksi Cepat: Detail Pendaftar</h5>
+                <span class="fs-10 text-muted">Ringkasan kilat delegasi</span>
+              </div>
             </div>
-            <button type="button" class="btn-close" @click="showDetailModal = false"></button>
+            <div class="d-flex align-items-center gap-2">
+              <Link 
+                :href="'/admin/pendaftar/' + activeDetailItem.id" 
+                class="btn btn-xs btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+                title="Buka halaman khusus verifikasi detail dengan seluruh output formulir cabang lomba"
+              >
+                <i class="ri-survey-line"></i> Buka Verifikasi Lengkap
+              </Link>
+              <button type="button" class="btn-close ms-1" @click="showDetailModal = false"></button>
+            </div>
           </div>
 
           <div class="modal-body p-4">
@@ -573,15 +697,28 @@ onMounted(() => {
                         </a>
                       </div>
 
-                      <!-- Array Checkboxes -->
+                      <!-- Array Checkboxes or Coordinators -->
                       <div v-else-if="Array.isArray(val)" class="fw-semibold text-dark">
-                        {{ val.join(', ') }}
+                        <div v-if="key === 'coordinators'" class="d-flex flex-column gap-1">
+                          <div v-for="(c, cI) in val" :key="cI" class="p-1.5 bg-white rounded border fs-11">
+                            <strong>{{ c.name || c.nama || ('Pendamping ' + (cI + 1)) }}</strong> - {{ c.role || c.jabatan || 'Guru Pendamping' }}
+                            <span v-if="c.wa || c.phone" class="text-muted"> (WA: {{ c.wa || c.phone }})</span>
+                          </div>
+                        </div>
+                        <span v-else>{{ val.join(', ') }}</span>
                       </div>
 
                       <!-- URL Link -->
                       <div v-else-if="typeof val === 'string' && (val.startsWith('http://') || val.startsWith('https://'))">
                         <a :href="val" target="_blank" class="text-primary text-decoration-underline d-inline-flex align-items-center gap-1">
                           <i class="ri-external-link-line"></i> {{ val }}
+                        </a>
+                      </div>
+
+                      <!-- Email Link -->
+                      <div v-else-if="typeof val === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)">
+                        <a :href="`mailto:${val}`" class="text-info text-decoration-underline d-inline-flex align-items-center gap-1">
+                          <i class="ri-mail-line"></i> {{ val }}
                         </a>
                       </div>
 
@@ -594,7 +731,7 @@ onMounted(() => {
                 </div>
               </div>
 
-              <!-- Right Column: Participants List & Verification Decision -->
+              <!-- Right Column: Participants List & 2 Verifications Decision -->
               <div class="col-md-6">
                 <h6 class="fs-13 fw-bold text-dark mb-3 text-uppercase" style="letter-spacing: 0.5px;">
                   <i class="ri-user-star-line text-primary me-1"></i> Daftar Nama Delegasi
@@ -606,6 +743,68 @@ onMounted(() => {
                   </div>
                 </div>
 
+                <!-- Paket All-In Notice if Applicable -->
+                <div v-if="activeDetailItem.package_type === 'Paket All-In'" class="alert alert-warning py-2.5 px-3 mb-3 border-warning-subtle">
+                  <div class="d-flex align-items-center gap-1.5 fw-bold text-dark fs-12 mb-1">
+                    <i class="ri-vip-crown-fill text-warning fs-14"></i>
+                    <span>Paket All-In Komplit Sekolah</span>
+                  </div>
+                  <p class="text-muted fs-11 mb-0" style="line-height: 1.45;">
+                    Jika <strong>Verifikasi Pendaftaran</strong> & <strong>Verifikasi Pembayaran</strong> keduanya disetujui ("Terverifikasi"), sekolah ini berhak mengisi delegasi di seluruh cabang lomba lainnya tanpa biaya pendaftaran (Rp 0).
+                  </p>
+                </div>
+
+                <!-- 2 VERIFIKASI SEPARATE CONTROLS -->
+                <div class="p-3 rounded border bg-light mb-3">
+                  <div class="fw-bold fs-12 text-dark text-uppercase mb-2.5 d-flex align-items-center gap-1">
+                    <i class="ri-shield-check-line text-primary"></i> Keputusan 2 Verifikasi Panitia
+                  </div>
+
+                  <!-- Control 1: Verifikasi Pendaftaran -->
+                  <div class="mb-3">
+                    <label class="form-label fs-11 fw-semibold text-muted text-uppercase mb-1 d-flex justify-content-between">
+                      <span>1. Verifikasi Pendaftaran (Berkas & Kontingen)</span>
+                      <span 
+                        class="badge fs-10 px-1.5"
+                        :class="{
+                          'bg-success text-white': detailRegistrationStatus === 'Terverifikasi',
+                          'bg-warning text-dark': detailRegistrationStatus === 'Menunggu Verifikasi',
+                          'bg-danger text-white': detailRegistrationStatus === 'Ditolak'
+                        }"
+                      >
+                        {{ detailRegistrationStatus }}
+                      </span>
+                    </label>
+                    <CustomSelect v-model="detailRegistrationStatus" size="sm">
+                      <option value="Terverifikasi">Terverifikasi (Data & Berkas Sah)</option>
+                      <option value="Menunggu Verifikasi">Menunggu Verifikasi Tambahan</option>
+                      <option value="Ditolak">Ditolak / Data Tidak Sesuai</option>
+                    </CustomSelect>
+                  </div>
+
+                  <!-- Control 2: Verifikasi Pembayaran -->
+                  <div class="mb-2">
+                    <label class="form-label fs-11 fw-semibold text-muted text-uppercase mb-1 d-flex justify-content-between">
+                      <span>2. Verifikasi Pembayaran (Transfer Bank)</span>
+                      <span 
+                        class="badge fs-10 px-1.5"
+                        :class="{
+                          'bg-success text-white': detailPaymentStatus === 'Terverifikasi',
+                          'bg-warning text-dark': detailPaymentStatus === 'Menunggu Verifikasi',
+                          'bg-danger text-white': detailPaymentStatus === 'Ditolak'
+                        }"
+                      >
+                        {{ detailPaymentStatus }}
+                      </span>
+                    </label>
+                    <CustomSelect v-model="detailPaymentStatus" size="sm">
+                      <option value="Terverifikasi">Terverifikasi (Lunas / Transfer Diterima)</option>
+                      <option value="Menunggu Verifikasi">Menunggu Konfirmasi Transfer</option>
+                      <option value="Ditolak">Ditolak / Belum Ada Dana Masuk</option>
+                    </CustomSelect>
+                  </div>
+                </div>
+
                 <!-- Verification Notes Input -->
                 <div class="mb-3">
                   <label class="form-label fs-12 fw-semibold text-dark">Catatan Verifikasi Panitia</label>
@@ -613,53 +812,98 @@ onMounted(() => {
                     v-model="verificationNotes" 
                     rows="2" 
                     class="form-control fs-12"
-                    placeholder="Contoh: Bukti transfer valid, berkas lengkap..."
+                    placeholder="Contoh: Bukti transfer valid BSI, berkas lengkap..."
                   ></textarea>
                 </div>
 
-                <!-- Current Status Pill -->
-                <div class="d-flex align-items-center justify-content-between p-2 rounded border bg-light mb-3">
-                  <span class="fs-12 text-muted">Status Saat Ini:</span>
-                  <span 
-                    class="badge fs-11"
-                    :class="{
-                      'bg-success text-white': activeDetailItem.payment_status === 'Terverifikasi',
-                      'bg-warning text-dark': activeDetailItem.payment_status === 'Menunggu Verifikasi',
-                      'bg-danger text-white': activeDetailItem.payment_status === 'Ditolak'
-                    }"
-                  >
-                    {{ activeDetailItem.payment_status }}
-                  </span>
-                </div>
-
-                <!-- Verification Action Buttons -->
-                <div class="d-flex gap-2">
+                <!-- Action Buttons -->
+                <div class="d-flex flex-column gap-2">
                   <button 
                     type="button" 
-                    class="btn btn-success flex-1 d-flex align-items-center justify-content-center gap-1"
+                    class="btn btn-primary d-flex align-items-center justify-content-center gap-1.5 w-100"
                     :disabled="isProcessingVerification"
-                    @click="submitVerificationDecision('Terverifikasi')"
+                    @click="submitVerificationDecision()"
                   >
-                    <i class="ri-check-double-line"></i>
-                    {{ isProcessingVerification ? 'Menyimpan...' : 'Setujui & Verifikasi' }}
+                    <i class="ri-save-line"></i>
+                    {{ isProcessingVerification ? 'Menyimpan...' : 'Simpan Keputusan Verifikasi' }}
                   </button>
 
-                  <button 
-                    type="button" 
-                    class="btn btn-danger flex-1 d-flex align-items-center justify-content-center gap-1"
-                    :disabled="isProcessingVerification"
-                    @click="submitVerificationDecision('Ditolak')"
-                  >
-                    <i class="ri-close-circle-line"></i>
-                    {{ isProcessingVerification ? 'Menyimpan...' : 'Tolak Berkas' }}
-                  </button>
+                  <div class="d-flex gap-2">
+                    <button 
+                      type="button" 
+                      class="btn btn-success flex-1 d-flex align-items-center justify-content-center gap-1 btn-sm"
+                      :disabled="isProcessingVerification"
+                      @click="submitVerificationDecision('Terverifikasi', 'Terverifikasi')"
+                      title="Setujui Verifikasi Pendaftaran & Pembayaran Sekaligus"
+                    >
+                      <i class="ri-check-double-line"></i>
+                      Setujui Keduanya
+                    </button>
+
+                    <button 
+                      type="button" 
+                      class="btn btn-danger flex-1 d-flex align-items-center justify-content-center gap-1 btn-sm"
+                      :disabled="isProcessingVerification"
+                      @click="submitVerificationDecision('Ditolak', 'Ditolak')"
+                      title="Tolak Pendaftaran & Pembayaran"
+                    >
+                      <i class="ri-close-circle-line"></i>
+                      Tolak Berkas
+                    </button>
+                  </div>
+
+                  <!-- Quick WhatsApp Dispatcher via OpenWA -->
+                  <div class="p-2.5 rounded border border-success-subtle bg-success-subtle mt-2">
+                    <div class="d-flex align-items-center justify-content-between mb-1.5">
+                      <div class="fw-bold fs-11 text-success d-flex align-items-center gap-1">
+                        <i class="ri-whatsapp-line fs-14"></i> Kirim Notifikasi WA (OpenWA)
+                      </div>
+                      <span class="fs-10 text-muted font-monospace">{{ activeDetailItem.mentor_wa }}</span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-success py-1 px-2 fs-10 rounded-pill d-flex align-items-center gap-1"
+                        :disabled="isSendingManualWa"
+                        @click="sendQuickWa('tpl_reg')"
+                        title="Kirim pesan bahwa berkas sudah diverifikasi resmi"
+                      >
+                        <i class="ri-file-check-line"></i> Notif Berkas
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-success py-1 px-2 fs-10 rounded-pill d-flex align-items-center gap-1"
+                        :disabled="isSendingManualWa"
+                        @click="sendQuickWa('tpl_pay')"
+                        title="Kirim pesan bahwa pembayaran sudah lunas terverifikasi"
+                      >
+                        <i class="ri-secure-payment-line"></i> Notif Lunas
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary py-1 px-2 fs-10 rounded-pill d-flex align-items-center gap-1"
+                        :disabled="isSendingManualWa"
+                        @click="sendQuickWa('tpl_welcome')"
+                        title="Kirim ulang bukti registrasi awal"
+                      >
+                        <i class="ri-refresh-line"></i> Resend Reg
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="modal-footer bg-light border-top py-2">
-            <button type="button" class="btn btn-sm btn-secondary" @click="showDetailModal = false">Tutup</button>
+          <div class="modal-footer bg-light border-top py-2.5 d-flex align-items-center justify-content-between">
+            <Link 
+              :href="'/admin/pendaftar/' + activeDetailItem.id" 
+              class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+            >
+              <i class="ri-survey-line"></i>
+              <span>Buka Halaman Verifikasi Detail & Formulir Cabang &rarr;</span>
+            </Link>
+            <button type="button" class="btn btn-sm btn-secondary" @click="showDetailModal = false">Tutup Modal</button>
           </div>
         </div>
       </div>

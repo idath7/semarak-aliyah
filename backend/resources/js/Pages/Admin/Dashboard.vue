@@ -470,17 +470,37 @@ onMounted(() => {
                   class="dropdown-menu dropdown-menu-end show position-absolute end-0 mt-1 shadow-sm"
                   style="min-width: 170px; z-index: 1050;"
                 >
-                  <button class="dropdown-item fs-12 py-1.5" @click="setActivityFilter('all')">
-                    <i class="ri-list-check align-middle me-1 text-primary"></i> Semua Aktivitas
+                  <button 
+                    class="dropdown-item fs-12 py-1.5 d-flex align-items-center justify-content-between" 
+                    :class="{ 'active fw-semibold': activityFilter === 'all' }"
+                    @click="setActivityFilter('all')"
+                  >
+                    <span><i class="ri-list-check align-middle me-1 text-primary"></i> Semua Aktivitas</span>
+                    <i v-if="activityFilter === 'all'" class="ri-check-line text-primary fs-14 ms-2"></i>
                   </button>
-                  <button class="dropdown-item fs-12 py-1.5" @click="setActivityFilter('registration')">
-                    <i class="ri-user-add-line align-middle me-1 text-info"></i> Pendaftaran Baru
+                  <button 
+                    class="dropdown-item fs-12 py-1.5 d-flex align-items-center justify-content-between" 
+                    :class="{ 'active fw-semibold': activityFilter === 'registration' }"
+                    @click="setActivityFilter('registration')"
+                  >
+                    <span><i class="ri-user-add-line align-middle me-1 text-info"></i> Pendaftaran Baru</span>
+                    <i v-if="activityFilter === 'registration'" class="ri-check-line text-primary fs-14 ms-2"></i>
                   </button>
-                  <button class="dropdown-item fs-12 py-1.5" @click="setActivityFilter('verification')">
-                    <i class="ri-shield-check-line align-middle me-1 text-success"></i> Verifikasi Berkas
+                  <button 
+                    class="dropdown-item fs-12 py-1.5 d-flex align-items-center justify-content-between" 
+                    :class="{ 'active fw-semibold': activityFilter === 'verification' }"
+                    @click="setActivityFilter('verification')"
+                  >
+                    <span><i class="ri-shield-check-line align-middle me-1 text-success"></i> Verifikasi Berkas</span>
+                    <i v-if="activityFilter === 'verification'" class="ri-check-line text-primary fs-14 ms-2"></i>
                   </button>
-                  <button class="dropdown-item fs-12 py-1.5" @click="setActivityFilter('checkin')">
-                    <i class="ri-qr-code-line align-middle me-1 text-warning"></i> Gate Check-in
+                  <button 
+                    class="dropdown-item fs-12 py-1.5 d-flex align-items-center justify-content-between" 
+                    :class="{ 'active fw-semibold': activityFilter === 'checkin' }"
+                    @click="setActivityFilter('checkin')"
+                  >
+                    <span><i class="ri-qr-code-line align-middle me-1 text-warning"></i> Gate Check-in</span>
+                    <i v-if="activityFilter === 'checkin'" class="ri-check-line text-primary fs-14 ms-2"></i>
                   </button>
                 </div>
               </div>
@@ -566,10 +586,12 @@ onMounted(() => {
                   </div>
 
                   <!-- Competition Dropdown Filter -->
-                  <select v-model="selectedCompetition" class="form-select form-select-sm" style="width: auto;">
-                    <option value="all">Semua Cabang Lomba</option>
-                    <option v-for="c in competitionsList" :key="c.id" :value="c.id">{{ c.title }}</option>
-                  </select>
+                  <div style="min-width: 220px;">
+                    <CustomSelect v-model="selectedCompetition" size="sm">
+                      <option value="all">Semua Cabang Lomba</option>
+                      <option v-for="c in competitionsList" :key="c.id" :value="c.id">{{ c.title }}</option>
+                    </CustomSelect>
+                  </div>
                 </div>
               </div>
             </div>

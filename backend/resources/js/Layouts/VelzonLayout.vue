@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { useToast } from '@/Composables/useToast';
 import VelzonConfirmModal from '@/Components/VelzonConfirmModal.vue';
@@ -103,6 +103,7 @@ const isMobileSidebarOpen = ref(false);
 const isDarkTheme = ref(false);
 const isUserDropdownOpen = ref(false);
 const isAppsDropdownOpen = ref(false);
+const isMobileSearchOpen = ref(false);
 const isSettingsMenuOpen = ref(true);
 
 watch(() => currentUrl.value, (url) => {
@@ -153,7 +154,20 @@ function logout() {
   });
 }
 
+function handleDocumentClick(e) {
+  if (!e.target.closest('#user-dropdown-wrapper')) {
+    isUserDropdownOpen.value = false;
+  }
+  if (!e.target.closest('#apps-dropdown-wrapper')) {
+    isAppsDropdownOpen.value = false;
+  }
+  if (!e.target.closest('#mobile-search-wrapper') && !e.target.closest('#mobile-search-toggle-btn')) {
+    isMobileSearchOpen.value = false;
+  }
+}
+
 onMounted(() => {
+  document.addEventListener('click', handleDocumentClick);
   const savedTheme = localStorage.getItem('velzon_theme_v2');
   const effectiveTheme = savedTheme || 'dark';
 
@@ -171,6 +185,10 @@ onMounted(() => {
   }
   localStorage.setItem('velzon_theme_v2', effectiveTheme);
   localStorage.setItem('velzon_theme', effectiveTheme);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleDocumentClick);
 });
 </script>
 
@@ -194,19 +212,19 @@ onMounted(() => {
       }"
     >
       <div class="navbar-header">
-        <div class="d-flex align-items-center gap-3">
+        <div class="d-flex align-items-center gap-2 gap-sm-2.5 gap-lg-3 min-w-0 flex-shrink-1">
           <!-- Hamburger Sidebar Toggle Button -->
           <button 
             type="button" 
-            class="btn btn-topbar" 
+            class="btn btn-topbar flex-shrink-0" 
             @click="toggleSidebar"
             aria-label="Toggle Navigation"
           >
             <i class="ri-menu-2-line fs-20"></i>
           </button>
 
-          <!-- Topbar Search Bar with Shortcut -->
-          <form class="app-search d-none d-md-block" @submit.prevent>
+          <!-- Topbar Search Bar with Shortcut (Visible on md and up) -->
+          <form class="app-search d-none d-md-block flex-shrink-1" @submit.prevent>
             <div class="position-relative">
               <input 
                 type="text" 
@@ -219,7 +237,8 @@ onMounted(() => {
             </div>
           </form>
 
-          <div class="d-none d-lg-block">
+          <!-- Master Edition Badge Button (Responsive) -->
+          <div class="d-none d-lg-block flex-shrink-0">
             <button 
               type="button" 
               class="edition-badge-btn"
@@ -227,14 +246,27 @@ onMounted(() => {
               title="Kunci Utama: Klik untuk kelola Master Edisi & Tahun Event"
             >
               <i class="ri-flashlight-line align-middle me-1.5 text-warning edition-badge-icon"></i>
-              <span class="edition-badge-text">Edisi {{ eventInfo.edition }} • {{ eventInfo.year }}</span>
+              <span class="edition-badge-text">
+                <span class="d-none d-xl-inline">Edisi </span>{{ eventInfo.edition }} <span class="edition-year-sep">•</span> {{ eventInfo.year }}
+              </span>
               <i class="ri-equalizer-line ms-1.5 opacity-70 edition-badge-tune"></i>
             </button>
           </div>
         </div>
 
-        <div class="d-flex align-items-center gap-2">
-          <!-- Mobile Edition Button -->
+        <div class="d-flex align-items-center gap-1 gap-sm-1.5 gap-md-2 flex-shrink-0 ms-auto">
+          <!-- Mobile Search Toggle Button (Visible on < md) -->
+          <button 
+            type="button" 
+            id="mobile-search-toggle-btn"
+            class="btn btn-topbar d-md-none" 
+            @click="isMobileSearchOpen = !isMobileSearchOpen"
+            title="Cari Data"
+          >
+            <i class="ri-search-line fs-18"></i>
+          </button>
+
+          <!-- Mobile Edition Button (Visible on < lg) -->
           <button 
             type="button" 
             class="btn btn-topbar d-lg-none" 
@@ -244,29 +276,31 @@ onMounted(() => {
             <i class="ri-flashlight-line text-warning fs-18"></i>
           </button>
 
-          <!-- External Public Web Link -->
+          <!-- External Public Web Link (Adaptive pill: icon on mobile/tablet, text on >= md) -->
           <Link 
             href="/" 
             target="_blank" 
-            class="btn btn-sm btn-outline-primary d-none d-sm-inline-flex align-items-center gap-1 rounded-pill px-3"
+            class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 rounded-pill px-2.5 px-md-3 topbar-action-btn"
+            title="Kunjungi Web Publik"
           >
-            <i class="ri-external-link-line"></i> Web Publik
+            <i class="ri-external-link-line fs-14"></i>
+            <span class="d-none d-md-inline text-nowrap">Web Publik</span>
           </Link>
 
           <!-- Apps Dropdown -->
-          <div class="position-relative">
+          <div class="position-relative" id="apps-dropdown-wrapper">
             <button 
               type="button" 
               class="btn btn-topbar" 
               @click="isAppsDropdownOpen = !isAppsDropdownOpen"
               title="Aplikasi & Pintasan"
             >
-              <i class="bx bx-category-alt fs-22"></i>
+              <i class="bx bx-category-alt fs-20 fs-md-22"></i>
             </button>
             <div 
               v-if="isAppsDropdownOpen" 
-              class="dropdown-menu dropdown-menu-lg dropdown-menu-end p-0 show position-absolute end-0 mt-2 shadow-lg"
-              style="width: 320px; z-index: 1050;"
+              class="dropdown-menu dropdown-menu-lg dropdown-menu-end p-0 show position-absolute end-0 mt-2 shadow-lg topbar-dropdown-menu"
+              style="width: 300px; max-width: calc(100vw - 24px); z-index: 1050;"
             >
               <div class="p-3 border-bottom border-light">
                 <h6 class="m-0 fw-semibold fs-14">Aplikasi & Pintasan</h6>
@@ -286,7 +320,7 @@ onMounted(() => {
                     </Link>
                   </div>
                   <div class="col-4">
-                    <a class="dropdown-item text-center py-3 rounded" href="/assets/doc/JUKNIS-SEMARAK-2026.pdf" target="_blank">
+                    <a class="dropdown-item text-center py-3 rounded" :href="$page.props.generalJuknis?.url || '/assets/doc/JUKNIS-SEMARAK-2026.pdf'" target="_blank">
                       <i class="ri-file-pdf-line fs-24 text-danger d-block mb-1"></i>
                       <span class="fs-12 text-muted">Juknis PDF</span>
                     </a>
@@ -296,14 +330,14 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Fullscreen Toggle -->
+          <!-- Fullscreen Toggle (Hidden on screens < xl to give room) -->
           <button 
             type="button" 
-            class="btn btn-topbar d-none d-sm-inline-flex" 
+            class="btn btn-topbar d-none d-xl-inline-flex" 
             @click="toggleFullscreen" 
             title="Layar Penuh"
           >
-            <i class="bx bx-fullscreen fs-22"></i>
+            <i class="bx bx-fullscreen fs-20 fs-md-22"></i>
           </button>
 
           <!-- Theme Toggle (Dark / Light) -->
@@ -314,44 +348,46 @@ onMounted(() => {
             @click="toggleTheme" 
             title="Ganti Tema"
           >
-            <i :class="isDarkTheme ? 'bx bx-sun fs-22 text-warning' : 'bx bx-moon fs-22'"></i>
+            <i :class="isDarkTheme ? 'bx bx-sun fs-20 fs-md-22 text-warning' : 'bx bx-moon fs-20 fs-md-22'"></i>
           </button>
 
-          <!-- Export Excel Shortcut -->
+          <!-- Export Excel Shortcut (Adaptive pill: icon only on sm/md/lg, text on xl+) -->
           <a 
             href="/admin/export" 
-            class="btn btn-sm btn-success d-none d-md-inline-flex align-items-center gap-1 rounded-pill px-3"
+            class="btn btn-sm btn-success d-none d-sm-inline-flex align-items-center gap-1.5 rounded-pill px-2.5 px-xl-3 shadow-xs topbar-action-btn"
+            title="Export Data Pendaftar (Excel)"
           >
-            <i class="ri-file-excel-2-line"></i> Export Data
+            <i class="ri-file-excel-2-line fs-14"></i>
+            <span class="d-none d-xl-inline text-nowrap">Export Data</span>
           </a>
 
           <!-- User Profile Dropdown -->
-          <div class="position-relative ms-1">
+          <div class="position-relative ms-0.5 ms-md-1" id="user-dropdown-wrapper">
             <button 
               class="btn btn-sm p-0 d-flex align-items-center gap-2 border-0 bg-transparent" 
               type="button" 
               @click="isUserDropdownOpen = !isUserDropdownOpen"
+              title="Profil Pengguna"
             >
               <img 
                 src="/assets/img/logo.png" 
                 alt="Admin Avatar" 
-                class="rounded-circle" 
-                style="width: 36px; height: 36px; object-fit: contain; background: #111827; padding: 2px;"
+                class="rounded-circle topbar-user-avatar" 
               />
-              <div class="d-none d-xl-block text-start">
-                <span class="d-block fw-semibold text-dark fs-13">{{ authUser.name }}</span>
-                <span class="d-block text-muted fs-11">Superadmin Panitia</span>
+              <div class="d-none d-xl-block text-start user-info-wrapper">
+                <span class="d-block fw-semibold topbar-user-name fs-13 text-truncate" style="max-width: 140px;">{{ authUser.name }}</span>
+                <span class="d-block topbar-user-role fs-11 text-truncate" style="max-width: 140px;">Superadmin Panitia</span>
               </div>
             </button>
 
             <div 
               v-if="isUserDropdownOpen" 
-              class="dropdown-menu dropdown-menu-end shadow-lg show position-absolute end-0 mt-2"
-              style="min-width: 200px; z-index: 1050;"
+              class="dropdown-menu dropdown-menu-end shadow-lg show position-absolute end-0 mt-2 topbar-dropdown-menu"
+              style="min-width: 210px; max-width: calc(100vw - 24px); z-index: 1050;"
             >
               <div class="px-3 py-2 border-bottom">
-                <h6 class="mb-0 fs-13 fw-semibold">{{ authUser.name }}</h6>
-                <small class="text-muted">{{ authUser.email }}</small>
+                <h6 class="mb-0 fs-13 fw-semibold text-truncate">{{ authUser.name }}</h6>
+                <small class="text-muted text-truncate d-block">{{ authUser.email }}</small>
               </div>
               <Link class="dropdown-item py-2" href="/admin">
                 <i class="ri-dashboard-line text-muted me-2 align-middle"></i> Dashboard
@@ -368,6 +404,35 @@ onMounted(() => {
                 <i class="ri-logout-box-line text-danger me-2 align-middle"></i> Keluar (Logout)
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- Mobile Expandable Search Bar -->
+        <div 
+          v-if="isMobileSearchOpen" 
+          id="mobile-search-wrapper"
+          class="mobile-search-bar position-absolute top-100 start-0 w-100 px-3 py-2 shadow-sm d-md-none border-bottom animate__animated animate__fadeInDown animate__faster"
+          :style="{
+            backgroundColor: isDarkTheme ? '#1f2937' : '#ffffff',
+            borderColor: isDarkTheme ? '#374151' : '#e5e7eb'
+          }"
+        >
+          <div class="position-relative">
+            <input 
+              type="text" 
+              class="form-control form-control-sm rounded-pill ps-4 pe-5" 
+              placeholder="Cari nama, sekolah, ID..." 
+              autocomplete="off"
+              autofocus
+            />
+            <span class="ri-search-line search-widget-icon" style="left: 12px; font-size: 14px;"></span>
+            <button 
+              type="button" 
+              class="btn btn-sm position-absolute end-0 top-50 translate-middle-y me-1 p-1 text-muted"
+              @click="isMobileSearchOpen = false"
+            >
+              <i class="ri-close-line fs-16"></i>
+            </button>
           </div>
         </div>
       </div>
@@ -447,12 +512,23 @@ onMounted(() => {
 
           <li class="nav-item">
             <Link 
+              href="/admin/sekolah-terdaftar" 
+              class="nav-link menu-link"
+              :class="{ 'active': currentUrl.startsWith('/admin/sekolah-terdaftar') }"
+            >
+              <i class="ri-community-line text-info"></i>
+              <span v-show="!isSidebarCollapsed">Sekolah Terdaftar</span>
+            </Link>
+          </li>
+
+          <li class="nav-item">
+            <Link 
               href="/admin/sekolah" 
               class="nav-link menu-link"
-              :class="{ 'active': currentUrl.startsWith('/admin/sekolah') }"
+              :class="{ 'active': currentUrl.startsWith('/admin/sekolah') && !currentUrl.startsWith('/admin/sekolah-terdaftar') }"
             >
               <i class="ri-building-4-line text-success"></i>
-              <span v-show="!isSidebarCollapsed">Database Sekolah (SMP/MTs)</span>
+              <span v-show="!isSidebarCollapsed">Database Sekolah</span>
             </Link>
           </li>
 
@@ -508,11 +584,14 @@ onMounted(() => {
           </li>
 
           <li class="nav-item">
-            <a class="nav-link menu-link" href="/assets/doc/JUKNIS-SEMARAK-2026.pdf" target="_blank">
-              <i class="ri-file-pdf-line text-danger"></i>
-              <span v-show="!isSidebarCollapsed">Juknis Resmi PDF</span>
-              <i v-show="!isSidebarCollapsed" class="ri-external-link-line fs-14 ms-auto text-muted"></i>
-            </a>
+            <Link 
+              href="/admin/juknis" 
+              class="nav-link menu-link"
+              :class="{ 'active': currentUrl.startsWith('/admin/juknis') }"
+            >
+              <i class="ri-file-pdf-2-line text-danger"></i>
+              <span v-show="!isSidebarCollapsed">Kelola Juknis Lomba</span>
+            </Link>
           </li>
 
           <!-- 3. Kelola Web Publik -->
@@ -614,6 +693,36 @@ onMounted(() => {
                     <span>SEO & Open Graph</span>
                   </Link>
                 </li>
+                <li class="nav-item">
+                  <Link 
+                    href="/admin/pengaturan/wa-gateway" 
+                    class="nav-link d-flex align-items-center gap-2"
+                    :class="{ 'active': currentUrl.includes('/wa-gateway') }"
+                  >
+                    <i class="ri-whatsapp-line fs-14 text-success"></i>
+                    <span>WA Gateway</span>
+                  </Link>
+                </li>
+                <li class="nav-item">
+                  <Link 
+                    href="/admin/pengaturan/login-admin" 
+                    class="nav-link d-flex align-items-center gap-2"
+                    :class="{ 'active': currentUrl.includes('/login-admin') }"
+                  >
+                    <i class="ri-image-edit-line fs-14 text-info"></i>
+                    <span>Login Panel Admin</span>
+                  </Link>
+                </li>
+                <li class="nav-item">
+                  <Link 
+                    href="/admin/pengaturan/sipresensi" 
+                    class="nav-link d-flex align-items-center gap-2"
+                    :class="{ 'active': currentUrl.includes('/sipresensi') }"
+                  >
+                    <i class="ri-shield-keyhole-line fs-14 text-success"></i>
+                    <span>API Sipresensi</span>
+                  </Link>
+                </li>
               </ul>
             </div>
           </li>
@@ -634,17 +743,6 @@ onMounted(() => {
               <span v-show="!isSidebarCollapsed" class="text-truncate">Leaderboard</span>
               <i v-show="!isSidebarCollapsed" class="ri-external-link-line fs-14 ms-auto text-muted"></i>
             </Link>
-          </li>
-
-          <li class="nav-item">
-            <button 
-              type="button" 
-              @click="logout" 
-              class="nav-link menu-link text-danger border-0 bg-transparent w-100 text-start"
-            >
-              <i class="ri-logout-box-r-line text-danger"></i>
-              <span v-show="!isSidebarCollapsed">Keluar Akun</span>
-            </button>
           </li>
         </ul>
       </div>
@@ -731,7 +829,7 @@ onMounted(() => {
               {{ eventInfo.year }} © {{ school.event_name || 'Semarak Aliyah XIV' }} - {{ school.school_name || 'MA Unggulan Wahid Hasyim Balung' }}.
             </div>
             <div class="col-sm-6 text-sm-end">
-              Design & Develop by Panitia • Laravit (Vue 3 + Inertia.js + Tailwind CSS)
+              Design & Develop by maswahasLabs • Laravit (Vue 3 + Inertia.js + Tailwind CSS)
             </div>
           </div>
         </div>
@@ -977,6 +1075,177 @@ onMounted(() => {
   background-color: #f1f5f9;
   color: #1e293b;
 }
+/* ============================================================== */
+/* ULTRA-RESPONSIVE TOPBAR NAVBAR SYSTEM                          */
+/* ============================================================== */
+.navbar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  padding: 0 12px;
+  position: relative;
+  transition: padding 0.2s ease;
+}
+
+@media (min-width: 576px) {
+  .navbar-header {
+    padding: 0 16px;
+  }
+}
+
+@media (min-width: 992px) {
+  .navbar-header {
+    padding: 0 20px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .navbar-header {
+    padding: 0 24px;
+  }
+}
+
+/* Responsive Topbar Buttons */
+.btn-topbar {
+  width: 36px;
+  height: 36px;
+  font-size: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--vz-header-item-color, #495057);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+  .btn-topbar {
+    width: 38px;
+    height: 38px;
+    font-size: 1.25rem;
+  }
+}
+
+.btn-topbar:hover, .btn-topbar:focus {
+  color: var(--vz-primary, #405189);
+  background-color: rgba(64, 81, 137, 0.08);
+}
+
+/* Responsive Search Input */
+.app-search {
+  position: relative;
+  max-width: 260px;
+  min-width: 130px;
+  width: 100%;
+}
+
+.app-search .form-control {
+  border: none;
+  height: 36px;
+  padding-left: 38px;
+  padding-right: 36px;
+  background-color: var(--vz-body-bg, #f3f3f9);
+  box-shadow: none;
+  border-radius: 30px;
+  font-size: 12.5px;
+  width: 100%;
+  max-width: 240px;
+  min-width: 130px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (min-width: 768px) and (max-width: 1199.98px) {
+  .app-search .form-control {
+    max-width: 170px;
+    font-size: 12px;
+  }
+  .app-search .form-control:focus {
+    max-width: 210px;
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1399.98px) {
+  .app-search .form-control {
+    max-width: 200px;
+  }
+  .app-search .form-control:focus {
+    max-width: 250px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .app-search .form-control {
+    max-width: 250px;
+  }
+  .app-search .form-control:focus {
+    max-width: 300px;
+  }
+}
+
+/* Action Buttons (Web Publik, Export Data) */
+.topbar-action-btn {
+  font-weight: 600;
+  font-size: 12px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease-in-out;
+  flex-shrink: 0;
+}
+
+.topbar-action-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* User Profile Avatar & Text */
+.topbar-user-avatar {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  background: #111827;
+  padding: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+  .topbar-user-avatar {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+.topbar-user-name {
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.topbar-user-role {
+  color: #64748b;
+  line-height: 1.2;
+}
+
+/* Mobile Search Dropdown */
+.mobile-search-bar {
+  z-index: 1040;
+}
+
+.mobile-search-bar .form-control {
+  font-size: 13px;
+  height: 36px;
+}
+
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .edition-badge-btn {
+    padding: 4px 9px;
+    font-size: 11.5px;
+  }
+}
 
 </style>
 
@@ -995,6 +1264,42 @@ onMounted(() => {
   border-color: rgba(147, 197, 253, 0.65) !important;
   color: #bfdbfe !important;
   box-shadow: 0 0 22px rgba(59, 130, 246, 0.45) !important;
+}
+
+[data-bs-theme="dark"] .topbar-user-name {
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .topbar-user-role {
+  color: #94a3b8 !important;
+}
+
+[data-bs-theme="dark"] .btn-topbar {
+  color: #cbd5e1 !important;
+}
+
+[data-bs-theme="dark"] .btn-topbar:hover,
+[data-bs-theme="dark"] .btn-topbar:focus {
+  color: #60a5fa !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-bs-theme="dark"] .app-search .form-control {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .app-search .form-control::placeholder {
+  color: #64748b !important;
+}
+
+[data-bs-theme="dark"] .app-search .search-widget-icon,
+[data-bs-theme="dark"] .app-search .search-shortcut {
+  color: #94a3b8 !important;
+}
+
+[data-bs-theme="dark"] .topbar-user-avatar {
+  border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
 [data-bs-theme="dark"] .edition-modal-content {
@@ -1228,5 +1533,110 @@ onMounted(() => {
   background-color: #334155 !important;
   border-color: rgba(255, 255, 255, 0.25) !important;
   color: #ffffff !important;
+}
+
+/* ============================================================== */
+/* VELZON OFFICIAL DUAL-FONT SIDEBAR MENU HIERARCHY               */
+/* 1. Category Title: 'Poppins' (11px, 600, uppercase, .05em)     */
+/* 2. Main Navigation: 'hkgrotesk' (15px, 400 normal, 600 active) */
+/* 3. Submenu Items: 'Poppins' (13px, 400 normal, 600 active)     */
+/* ============================================================== */
+
+/* 1. Category Section Titles */
+.navbar-menu .navbar-nav .menu-title,
+.navbar-menu .menu-title,
+.app-menu .menu-title {
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 11px !important;
+  line-height: 16.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: .05em !important;
+  text-transform: uppercase !important;
+  color: var(--vz-vertical-menu-title-color, #838fb9) !important;
+  padding: 12px 20px 8px !important;
+  margin: 0 !important;
+}
+
+.navbar-menu .navbar-nav .menu-title span,
+.navbar-menu .menu-title span {
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: .05em !important;
+  text-transform: uppercase !important;
+  color: inherit !important;
+}
+
+/* 2. Main Navigation Links */
+.navbar-menu .navbar-nav > .nav-item > .nav-link,
+.navbar-menu .navbar-nav .nav-link.menu-link,
+.navbar-menu .navbar-nav .nav-link,
+.app-menu .navbar-nav .nav-link {
+  font-family: "hkgrotesk", "Hanken Grotesk", -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  padding: .625rem 1.5rem !important;
+  color: var(--vz-vertical-menu-item-color, #abb9e8) !important;
+}
+
+.navbar-menu .navbar-nav > .nav-item > .nav-link > span,
+.navbar-menu .navbar-nav .nav-link.menu-link > span,
+.navbar-menu .navbar-nav .nav-link > span {
+  font-family: "hkgrotesk", "Hanken Grotesk", -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+}
+
+.navbar-menu .navbar-nav .nav-link.active,
+.navbar-menu .navbar-nav .nav-link.menu-link.active {
+  font-weight: 600 !important;
+  color: var(--vz-vertical-menu-item-active-color, #ffffff) !important;
+}
+
+.navbar-menu .navbar-nav .nav-link.active > span,
+.navbar-menu .navbar-nav .nav-link.menu-link.active > span {
+  font-weight: 600 !important;
+  font-family: "hkgrotesk", "Hanken Grotesk", -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+/* 3. Submenu Links */
+.menu-dropdown .nav-sm .nav-link,
+.navbar-menu .navbar-nav .nav-sm .nav-link,
+.navbar-menu .menu-dropdown .nav-link {
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  color: var(--vz-vertical-menu-sub-item-color, #abb9e8) !important;
+  padding: .55rem 1.5rem .55rem 3.5rem !important;
+}
+
+.menu-dropdown .nav-sm .nav-link > span,
+.navbar-menu .navbar-nav .nav-sm .nav-link > span,
+.navbar-menu .menu-dropdown .nav-link > span {
+  font-family: 'Poppins', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: inherit !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+}
+
+.menu-dropdown .nav-sm .nav-link.active,
+.navbar-menu .navbar-nav .nav-sm .nav-link.active {
+  font-weight: 600 !important;
+  color: var(--vz-vertical-menu-sub-item-active-color, #ffffff) !important;
+}
+
+.menu-dropdown .nav-sm .nav-link.active > span,
+.navbar-menu .navbar-nav .nav-sm .nav-link.active > span {
+  font-weight: 600 !important;
+  font-family: 'Poppins', sans-serif !important;
 }
 </style>

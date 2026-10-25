@@ -944,8 +944,12 @@ class SettingsController extends Controller
             'app_debug'       => (bool) config('app.debug'),
             'app_url'         => config('app.url'),
             'app_locale'      => config('app.locale'),
+            'app_timezone'    => config('app.timezone', 'Asia/Jakarta'),
             'maintenance'     => app()->isDownForMaintenance(),
-            'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? (php_sapi_name() === 'frankenphp' ? 'FrankenPHP / Caddy' : 'Web Server Engine'),
+            'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? (php_sapi_name() === 'frankenphp' ? 'FrankenPHP / Caddy' : (php_sapi_name() === 'cli-server' ? 'PHP Development Server' : 'Web Server Engine')),
+            'config_cached'   => app()->configurationIsCached(),
+            'routes_cached'   => app()->routesAreCached(),
+            'events_cached'   => app()->eventsAreCached(),
         ];
 
         // 3. Database Status (PostgreSQL)

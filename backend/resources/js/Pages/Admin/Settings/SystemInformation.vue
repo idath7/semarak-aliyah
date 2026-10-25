@@ -62,24 +62,27 @@ function refreshData() {
 function copySystemSummary() {
   const summary = `
 === LAPORAN INFORMASI SISTEM SEMARAK ALIYAH XIV ===
-Waktu Server      : ${props.phpInfo.server_time || '-'}
-PHP Version       : ${props.phpInfo.version || '-'} (${props.phpInfo.zts || '-'})
-PHP SAPI          : ${props.phpInfo.sapi || '-'}
-OS Host           : ${props.phpInfo.os || '-'}
-Arsitektur        : ${props.phpInfo.architecture || '-'}
-Memory Limit      : ${props.phpInfo.memory_limit || '-'}
-Current Memory    : ${props.phpInfo.current_memory || '-'} (Peak: ${props.phpInfo.peak_memory || '-'})
-OPcache           : ${props.phpInfo.opcache_enabled ? 'Aktif' : 'Nonaktif'}
-Laravel Version   : v${props.frameworkInfo.laravel_version || '-'}
-Octane Server     : ${props.frameworkInfo.octane_server || '-'}
-App Environment   : ${props.frameworkInfo.app_env || '-'} (Debug: ${props.frameworkInfo.app_debug ? 'ON' : 'OFF'})
-Database Driver   : ${props.dbInfo.default_driver || '-'} (${props.dbInfo.status || '-'})
-Database Version  : ${props.dbInfo.version || '-'}
-Database Size     : ${props.dbInfo.size || '-'}
-Cache Driver      : ${props.cacheInfo.cache_driver || '-'}
-Redis Status      : ${props.cacheInfo.redis_status || '-'}
-Storage Writable  : ${props.storageInfo.storage_path_writable ? 'OK (Writable)' : 'ERROR (Read-Only)'}
-Disk Free Space   : ${props.storageInfo.disk_free || '-'} / ${props.storageInfo.disk_total || '-'} (${props.storageInfo.disk_used_percent || 0}% terpakai)
+Waktu Server        : ${props.phpInfo.server_time || '-'}
+PHP Version         : ${props.phpInfo.version || '-'} (${props.phpInfo.zts || '-'})
+PHP SAPI            : ${props.phpInfo.sapi || '-'}
+OS Host             : ${props.phpInfo.os || '-'} (${props.phpInfo.architecture || '-'})
+Memory Limit        : ${props.phpInfo.memory_limit || '-'}
+Current Memory      : ${props.phpInfo.current_memory || '-'} (Peak: ${props.phpInfo.peak_memory || '-'})
+OPcache             : ${props.phpInfo.opcache_enabled ? 'Aktif' : 'Nonaktif'}
+Framework           : Laravel v${props.frameworkInfo.laravel_version || '-'}
+Server Runner       : ${props.frameworkInfo.server_software || '-'} (Octane: ${props.frameworkInfo.octane_server || '-'})
+Environment         : ${props.frameworkInfo.app_env || '-'}
+Mode Debug          : ${props.frameworkInfo.app_debug ? 'AKTIF (ON - Perhatian untuk server production!)' : 'NONAKTIF (OFF - Aman)'}
+Status Maintenance  : ${props.frameworkInfo.maintenance ? 'Aktif (Down)' : 'Normal (Beroperasi)'}
+Config Cached       : ${props.frameworkInfo.config_cached ? 'Ya' : 'Tidak'}
+Routes Cached       : ${props.frameworkInfo.routes_cached ? 'Ya' : 'Tidak'}
+Database Driver     : ${props.dbInfo.default_driver || '-'} (${props.dbInfo.status || '-'})
+Database Version    : ${props.dbInfo.version || '-'}
+Database Size       : ${props.dbInfo.size || '-'}
+Cache Driver        : ${props.cacheInfo.cache_driver || '-'}
+Redis Status        : ${props.cacheInfo.redis_status || '-'}
+Storage Writable    : ${props.storageInfo.storage_path_writable ? 'OK (Writable)' : 'ERROR (Read-Only)'}
+Disk Free Space     : ${props.storageInfo.disk_free || '-'} / ${props.storageInfo.disk_total || '-'} (${props.storageInfo.disk_used_percent || 0}% terpakai)
 ===================================================
 `.trim();
 
@@ -182,19 +185,34 @@ Disk Free Space   : ${props.storageInfo.disk_free || '-'} / ${props.storageInfo.
           </div>
         </div>
 
-        <!-- Metric 3: Web Server & Engine -->
+        <!-- Metric 3: Framework & Environment -->
         <div class="col-xl-3 col-md-6">
           <div class="card border-0 shadow-sm rounded-4 metric-card metric-card-warning h-100">
             <div class="card-body p-3.5 d-flex align-items-center gap-3">
               <div class="metric-icon-box icon-warning">
-                <i class="ri-cpu-fill"></i>
+                <i class="ri-shield-check-fill"></i>
               </div>
               <div class="flex-grow-1 min-w-0">
-                <div class="metric-label">Web Engine &amp; Framework</div>
+                <div class="metric-label">Framework &amp; Lingkungan</div>
                 <div class="metric-val text-warning d-flex align-items-center gap-1.5 flex-wrap">
-                  <span>{{ frameworkInfo.octane_server !== 'None' ? 'FrankenPHP Octane' : 'Standard Engine' }}</span>
+                  <span>Laravel v{{ frameworkInfo.laravel_version }}</span>
                 </div>
-                <div class="metric-sub text-truncate">Laravel v{{ frameworkInfo.laravel_version }} • {{ frameworkInfo.app_env }}</div>
+                <div class="d-flex align-items-center gap-1.5 mt-1 flex-wrap">
+                  <span 
+                    class="badge fs-10 px-2 py-0.5 rounded-pill fw-bold text-uppercase"
+                    :class="frameworkInfo.app_env === 'production' ? 'badge-subtle-success' : 'badge-subtle-warning'"
+                  >
+                    <i :class="frameworkInfo.app_env === 'production' ? 'ri-checkbox-circle-fill' : 'ri-tools-fill'" class="me-0.5"></i>
+                    {{ frameworkInfo.app_env }}
+                  </span>
+                  <span 
+                    class="badge fs-10 px-2 py-0.5 rounded-pill fw-bold"
+                    :class="frameworkInfo.app_debug ? 'badge-subtle-danger' : 'badge-subtle-success'"
+                  >
+                    <i :class="frameworkInfo.app_debug ? 'ri-bug-fill' : 'ri-shield-flash-fill'" class="me-0.5"></i>
+                    Debug: {{ frameworkInfo.app_debug ? 'Aktif' : 'Off' }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -316,7 +334,141 @@ Disk Free Space   : ${props.storageInfo.disk_free || '-'} / ${props.storageInfo.
             </div>
           </div>
 
-          <!-- Card 2: Database & Backend Engine -->
+          <!-- Card 2: Framework Laravel & Environment Info -->
+          <div class="card border-0 shadow-sm rounded-4 mb-4 sys-card">
+            <div class="card-header sys-card-header p-3.5">
+              <div class="d-flex align-items-center justify-content-between">
+                <h5 class="fs-15 fw-bold sys-card-title mb-0 d-flex align-items-center gap-2">
+                  <i class="ri-shield-keyhole-line text-warning"></i>
+                  <span>Framework Laravel &amp; Konfigurasi Lingkungan</span>
+                </h5>
+                <div class="d-flex align-items-center gap-1.5">
+                  <span 
+                    class="badge px-2.5 py-1 rounded-pill fs-11 fw-bold text-uppercase"
+                    :class="frameworkInfo.app_env === 'production' ? 'badge-subtle-success' : 'badge-subtle-warning'"
+                  >
+                    Env: {{ frameworkInfo.app_env }}
+                  </span>
+                  <span 
+                    class="badge px-2.5 py-1 rounded-pill fs-11 fw-bold"
+                    :class="frameworkInfo.app_debug ? 'badge-subtle-danger' : 'badge-subtle-success'"
+                  >
+                    Debug: {{ frameworkInfo.app_debug ? 'Aktif' : 'Off' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 sys-table">
+                  <tbody>
+                    <tr>
+                      <td class="sys-table-label" style="width: 35%;">Environment Aplikasi (APP_ENV)</td>
+                      <td class="sys-table-value">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                          <span 
+                            class="badge px-2.5 py-1 rounded-pill fs-11 fw-bold text-uppercase"
+                            :class="frameworkInfo.app_env === 'production' ? 'badge-subtle-success' : 'badge-subtle-warning'"
+                          >
+                            <i :class="frameworkInfo.app_env === 'production' ? 'ri-shield-check-fill' : 'ri-tools-fill'" class="me-1"></i>
+                            {{ frameworkInfo.app_env }}
+                          </span>
+                          <span class="fs-12 text-muted">
+                            {{ frameworkInfo.app_env === 'production' 
+                              ? 'Mode Produksi Resmi (Optimalisasi Keamanan & Performa Publik Aktif).' 
+                              : (frameworkInfo.app_env === 'local' 
+                                ? 'Mode Pengembangan Lokal (Development Environment).' 
+                                : 'Lingkungan: ' + frameworkInfo.app_env) }}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="sys-table-label">Mode Debug Aplikasi (APP_DEBUG)</td>
+                      <td class="sys-table-value">
+                        <div>
+                          <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span 
+                              class="badge px-2.5 py-1 rounded-pill fs-11 fw-bold"
+                              :class="frameworkInfo.app_debug ? 'badge-subtle-danger' : 'badge-subtle-success'"
+                            >
+                              <i :class="frameworkInfo.app_debug ? 'ri-bug-fill' : 'ri-shield-check-fill'" class="me-1"></i>
+                              {{ frameworkInfo.app_debug ? 'Aktif (Debug Mode ON)' : 'Nonaktif (Debug Mode OFF)' }}
+                            </span>
+                            <span v-if="!frameworkInfo.app_debug" class="fs-12 text-muted">
+                              Aman untuk server produksi. Rincian error teknis &amp; baris kode internal disembunyikan.
+                            </span>
+                          </div>
+                          <div v-if="frameworkInfo.app_debug" class="alert alert-danger-subtle py-1.5 px-3 rounded-3 fs-12 mt-2 mb-0 border border-danger-subtle d-flex align-items-start gap-2">
+                            <i class="ri-alert-line text-danger fs-15 mt-0.5"></i>
+                            <div>
+                              <strong class="text-danger">Peringatan Keamanan Server:</strong>
+                              <span class="text-danger-emphasis ms-1">Mode debug aktif akan menampilkan jejak stack trace kode secara transparan saat terjadi kesalahan sistem. Sangat dianjurkan mengubah <code>APP_DEBUG=false</code> di file <code>.env</code> sebelum digunakan publik!</span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="sys-table-label">Versi Framework Laravel</td>
+                      <td class="sys-table-value font-monospace fw-bold text-dark-emphasis">
+                        Laravel v{{ frameworkInfo.laravel_version }}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="sys-table-label">Web Server &amp; Engine Runner</td>
+                      <td class="sys-table-value">
+                        <span class="fw-semibold">{{ frameworkInfo.server_software }}</span>
+                        <span v-if="frameworkInfo.octane_server && frameworkInfo.octane_server !== 'None'" class="badge badge-subtle-info ms-2 fs-10">
+                          Octane: {{ frameworkInfo.octane_server }}
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="sys-table-label">Status Mode Pemeliharaan (Maintenance)</td>
+                      <td class="sys-table-value">
+                        <span class="badge" :class="frameworkInfo.maintenance ? 'badge-subtle-danger' : 'badge-subtle-success'">
+                          <i :class="frameworkInfo.maintenance ? 'ri-error-warning-fill' : 'ri-checkbox-circle-fill'" class="me-1"></i>
+                          {{ frameworkInfo.maintenance ? 'Aktif (Situs Ditutup Sementara)' : 'Normal (Aplikasi Online)' }}
+                        </span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="sys-table-label">Status Cache Bootstrap Framework</td>
+                      <td class="sys-table-value">
+                        <div class="d-flex align-items-center gap-2 flex-wrap fs-11 font-monospace">
+                          <span class="badge" :class="frameworkInfo.config_cached ? 'badge-subtle-success' : 'badge-subtle-secondary'">
+                            Config: {{ frameworkInfo.config_cached ? 'Cached' : 'Not Cached' }}
+                          </span>
+                          <span class="badge" :class="frameworkInfo.routes_cached ? 'badge-subtle-success' : 'badge-subtle-secondary'">
+                            Routes: {{ frameworkInfo.routes_cached ? 'Cached' : 'Not Cached' }}
+                          </span>
+                          <span class="badge" :class="frameworkInfo.events_cached ? 'badge-subtle-success' : 'badge-subtle-secondary'">
+                            Events: {{ frameworkInfo.events_cached ? 'Cached' : 'Not Cached' }}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="sys-table-label">URL Dasar Aplikasi (APP_URL)</td>
+                      <td class="sys-table-value font-monospace text-primary">
+                        {{ frameworkInfo.app_url || '-' }}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="sys-table-label">Bahasa (Locale) &amp; Zona Waktu</td>
+                      <td class="sys-table-value">
+                        <span class="badge badge-subtle-secondary me-2">Locale: {{ frameworkInfo.app_locale }}</span>
+                        <span class="badge badge-subtle-info">{{ frameworkInfo.app_timezone }}</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Database & Backend Engine -->
           <div class="card border-0 shadow-sm rounded-4 mb-4 sys-card">
             <div class="card-header sys-card-header p-3.5">
               <div class="d-flex align-items-center justify-content-between">

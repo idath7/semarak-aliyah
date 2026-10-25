@@ -262,6 +262,10 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
         Route::post('/sipresensi', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSipresensiSettings'])->name('sipresensi.update');
         Route::post('/sipresensi/test-connection', [\App\Http\Controllers\Admin\SettingsController::class, 'testSipresensiConnection'])->name('sipresensi.test-connection');
         Route::post('/sipresensi/test-sync', [\App\Http\Controllers\Admin\SettingsController::class, 'testSipresensiSync'])->name('sipresensi.test-sync');
+
+        // 9. Informasi Sistem & Kinerja Server
+        Route::get('/informasi-sistem', [\App\Http\Controllers\Admin\SettingsController::class, 'systemInformation'])->name('system-info');
+        Route::post('/informasi-sistem/clear-cache', [\App\Http\Controllers\Admin\SettingsController::class, 'clearSystemCache'])->name('system-info.clear-cache');
     });
 
     // 2. Redirect all operational routes to Dark Operational UI

@@ -688,6 +688,16 @@ onUnmounted(() => {
                 </li>
                 <li class="nav-item">
                   <Link 
+                    href="/admin/pengaturan/kebijakan-pendaftaran" 
+                    class="nav-link d-flex align-items-center gap-2"
+                    :class="{ 'active': currentUrl.includes('/kebijakan-pendaftaran') }"
+                  >
+                    <i class="ri-user-settings-line fs-14 text-warning"></i>
+                    <span>Kebijakan Pendaftaran</span>
+                  </Link>
+                </li>
+                <li class="nav-item">
+                  <Link 
                     href="/admin/pengaturan/mode-perawatan" 
                     class="nav-link d-flex align-items-center gap-2"
                     :class="{ 'active': currentUrl.includes('/mode-perawatan') }"
@@ -734,6 +744,16 @@ onUnmounted(() => {
                   >
                     <i class="ri-shield-keyhole-line fs-14 text-success"></i>
                     <span>API Sipresensi</span>
+                  </Link>
+                </li>
+                <li class="nav-item">
+                  <Link 
+                    href="/admin/pengaturan/informasi-sistem" 
+                    class="nav-link d-flex align-items-center gap-2"
+                    :class="{ 'active': currentUrl.includes('/informasi-sistem') }"
+                  >
+                    <i class="ri-server-line fs-14 text-primary"></i>
+                    <span>Informasi Sistem</span>
                   </Link>
                 </li>
               </ul>

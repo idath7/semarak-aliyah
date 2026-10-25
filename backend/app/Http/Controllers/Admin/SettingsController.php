@@ -896,4 +896,192 @@ class SettingsController extends Controller
         $result = SipresensiService::fetchTeachers();
         return response()->json($result);
     }
+
+    // =========================================================================
+    // 9. SUBMENU: INFORMASI SISTEM & KINERJA SERVER
+    // =========================================================================
+    public function systemInformation(Request $request)
+    {
+        // 1. PHP Runtime
+        $opcacheEnabled = extension_loaded('Zend OPcache') && (bool) ini_get('opcache.enable');
+        $opcacheStats = null;
+        if ($opcacheEnabled && function_exists('opcache_get_status')) {
+            $rawOpcache = @opcache_get_status(false);
+            if (is_array($rawOpcache)) {
+                $opcacheStats = [
+                    'used_memory'    => isset($rawOpcache['memory_usage']['used_memory']) ? round($rawOpcache['memory_usage']['used_memory'] / 1024 / 1024, 2) . ' MB' : null,
+                    'free_memory'    => isset($rawOpcache['memory_usage']['free_memory']) ? round($rawOpcache['memory_usage']['free_memory'] / 1024 / 1024, 2) . ' MB' : null,
+                    'hit_rate'       => isset($rawOpcache['opcache_statistics']['opcache_hit_rate']) ? round($rawOpcache['opcache_statistics']['opcache_hit_rate'], 1) . '%' : null,
+                    'cached_scripts' => $rawOpcache['opcache_statistics']['num_cached_scripts'] ?? 0,
+                    'jit_enabled'    => isset($rawOpcache['jit']['enabled']) ? (bool) $rawOpcache['jit']['enabled'] : false,
+                ];
+            }
+        }
+
+        $phpInfo = [
+            'version'             => PHP_VERSION,
+            'zts'                 => (defined('PHP_ZTS') && PHP_ZTS) ? 'ZTS (Zend Thread Safety)' : 'NTS (Non-Thread Safe)',
+            'sapi'                => php_sapi_name(),
+            'os'                  => PHP_OS_FAMILY . ' (' . php_uname('s') . ' ' . php_uname('r') . ')',
+            'architecture'        => PHP_INT_SIZE === 8 ? '64-bit (x86_64)' : '32-bit',
+            'memory_limit'        => ini_get('memory_limit') ?: 'N/A',
+            'current_memory'      => round(memory_get_usage(true) / 1024 / 1024, 2) . ' MB',
+            'peak_memory'         => round(memory_get_peak_usage(true) / 1024 / 1024, 2) . ' MB',
+            'max_execution_time'  => (ini_get('max_execution_time') ?: '0') . ' detik',
+            'upload_max_filesize' => ini_get('upload_max_filesize') ?: 'N/A',
+            'post_max_size'       => ini_get('post_max_size') ?: 'N/A',
+            'timezone'            => date_default_timezone_get(),
+            'server_time'         => now()->format('d/m/Y H:i:s') . ' WIB',
+            'opcache_enabled'     => $opcacheEnabled,
+            'opcache_stats'       => $opcacheStats,
+        ];
+
+        // 2. Framework & Server Engine
+        $frameworkInfo = [
+            'laravel_version' => app()->version(),
+            'octane_server'   => env('OCTANE_SERVER', config('octane.server', 'None')),
+            'app_env'         => config('app.env'),
+            'app_debug'       => (bool) config('app.debug'),
+            'app_url'         => config('app.url'),
+            'app_locale'      => config('app.locale'),
+            'maintenance'     => app()->isDownForMaintenance(),
+            'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? (php_sapi_name() === 'frankenphp' ? 'FrankenPHP / Caddy' : 'Web Server Engine'),
+        ];
+
+        // 3. Database Status (PostgreSQL)
+        $dbConnection = config('database.default');
+        $dbStatus = 'Terputus';
+        $dbVersion = 'Unknown';
+        $dbSize = 'Unknown';
+        try {
+            \Illuminate\Support\Facades\DB::connection()->getPdo();
+            $dbStatus = 'Terhubung';
+            if ($dbConnection === 'pgsql') {
+                $rawVer = \Illuminate\Support\Facades\DB::select("SELECT version() as ver");
+                $dbVersion = $rawVer[0]->ver ?? 'PostgreSQL';
+                $rawSize = \Illuminate\Support\Facades\DB::select("SELECT pg_size_pretty(pg_database_size(current_database())) as size");
+                $dbSize = $rawSize[0]->size ?? 'N/A';
+            } elseif ($dbConnection === 'mysql') {
+                $rawVer = \Illuminate\Support\Facades\DB::select("SELECT VERSION() as ver");
+                $dbVersion = $rawVer[0]->ver ?? 'MySQL';
+            }
+        } catch (\Throwable $e) {
+            $dbStatus = 'Gagal: ' . $e->getMessage();
+        }
+
+        $dbInfo = [
+            'default_driver' => $dbConnection,
+            'status'         => $dbStatus,
+            'database_name'  => config("database.connections.{$dbConnection}.database"),
+            'host'           => config("database.connections.{$dbConnection}.host"),
+            'version'        => $dbVersion,
+            'size'           => $dbSize,
+        ];
+
+        // 4. Cache, Queue & Redis
+        $redisStatus = 'Tidak Dikonfigurasi';
+        if (config('cache.default') === 'redis' || config('queue.default') === 'redis' || extension_loaded('redis')) {
+            try {
+                \Illuminate\Support\Facades\Redis::connection()->ping();
+                $redisStatus = 'Aktif & Terhubung';
+            } catch (\Throwable $e) {
+                $redisStatus = 'Gagal Terhubung: ' . $e->getMessage();
+            }
+        }
+
+        $cacheInfo = [
+            'cache_driver'   => config('cache.default'),
+            'session_driver' => config('session.driver'),
+            'queue_driver'   => config('queue.default'),
+            'redis_status'   => $redisStatus,
+            'broadcast'      => config('broadcasting.default'),
+        ];
+
+        // 5. Storage & Disk Status
+        $storageWritable = is_writable(storage_path());
+        $bootstrapCacheWritable = is_writable(base_path('bootstrap/cache'));
+        $publicWritable = is_writable(public_path());
+
+        $diskFree = @disk_free_space(base_path());
+        $diskTotal = @disk_total_space(base_path());
+        $diskUsedPercent = ($diskTotal && $diskFree) ? round((($diskTotal - $diskFree) / $diskTotal) * 100, 1) : 0;
+
+        $storageInfo = [
+            'storage_path_writable'    => $storageWritable,
+            'bootstrap_cache_writable' => $bootstrapCacheWritable,
+            'public_path_writable'     => $publicWritable,
+            'disk_free'                => $diskFree ? round($diskFree / 1024 / 1024 / 1024, 2) . ' GB' : 'N/A',
+            'disk_total'               => $diskTotal ? round($diskTotal / 1024 / 1024 / 1024, 2) . ' GB' : 'N/A',
+            'disk_used_percent'        => $diskUsedPercent,
+        ];
+
+        // 6. Critical PHP Extensions
+        $requiredExtensions = [
+            'pdo_pgsql' => ['label' => 'PDO PostgreSQL', 'desc' => 'Driver utama koneksi PostgreSQL', 'required' => true],
+            'redis'     => ['label' => 'PHPRedis', 'desc' => 'Driver performa tinggi Cache & Antrean', 'required' => false],
+            'imagick'   => ['label' => 'ImageMagick', 'desc' => 'Pemrosesan pamflet, piagam & sertifikat', 'required' => false],
+            'gd'        => ['label' => 'GD Library', 'desc' => 'Pemrosesan grafis sekunder', 'required' => true],
+            'curl'      => ['label' => 'cURL', 'desc' => 'Komunikasi HTTP API & Webhook', 'required' => true],
+            'mbstring'  => ['label' => 'Multibyte String', 'desc' => 'Encoding teks UTF-8', 'required' => true],
+            'openssl'   => ['label' => 'OpenSSL', 'desc' => 'Enkripsi data & token keamanan', 'required' => true],
+            'zip'       => ['label' => 'Zip Archive', 'desc' => 'Ekspor berkas terkompresi & arsip', 'required' => true],
+            'bcmath'    => ['label' => 'BCMath', 'desc' => 'Kalkulasi keuangan presisi tinggi', 'required' => true],
+            'fileinfo'  => ['label' => 'FileInfo', 'desc' => 'Deteksi MIME type unggahan berkas', 'required' => true],
+        ];
+
+        $extensionsList = [];
+        foreach ($requiredExtensions as $ext => $meta) {
+            $extensionsList[] = [
+                'name'      => $ext,
+                'label'     => $meta['label'],
+                'desc'      => $meta['desc'],
+                'required'  => $meta['required'],
+                'installed' => extension_loaded($ext),
+            ];
+        }
+
+        return Inertia::render('Admin/Settings/SystemInformation', [
+            'phpInfo'        => $phpInfo,
+            'frameworkInfo'  => $frameworkInfo,
+            'dbInfo'         => $dbInfo,
+            'cacheInfo'      => $cacheInfo,
+            'storageInfo'    => $storageInfo,
+            'extensionsList' => $extensionsList,
+        ]);
+    }
+
+    public function clearSystemCache(Request $request)
+    {
+        $type = $request->input('type', 'all');
+
+        try {
+            switch ($type) {
+                case 'application':
+                    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+                    $msg = 'Cache data aplikasi berhasil dibersihkan.';
+                    break;
+                case 'route':
+                    \Illuminate\Support\Facades\Artisan::call('route:clear');
+                    $msg = 'Cache rute URL berhasil dibersihkan.';
+                    break;
+                case 'view':
+                    \Illuminate\Support\Facades\Artisan::call('view:clear');
+                    $msg = 'Cache template Blade & tampilan berhasil dibersihkan.';
+                    break;
+                case 'config':
+                    \Illuminate\Support\Facades\Artisan::call('config:clear');
+                    $msg = 'Cache file konfigurasi berhasil dibersihkan.';
+                    break;
+                case 'all':
+                default:
+                    \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+                    $msg = 'Seluruh cache sistem (Route, Cache, Config, View) berhasil dibersihkan!';
+                    break;
+            }
+
+            return redirect()->back()->with('success', $msg);
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Gagal membersihkan cache: ' . $e->getMessage());
+        }
+    }
 }

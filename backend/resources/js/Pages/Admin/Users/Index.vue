@@ -412,6 +412,13 @@ async function executeSync() {
           </p>
         </div>
         <div class="col-12 col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-wrap gap-2 justify-content-md-end">
+          <Link 
+            href="/admin/pengguna/hak-akses" 
+            class="btn btn-outline-primary d-inline-flex align-items-center gap-1.5 shadow-sm rounded-3 px-3 py-2 fw-semibold"
+          >
+            <i class="ri-shield-keyhole-line fs-16 text-warning"></i>
+            <span>Hak Akses &amp; Peran</span>
+          </Link>
           <button 
             type="button" 
             class="btn btn-outline-success d-inline-flex align-items-center gap-2 shadow-sm rounded-3 px-3 py-2 fw-semibold"

@@ -165,7 +165,10 @@ function clearCountdownTarget() {
 }
 
 const bypassUrl = computed(() => {
-  return `${window.location.protocol}//${window.location.hostname}:8000/?bypass=${form.maintenance_secret_key}`;
+  if (typeof window !== 'undefined' && window.location) {
+    return `${window.location.origin}/?bypass=${form.maintenance_secret_key}`;
+  }
+  return `/?bypass=${form.maintenance_secret_key}`;
 });
 
 const isCopied = ref(false);

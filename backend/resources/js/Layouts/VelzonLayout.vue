@@ -2,9 +2,11 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { useToast } from '@/Composables/useToast';
+import { usePermission } from '@/Composables/usePermission';
 import VelzonConfirmModal from '@/Components/VelzonConfirmModal.vue';
 
 const page = usePage();
+const { can, canAny, isSuperAdmin } = usePermission();
 const authUser = computed(() => page.props.auth?.user || { name: 'Panitia Semarak', email: 'admin@maswahas.sch.id' });
 const flashSuccess = computed(() => page.props.flash?.success);
 const flashError = computed(() => page.props.flash?.error);
@@ -376,7 +378,7 @@ onUnmounted(() => {
               />
               <div class="d-none d-xl-block text-start user-info-wrapper">
                 <span class="d-block fw-semibold topbar-user-name fs-13 text-truncate" style="max-width: 140px;">{{ authUser.name }}</span>
-                <span class="d-block topbar-user-role fs-11 text-truncate" style="max-width: 140px;">Superadmin Panitia</span>
+                <span class="d-block topbar-user-role fs-11 text-truncate" style="max-width: 140px;">{{ authUser.role_label || 'Panitia' }}</span>
               </div>
             </button>
 
@@ -474,7 +476,7 @@ onUnmounted(() => {
           <!-- 1. Menu Utama -->
           <li class="menu-title"><span>Menu Utama</span></li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('dashboard.view')">
             <Link 
               href="/admin" 
               class="nav-link menu-link"
@@ -485,21 +487,32 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('users.view')">
             <Link 
               href="/admin/pengguna" 
               class="nav-link menu-link"
-              :class="{ 'active': currentUrl.startsWith('/admin/pengguna') }"
+              :class="{ 'active': currentUrl === '/admin/pengguna' }"
             >
               <i class="ri-user-settings-line text-primary"></i>
-              <span v-show="!isSidebarCollapsed">Pengguna & Panitia</span>
+              <span v-show="!isSidebarCollapsed">Pengguna &amp; Panitia</span>
+            </Link>
+          </li>
+
+          <li class="nav-item" v-if="can('roles.manage')">
+            <Link 
+              href="/admin/pengguna/hak-akses" 
+              class="nav-link menu-link"
+              :class="{ 'active': currentUrl.startsWith('/admin/pengguna/hak-akses') || currentUrl === '/admin/hak-akses' }"
+            >
+              <i class="ri-shield-keyhole-line text-warning"></i>
+              <span v-show="!isSidebarCollapsed">Hak Akses &amp; Peran</span>
             </Link>
           </li>
 
           <!-- 2. Administrasi Pendaftaran -->
-          <li class="menu-title"><span>Administrasi Pendaftaran</span></li>
+          <li class="menu-title" v-if="can('registrants.view') || can('schools.view') || can('competitions.manage') || can('finance.view')"><span>Administrasi Pendaftaran</span></li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('registrants.view')">
             <Link 
               href="/admin/pendaftar" 
               class="nav-link menu-link"
@@ -510,7 +523,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('schools.view')">
             <Link 
               href="/admin/sekolah-terdaftar" 
               class="nav-link menu-link"
@@ -521,7 +534,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('schools.view')">
             <Link 
               href="/admin/sekolah" 
               class="nav-link menu-link"
@@ -532,7 +545,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('competitions.manage')">
             <Link 
               href="/admin/lomba" 
               class="nav-link menu-link"
@@ -543,7 +556,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('tm.manage')">
             <Link 
               href="/admin/tm" 
               class="nav-link menu-link"
@@ -554,7 +567,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('form_builder.manage')">
             <Link 
               href="/admin/form-builder" 
               class="nav-link menu-link"
@@ -565,7 +578,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('finance.view')">
             <Link 
               href="/admin/biaya" 
               class="nav-link menu-link"
@@ -576,14 +589,14 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('registrants.export')">
             <a class="nav-link menu-link" href="/admin/export">
               <i class="ri-file-excel-2-line text-success"></i>
               <span v-show="!isSidebarCollapsed">Export Excel</span>
             </a>
           </li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('juknis.manage')">
             <Link 
               href="/admin/juknis" 
               class="nav-link menu-link"
@@ -595,9 +608,9 @@ onUnmounted(() => {
           </li>
 
           <!-- 3. Kelola Web Publik -->
-          <li class="menu-title"><span>Kelola Web Publik</span></li>
+          <li class="menu-title" v-if="can('content.sponsor') || can('content.gallery') || can('content.faq') || can('content.customization')"><span>Kelola Web Publik</span></li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('content.sponsor')">
             <Link 
               href="/admin/sponsor" 
               class="nav-link menu-link"
@@ -608,7 +621,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('content.gallery')">
             <Link 
               href="/admin/galeri" 
               class="nav-link menu-link"
@@ -619,7 +632,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('content.faq')">
             <Link 
               href="/admin/faq" 
               class="nav-link menu-link"
@@ -630,7 +643,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('content.customization')">
             <Link 
               href="/admin/kustomisasi" 
               class="nav-link menu-link"

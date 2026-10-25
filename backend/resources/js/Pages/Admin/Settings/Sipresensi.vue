@@ -26,7 +26,7 @@ const { success, error, info } = useToast();
 
 const form = useForm({
   sipresensi_mode: props.settings.sipresensi_mode || 'auto',
-  sipresensi_api_url: props.settings.sipresensi_api_url || 'http://localhost:8000',
+  sipresensi_api_url: props.settings.sipresensi_api_url || 'https://sipresensi.maswahas.sch.id',
   sipresensi_api_token: props.settings.sipresensi_api_token || '',
   sipresensi_path: props.settings.sipresensi_path || 'D:\\1Laravel\\sipresensi',
   sipresensi_teachers_endpoint: props.settings.sipresensi_teachers_endpoint || '/api/v1/integration/pkl/teachers/all',
@@ -383,7 +383,7 @@ async function runSyncTest() {
                       v-model="form.sipresensi_api_url"
                       type="text"
                       class="form-control fs-12"
-                      placeholder="Contoh: http://localhost:8000 atau https://sipresensi.maswahas.sch.id"
+                      placeholder="Contoh: https://sipresensi.maswahas.sch.id"
                       required
                     />
                   </div>

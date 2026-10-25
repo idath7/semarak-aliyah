@@ -47,6 +47,7 @@ Sistem SEMARAK ALIYAH XIV 2026 dibangun menggunakan arsitektur modern berbasis *
 | **Gate Check-in** | `8001` | [http://localhost:8001/admin/gate-checkin](http://localhost:8001/admin/gate-checkin) | Scanner barcode / QR code kehadiran delegasi di pintu venue. |
 | **Studio Cetak** | `8001` | [http://localhost:8001/admin/print-studio](http://localhost:8001/admin/print-studio) | Generator dan cetak massal ID Card peserta serta sertifikat/piagam. |
 | **Arena Wasit & Juri** | `8001` | [http://localhost:8001/admin/jury/arena](http://localhost:8001/admin/jury/arena) | Input nilai juri dengan stopwatch otomatis dan bagan gugur turnamen. |
+| **Hak Akses & Peran** | `8001` | [http://localhost:8001/admin/pengguna/hak-akses](http://localhost:8001/admin/pengguna/hak-akses) | Kontrol akses peran (RBAC) & matriks izin panitia (lihat [DOKUMENTASI_HAK_AKSES.md](file:///d:/wp/semarak/DOKUMENTASI_HAK_AKSES.md)). |
 | **WebSocket Reverb** | `8085` | `ws://localhost:8085` | Engine push realtime update data pertandingan dan pendaftaran. |
 
 ---
@@ -118,6 +119,7 @@ d:\wp\semarak\
 ├── docker-update.bat           # Skrip otomatisasi pembaruan & hot-reload Windows
 ├── docker-update.sh            # Skrip otomatisasi pembaruan & hot-reload Linux/Server
 ├── start_all.bat               # Launcher 1-klik development lokal Windows
+├── DOKUMENTASI_HAK_AKSES.md    # Dokumentasi sistem RBAC, matriks izin & panduan pengembang
 ├── README.md                   # Dokumentasi master proyek Semarak Aliyah
 │
 ├── docker/                     # Konfigurasi container engine

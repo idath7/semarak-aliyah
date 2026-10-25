@@ -25,6 +25,7 @@ class User extends Authenticatable
         'password',
         'must_change_password',
         'role',
+        'role_id',
         'division',
         'phone',
         'competition_id',
@@ -37,6 +38,7 @@ class User extends Authenticatable
         'google_id',
         'wa_otp_code',
         'wa_otp_expires_at',
+        'custom_permissions',
     ];
 
     /**
@@ -63,7 +65,16 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'is_active' => 'boolean',
             'wa_otp_expires_at' => 'datetime',
+            'custom_permissions' => 'array',
         ];
+    }
+
+    /**
+     * Relasi ke Master Peran (Role).
+     */
+    public function roleRelation(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'role_id');
     }
 
     /**
@@ -105,5 +116,70 @@ class User extends Authenticatable
     public function hasAdminAccess(): bool
     {
         return in_array($this->role, ['super_admin', 'admin', 'bendahara', 'kesekretariatan']);
+    }
+
+    /**
+     * Ambil seluruh nama hak akses aktif pengguna (gabungan peran + custom overrides).
+     *
+     * @return array<string>
+     */
+    public function allPermissions(): array
+    {
+        if ($this->isSuperAdmin()) {
+            return Permission::pluck('name')->toArray();
+        }
+
+        $role = $this->roleRelation ?: Role::where('name', $this->role)->first();
+        $permissions = $role ? $role->permissions()->pluck('name')->toArray() : [];
+
+        if (!empty($this->custom_permissions) && is_array($this->custom_permissions)) {
+            foreach ($this->custom_permissions as $perm => $allowed) {
+                if ($allowed && !in_array($perm, $permissions)) {
+                    $permissions[] = $perm;
+                } elseif (!$allowed) {
+                    $permissions = array_values(array_diff($permissions, [$perm]));
+                }
+            }
+        }
+
+        return $permissions;
+    }
+
+    /**
+     * Periksa apakah pengguna memiliki hak akses tertentu.
+     */
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (!empty($this->custom_permissions) && is_array($this->custom_permissions) && array_key_exists($permission, $this->custom_permissions)) {
+            return (bool)$this->custom_permissions[$permission];
+        }
+
+        $role = $this->roleRelation ?: Role::where('name', $this->role)->first();
+        return $role ? $role->hasPermission($permission) : false;
+    }
+
+    /**
+     * Periksa apakah pengguna dapat mengakses salah satu atau seluruh izin.
+     */
+    public function canAccess(string|array $permissions): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (is_array($permissions)) {
+            foreach ($permissions as $perm) {
+                if ($this->hasPermission($perm)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        return $this->hasPermission($permissions);
     }
 }

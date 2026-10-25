@@ -109,6 +109,22 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
     Route::post('/pengguna/{id}/toggle-status', [\App\Http\Controllers\Admin\UserController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::delete('/pengguna/{id}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
 
+    // Manajemen Hak Akses & Matriks Peran Panitia (Role & Permission Management)
+    Route::prefix('pengguna/hak-akses')->name('roles.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\RolePermissionController::class, 'index'])->name('index');
+        Route::post('/matrix', [\App\Http\Controllers\Admin\RolePermissionController::class, 'updateMatrix'])->name('matrix.update');
+        Route::post('/role', [\App\Http\Controllers\Admin\RolePermissionController::class, 'storeRole'])->name('store');
+        Route::put('/role/{id}', [\App\Http\Controllers\Admin\RolePermissionController::class, 'updateRole'])->name('update');
+        Route::delete('/role/{id}', [\App\Http\Controllers\Admin\RolePermissionController::class, 'destroyRole'])->name('destroy');
+        Route::post('/reset-defaults', [\App\Http\Controllers\Admin\RolePermissionController::class, 'resetDefaults'])->name('reset-defaults');
+        Route::post('/user/{userId}/custom-permissions', [\App\Http\Controllers\Admin\RolePermissionController::class, 'updateUserPermissions'])->name('user-permissions.update');
+    });
+
+    // Pintasan Langsung /admin/hak-akses
+    Route::get('/hak-akses', function () {
+        return redirect()->route('admin.roles.index');
+    })->name('roles.shortcut');
+
     // Database Master Sekolah & Madrasah (SMP/MTs) di Kabupaten Jember
     Route::get('/sekolah', [\App\Http\Controllers\Admin\SchoolController::class, 'index'])->name('schools.index');
     Route::post('/sekolah', [\App\Http\Controllers\Admin\SchoolController::class, 'store'])->name('schools.store');

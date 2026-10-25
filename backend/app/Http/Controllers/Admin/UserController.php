@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Competition;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\SipresensiService;
 use Illuminate\Http\Request;
@@ -127,13 +128,23 @@ class UserController extends Controller
             ->orderBy('title')
             ->get();
 
+        $activeRoles = Role::all()->mapWithKeys(function ($r) {
+            return [
+                $r->name => [
+                    'label' => $r->label,
+                    'badge' => $r->badge_color,
+                    'description' => $r->description,
+                ]
+            ];
+        })->toArray();
+
         return Inertia::render('Admin/Users/Index', [
             'users'        => $users,
             'filters'      => $request->only(['search', 'role', 'division', 'status']),
             'metrics'      => $metrics,
             'competitions' => $competitions,
             'divisions'    => $this->divisions,
-            'roles'        => $this->roles,
+            'roles'        => !empty($activeRoles) ? $activeRoles : $this->roles,
             'currentUserId'=> Auth::id(),
         ]);
     }
@@ -148,7 +159,7 @@ class UserController extends Controller
             'email'          => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'nip'            => ['nullable', 'string', 'max:50'],
             'password'       => ['required', 'string', 'min:6'],
-            'role'           => ['required', 'string', Rule::in(array_keys($this->roles))],
+            'role'           => ['required', 'string', 'exists:roles,name'],
             'division'       => ['nullable', 'string', 'max:100'],
             'phone'          => ['nullable', 'string', 'max:25'],
             'competition_id' => ['nullable', 'string', 'exists:competitions,id'],
@@ -161,8 +172,11 @@ class UserController extends Controller
             'password.required' => 'Kata sandi wajib diisi.',
             'password.min'      => 'Kata sandi minimal 6 karakter.',
             'role.required'     => 'Peran/Role wajib dipilih.',
+            'role.exists'       => 'Peran/Role yang dipilih tidak valid dalam sistem.',
             'competition_id.exists' => 'Cabang lomba tidak ditemukan.',
         ]);
+
+        $roleObj = Role::where('name', $validated['role'])->first();
 
         $user = User::create([
             'name'           => $validated['name'],
@@ -171,6 +185,7 @@ class UserController extends Controller
             'password'       => Hash::make($validated['password']),
             'must_change_password' => false,
             'role'           => $validated['role'],
+            'role_id'        => $roleObj?->id,
             'division'       => $validated['division'] ?? null,
             'phone'          => $validated['phone'] ?? null,
             'competition_id' => $validated['competition_id'] ?? null,
@@ -192,7 +207,7 @@ class UserController extends Controller
             'email'          => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'nip'            => ['nullable', 'string', 'max:50'],
             'password'       => ['nullable', 'string', 'min:6'],
-            'role'           => ['required', 'string', Rule::in(array_keys($this->roles))],
+            'role'           => ['required', 'string', 'exists:roles,name'],
             'division'       => ['nullable', 'string', 'max:100'],
             'phone'          => ['nullable', 'string', 'max:25'],
             'competition_id' => ['nullable', 'string', 'exists:competitions,id'],
@@ -204,6 +219,7 @@ class UserController extends Controller
             'email.unique'      => 'Email ini sudah digunakan oleh akun lain.',
             'password.min'      => 'Kata sandi minimal 6 karakter.',
             'role.required'     => 'Peran/Role wajib dipilih.',
+            'role.exists'       => 'Peran/Role yang dipilih tidak valid dalam sistem.',
             'competition_id.exists' => 'Cabang lomba tidak ditemukan.',
         ]);
 
@@ -217,11 +233,14 @@ class UserController extends Controller
             }
         }
 
+        $roleObj = Role::where('name', $validated['role'])->first();
+
         $updateData = [
             'name'           => $validated['name'],
             'email'          => strtolower(trim($validated['email'])),
             'nip'            => !empty($validated['nip']) ? trim($validated['nip']) : null,
             'role'           => $validated['role'],
+            'role_id'        => $roleObj?->id,
             'division'       => $validated['division'] ?? null,
             'phone'          => $validated['phone'] ?? null,
             'competition_id' => $validated['competition_id'] ?? null,

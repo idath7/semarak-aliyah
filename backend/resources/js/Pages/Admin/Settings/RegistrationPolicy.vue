@@ -31,22 +31,14 @@ const isTogglingQuick = ref(false);
 
 const registrantRedirectUri = computed(() => {
   if (typeof window !== 'undefined' && window.location) {
-    const loc = window.location;
-    if (loc.hostname === '127.0.0.1' || loc.hostname === 'localhost') {
-      return `${loc.protocol}//${loc.hostname}:8000/auth/google/callback`;
-    }
-    return `${loc.origin}/auth/google/callback`;
+    return `${window.location.origin}/auth/google/callback`;
   }
   return '/auth/google/callback';
 });
 
 const adminRedirectUri = computed(() => {
   if (typeof window !== 'undefined' && window.location) {
-    const loc = window.location;
-    if (loc.hostname === '127.0.0.1' || loc.hostname === 'localhost') {
-      return `${loc.protocol}//${loc.hostname}:8001/admin/auth/google/callback`;
-    }
-    return `${loc.origin}/admin/auth/google/callback`;
+    return `${window.location.origin}/admin/auth/google/callback`;
   }
   return '/admin/auth/google/callback';
 });
@@ -475,19 +467,27 @@ function quickToggleLoginRequired() {
           <div class="col-lg-5">
             
             <!-- Google OAuth Config Card -->
-            <div class="card border-0 shadow-sm rounded-4 mb-4 policy-card">
+            <div class="card border-0 shadow-sm rounded-4 mb-4 policy-card overflow-hidden">
               <div class="card-header policy-card-header p-4">
-                <div class="d-flex align-items-center justify-content-between mb-1">
-                  <h5 class="fs-16 fw-bold policy-card-title mb-0 d-flex align-items-center gap-2">
-                    <i class="ri-google-fill text-danger"></i>
-                    <span>Kredensial Google OAuth 2.0</span>
-                  </h5>
-                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 rounded-pill fs-11 fw-semibold">
-                    <i class="ri-global-line me-1"></i>Pendaftar &amp; Panitia
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2.5 mb-2.5">
+                  <div class="d-flex align-items-center gap-2.5 min-w-0">
+                    <div class="oauth-icon-wrap flex-shrink-0">
+                      <i class="ri-google-fill text-danger fs-18"></i>
+                    </div>
+                    <div>
+                      <h5 class="fs-15 fw-bold policy-card-title mb-0 lh-sm">
+                        Kredensial Google OAuth 2.0
+                      </h5>
+                      <span class="fs-11 text-muted">Akses Terpadu Google Sign-In</span>
+                    </div>
+                  </div>
+                  <span class="badge badge-oauth-scope px-2.5 py-1 rounded-pill fs-11 fw-semibold d-inline-flex align-items-center gap-1 flex-shrink-0">
+                    <i class="ri-global-line"></i>
+                    <span>Pendaftar &amp; Panitia</span>
                   </span>
                 </div>
-                <p class="fs-12 policy-card-desc mb-0">
-                  Konfigurasi satu pintu Google Cloud Console untuk otentikasi akun Google <strong>Pendaftar (Portal Publik)</strong> sekaligus <strong>Panitia / Admin</strong>.
+                <p class="fs-12 policy-card-desc mb-0 lh-base">
+                  Konfigurasi satu pintu Google Cloud Console untuk otentikasi akun Google <strong class="text-contrast">Pendaftar (Portal Publik)</strong> sekaligus <strong class="text-contrast">Panitia / Admin</strong>.
                 </p>
               </div>
 
@@ -541,12 +541,12 @@ function quickToggleLoginRequired() {
                   <div class="d-flex align-items-center justify-content-between mb-1.5">
                     <span class="fs-11 fw-bold text-uppercase redirect-label d-flex align-items-center gap-1.5">
                       <i class="ri-user-smile-line text-success fs-13"></i>
-                      <span>1. URI Callback Pendaftar (Port 8000)</span>
+                      <span>1. URI Callback Portal Pendaftar</span>
                     </span>
                     <button
                       type="button"
                       class="btn btn-xs btn-outline-success rounded-pill px-2.5 py-0.5 d-inline-flex align-items-center gap-1"
-                      @click="copyToClipboard(registrantRedirectUri, 'URI Callback Pendaftar')"
+                      @click="copyToClipboard(registrantRedirectUri, 'URI Callback Portal Pendaftar')"
                       title="Salin URI Pendaftar"
                     >
                       <i class="ri-file-copy-line"></i>
@@ -563,12 +563,12 @@ function quickToggleLoginRequired() {
                   <div class="d-flex align-items-center justify-content-between mb-1.5">
                     <span class="fs-11 fw-bold text-uppercase redirect-label d-flex align-items-center gap-1.5">
                       <i class="ri-shield-user-line text-primary fs-13"></i>
-                      <span>2. URI Callback Panitia (Port 8001)</span>
+                      <span>2. URI Callback Portal Panitia / Admin</span>
                     </span>
                     <button
                       type="button"
                       class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-0.5 d-inline-flex align-items-center gap-1"
-                      @click="copyToClipboard(adminRedirectUri, 'URI Callback Panitia')"
+                      @click="copyToClipboard(adminRedirectUri, 'URI Callback Portal Panitia')"
                       title="Salin URI Panitia"
                     >
                       <i class="ri-file-copy-line"></i>
@@ -746,6 +746,27 @@ function quickToggleLoginRequired() {
 .policy-card-header {
   border-bottom: 1px solid #f1f5f9;
   background: transparent;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+}
+
+.oauth-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge-oauth-scope {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
 }
 
 .policy-card-title {
@@ -1071,6 +1092,17 @@ function quickToggleLoginRequired() {
 
 [data-bs-theme="dark"] .policy-card-header {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-bs-theme="dark"] .oauth-icon-wrap {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+}
+
+[data-bs-theme="dark"] .badge-oauth-scope {
+  background: rgba(59, 130, 246, 0.18) !important;
+  color: #93c5fd !important;
+  border: 1px solid rgba(59, 130, 246, 0.4) !important;
 }
 
 [data-bs-theme="dark"] .policy-card-title {

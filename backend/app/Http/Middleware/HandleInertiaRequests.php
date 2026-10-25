@@ -41,7 +41,24 @@ class HandleInertiaRequests extends Middleware
                 'user' => function () use ($request) {
                     $isAdminOrOperasionalRoute = $request->is('admin', 'admin/*', 'operasional', 'operasional/*');
                     if ($isAdminOrOperasionalRoute) {
-                        return \Illuminate\Support\Facades\Auth::guard('web')->user();
+                        $user = \Illuminate\Support\Facades\Auth::guard('web')->user();
+                        if ($user) {
+                            $user->loadMissing('roleRelation');
+                            return [
+                                'id' => $user->id,
+                                'name' => $user->name,
+                                'email' => $user->email,
+                                'nip' => $user->nip,
+                                'phone' => $user->phone,
+                                'role' => $user->role,
+                                'role_label' => $user->roleRelation?->label ?? ucfirst(str_replace('_', ' ', $user->role)),
+                                'role_badge' => $user->roleRelation?->badge_color ?? 'primary',
+                                'division' => $user->division,
+                                'is_super_admin' => $user->isSuperAdmin(),
+                                'permissions' => $user->allPermissions(),
+                            ];
+                        }
+                        return null;
                     }
                     // Di portal pendaftar dan web publik, gunakan akun guard pendaftar
                     return \Illuminate\Support\Facades\Auth::guard('pendaftar')->user();

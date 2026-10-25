@@ -17,8 +17,7 @@ const form = useForm({
   seo_meta_title: props.settings.seo_meta_title || 'SEMARAK ALIYAH XIV 2026 - MA Unggulan Wahid Hasyim Balung',
   seo_meta_description: props.settings.seo_meta_description || 'Ajang kompetisi tahunan bergengsi siswa/i SMP/MTs sederajat se-Kabupaten Jember. Raih piala juara, piagam resmi, uang pembinaan jutaan rupiah, dan beasiswa tabungan pendidikan.',
   seo_meta_keywords: props.settings.seo_meta_keywords || 'semarak aliyah, ma wahid hasyim balung, olimpiade mipa jember, storytelling, festival albanjari, singer lagu islami, voli jember, mobile legends',
-  seo_author: props.settings.seo_author || 'Panitia Semarak Aliyah XIV 2026 • MA Unggulan Wahid Hasyim Balung',
-  seo_canonical_url: props.settings.seo_canonical_url || 'http://localhost:8000',
+  seo_canonical_url: props.settings.seo_canonical_url || (typeof window !== 'undefined' ? window.location.origin : 'https://semarak.maswahas.sch.id'),
   seo_robots: props.settings.seo_robots || 'index, follow',
   seo_og_title: props.settings.seo_og_title || 'SEMARAK ALIYAH XIV 2026 - Panggung Prestasi Pelajar SMP/MTs',
   seo_og_description: props.settings.seo_og_description || 'Daftarkan delegasi sekolah/madrasah Anda di ajang Semarak Aliyah XIV 2026. Kompetisi Sains, Seni, Religi, Olahraga, dan E-Sport!',
@@ -272,7 +271,7 @@ function submitForm() {
                       v-model="form.seo_canonical_url"
                       type="url"
                       class="form-control"
-                      placeholder="http://localhost:8000"
+                      placeholder="https://semarak.maswahas.sch.id"
                     />
                     <small class="text-muted fs-11">URL kanonis resmi untuk menghindari duplikasi konten di mesin pencari.</small>
                   </div>
@@ -442,7 +441,7 @@ function submitForm() {
                   </div>
                   <div>
                     <div class="fs-12 text-white fw-semibold lh-1">Semarak Aliyah XIV 2026</div>
-                    <div class="fs-11 text-slate-400 font-mono lh-1">{{ form.seo_canonical_url || 'http://localhost:8000' }}</div>
+                    <div class="fs-11 text-slate-400 font-mono lh-1">{{ form.seo_canonical_url || (typeof window !== 'undefined' ? window.location.origin : 'https://semarak.maswahas.sch.id') }}</div>
                   </div>
                 </div>
                 <h5 class="fs-15 fw-normal mt-1 mb-1 text-[#8ab4f8] hover:underline cursor-pointer" style="color: #8ab4f8;">

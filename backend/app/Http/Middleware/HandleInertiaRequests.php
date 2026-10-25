@@ -81,15 +81,41 @@ class HandleInertiaRequests extends Middleware
                 $adminPort = (int) config('portal.admin_port', 8001);
                 $publicPort = (int) config('portal.public_port', 8000);
 
-                $adminDomain = config('portal.admin_domain');
-                $publicDomain = config('portal.public_domain');
+                $adminDomain = config('portal.admin_domain') ?: env('ADMIN_DOMAIN');
+                $publicDomain = config('portal.public_domain') ?: env('PUBLIC_DOMAIN');
 
-                $defaultPublic = $publicDomain ? ($scheme . '://' . $publicDomain) : ($scheme . '://' . $host . ($publicPort === 80 || $publicPort === 443 ? '' : ':' . $publicPort));
-                $defaultAdmin  = $adminDomain ? ($scheme . '://' . $adminDomain) : ($scheme . '://' . $host . ($adminPort === 80 || $adminPort === 443 ? '' : ':' . $adminPort));
+                // 1. Resolusi URL Publik (Web Pendaftar)
+                $publicUrl = \App\Models\Setting::get('public_portal_url');
+                if (empty($publicUrl)) {
+                    if (!empty($publicDomain)) {
+                        $publicUrl = $scheme . '://' . $publicDomain;
+                    } elseif (!empty(config('portal.public_url')) && !str_contains(config('portal.public_url'), 'localhost') && !str_contains(config('portal.public_url'), '127.0.0.1')) {
+                        $publicUrl = config('portal.public_url');
+                    } elseif (str_contains($host, 'sa-panitia.') || str_contains($host, 'admin-semarak.') || str_contains($host, 'admin.')) {
+                        $publicHost = str_replace(['sa-panitia.', 'admin-semarak.', 'admin.'], ['semarak.', 'semarak.', ''], $host);
+                        $publicUrl = $scheme . '://' . $publicHost;
+                    } else {
+                        $publicUrl = $scheme . '://' . $host . ($publicPort === 80 || $publicPort === 443 ? '' : ':' . $publicPort);
+                    }
+                }
+
+                // 2. Resolusi URL Admin (Panel Panitia)
+                $adminUrl = \App\Models\Setting::get('admin_portal_url');
+                if (empty($adminUrl)) {
+                    if (!empty($adminDomain)) {
+                        $adminUrl = $scheme . '://' . $adminDomain;
+                    } elseif (!empty(config('portal.admin_url')) && !str_contains(config('portal.admin_url'), 'localhost') && !str_contains(config('portal.admin_url'), '127.0.0.1')) {
+                        $adminUrl = config('portal.admin_url');
+                    } else {
+                        $adminUrl = $scheme . '://' . $host . ($adminPort === 80 || $adminPort === 443 ? '' : ':' . $adminPort);
+                    }
+                }
 
                 return [
-                    'publicUrl' => $publicDomain ? config('portal.public_url', $defaultPublic) : $defaultPublic,
-                    'adminUrl'  => $adminDomain ? config('portal.admin_url', $defaultAdmin) : $defaultAdmin,
+                    'publicUrl'  => rtrim($publicUrl, '/'),
+                    'adminUrl'   => rtrim($adminUrl, '/'),
+                    'publicPort' => $publicPort,
+                    'adminPort'  => $adminPort,
                 ];
             },
             'schoolProfile' => fn () => [

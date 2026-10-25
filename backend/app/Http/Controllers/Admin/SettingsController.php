@@ -581,6 +581,46 @@ class SettingsController extends Controller
     // =========================================================================
     public function registrationPolicy(Request $request)
     {
+        $scheme = $request->getScheme();
+        $host = $request->getHost();
+
+        // 1. Tentukan URL Portal Publik (Web Pendaftar)
+        $publicBaseUrl = Setting::get('public_portal_url');
+        if (empty($publicBaseUrl)) {
+            $publicDomain = config('portal.public_domain') ?: env('PUBLIC_DOMAIN');
+            if (!empty($publicDomain)) {
+                $publicBaseUrl = $scheme . '://' . $publicDomain;
+            } elseif (!empty(config('portal.public_url')) && !str_contains(config('portal.public_url'), 'localhost') && !str_contains(config('portal.public_url'), '127.0.0.1')) {
+                $publicBaseUrl = config('portal.public_url');
+            } elseif (str_contains($host, 'sa-panitia.') || str_contains($host, 'admin-semarak.') || str_contains($host, 'admin.')) {
+                $publicHost = str_replace(['sa-panitia.', 'admin-semarak.', 'admin.'], ['semarak.', 'semarak.', ''], $host);
+                $publicBaseUrl = $scheme . '://' . $publicHost;
+            } else {
+                $publicPort = (int) config('portal.public_port', 8000);
+                $publicBaseUrl = $scheme . '://' . $host . ($publicPort === 80 || $publicPort === 443 ? '' : ':' . $publicPort);
+            }
+        }
+
+        // 2. Tentukan URL Portal Admin (Panel Panitia)
+        $adminBaseUrl = Setting::get('admin_portal_url');
+        if (empty($adminBaseUrl)) {
+            $adminDomain = config('portal.admin_domain') ?: env('ADMIN_DOMAIN');
+            if (!empty($adminDomain)) {
+                $adminBaseUrl = $scheme . '://' . $adminDomain;
+            } elseif (!empty(config('portal.admin_url')) && !str_contains(config('portal.admin_url'), 'localhost') && !str_contains(config('portal.admin_url'), '127.0.0.1')) {
+                $adminBaseUrl = config('portal.admin_url');
+            } else {
+                $adminBaseUrl = $request->getSchemeAndHttpHost();
+            }
+        }
+
+        $callbackUris = [
+            'public'      => rtrim($publicBaseUrl, '/') . '/auth/google/callback',
+            'public_base' => rtrim($publicBaseUrl, '/'),
+            'admin'       => rtrim($adminBaseUrl, '/') . '/admin/auth/google/callback',
+            'admin_base'  => rtrim($adminBaseUrl, '/'),
+        ];
+
         $settings = [
             'registration_login_required' => Setting::get('registration_login_required', '0'),
             'google_client_id' => Setting::get('google_client_id', env('GOOGLE_CLIENT_ID', '')),
@@ -588,6 +628,7 @@ class SettingsController extends Controller
             'allow_google_login' => Setting::get('allow_google_login', '1'),
             'allow_wa_otp_login' => Setting::get('allow_wa_otp_login', '1'),
             'allow_password_login' => Setting::get('allow_password_login', '1'),
+            'public_portal_url' => $publicBaseUrl,
         ];
 
         $stats = [
@@ -598,7 +639,7 @@ class SettingsController extends Controller
             })->count(),
         ];
 
-        return Inertia::render('Admin/Settings/RegistrationPolicy', compact('settings', 'stats'));
+        return Inertia::render('Admin/Settings/RegistrationPolicy', compact('settings', 'stats', 'callbackUris'));
     }
 
     public function updateRegistrationPolicy(Request $request)
@@ -607,6 +648,7 @@ class SettingsController extends Controller
             'registration_login_required' => 'required|in:0,1',
             'google_client_id' => 'nullable|string|max:255',
             'google_client_secret' => 'nullable|string|max:255',
+            'public_portal_url' => 'nullable|string|max:255',
             'allow_google_login' => 'nullable|in:0,1',
             'allow_wa_otp_login' => 'nullable|in:0,1',
             'allow_password_login' => 'nullable|in:0,1',

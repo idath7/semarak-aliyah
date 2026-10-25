@@ -279,15 +279,15 @@ onUnmounted(() => {
           </button>
 
           <!-- External Public Web Link (Adaptive pill: icon on mobile/tablet, text on >= md) -->
-          <Link 
-            href="/" 
+          <a 
+            :href="page.props.portal?.publicUrl || '/'" 
             target="_blank" 
             class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 rounded-pill px-2.5 px-md-3 topbar-action-btn"
             title="Kunjungi Web Publik"
           >
             <i class="ri-external-link-line fs-14"></i>
             <span class="d-none d-md-inline text-nowrap">Web Publik</span>
-          </Link>
+          </a>
 
           <!-- Apps Dropdown -->
           <div class="position-relative" id="apps-dropdown-wrapper">

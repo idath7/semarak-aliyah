@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { useToast } from '@/Composables/useToast';
 
@@ -12,8 +12,14 @@ const props = defineProps({
   stats: {
     type: Object,
     default: () => ({})
+  },
+  callbackUris: {
+    type: Object,
+    default: () => ({})
   }
 });
+
+const page = usePage();
 
 const toast = useToast();
 
@@ -21,6 +27,7 @@ const form = useForm({
   registration_login_required: props.settings.registration_login_required || '0',
   google_client_id: props.settings.google_client_id || '',
   google_client_secret: props.settings.google_client_secret || '',
+  public_portal_url: props.settings.public_portal_url || '',
   allow_google_login: props.settings.allow_google_login || '1',
   allow_wa_otp_login: props.settings.allow_wa_otp_login || '1',
   allow_password_login: props.settings.allow_password_login || '1',
@@ -30,13 +37,39 @@ const showClientSecret = ref(false);
 const isTogglingQuick = ref(false);
 
 const registrantRedirectUri = computed(() => {
+  // 1. Jika ada input custom public_portal_url dari form
+  if (form.public_portal_url && form.public_portal_url.trim()) {
+    const base = form.public_portal_url.trim().replace(/\/+$/, '');
+    return `${base}/auth/google/callback`;
+  }
+  // 2. Jika dikirim dari props controller
+  if (props.callbackUris?.public) {
+    return props.callbackUris.public;
+  }
+  // 3. Dari shared Inertia portal
+  const sharedPublic = page.props.portal?.publicUrl;
+  if (sharedPublic && !sharedPublic.includes('localhost') && !sharedPublic.includes('127.0.0.1')) {
+    return `${sharedPublic.replace(/\/+$/, '')}/auth/google/callback`;
+  }
+  // 4. Deteksi cerdas jika diakses dari subdomain admin panitia
   if (typeof window !== 'undefined' && window.location) {
-    return `${window.location.origin}/auth/google/callback`;
+    const host = window.location.hostname;
+    if (host.includes('sa-panitia.') || host.includes('admin.') || host.includes('admin-semarak.')) {
+      const pubHost = host.replace(/^(sa-panitia\.|admin-semarak\.|admin\.)/, 'semarak.');
+      return `${window.location.protocol}//${pubHost}/auth/google/callback`;
+    }
   }
   return '/auth/google/callback';
 });
 
 const adminRedirectUri = computed(() => {
+  if (props.callbackUris?.admin) {
+    return props.callbackUris.admin;
+  }
+  const sharedAdmin = page.props.portal?.adminUrl;
+  if (sharedAdmin) {
+    return `${sharedAdmin.replace(/\/+$/, '')}/admin/auth/google/callback`;
+  }
   if (typeof window !== 'undefined' && window.location) {
     return `${window.location.origin}/admin/auth/google/callback`;
   }
@@ -532,17 +565,37 @@ function quickToggleLoginRequired() {
                 <div class="alert alert-info py-2.5 px-3 fs-11 rounded-3 mb-0 d-flex gap-2 align-items-start">
                   <i class="ri-information-line fs-15 text-primary flex-shrink-0 mt-0.5"></i>
                   <div>
-                    Satu pasang Client ID &amp; Secret ini berlaku untuk seluruh sistem. Daftarkan <strong>kedua Authorized Redirect URI</strong> berikut pada Google Cloud Console Anda:
+                    Sistem menggunakan arsitektur <strong>Multi-Domain</strong> terpisah. Daftarkan <strong>kedua Authorized Redirect URI</strong> berikut pada Google Cloud Console Anda:
+                  </div>
+                </div>
+
+                <!-- Input Custom Domain Web Publik Pendaftar (Opsional) -->
+                <div>
+                  <div class="d-flex align-items-center justify-content-between mb-1">
+                    <label class="form-label fs-12 fw-semibold policy-label mb-0">
+                      <i class="ri-global-line text-success me-1"></i>URL / Domain Web Publik Pendaftar
+                    </label>
+                    <span class="fs-10 text-muted">Multi-Domain Production</span>
+                  </div>
+                  <input
+                    v-model="form.public_portal_url"
+                    type="url"
+                    class="form-control policy-input fs-12 font-monospace py-1.5"
+                    placeholder="Contoh: https://semarak.maswahas.sch.id"
+                  />
+                  <div class="fs-11 policy-helper mt-1">
+                    Menentukan domain tempat pendaftar mengisi formulir. URI callback pendaftar di bawah akan otomatis menyesuaikan.
                   </div>
                 </div>
 
                 <!-- Authorized Redirect URI 1: Pendaftar -->
                 <div class="p-3 rounded-3 border redirect-uri-container">
-                  <div class="d-flex align-items-center justify-content-between mb-1.5">
-                    <span class="fs-11 fw-bold text-uppercase redirect-label d-flex align-items-center gap-1.5">
+                  <div class="d-flex align-items-center justify-content-between mb-1.5 flex-wrap gap-1">
+                    <div class="d-flex align-items-center gap-1.5">
                       <i class="ri-user-smile-line text-success fs-13"></i>
-                      <span>1. URI Callback Portal Pendaftar</span>
-                    </span>
+                      <span class="fs-11 fw-bold text-uppercase redirect-label">1. URI Callback Portal Pendaftar</span>
+                      <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill fs-10">Web Publik</span>
+                    </div>
                     <button
                       type="button"
                       class="btn btn-xs btn-outline-success rounded-pill px-2.5 py-0.5 d-inline-flex align-items-center gap-1"
@@ -560,11 +613,12 @@ function quickToggleLoginRequired() {
 
                 <!-- Authorized Redirect URI 2: Panitia / Admin -->
                 <div class="p-3 rounded-3 border redirect-uri-container">
-                  <div class="d-flex align-items-center justify-content-between mb-1.5">
-                    <span class="fs-11 fw-bold text-uppercase redirect-label d-flex align-items-center gap-1.5">
+                  <div class="d-flex align-items-center justify-content-between mb-1.5 flex-wrap gap-1">
+                    <div class="d-flex align-items-center gap-1.5">
                       <i class="ri-shield-user-line text-primary fs-13"></i>
-                      <span>2. URI Callback Portal Panitia / Admin</span>
-                    </span>
+                      <span class="fs-11 fw-bold text-uppercase redirect-label">2. URI Callback Portal Panitia / Admin</span>
+                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5 rounded-pill fs-10">Panel Admin</span>
+                    </div>
                     <button
                       type="button"
                       class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-0.5 d-inline-flex align-items-center gap-1"

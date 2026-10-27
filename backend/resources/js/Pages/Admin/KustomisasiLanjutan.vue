@@ -296,27 +296,206 @@
                     </div>
                   </div>
 
-                  <!-- Visual Gambar Poster & Maskot -->
+                  <!-- Visual Gambar Poster & Maskot Hero Section -->
                   <div class="col-12 pt-3 border-top">
-                    <h6 class="fs-13 fw-bold section-title-text mb-2">
-                      <i class="ri-image-2-line text-success me-1"></i> Visual Poster Pamflet & Maskot
-                    </h6>
-                    <div class="row g-3">
-                      <div class="col-md-6">
-                        <label class="form-label fs-12 fw-semibold text-muted">Path Gambar Poster Pamflet</label>
-                        <input type="text" class="form-control" v-model="form.hero_poster_image" placeholder="/assets/img/pamflet.jpg">
-                        <small class="text-muted fs-11">Path gambar lokal internal server.</small>
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                      <div>
+                        <h6 class="fs-13 fw-bold section-title-text mb-0">
+                          <i class="ri-image-2-line text-success me-1"></i> Visual Poster Pamflet & Maskot Karakter Hero
+                        </h6>
+                        <small class="text-muted fs-11">Unggah berkas gambar langsung dari perangkat Anda atau gunakan berkas bawaan sistem.</small>
                       </div>
+                    </div>
+
+                    <div class="row g-3">
+                      <!-- 1. KARTU UPLOAD POSTER PAMFLET -->
                       <div class="col-md-6">
-                        <div class="d-flex align-items-center justify-content-between">
-                          <label class="form-label fs-12 fw-semibold text-muted mb-1">Path Gambar Maskot Karakter</label>
-                          <div class="form-check form-switch mb-1">
-                            <input class="form-check-input cursor-pointer" type="checkbox" id="mascotSwitch" v-model="form.hero_mascot_active">
-                            <label class="form-check-label fs-11" for="mascotSwitch">{{ form.hero_mascot_active ? 'Tampil' : 'Off' }}</label>
+                        <div class="card border rounded-3 h-100 shadow-none upload-media-card">
+                          <div class="card-body p-3 d-flex flex-column">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                              <label class="form-label fs-12 fw-bold upload-media-title mb-0">
+                                <i class="ri-file-image-line text-primary me-1"></i> Gambar Poster Pamflet Hero
+                              </label>
+                              <span 
+                                class="badge fs-10" 
+                                :class="filePreviewPosterUrl ? 'bg-warning-subtle text-warning border border-warning' : (form.hero_poster_image?.startsWith('/storage/') ? 'bg-success-subtle text-success border border-success' : 'bg-primary-subtle text-primary border border-primary')"
+                              >
+                                {{ filePreviewPosterUrl ? 'Berkas Baru Dipilih' : (form.hero_poster_image?.startsWith('/storage/') ? 'Kustom Terunggah' : 'Bawaan Sistem') }}
+                              </span>
+                            </div>
+
+                            <!-- Preview Thumbnail Box -->
+                            <div class="d-flex gap-3 align-items-center p-2 rounded border upload-media-inner mb-3">
+                              <div class="poster-thumb-preview flex-shrink-0 position-relative rounded overflow-hidden border" style="width: 70px; height: 95px; background: #0f172a;">
+                                <img 
+                                  :src="effectivePosterImage" 
+                                  alt="Poster Preview" 
+                                  class="w-100 h-100 object-fit-cover"
+                                />
+                                <div v-if="filePreviewPosterUrl" class="position-absolute bottom-0 start-0 end-0 bg-warning text-dark text-center fw-bold fs-9 py-0.5">
+                                  Baru
+                                </div>
+                              </div>
+                              <div class="flex-grow-1 min-w-0">
+                                <div class="fs-12 fw-semibold text-truncate mb-1 upload-media-filename" :title="form.hero_poster_image">
+                                  {{ filePreviewPosterUrl ? (form.hero_poster_file?.name || 'File Lokal Baru') : (form.hero_poster_image ? form.hero_poster_image.split('/').pop() : 'pamflet.jpg') }}
+                                </div>
+                                <div class="fs-11 text-muted mb-2">
+                                  {{ filePreviewPosterUrl ? `Ukuran: ${(form.hero_poster_file.size / 1024).toFixed(1)} KB` : 'Format: JPG, PNG, WebP (Rasio ~3:4)' }}
+                                </div>
+                                <div class="d-flex gap-1.5 flex-wrap">
+                                  <button 
+                                    v-if="form.hero_poster_image !== '/assets/img/pamflet.jpg' || filePreviewPosterUrl"
+                                    type="button" 
+                                    class="btn btn-outline-secondary btn-xs py-1 px-2"
+                                    @click="resetPosterToDefault"
+                                    title="Kembalikan ke pamflet bawaan"
+                                  >
+                                    <i class="ri-refresh-line me-1"></i>Gunakan Bawaan
+                                  </button>
+                                  <button 
+                                    v-if="filePreviewPosterUrl"
+                                    type="button" 
+                                    class="btn btn-outline-danger btn-xs py-1 px-2"
+                                    @click="removeSelectedPosterFile"
+                                    title="Batalkan pilihan berkas"
+                                  >
+                                    <i class="ri-close-line me-1"></i>Batal
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <!-- Input Upload File -->
+                            <div class="mb-2">
+                              <label class="form-label fs-11 text-muted mb-1 fw-semibold">Unggah File Baru (Maks. 10MB):</label>
+                              <div class="input-group input-group-sm">
+                                <input 
+                                  type="file" 
+                                  ref="posterFileInputRef" 
+                                  class="form-control" 
+                                  accept="image/jpeg,image/png,image/jpg,image/webp" 
+                                  @change="handlePosterFileChange"
+                                />
+                              </div>
+                            </div>
+
+                            <!-- Toggle / Input Path Manual -->
+                            <div class="mt-auto pt-2 border-top">
+                              <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="fs-11 text-muted">Path / URL Gambar:</span>
+                                <a 
+                                  href="javascript:void(0);" 
+                                  class="fs-10 text-primary text-decoration-none fw-semibold"
+                                  @click="showManualPosterInput = !showManualPosterInput"
+                                >
+                                  {{ showManualPosterInput ? 'Sembunyikan' : 'Edit Manual' }}
+                                </a>
+                              </div>
+                              <input 
+                                v-if="showManualPosterInput"
+                                type="text" 
+                                class="form-control form-control-sm font-monospace fs-11" 
+                                v-model="form.hero_poster_image" 
+                                placeholder="/assets/img/pamflet.jpg"
+                              />
+                            </div>
                           </div>
                         </div>
-                        <input type="text" class="form-control" v-model="form.hero_mascot_image" placeholder="/assets/img/kadita.png">
-                        <small class="text-muted fs-11">Gambar PNG transparan maskot melayang.</small>
+                      </div>
+
+                      <!-- 2. KARTU UPLOAD MASKOT KARAKTER -->
+                      <div class="col-md-6">
+                        <div class="card border rounded-3 h-100 shadow-none upload-media-card">
+                          <div class="card-body p-3 d-flex flex-column">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                              <label class="form-label fs-12 fw-bold upload-media-title mb-0">
+                                <i class="ri-user-smile-line text-success me-1"></i> Gambar Maskot Melayang
+                              </label>
+                              <div class="form-check form-switch mb-0">
+                                <input class="form-check-input cursor-pointer" type="checkbox" id="mascotSwitch" v-model="form.hero_mascot_active">
+                                <label class="form-check-label fs-11 fw-semibold" for="mascotSwitch">{{ form.hero_mascot_active ? 'Tampil' : 'Off' }}</label>
+                              </div>
+                            </div>
+
+                            <!-- Preview Thumbnail Box with Checkerboard Background for PNG Transparency -->
+                            <div class="d-flex gap-3 align-items-center p-2 rounded border upload-media-inner mb-3">
+                              <div class="mascot-thumb-preview flex-shrink-0 position-relative rounded overflow-hidden border checkerboard-bg" style="width: 70px; height: 95px;">
+                                <img 
+                                  :src="effectiveMascotImage" 
+                                  alt="Mascot Preview" 
+                                  class="w-100 h-100 object-fit-contain p-1"
+                                />
+                                <div v-if="filePreviewMascotUrl" class="position-absolute bottom-0 start-0 end-0 bg-warning text-dark text-center fw-bold fs-9 py-0.5">
+                                  Baru
+                                </div>
+                              </div>
+                              <div class="flex-grow-1 min-w-0">
+                                <div class="fs-12 fw-semibold text-truncate mb-1 upload-media-filename" :title="form.hero_mascot_image">
+                                  {{ filePreviewMascotUrl ? (form.hero_mascot_file?.name || 'File Maskot Baru') : (form.hero_mascot_image ? form.hero_mascot_image.split('/').pop() : 'kadita.png') }}
+                                </div>
+                                <div class="fs-11 text-muted mb-2">
+                                  {{ filePreviewMascotUrl ? `Ukuran: ${(form.hero_mascot_file.size / 1024).toFixed(1)} KB` : 'Format: PNG Transparan / WebP' }}
+                                </div>
+                                <div class="d-flex gap-1.5 flex-wrap">
+                                  <button 
+                                    v-if="form.hero_mascot_image !== '/assets/img/kadita.png' || filePreviewMascotUrl"
+                                    type="button" 
+                                    class="btn btn-outline-secondary btn-xs py-1 px-2"
+                                    @click="resetMascotToDefault"
+                                    title="Kembalikan ke maskot bawaan"
+                                  >
+                                    <i class="ri-refresh-line me-1"></i>Gunakan Bawaan
+                                  </button>
+                                  <button 
+                                    v-if="filePreviewMascotUrl"
+                                    type="button" 
+                                    class="btn btn-outline-danger btn-xs py-1 px-2"
+                                    @click="removeSelectedMascotFile"
+                                    title="Batalkan pilihan berkas"
+                                  >
+                                    <i class="ri-close-line me-1"></i>Batal
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <!-- Input Upload File -->
+                            <div class="mb-2">
+                              <label class="form-label fs-11 text-muted mb-1 fw-semibold">Unggah File Baru (PNG Transparan / WebP, Maks. 10MB):</label>
+                              <div class="input-group input-group-sm">
+                                <input 
+                                  type="file" 
+                                  ref="mascotFileInputRef" 
+                                  class="form-control" 
+                                  accept="image/png,image/webp,image/jpeg,image/svg+xml" 
+                                  @change="handleMascotFileChange"
+                                />
+                              </div>
+                            </div>
+
+                            <!-- Toggle / Input Path Manual -->
+                            <div class="mt-auto pt-2 border-top">
+                              <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="fs-11 text-muted">Path / URL Gambar:</span>
+                                <a 
+                                  href="javascript:void(0);" 
+                                  class="fs-10 text-primary text-decoration-none fw-semibold"
+                                  @click="showManualMascotInput = !showManualMascotInput"
+                                >
+                                  {{ showManualMascotInput ? 'Sembunyikan' : 'Edit Manual' }}
+                                </a>
+                              </div>
+                              <input 
+                                v-if="showManualMascotInput"
+                                type="text" 
+                                class="form-control form-control-sm font-monospace fs-11" 
+                                v-model="form.hero_mascot_image" 
+                                placeholder="/assets/img/kadita.png"
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1160,8 +1339,15 @@
 
                   <!-- Visual Strip -->
                   <div class="d-flex align-items-center gap-2 p-2 rounded bg-black bg-opacity-30 border border-white border-opacity-10">
-                    <div class="flex-shrink-0" style="width: 45px; height: 60px; border-radius: 4px; overflow: hidden; background: #1e293b;">
-                      <img :src="form.hero_poster_image" alt="Poster" style="width: 100%; height: 100%; object-fit: cover;" @error="previewImageError = true">
+                    <div class="flex-shrink-0 position-relative" style="width: 48px; height: 64px; border-radius: 4px; overflow: hidden; background: #1e293b;">
+                      <img :src="effectivePosterImage" alt="Poster" style="width: 100%; height: 100%; object-fit: cover;">
+                      <img 
+                        v-if="form.hero_mascot_active" 
+                        :src="effectiveMascotImage" 
+                        alt="Mascot" 
+                        class="position-absolute bottom-0 end-0" 
+                        style="width: 24px; height: 24px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));"
+                      >
                     </div>
                     <div class="flex-grow-1 min-w-0">
                       <div v-if="form.hero_float_badge_active" class="d-flex align-items-center gap-1.5">
@@ -1171,8 +1357,8 @@
                           <div class="fs-10 text-white-50">{{ form.hero_float_badge_desc || '+ Beasiswa Pendidikan' }}</div>
                         </div>
                       </div>
-                      <div v-if="form.hero_mascot_active" class="mt-1 fs-10 text-info">
-                        <i class="ri-user-smile-line me-1"></i>Maskot Aktif: {{ (form.hero_mascot_image || '').split('/').pop() }}
+                      <div v-if="form.hero_mascot_active" class="mt-1 fs-10 text-info text-truncate">
+                        <i class="ri-user-smile-line me-1"></i>Maskot: {{ filePreviewMascotUrl ? (form.hero_mascot_file?.name || 'File Baru') : (form.hero_mascot_image ? form.hero_mascot_image.split('/').pop() : 'kadita.png') }}
                       </div>
                     </div>
                   </div>
@@ -1449,7 +1635,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import KustomisasiLayout from '@/Layouts/KustomisasiLayout.vue';
 import { useToast } from '@/Composables/useToast';
@@ -1465,6 +1651,13 @@ const { success, error } = useToast();
 
 // Active Tab: 'hero' | 'stats' | 'about' | 'banner' | 'popup' | 'wa' | 'countdown' | 'visual' | 'code'
 const activeTab = ref('hero');
+
+const filePreviewPosterUrl = ref(null);
+const filePreviewMascotUrl = ref(null);
+const posterFileInputRef = ref(null);
+const mascotFileInputRef = ref(null);
+const showManualPosterInput = ref(false);
+const showManualMascotInput = ref(false);
 
 const defaultStatsItems = [
   { icon: 'ri-focus-2-line', number: '8 Cabang', label: 'Kompetisi & Olahraga' },
@@ -1498,7 +1691,9 @@ const form = ref({
   hero_cta3_url: props.settings.hero_cta3_url || '#kompetisi',
   hero_cta3_active: props.settings.hero_cta3_active !== false,
   hero_poster_image: props.settings.hero_poster_image || '/assets/img/pamflet.jpg',
+  hero_poster_file: null,
   hero_mascot_image: props.settings.hero_mascot_image || '/assets/img/kadita.png',
+  hero_mascot_file: null,
   hero_mascot_active: props.settings.hero_mascot_active !== false,
   hero_float_badge_active: props.settings.hero_float_badge_active !== false,
   hero_float_badge_icon: props.settings.hero_float_badge_icon || 'ri-trophy-line',
@@ -1615,12 +1810,96 @@ function getBannerClass(type) {
   }
 }
 
+// Computed Effective Image URLs for live preview
+const effectivePosterImage = computed(() => {
+  if (filePreviewPosterUrl.value) return filePreviewPosterUrl.value;
+  return form.value.hero_poster_image || '/assets/img/pamflet.jpg';
+});
+
+const effectiveMascotImage = computed(() => {
+  if (filePreviewMascotUrl.value) return filePreviewMascotUrl.value;
+  return form.value.hero_mascot_image || '/assets/img/kadita.png';
+});
+
+function handlePosterFileChange(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  if (file.size > 10 * 1024 * 1024) {
+    error('Ukuran berkas poster pamflet melebihi batas maksimal 10MB.', 'Berkas Terlalu Besar');
+    if (posterFileInputRef.value) posterFileInputRef.value.value = '';
+    return;
+  }
+
+  form.value.hero_poster_file = file;
+  if (filePreviewPosterUrl.value) {
+    URL.revokeObjectURL(filePreviewPosterUrl.value);
+  }
+  filePreviewPosterUrl.value = URL.createObjectURL(file);
+  success('Berkas poster dipilih! Klik "Simpan Kustomisasi" untuk menerapkan.', 'Berkas Poster Siap');
+}
+
+function removeSelectedPosterFile() {
+  form.value.hero_poster_file = null;
+  if (filePreviewPosterUrl.value) {
+    URL.revokeObjectURL(filePreviewPosterUrl.value);
+    filePreviewPosterUrl.value = null;
+  }
+  if (posterFileInputRef.value) {
+    posterFileInputRef.value.value = '';
+  }
+}
+
+function resetPosterToDefault() {
+  removeSelectedPosterFile();
+  form.value.hero_poster_image = '/assets/img/pamflet.jpg';
+  success('Gambar poster dikembalikan ke pamflet bawaan sistem.');
+}
+
+function handleMascotFileChange(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  if (file.size > 10 * 1024 * 1024) {
+    error('Ukuran berkas maskot melebihi batas maksimal 10MB.', 'Berkas Terlalu Besar');
+    if (mascotFileInputRef.value) mascotFileInputRef.value.value = '';
+    return;
+  }
+
+  form.value.hero_mascot_file = file;
+  if (filePreviewMascotUrl.value) {
+    URL.revokeObjectURL(filePreviewMascotUrl.value);
+  }
+  filePreviewMascotUrl.value = URL.createObjectURL(file);
+  success('Berkas maskot dipilih! Klik "Simpan Kustomisasi" untuk menerapkan.', 'Berkas Maskot Siap');
+}
+
+function removeSelectedMascotFile() {
+  form.value.hero_mascot_file = null;
+  if (filePreviewMascotUrl.value) {
+    URL.revokeObjectURL(filePreviewMascotUrl.value);
+    filePreviewMascotUrl.value = null;
+  }
+  if (mascotFileInputRef.value) {
+    mascotFileInputRef.value.value = '';
+  }
+}
+
+function resetMascotToDefault() {
+  removeSelectedMascotFile();
+  form.value.hero_mascot_image = '/assets/img/kadita.png';
+  success('Gambar maskot dikembalikan ke karakter bawaan sistem.');
+}
+
 function saveCustomization() {
   isSaving.value = true;
   router.post('/admin/kustomisasi', form.value, {
     preserveScroll: true,
+    forceFormData: true,
     onSuccess: () => {
       isSaving.value = false;
+      removeSelectedPosterFile();
+      removeSelectedMascotFile();
       success('Pengaturan Kustomisasi Lanjutan berhasil disimpan!');
     },
     onError: (errs) => {
@@ -1819,5 +2098,59 @@ function submitReset() {
 }
 [data-bs-theme="dark"] .text-muted {
   color: #94a3b8 !important;
+}
+
+/* Upload Media Cards styling */
+.upload-media-card {
+  background-color: #f8fafc;
+  border-color: #e2e8f0 !important;
+}
+[data-bs-theme="dark"] .upload-media-card {
+  background-color: #161f30 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.upload-media-inner {
+  background-color: #ffffff;
+  border-color: #e2e8f0 !important;
+}
+[data-bs-theme="dark"] .upload-media-inner {
+  background-color: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.upload-media-title {
+  color: #0f172a;
+}
+[data-bs-theme="dark"] .upload-media-title {
+  color: #f8fafc !important;
+}
+
+.upload-media-filename {
+  color: #1e293b;
+}
+[data-bs-theme="dark"] .upload-media-filename {
+  color: #f1f5f9 !important;
+}
+
+/* Checkerboard background pattern for transparent images */
+.checkerboard-bg {
+  background-color: #f1f5f9;
+  background-image: 
+    linear-gradient(45deg, #e2e8f0 25%, transparent 25%), 
+    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, #e2e8f0 75%), 
+    linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+}
+
+[data-bs-theme="dark"] .checkerboard-bg {
+  background-color: #1e293b;
+  background-image: 
+    linear-gradient(45deg, #0f172a 25%, transparent 25%), 
+    linear-gradient(-45deg, #0f172a 25%, transparent 25%), 
+    linear-gradient(45deg, transparent 75%, #0f172a 75%), 
+    linear-gradient(-45deg, transparent 75%, #0f172a 75%);
 }
 </style>

@@ -276,4 +276,128 @@ class Setting extends Model
             'theme' => static::get('invoice_theme', 'formal'),
         ];
     }
+
+    /**
+     * Resolusi URL Portal Publik (Web Pendaftar) secara dinamis & cerdas.
+     * Prioritas:
+     * 1. Setting database manual 'public_portal_url' (jika diatur admin)
+     * 2. config('portal.public_domain') / env('PUBLIC_DOMAIN')
+     * 3. Jika diakses melalui domain production (bukan localhost/127.0.0.1/private IP):
+     *    - Jika host adalah subdomain admin (sa-panitia.*, admin-semarak.*, admin.*), alihkan ke domain publik
+     *    - Jika host adalah domain utama/biasa, gunakan host & scheme saat ini (tanpa port lokal development)
+     * 4. Jika di lingkungan lokal development:
+     *    - Menggunakan config('portal.public_url') atau host:public_port (default: 8000)
+     */
+    public static function getPublicPortalUrl(?\Illuminate\Http\Request $request = null): string
+    {
+        // 1. Cek pengaturan manual di database
+        $custom = static::get('public_portal_url');
+        if (!empty($custom)) {
+            return rtrim($custom, '/');
+        }
+
+        $req = $request ?? (function_exists('request') ? request() : null);
+        $scheme = $req ? $req->getScheme() : (env('APP_ENV') === 'production' ? 'https' : 'http');
+        $host = $req ? $req->getHost() : 'localhost';
+
+        // 2. Cek domain publik dari konfigurasi / env
+        $publicDomain = config('portal.public_domain') ?: env('PUBLIC_DOMAIN');
+        if (!empty($publicDomain)) {
+            return rtrim($scheme . '://' . $publicDomain, '/');
+        }
+
+        // Cek apakah env PUBLIC_URL diatur ke domain publik
+        $configPublicUrl = config('portal.public_url') ?: env('PUBLIC_URL');
+        if (!empty($configPublicUrl) && !str_contains($configPublicUrl, 'localhost') && !str_contains($configPublicUrl, '127.0.0.1')) {
+            return rtrim($configPublicUrl, '/');
+        }
+
+        // Cek apakah env APP_URL berisi domain publik production (bukan localhost)
+        $appUrl = env('APP_URL');
+        $appHost = !empty($appUrl) ? parse_url($appUrl, PHP_URL_HOST) : null;
+        $appScheme = !empty($appUrl) ? parse_url($appUrl, PHP_URL_SCHEME) : $scheme;
+        $appIsDomain = !empty($appHost) && !in_array($appHost, ['localhost', '127.0.0.1', '0.0.0.0']);
+
+        // 3. Deteksi apakah request saat ini berasal dari domain publik
+        $isLocalHost = in_array($host, ['localhost', '127.0.0.1', '0.0.0.0']) 
+            || str_starts_with($host, '192.168.') 
+            || str_starts_with($host, '10.')
+            || preg_match('/\.local$/i', $host);
+
+        if (!$isLocalHost) {
+            // Jika host saat ini adalah subdomain admin, arahkan ke subdomain web publik atau root domain
+            if (str_contains($host, 'sa-panitia.') || str_contains($host, 'admin-semarak.') || str_contains($host, 'panitia-semarak.') || str_contains($host, 'admin.') || str_contains($host, 'panitia.')) {
+                $publicHost = str_replace(['sa-panitia.', 'admin-semarak.', 'panitia-semarak.', 'admin.', 'panitia.'], ['semarak.', 'semarak.', 'semarak.', '', ''], $host);
+                return rtrim($scheme . '://' . $publicHost, '/');
+            }
+
+            // Jika diakses melalui domain production (port 80/443 standar atau reverse-proxy), jangan tempel port development
+            $port = $req ? (int)$req->getPort() : 80;
+            $portSuffix = ($port === 80 || $port === 443 || empty($port)) ? '' : (':' . $port);
+            return rtrim($scheme . '://' . $host . $portSuffix, '/');
+        }
+
+        // Jika request host lokal tapi APP_URL diatur ke domain publik
+        if ($appIsDomain) {
+            return rtrim($appScheme . '://' . $appHost, '/');
+        }
+
+        // 4. Jika di lingkungan lokal development
+        $publicPort = (int) config('portal.public_port', 8000);
+        $currentPort = $req ? (int)$req->getPort() : $publicPort;
+
+        // Jika dev server dijalankan secara single-instance di port khusus (misal 8002 atau 8080)
+        if ($currentPort !== 8000 && $currentPort !== 8001 && $currentPort !== 80 && $currentPort !== 443 && $publicPort === 8000) {
+            return rtrim($scheme . '://' . $host . ':' . $currentPort, '/');
+        }
+
+        return rtrim($scheme . '://' . $host . ($publicPort === 80 || $publicPort === 443 ? '' : ':' . $publicPort), '/');
+    }
+
+    /**
+     * Resolusi URL Portal Admin (Panel Panitia) secara dinamis & cerdas.
+     */
+    public static function getAdminPortalUrl(?\Illuminate\Http\Request $request = null): string
+    {
+        $custom = static::get('admin_portal_url');
+        if (!empty($custom)) {
+            return rtrim($custom, '/');
+        }
+
+        $req = $request ?? (function_exists('request') ? request() : null);
+        $scheme = $req ? $req->getScheme() : (env('APP_ENV') === 'production' ? 'https' : 'http');
+        $host = $req ? $req->getHost() : 'localhost';
+
+        $adminDomain = config('portal.admin_domain') ?: env('ADMIN_DOMAIN');
+        if (!empty($adminDomain)) {
+            return rtrim($scheme . '://' . $adminDomain, '/');
+        }
+
+        // Cek apakah env ADMIN_URL diatur ke domain publik
+        $configAdminUrl = config('portal.admin_url') ?: env('ADMIN_URL');
+        if (!empty($configAdminUrl) && !str_contains($configAdminUrl, 'localhost') && !str_contains($configAdminUrl, '127.0.0.1')) {
+            return rtrim($configAdminUrl, '/');
+        }
+
+        $isLocalHost = in_array($host, ['localhost', '127.0.0.1', '0.0.0.0']) 
+            || str_starts_with($host, '192.168.') 
+            || str_starts_with($host, '10.')
+            || preg_match('/\.local$/i', $host);
+
+        if (!$isLocalHost) {
+            $port = $req ? (int)$req->getPort() : 80;
+            $portSuffix = ($port === 80 || $port === 443 || empty($port)) ? '' : (':' . $port);
+            return rtrim($scheme . '://' . $host . $portSuffix, '/');
+        }
+
+        $adminPort = (int) config('portal.admin_port', 8001);
+        $currentPort = $req ? (int)$req->getPort() : $adminPort;
+
+        // Jika dev server dijalankan secara single-instance di port khusus (misal 8002 atau 8080)
+        if ($currentPort !== 8000 && $currentPort !== 8001 && $currentPort !== 80 && $currentPort !== 443 && $adminPort === 8001) {
+            return rtrim($scheme . '://' . $host . ':' . $currentPort, '/');
+        }
+
+        return rtrim($scheme . '://' . $host . ($adminPort === 80 || $adminPort === 443 ? '' : ':' . $adminPort), '/');
+    }
 }

@@ -32,7 +32,8 @@ class AuthController extends Controller
             return Inertia::location(route('login'));
         }
 
-        return view('auth.login');
+        $publicPortalUrl = Setting::getPublicPortalUrl($request);
+        return view('auth.login', compact('publicPortalUrl'));
     }
 
     /**
@@ -521,14 +522,11 @@ class AuthController extends Controller
         }
 
         $user = Auth::guard('web')->user();
-
-        // Jika sudah memiliki password dan tidak berstatus must_change_password, alihkan ke dashboard
-        if (!$user->must_change_password && !empty($user->password)) {
-            return redirect()->route('admin.dashboard');
-        }
+        $isMandatory = (bool) ($user->must_change_password || empty($user->password));
 
         return view('auth.first_time_password', [
-            'user' => $user,
+            'user'        => $user,
+            'isMandatory' => $isMandatory,
         ]);
     }
 

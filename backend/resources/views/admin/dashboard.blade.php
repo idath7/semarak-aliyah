@@ -48,7 +48,7 @@
 
                 <div class="d-flex align-items-center gap-2">
                     <!-- External Public Web Link -->
-                    <a href="{{ config('portal.public_url', 'http://localhost:8000') }}" target="_blank" class="btn btn-sm btn-outline-primary d-none d-sm-inline-flex align-items-center gap-1 rounded-pill px-3">
+                    <a href="{{ \App\Models\Setting::getPublicPortalUrl() }}" target="_blank" class="btn btn-sm btn-outline-primary d-none d-sm-inline-flex align-items-center gap-1 rounded-pill px-3">
                         <i class="ri-external-link-line"></i> Web Publik
                     </a>
 
@@ -64,13 +64,13 @@
                             <div class="p-2">
                                 <div class="row g-0">
                                     <div class="col-4">
-                                        <a class="dropdown-item text-center py-3 rounded" href="{{ config('portal.public_url', 'http://localhost:8000') }}" target="_blank">
+                                        <a class="dropdown-item text-center py-3 rounded" href="{{ \App\Models\Setting::getPublicPortalUrl() }}" target="_blank">
                                             <i class="ri-earth-line fs-24 text-primary d-block mb-1"></i>
                                             <span class="fs-12 text-muted">Landing Page</span>
                                         </a>
                                     </div>
                                     <div class="col-4">
-                                        <a class="dropdown-item text-center py-3 rounded" href="{{ config('portal.public_url', 'http://localhost:8000') }}/layanan-registrasi" target="_blank">
+                                        <a class="dropdown-item text-center py-3 rounded" href="{{ \App\Models\Setting::getPublicPortalUrl() }}/layanan-registrasi" target="_blank">
                                             <i class="ri-user-add-line fs-24 text-success d-block mb-1"></i>
                                             <span class="fs-12 text-muted">Form Registrasi</span>
                                         </a>

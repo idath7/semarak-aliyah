@@ -797,7 +797,7 @@
 
                                     <div class="mt-4 text-center">
                                         <p class="mb-0 text-muted fs-12">
-                                            Bukan Panitia? <a href="{{ config('portal.public_url') }}/pendaftar/login" class="fw-semibold text-primary text-decoration-underline">Masuk Portal Pendaftar di Sini</a>
+                                            Bukan Panitia? <a href="{{ $publicPortalUrl ?? \App\Models\Setting::getPublicPortalUrl() }}/pendaftar/login" class="fw-semibold text-primary text-decoration-underline">Masuk Portal Pendaftar di Sini</a>
                                         </p>
                                     </div>
 
@@ -806,9 +806,9 @@
                                             <h5 class="title">Pintasan Semarak</h5>
                                         </div>
                                         <div class="d-flex justify-content-center gap-2">
-                                            <a href="{{ config('portal.public_url') }}" target="_blank" class="btn btn-primary btn-icon waves-effect waves-light" title="Web Publik"><i class="ri-earth-line fs-18"></i></a>
-                                            <a href="{{ config('portal.public_url') }}/layanan-registrasi" target="_blank" class="btn btn-success btn-icon waves-effect waves-light" title="Form Pendaftaran"><i class="ri-user-add-line fs-18"></i></a>
-                                            <a href="{{ config('portal.public_url') }}/assets/JUKNIS-SEMARAK-2026.pdf" target="_blank" class="btn btn-danger btn-icon waves-effect waves-light" title="Petunjuk Teknis"><i class="ri-file-pdf-line fs-18"></i></a>
+                                            <a href="{{ $publicPortalUrl ?? \App\Models\Setting::getPublicPortalUrl() }}" target="_blank" class="btn btn-primary btn-icon waves-effect waves-light" title="Web Publik"><i class="ri-earth-line fs-18"></i></a>
+                                            <a href="{{ $publicPortalUrl ?? \App\Models\Setting::getPublicPortalUrl() }}/layanan-registrasi" target="_blank" class="btn btn-success btn-icon waves-effect waves-light" title="Form Pendaftaran"><i class="ri-user-add-line fs-18"></i></a>
+                                            <a href="{{ $publicPortalUrl ?? \App\Models\Setting::getPublicPortalUrl() }}/assets/JUKNIS-SEMARAK-2026.pdf" target="_blank" class="btn btn-danger btn-icon waves-effect waves-light" title="Petunjuk Teknis"><i class="ri-file-pdf-line fs-18"></i></a>
                                         </div>
                                     </div>
                                 </div>

@@ -3121,7 +3121,9 @@ class AdminPanelController extends Controller
             'hero_cta3_url' => 'nullable|string|max:255',
             'hero_cta3_active' => 'nullable',
             'hero_poster_image' => 'nullable|string|max:255',
+            'hero_poster_file' => 'nullable|file|mimes:jpeg,png,jpg,webp,svg|max:10240',
             'hero_mascot_image' => 'nullable|string|max:255',
+            'hero_mascot_file' => 'nullable|file|mimes:jpeg,png,jpg,webp,svg|max:10240',
             'hero_mascot_active' => 'nullable',
             'hero_float_badge_active' => 'nullable',
             'hero_float_badge_icon' => 'nullable|string|max:100',
@@ -3179,6 +3181,18 @@ class AdminPanelController extends Controller
 
         foreach ($stringKeys as $key) {
             Setting::set($key, (string)($validated[$key] ?? ''));
+        }
+
+        // Upload Berkas Poster Pamflet Hero
+        if ($request->hasFile('hero_poster_file')) {
+            $path = $request->file('hero_poster_file')->store('hero', 'public');
+            Setting::set('hero_poster_image', '/storage/' . $path);
+        }
+
+        // Upload Berkas Maskot Karakter Hero
+        if ($request->hasFile('hero_mascot_file')) {
+            $path = $request->file('hero_mascot_file')->store('hero', 'public');
+            Setting::set('hero_mascot_image', '/storage/' . $path);
         }
 
         // Stats Items JSON

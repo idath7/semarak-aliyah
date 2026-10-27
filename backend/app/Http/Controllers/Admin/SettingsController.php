@@ -582,38 +582,11 @@ class SettingsController extends Controller
     // =========================================================================
     public function registrationPolicy(Request $request)
     {
-        $scheme = $request->getScheme();
-        $host = $request->getHost();
-
         // 1. Tentukan URL Portal Publik (Web Pendaftar)
-        $publicBaseUrl = Setting::get('public_portal_url');
-        if (empty($publicBaseUrl)) {
-            $publicDomain = config('portal.public_domain') ?: env('PUBLIC_DOMAIN');
-            if (!empty($publicDomain)) {
-                $publicBaseUrl = $scheme . '://' . $publicDomain;
-            } elseif (!empty(config('portal.public_url')) && !str_contains(config('portal.public_url'), 'localhost') && !str_contains(config('portal.public_url'), '127.0.0.1')) {
-                $publicBaseUrl = config('portal.public_url');
-            } elseif (str_contains($host, 'sa-panitia.') || str_contains($host, 'admin-semarak.') || str_contains($host, 'admin.')) {
-                $publicHost = str_replace(['sa-panitia.', 'admin-semarak.', 'admin.'], ['semarak.', 'semarak.', ''], $host);
-                $publicBaseUrl = $scheme . '://' . $publicHost;
-            } else {
-                $publicPort = (int) config('portal.public_port', 8000);
-                $publicBaseUrl = $scheme . '://' . $host . ($publicPort === 80 || $publicPort === 443 ? '' : ':' . $publicPort);
-            }
-        }
+        $publicBaseUrl = Setting::getPublicPortalUrl($request);
 
         // 2. Tentukan URL Portal Admin (Panel Panitia)
-        $adminBaseUrl = Setting::get('admin_portal_url');
-        if (empty($adminBaseUrl)) {
-            $adminDomain = config('portal.admin_domain') ?: env('ADMIN_DOMAIN');
-            if (!empty($adminDomain)) {
-                $adminBaseUrl = $scheme . '://' . $adminDomain;
-            } elseif (!empty(config('portal.admin_url')) && !str_contains(config('portal.admin_url'), 'localhost') && !str_contains(config('portal.admin_url'), '127.0.0.1')) {
-                $adminBaseUrl = config('portal.admin_url');
-            } else {
-                $adminBaseUrl = $request->getSchemeAndHttpHost();
-            }
-        }
+        $adminBaseUrl = Setting::getAdminPortalUrl($request);
 
         $callbackUris = [
             'public'      => rtrim($publicBaseUrl, '/') . '/auth/google/callback',

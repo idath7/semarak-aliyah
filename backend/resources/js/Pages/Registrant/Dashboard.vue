@@ -57,6 +57,21 @@ const primaryBankAccount = computed(() => {
   };
 });
 
+function getRegBankInfo(method) {
+  if (!method || method === 'Tunai di Sekretariat' || method.toLowerCase().includes('tunai')) {
+    return { is_cash: true, label: 'Tunai di Sekretariat Panitia' };
+  }
+  const found = activeBankAccounts.value.find(acc => 
+    method === ('Transfer ' + acc.bank_name) ||
+    method.toLowerCase().includes(acc.bank_name.toLowerCase()) ||
+    (acc.account_number && method.includes(acc.account_number))
+  );
+  if (found) {
+    return { is_cash: false, ...found };
+  }
+  return { is_cash: false, ...primaryBankAccount.value };
+}
+
 const packageDetails = computed(() => {
   const p = props.allInPricing || {};
   const activeCount = p.active_competitions_count || p.activeCompetitionsCount || (props.competitions ? props.competitions.length : 0) || 0;
@@ -1566,7 +1581,12 @@ function submitPackageProof() {
                   Saluran: <strong class="detail-value">{{ detailReg.payment_method }}</strong>
                 </div>
                 <div class="fs-11 modal-desc-text mt-0.5">
-                  Rek. Tujuan: <strong>{{ primaryBankAccount.bank_name }} {{ primaryBankAccount.account_number }} ({{ primaryBankAccount.account_holder }})</strong>
+                  <template v-if="getRegBankInfo(detailReg.payment_method).is_cash">
+                    Pembayaran: <strong class="text-warning">Tunai Langsung di Sekretariat Panitia</strong>
+                  </template>
+                  <template v-else>
+                    Rek. Tujuan: <strong>{{ getRegBankInfo(detailReg.payment_method).bank_name }} {{ getRegBankInfo(detailReg.payment_method).account_number }} ({{ getRegBankInfo(detailReg.payment_method).account_holder }})</strong>
+                  </template>
                 </div>
               </div>
 
@@ -1907,7 +1927,14 @@ function submitPackageProof() {
                   </tr>
                   <tr>
                     <td class="print-col-label">Saluran Pembayaran</td>
-                    <td class="print-col-value">{{ printReg.payment_method }} (Rek. {{ primaryBankAccount.bank_name }} {{ primaryBankAccount.account_number }} a.n {{ primaryBankAccount.account_holder }})</td>
+                    <td class="print-col-value">
+                      <template v-if="getRegBankInfo(printReg.payment_method).is_cash">
+                        Tunai Langsung di Sekretariat Panitia
+                      </template>
+                      <template v-else>
+                        {{ printReg.payment_method }} (Rek. {{ getRegBankInfo(printReg.payment_method).bank_name }} {{ getRegBankInfo(printReg.payment_method).account_number }} a.n {{ getRegBankInfo(printReg.payment_method).account_holder }})
+                      </template>
+                    </td>
                   </tr>
                   <tr>
                     <td class="print-col-label">Status Pembayaran</td>

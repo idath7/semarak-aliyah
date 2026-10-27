@@ -47,7 +47,7 @@ const form = useForm({
   participants_names: '',
   custom_fields: {},
   notes: '',
-  payment_method: 'Transfer Bank BSI',
+  payment_method: '',
 });
 
 // Dynamic Participant Repeater & Team Sync Logic
@@ -354,6 +354,14 @@ onMounted(async () => {
       registerModalOpen.value = true;
     }
   }
+
+  const defMethod = defaultPaymentMethod.value;
+  if (!form.payment_method || form.payment_method === 'Transfer Bank BSI') {
+    form.payment_method = defMethod;
+  }
+  if (!allInForm.payment_method || allInForm.payment_method === 'Transfer Bank BSI') {
+    allInForm.payment_method = defMethod;
+  }
 });
 
 // -----------------------------------------------------------------------------
@@ -406,6 +414,37 @@ const primaryBankAccount = computed(() => {
     account_number: props.pricingSettings?.account_number || '7123456789',
     account_holder: props.pricingSettings?.account_holder || (school.value?.event_name || 'Semarak Aliyah'),
   };
+});
+
+const defaultPaymentMethod = computed(() => {
+  const primary = primaryBankAccount.value;
+  return primary ? ('Transfer ' + primary.bank_name) : 'Transfer Bank Syariah Indonesia (BSI)';
+});
+
+// Rekening Bank yang aktif dipilih oleh pendaftar (Dinamis dari Pilihan Bank)
+const selectedBankAccount = computed(() => {
+  if (form.payment_method && form.payment_method !== 'Tunai di Sekretariat') {
+    const matched = activeBankAccounts.value.find(acc => 
+      form.payment_method === ('Transfer ' + acc.bank_name) ||
+      form.payment_method.toLowerCase().includes(acc.bank_name.toLowerCase()) ||
+      (acc.account_number && form.payment_method.includes(acc.account_number))
+    );
+    if (matched) return matched;
+  }
+  return primaryBankAccount.value;
+});
+
+// Rekening Bank yang aktif dipilih untuk pendaftaran Paket All-In
+const selectedAllInBankAccount = computed(() => {
+  if (allInForm.payment_method && allInForm.payment_method !== 'Tunai di Sekretariat') {
+    const matched = activeBankAccounts.value.find(acc => 
+      allInForm.payment_method === ('Transfer ' + acc.bank_name) ||
+      allInForm.payment_method.toLowerCase().includes(acc.bank_name.toLowerCase()) ||
+      (acc.account_number && allInForm.payment_method.includes(acc.account_number))
+    );
+    if (matched) return matched;
+  }
+  return primaryBankAccount.value;
 });
 
 const copiedAccId = ref(null);
@@ -525,7 +564,7 @@ const allInForm = useForm({
     { name: '', role: 'Koordinator Utama / Guru Pendamping', wa: '' }
   ],
   notes: '',
-  payment_method: 'Transfer Bank BSI',
+  payment_method: '',
   payment_proof: null,
 });
 const isSubmittingAllIn = ref(false);
@@ -671,7 +710,7 @@ function openAllInModal() {
     allInForm.npsn = selectedSchool.value.npsn || '';
   }
   if (!allInForm.payment_method || allInForm.payment_method === 'Transfer Bank BSI') {
-    allInForm.payment_method = 'Transfer ' + (primaryBankAccount.value?.bank_name || 'Bank BSI');
+    allInForm.payment_method = defaultPaymentMethod.value;
   }
   showAllInModal.value = true;
 }
@@ -780,6 +819,10 @@ function openRegisterModal(compId = null, isAllIn = false) {
   }
   if (props.authRegistrant?.email && form.custom_fields && !form.custom_fields['mentor_email']) {
     form.custom_fields['mentor_email'] = props.authRegistrant.email;
+  }
+
+  if (!form.payment_method || form.payment_method === 'Transfer Bank BSI') {
+    form.payment_method = defaultPaymentMethod.value;
   }
 
   isSuccess.value = false;
@@ -2796,32 +2839,60 @@ function getCompDropdownSuffix(c) {
                 </div>
               </div>
 
-              <!-- CARD 4.5: INFORMASI REKENING TRANSFER TUJUAN (JIKA BERBAYAR) -->
+              <!-- CARD 4.5: INFORMASI REKENING TRANSFER TUJUAN & METODE PEMBAYARAN (JIKA BERBAYAR) -->
               <div v-if="calculatedFee > 0 && !isAllInFree" class="reg-section-card mb-3">
-                <div class="reg-section-title">
-                  <i class="ri-wallet-3-line text-success"></i> Rekening Tujuan Transfer Pembayaran
+                <div class="reg-section-title d-flex align-items-center justify-content-between">
+                  <div class="d-flex align-items-center gap-1.5">
+                    <i class="ri-wallet-3-line text-success"></i>
+                    <span>Rekening Transfer Tujuan & Metode Pembayaran</span>
+                    <span class="required-star">*</span>
+                  </div>
+                  <span class="badge bg-primary-subtle text-primary fs-11 fw-semibold">
+                    {{ activeBankAccounts.length + (pricingSettings?.cash_enabled !== false ? 1 : 0) }} Pilihan Saluran
+                  </span>
                 </div>
+
                 <div class="bank-accounts-container">
+                  <!-- Kartu Rekening Bank Aktif Dinamis dari Database -->
                   <div 
                     v-for="acc in activeBankAccounts" 
                     :key="'single-bank-' + (acc.id || acc.account_number)"
-                    class="bank-account-card"
-                    :class="{ 'is-primary': acc.is_primary }"
+                    class="bank-account-card cursor-pointer"
+                    :class="{ 
+                      'is-selected': form.payment_method === ('Transfer ' + acc.bank_name),
+                      'is-primary': acc.is_primary 
+                    }"
+                    @click="form.payment_method = ('Transfer ' + acc.bank_name)"
                   >
                     <div class="bank-acc-header">
-                      <div class="d-flex align-items-center gap-1.5">
+                      <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <input 
+                          type="radio" 
+                          name="single_payment_method" 
+                          :value="'Transfer ' + acc.bank_name" 
+                          v-model="form.payment_method" 
+                          class="form-check-input mt-0"
+                          @click.stop
+                        />
                         <span class="bank-badge">
                           <i class="ri-bank-card-line"></i> {{ acc.bank_name }}
                         </span>
                         <span v-if="acc.is_primary" class="bank-badge primary-tag">
                           Rekening Utama
                         </span>
+                        <span 
+                          v-if="form.payment_method === ('Transfer ' + acc.bank_name)" 
+                          class="badge bg-success-subtle text-success fs-10 px-2 py-0.5 d-inline-flex align-items-center gap-1"
+                        >
+                          <i class="ri-checkbox-circle-fill"></i> Terpilih
+                        </span>
                       </div>
                       <button 
                         type="button" 
                         class="bank-copy-btn"
                         :class="{ 'is-copied': copiedAccId === (acc.id || acc.account_number) }"
-                        @click="copySpecificAccountNumber(acc)"
+                        @click.stop="copySpecificAccountNumber(acc)"
+                        title="Salin nomor rekening ke papan klip"
                       >
                         <i :class="copiedAccId === (acc.id || acc.account_number) ? 'ri-check-line text-success' : 'ri-file-copy-line'"></i>
                         <span>{{ copiedAccId === (acc.id || acc.account_number) ? 'Tersalin!' : 'Salin Rekening' }}</span>
@@ -2834,6 +2905,47 @@ function getCompDropdownSuffix(c) {
                     <div class="bank-acc-footer">
                       <span>Biaya registrasi: <strong style="color: #0f172a;">Rp {{ calculatedFee.toLocaleString('id-ID') }}</strong></span>
                       <span v-if="acc.notes" class="fst-italic">• {{ acc.notes }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Opsi Pembayaran Tunai di Sekretariat (Jika Diizinkan) -->
+                  <div 
+                    v-if="pricingSettings?.cash_enabled !== false"
+                    class="bank-account-card cash-account-card cursor-pointer"
+                    :class="{ 'is-selected': form.payment_method === 'Tunai di Sekretariat' }"
+                    @click="form.payment_method = 'Tunai di Sekretariat'"
+                  >
+                    <div class="bank-acc-header">
+                      <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <input 
+                          type="radio" 
+                          name="single_payment_method" 
+                          value="Tunai di Sekretariat" 
+                          v-model="form.payment_method" 
+                          class="form-check-input mt-0"
+                          @click.stop
+                        />
+                        <span class="bank-badge cash-badge">
+                          <i class="ri-money-dollar-circle-line text-warning"></i> Tunai di Sekretariat
+                        </span>
+                        <span 
+                          v-if="form.payment_method === 'Tunai di Sekretariat'" 
+                          class="badge bg-warning-subtle text-warning fs-10 px-2 py-0.5 d-inline-flex align-items-center gap-1"
+                        >
+                          <i class="ri-checkbox-circle-fill"></i> Terpilih
+                        </span>
+                      </div>
+                      <span class="badge bg-light text-muted border fs-11">
+                        Sekretariat Panitia
+                      </span>
+                    </div>
+                    <div class="bank-acc-body">
+                      <span class="fs-14 fw-bold text-dark">Bayar Tunai / Cash di Kantor Sekretariat</span>
+                      <span class="bank-acc-holder">MA Unggulan Wahid Hasyim Balung, Jember</span>
+                    </div>
+                    <div class="bank-acc-footer">
+                      <span>Biaya registrasi: <strong style="color: #0f172a;">Rp {{ calculatedFee.toLocaleString('id-ID') }}</strong></span>
+                      <span class="fst-italic">• Konfirmasi kepada bendahara panitia saat kedatangan</span>
                     </div>
                   </div>
                 </div>
@@ -2864,17 +2976,31 @@ function getCompDropdownSuffix(c) {
                   <span class="text-decoration-line-through text-muted fs-11 me-1">Rp {{ selectedCompFee.toLocaleString('id-ID') }}</span>
                   Gratis (Rp 0 - Paket Komplit)
                 </span>
+                <span v-else-if="calculatedFee === 0" class="fee-amount text-success">
+                  Gratis (Rp 0)
+                </span>
                 <span v-else class="fee-amount">Rp {{ calculatedFee.toLocaleString('id-ID') }}</span>
               </div>
               <div class="footer-bank-info">
-                <span v-if="isAllInFree" class="text-success fw-bold">
-                  <i class="ri-checkbox-circle-fill"></i> Tercover Bebas Biaya (Paket Komplit: {{ manualCodeSuccessData?.school_name || form.school_name }})
+                <span v-if="calculatedFee === 0 || isAllInFree" class="text-success fw-bold d-inline-flex align-items-center gap-1">
+                  <i class="ri-checkbox-circle-fill"></i>
+                  <template v-if="isAllInFree">
+                    Tercover Bebas Biaya (Paket Komplit: {{ manualCodeSuccessData?.school_name || form.school_name }})
+                  </template>
+                  <template v-else>
+                    Pendaftaran Bebas Biaya (Gratis)
+                  </template>
                 </span>
-                <template v-else>
-                  <span>Transfer {{ primaryBankAccount.bank_name }}</span>
+                <span v-else-if="form.payment_method === 'Tunai di Sekretariat'" class="text-warning fw-semibold d-inline-flex align-items-center gap-1">
+                  <i class="ri-money-dollar-circle-fill"></i> Pembayaran: Tunai di Sekretariat Panitia
+                </span>
+                <template v-else-if="selectedBankAccount">
+                  <span class="d-inline-flex align-items-center gap-1">
+                    <i class="ri-bank-card-line text-success"></i> Transfer {{ selectedBankAccount.bank_name }}
+                  </span>
                   <span class="bank-dot">•</span>
-                  <span class="bank-acc">Rek. {{ primaryBankAccount.account_number }}</span>
-                  <span class="bank-name">a.n. {{ primaryBankAccount.account_holder }}</span>
+                  <span class="bank-acc">Rek. {{ selectedBankAccount.account_number }}</span>
+                  <span class="bank-name">a.n. {{ selectedBankAccount.account_holder }}</span>
                 </template>
               </div>
             </div>
@@ -3266,23 +3392,34 @@ function getCompDropdownSuffix(c) {
               <div 
                 v-for="acc in activeBankAccounts" 
                 :key="'allin-acc-' + (acc.id || acc.account_number)"
-                class="bank-account-card"
-                :class="{ 'is-primary': acc.is_primary }"
+                class="bank-account-card cursor-pointer"
+                :class="{ 
+                  'is-selected': allInForm.payment_method === ('Transfer ' + acc.bank_name),
+                  'is-primary': acc.is_primary 
+                }"
+                @click="allInForm.payment_method = ('Transfer ' + acc.bank_name)"
               >
                 <div class="bank-acc-header">
-                  <div class="d-flex align-items-center gap-1.5">
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
                     <span class="bank-badge">
                       <i class="ri-bank-card-line"></i> {{ acc.bank_name }}
                     </span>
                     <span v-if="acc.is_primary" class="bank-badge primary-tag">
                       Rekening Utama
                     </span>
+                    <span 
+                      v-if="allInForm.payment_method === ('Transfer ' + acc.bank_name)" 
+                      class="badge bg-success-subtle text-success fs-10 px-2 py-0.5 d-inline-flex align-items-center gap-1"
+                    >
+                      <i class="ri-checkbox-circle-fill"></i> Terpilih
+                    </span>
                   </div>
                   <button 
                     type="button" 
                     class="bank-copy-btn"
                     :class="{ 'is-copied': copiedAccId === (acc.id || acc.account_number) }"
-                    @click="copySpecificAccountNumber(acc)"
+                    @click.stop="copySpecificAccountNumber(acc)"
+                    title="Salin nomor rekening ke papan klip"
                   >
                     <i :class="copiedAccId === (acc.id || acc.account_number) ? 'ri-check-line text-success' : 'ri-file-copy-line'"></i>
                     <span>{{ copiedAccId === (acc.id || acc.account_number) ? 'Tersalin!' : 'Salin Rekening' }}</span>
@@ -3378,7 +3515,18 @@ function getCompDropdownSuffix(c) {
               <span class="fee-amount">Rp {{ Number(pricingSettings?.allin_price || 200000).toLocaleString('id-ID') }}</span>
             </div>
             <div class="footer-bank-info">
-              <span>Paket All-In Komplit • Meliputi Seluruh 8 Cabang Lomba</span>
+              <span v-if="allInForm.payment_method === 'Tunai di Sekretariat'" class="text-warning fw-semibold d-inline-flex align-items-center gap-1">
+                <i class="ri-money-dollar-circle-fill"></i> Pembayaran: Tunai di Sekretariat Panitia
+              </span>
+              <template v-else-if="selectedAllInBankAccount">
+                <span class="d-inline-flex align-items-center gap-1">
+                  <i class="ri-bank-card-line text-success"></i> Transfer {{ selectedAllInBankAccount.bank_name }}
+                </span>
+                <span class="bank-dot">•</span>
+                <span class="bank-acc">Rek. {{ selectedAllInBankAccount.account_number }}</span>
+                <span class="bank-name">a.n. {{ selectedAllInBankAccount.account_holder }}</span>
+              </template>
+              <span v-else>Paket All-In Komplit • Meliputi Seluruh 8 Cabang Lomba</span>
             </div>
           </div>
 
@@ -3436,15 +3584,48 @@ function getCompDropdownSuffix(c) {
 }
 .bank-account-card {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
+  border: 1.5px solid #e2e8f0;
   border-radius: 12px;
   padding: 12px 14px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease;
+  position: relative;
+}
+.bank-account-card.cursor-pointer {
+  cursor: pointer;
+}
+.bank-account-card:hover {
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
 }
 .bank-account-card.is-primary {
   border-color: #86efac;
   background: linear-gradient(to bottom, #f0fdf4 0%, #ffffff 100%);
+}
+.bank-account-card.is-selected {
+  border-color: #2563eb !important;
+  background: #eff6ff !important;
+  border-left: 4px solid #2563eb !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2), 0 4px 10px rgba(37, 99, 235, 0.08) !important;
+}
+.bank-account-card.cash-account-card {
+  border-color: #fde68a;
+  background: #ffffff;
+}
+.bank-account-card.cash-account-card:hover {
+  border-color: #f59e0b;
+}
+.bank-account-card.cash-account-card.is-selected {
+  border-color: #d97706 !important;
+  background: #fffbeb !important;
+  border-left: 4px solid #d97706 !important;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2), 0 4px 10px rgba(217, 119, 6, 0.08) !important;
+}
+.bank-badge.cash-badge {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
 }
 .bank-acc-header {
   display: flex;
@@ -7238,6 +7419,83 @@ html[data-bs-theme="dark"] .bank-dot {
 [data-bs-theme="dark"] .bank-acc,
 html[data-bs-theme="dark"] .bank-acc {
   color: #fbbf24 !important;
+}
+
+[data-bs-theme="dark"] .bank-account-card,
+html[data-bs-theme="dark"] .bank-account-card {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  box-shadow: none !important;
+}
+[data-bs-theme="dark"] .bank-account-card:hover,
+html[data-bs-theme="dark"] .bank-account-card:hover {
+  border-color: #475569 !important;
+}
+[data-bs-theme="dark"] .bank-account-card.is-selected,
+html[data-bs-theme="dark"] .bank-account-card.is-selected {
+  background: rgba(37, 99, 235, 0.16) !important;
+  border-color: #60a5fa !important;
+  border-left-color: #60a5fa !important;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3) !important;
+}
+[data-bs-theme="dark"] .bank-account-card.cash-account-card.is-selected,
+html[data-bs-theme="dark"] .bank-account-card.cash-account-card.is-selected {
+  background: rgba(217, 119, 6, 0.16) !important;
+  border-color: #fbbf24 !important;
+  border-left-color: #fbbf24 !important;
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.3) !important;
+}
+[data-bs-theme="dark"] .bank-acc-num,
+html[data-bs-theme="dark"] .bank-acc-num {
+  color: #f8fafc !important;
+}
+[data-bs-theme="dark"] .bank-acc-holder,
+html[data-bs-theme="dark"] .bank-acc-holder {
+  color: #cbd5e1 !important;
+}
+[data-bs-theme="dark"] .bank-acc-footer,
+html[data-bs-theme="dark"] .bank-acc-footer {
+  border-top-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+[data-bs-theme="dark"] .bank-acc-footer strong,
+html[data-bs-theme="dark"] .bank-acc-footer strong {
+  color: #f8fafc !important;
+}
+[data-bs-theme="dark"] .bank-copy-btn,
+html[data-bs-theme="dark"] .bank-copy-btn {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+[data-bs-theme="dark"] .bank-copy-btn:hover,
+html[data-bs-theme="dark"] .bank-copy-btn:hover {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+}
+[data-bs-theme="dark"] .bank-copy-btn.is-copied,
+html[data-bs-theme="dark"] .bank-copy-btn.is-copied {
+  background: rgba(16, 185, 129, 0.2) !important;
+  color: #34d399 !important;
+  border-color: #059669 !important;
+}
+[data-bs-theme="dark"] .bank-badge,
+html[data-bs-theme="dark"] .bank-badge {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+[data-bs-theme="dark"] .bank-badge.primary-tag,
+html[data-bs-theme="dark"] .bank-badge.primary-tag {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+[data-bs-theme="dark"] .bank-badge.cash-badge,
+html[data-bs-theme="dark"] .bank-badge.cash-badge {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #fcd34d !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
 }
 
 [data-bs-theme="dark"] .btn-cancel,

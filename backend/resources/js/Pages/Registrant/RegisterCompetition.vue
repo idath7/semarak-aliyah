@@ -1,10 +1,12 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import CustomSelect from '@/Components/CustomSelect.vue';
 import IndoDatePicker from '@/Components/IndoDatePicker.vue';
 import { useToast } from '@/Composables/useToast';
 import { useTheme } from '@/Composables/useTheme';
+
+const page = usePage();
 
 const props = defineProps({
   user: { type: Object, required: true },

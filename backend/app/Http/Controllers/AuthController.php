@@ -260,7 +260,7 @@ class AuthController extends Controller
                  . "Kode berlaku selama 5 menit. Jangan berikan kode ini kepada siapapun.";
 
         try {
-            Setting::sendWaMessage($user->phone, $message);
+            \App\Services\WhatsAppService::sendMessage($user->phone, $message, 'otp', $user->name, true);
         } catch (\Throwable $e) {
             Log::warning('Gagal kirim OTP WA panitia: ' . $e->getMessage());
         }

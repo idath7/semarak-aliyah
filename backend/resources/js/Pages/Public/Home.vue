@@ -31,6 +31,10 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  categories: {
+    type: Array,
+    default: () => []
+  },
   sponsors: {
     type: Array,
     default: () => []
@@ -676,18 +680,79 @@ onUnmounted(() => {
   }
 });
 
-// 2. Competition Filter Tabs
+// 2. Dynamic Categories & Competition Filter Tabs (Mengikuti Database)
+const dynamicCategories = computed(() => {
+  // Ambil dari database props.categories jika tersedia
+  if (Array.isArray(props.categories) && props.categories.length > 0) {
+    return props.categories.map(cat => ({
+      id: String(cat.id || '').toLowerCase(),
+      name: cat.name || cat.label || cat.id,
+      label: cat.label || cat.name,
+      icon: cat.icon || '',
+      color: cat.color || 'primary',
+      count: (props.competitions || []).filter(c => isCompetitionInCategory(c, cat.id)).length
+    }));
+  }
+
+  // Fallback ekstraksi dinamis jika categories prop belum tersedia
+  const seen = new Map();
+  (props.competitions || []).forEach(c => {
+    const rawCat = String(c.category || '').toLowerCase().trim();
+    if (rawCat && !seen.has(rawCat)) {
+      seen.set(rawCat, {
+        id: rawCat,
+        name: c.category_label || (rawCat.charAt(0).toUpperCase() + rawCat.slice(1)),
+        label: c.category_label || rawCat,
+        icon: '',
+        color: 'primary',
+        count: (props.competitions || []).filter(comp => String(comp.category || '').toLowerCase() === rawCat).length
+      });
+    }
+  });
+  return Array.from(seen.values());
+});
+
+// Helper pencocokan kompetisi dengan kategori database secara presisi & toleran
+function isCompetitionInCategory(comp, catId) {
+  if (!comp || !catId) return false;
+  const target = String(catId).toLowerCase().trim();
+  const cCat = String(comp.category || '').toLowerCase().trim();
+  const cLabel = String(comp.category_label || '').toLowerCase().trim();
+
+  // 1. Exact ID match (contoh: comp.category === 'akademik')
+  if (cCat === target) return true;
+
+  // 2. Label exact / partial match
+  if (cLabel && (cLabel === target || cLabel.includes(target))) return true;
+
+  // 3. Fallback cerdas untuk kategori default database
+  if (target === 'keagamaan') {
+    return cCat === 'keagamaan' || cCat === 'tahfidz' || cLabel.includes('religi') || cLabel.includes('keagamaan');
+  }
+  if (target === 'teknologi') {
+    return cCat === 'teknologi' || cCat === 'esport' || cLabel.includes('e-sport') || cLabel.includes('esport') || cLabel.includes('teknologi');
+  }
+  if (target === 'akademik') {
+    return cCat === 'akademik' || cLabel.includes('akademik') || cLabel.includes('sains');
+  }
+  if (target === 'seni') {
+    if (cCat === 'tahfidz' || cLabel.includes('religi')) return false;
+    return cCat === 'seni' || cLabel.includes('seni') || cLabel.includes('bahasa');
+  }
+  if (target === 'olahraga') {
+    if (cCat === 'esport' || cLabel.includes('e-sport')) return false;
+    return cCat === 'olahraga' || cLabel.includes('olahraga');
+  }
+
+  return false;
+}
+
 const activeFilter = ref('all');
 
 const filteredCompetitions = computed(() => {
   if (!props.competitions || props.competitions.length === 0) return [];
   if (activeFilter.value === 'all') return props.competitions;
-  return props.competitions.filter(c => {
-    if (activeFilter.value === 'akademik') return c.category === 'akademik';
-    if (activeFilter.value === 'seni') return c.category === 'seni' || c.category === 'tahfidz' || c.category === 'keagamaan';
-    if (activeFilter.value === 'olahraga') return c.category === 'olahraga' || c.category === 'esport';
-    return true;
-  });
+  return props.competitions.filter(c => isCompetitionInCategory(c, activeFilter.value));
 });
 
 // 3. Detail Modal State
@@ -728,7 +793,22 @@ const computedFaqs = computed(() => {
     },
     {
       q: 'Bagaimana sistem pembayaran dan konfirmasi biaya pendaftaran?',
-      a: `<p>Pembayaran dapat ditransfer melalui rekening resmi <strong>Bank Syariah Indonesia (BSI)</strong>:</p><ul><li>No. Rekening: <strong>7123456789</strong></li><li>Atas Nama: <strong>${school.value.event_name || 'Semarak Aliyah'}</strong></li></ul><p>Setelah transfer berhasil, bukti pembayaran dapat langsung diunggah melalui formulir pendaftaran online atau dikonfirmasikan via WhatsApp ke tim bendahara panitia.</p>`,
+      a: (() => {
+        const accounts = (page.props.paymentBankAccounts && page.props.paymentBankAccounts.length > 0)
+          ? page.props.paymentBankAccounts.filter(a => a.is_active !== false)
+          : (props.pricingSettings?.bank_accounts || []);
+        
+        let bankListHtml = '';
+        if (accounts.length > 0) {
+          bankListHtml = accounts.map(a => `<li><strong>${a.bank_name}</strong>: <strong>${a.account_number}</strong> a.n <strong>${a.account_holder}</strong>${a.is_primary ? ' <em>(Rekening Utama)</em>' : ''}</li>`).join('');
+        } else {
+          const bName = props.pricingSettings?.bank_name || 'Bank Syariah Indonesia (BSI)';
+          const bNum = props.pricingSettings?.account_number || '7123456789';
+          const bHolder = props.pricingSettings?.account_holder || (school.value.event_name || 'Semarak Aliyah');
+          bankListHtml = `<li><strong>${bName}</strong>: <strong>${bNum}</strong> a.n <strong>${bHolder}</strong></li>`;
+        }
+        return `<p>Pembayaran dapat ditransfer melalui rekening resmi panitia pelaksana:</p><ul>${bankListHtml}</ul><p>Setelah transfer berhasil, bukti pembayaran dapat langsung diunggah melalui formulir pendaftaran online atau dikonfirmasikan via WhatsApp ke tim bendahara panitia.</p>`;
+      })(),
       category: 'Pembayaran & Biaya'
     },
     {
@@ -894,12 +974,7 @@ const activeTmFilter = ref('all');
 const filteredTmCompetitions = computed(() => {
   if (!props.competitions || props.competitions.length === 0) return [];
   if (activeTmFilter.value === 'all') return props.competitions;
-  return props.competitions.filter(c => {
-    if (activeTmFilter.value === 'akademik') return c.category === 'akademik';
-    if (activeTmFilter.value === 'seni') return c.category === 'seni' || c.category === 'tahfidz' || c.category === 'keagamaan';
-    if (activeTmFilter.value === 'olahraga') return c.category === 'olahraga' || c.category === 'esport';
-    return true;
-  });
+  return props.competitions.filter(c => isCompetitionInCategory(c, activeTmFilter.value));
 });
 
 function getCompTmLocation(comp) {
@@ -1993,7 +2068,7 @@ function handleLightboxKey(e) {
           <p class="section-desc">Pilih cabang kompetisi sesuai minat, bakat akademik, religi, seni, atau olahraga delegasi madrasah/sekolah Anda.</p>
         </div>
 
-        <!-- Filter Buttons -->
+        <!-- Filter Buttons (Dinamis dari Database) -->
         <div class="comp-filter-tabs">
           <button 
             type="button" 
@@ -2004,28 +2079,29 @@ function handleLightboxKey(e) {
             Semua Cabang
           </button>
           <button 
+            v-for="cat in dynamicCategories" 
+            :key="cat.id"
             type="button" 
             class="filter-btn" 
-            :class="{ active: activeFilter === 'akademik' }"
-            @click="activeFilter = 'akademik'"
+            :class="{ active: activeFilter === cat.id }"
+            @click="activeFilter = cat.id"
           >
-            Akademik & Sains
+            <i v-if="cat.icon" :class="cat.icon" class="me-1"></i>
+            {{ cat.name }}
           </button>
-          <button 
-            type="button" 
-            class="filter-btn" 
-            :class="{ active: activeFilter === 'seni' }"
-            @click="activeFilter = 'seni'"
-          >
-            Bahasa, Seni & Religi
-          </button>
-          <button 
-            type="button" 
-            class="filter-btn" 
-            :class="{ active: activeFilter === 'olahraga' }"
-            @click="activeFilter = 'olahraga'"
-          >
-            Olahraga & E-Sport
+        </div>
+
+        <!-- Empty state jika tidak ada cabang lomba di kategori terpilih -->
+        <div v-if="filteredCompetitions.length === 0" class="comp-empty-state text-center py-5">
+          <div style="width: 58px; height: 58px; border-radius: 50%; background: rgba(99, 102, 241, 0.1); color: var(--theme-purple); display: inline-flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 12px;">
+            <i class="ri-inbox-archive-line"></i>
+          </div>
+          <h4 style="font-size: 1.15rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">Belum Ada Cabang Lomba</h4>
+          <p style="font-size: 0.88rem; color: var(--text-secondary); max-width: 440px; margin: 0 auto 16px;">
+            Cabang perlombaan untuk kategori ini sedang disiapkan oleh panitia. Silakan cek kategori lainnya.
+          </p>
+          <button type="button" class="filter-btn active" @click="activeFilter = 'all'">
+            <i class="ri-refresh-line me-1"></i> Tampilkan Semua Cabang
           </button>
         </div>
 
@@ -2180,7 +2256,7 @@ function handleLightboxKey(e) {
           </div>
         </div>
 
-        <!-- TM Category Filter Tabs -->
+        <!-- TM Category Filter Tabs (Dinamis dari Database) -->
         <div class="tm-filter-tabs">
           <button 
             type="button" 
@@ -2191,28 +2267,29 @@ function handleLightboxKey(e) {
             Semua Jadwal TM
           </button>
           <button 
+            v-for="cat in dynamicCategories" 
+            :key="'tm-' + cat.id"
             type="button" 
             class="filter-btn" 
-            :class="{ active: activeTmFilter === 'akademik' }"
-            @click="activeTmFilter = 'akademik'"
+            :class="{ active: activeTmFilter === cat.id }"
+            @click="activeTmFilter = cat.id"
           >
-            Akademik & Sains
+            <i v-if="cat.icon" :class="cat.icon" class="me-1"></i>
+            {{ cat.name }}
           </button>
-          <button 
-            type="button" 
-            class="filter-btn" 
-            :class="{ active: activeTmFilter === 'seni' }"
-            @click="activeTmFilter = 'seni'"
-          >
-            Bahasa, Seni & Religi
-          </button>
-          <button 
-            type="button" 
-            class="filter-btn" 
-            :class="{ active: activeTmFilter === 'olahraga' }"
-            @click="activeTmFilter = 'olahraga'"
-          >
-            Olahraga & E-Sport
+        </div>
+
+        <!-- Empty state jika tidak ada jadwal TM di kategori terpilih -->
+        <div v-if="filteredTmCompetitions.length === 0" class="tm-empty-state text-center py-5">
+          <div style="width: 58px; height: 58px; border-radius: 50%; background: rgba(245, 158, 11, 0.1); color: var(--accent-gold); display: inline-flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 12px;">
+            <i class="ri-calendar-event-line"></i>
+          </div>
+          <h4 style="font-size: 1.15rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">Belum Ada Jadwal Technical Meeting</h4>
+          <p style="font-size: 0.88rem; color: var(--text-secondary); max-width: 440px; margin: 0 auto 16px;">
+            Jadwal Technical Meeting untuk kategori ini belum dijadwalkan oleh panitia.
+          </p>
+          <button type="button" class="filter-btn active" @click="activeTmFilter = 'all'">
+            <i class="ri-refresh-line me-1"></i> Tampilkan Semua Jadwal
           </button>
         </div>
 

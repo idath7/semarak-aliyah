@@ -24,6 +24,14 @@ const { isDark, toggleTheme, initTheme } = useTheme();
 
 onMounted(() => {
   initTheme();
+  const primary = activeBankAccounts.value.find(a => a.is_primary) || activeBankAccounts.value[0];
+  const defaultMethod = 'Transfer ' + (primary?.bank_name || 'Bank BSI');
+  if (!form.payment_method || form.payment_method === 'Transfer Bank BSI') {
+    form.payment_method = defaultMethod;
+  }
+  if (!allInForm.payment_method || allInForm.payment_method === 'Transfer Bank BSI') {
+    allInForm.payment_method = defaultMethod;
+  }
 });
 
 // Package Type: 'Paket Satuan' | 'Paket All-In'
@@ -437,18 +445,53 @@ function toggleCheckboxOption(fieldName, opt) {
 // Custom file state for Form Builder file fields
 const customFileState = ref({});
 
-function handleCustomFile(fieldName, event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
-  customFileState.value[fieldName] = file;
+function handleCustomFile(fieldName, event, maxFiles = 1) {
+  const selectedFiles = Array.from(event.target.files || []);
+  if (!selectedFiles.length) return;
+
+  if (maxFiles > 1) {
+    const existing = Array.isArray(customFileState.value[fieldName]) 
+      ? [...customFileState.value[fieldName]] 
+      : (customFileState.value[fieldName] ? [customFileState.value[fieldName]] : []);
+    const combined = [...existing, ...selectedFiles];
+    if (combined.length > maxFiles) {
+      toast.warning(`Maksimal hanya dapat mengunggah ${maxFiles} berkas untuk kolom ini.`);
+      customFileState.value[fieldName] = combined.slice(0, maxFiles);
+    } else {
+      customFileState.value[fieldName] = combined;
+    }
+  } else {
+    customFileState.value[fieldName] = selectedFiles[0];
+  }
+
   if (!form.custom_files) form.custom_files = {};
-  form.custom_files[fieldName] = file;
+  form.custom_files[fieldName] = customFileState.value[fieldName];
+
+  if (event.target) event.target.value = '';
 }
 
-function removeCustomFile(fieldName) {
-  delete customFileState.value[fieldName];
-  if (form.custom_files) delete form.custom_files[fieldName];
-  if (form.custom_fields) delete form.custom_fields[fieldName];
+function removeCustomFile(fieldName, index = null) {
+  if (index !== null && Array.isArray(customFileState.value[fieldName])) {
+    customFileState.value[fieldName].splice(index, 1);
+    if (customFileState.value[fieldName].length === 0) {
+      delete customFileState.value[fieldName];
+      if (form.custom_files) delete form.custom_files[fieldName];
+      if (form.custom_fields) delete form.custom_fields[fieldName];
+    } else {
+      if (form.custom_files) form.custom_files[fieldName] = customFileState.value[fieldName];
+    }
+  } else {
+    delete customFileState.value[fieldName];
+    if (form.custom_files) delete form.custom_files[fieldName];
+    if (form.custom_fields) delete form.custom_fields[fieldName];
+  }
+}
+
+function getRegistrantFileList(fieldName) {
+  const val = customFileState.value[fieldName];
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return [val];
 }
 
 // Calculated Total Fee
@@ -569,6 +612,44 @@ function copySpecificAccountNumber(acc) {
   }
 }
 
+function getDirectRegistrationWaUrl(comp) {
+  if (!comp) return '#';
+  const phone = comp.primary_coordinator?.contact || comp.primary_coordinator?.phone || comp.contact_person || '083850070767';
+  const cleanPhone = String(phone).replace(/\D/g, '');
+  const targetPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : (cleanPhone.startsWith('62') ? cleanPhone : '62' + cleanPhone);
+
+  let tpl = comp.direct_registration_template || '';
+  if (!tpl.trim()) {
+    if (!props.user?.school_name && comp.direct_contact_wa_url) {
+      return comp.direct_contact_wa_url;
+    }
+    tpl = "Assalamu'alaikum Wr. Wb. Kak {nama_pj},\\n\\nSaya perwakilan dari {nama_sekolah}, bermaksud mendaftarkan delegasi sekolah kami untuk cabang lomba *{cabang_lomba}* pada agenda *{nama_event}*.\\n\\n• Asal Lembaga: {nama_sekolah}\\n• Cabang Lomba: {cabang_lomba}\\n• Biaya Pendaftaran: {biaya}\\n• Narahubung/Pembina: {nama_pendaftar} ({nomor_wa})\\n\\nMohon petunjuk teknis pendaftaran langsung, persyaratan berkas, serta ketersediaan kuota delegasi. Terima kasih.\\nWassalamu'alaikum Wr. Wb.";
+  }
+
+  const coordName = comp.primary_coordinator?.name || ('Koordinator ' + (comp.title || 'Lomba'));
+  const feeFormatted = comp.fee && comp.fee > 0 ? ('Rp ' + Number(comp.fee).toLocaleString('id-ID')) : 'Gratis';
+  const eventName = 'Semarak Aliyah XIV 2026';
+
+  const replacements = {
+    '{nama_pj}': coordName,
+    '{nama_koordinator}': coordName,
+    '{cabang_lomba}': comp.title || 'Lomba',
+    '{nama_event}': eventName,
+    '{nama_sekolah}': props.user?.school_name || '[Nama Sekolah]',
+    '{nama_pendaftar}': props.user?.name || '[Nama Pendaftar]',
+    '{nomor_wa}': props.user?.phone || '[Nomor WA]',
+    '{biaya}': feeFormatted,
+    '{kontak_pj}': phone,
+  };
+
+  let rendered = tpl;
+  for (const [k, v] of Object.entries(replacements)) {
+    rendered = rendered.split(k).join(v);
+  }
+
+  return `https://wa.me/${targetPhone}?text=${encodeURIComponent(rendered)}`;
+}
+
 // Form Submit: PAKET SATUAN (Per-Cabang Lomba Mengacu Form Builder)
 function submitRegistration() {
   if (!form.competition_id) {
@@ -578,8 +659,9 @@ function submitRegistration() {
 
   if (currentCompetition.value && (currentCompetition.value.is_direct_registration || currentCompetition.value.registration_type === 'direct_contact')) {
     toast.info('Pendaftaran cabang lomba ini dilakukan melalui kontak langsung ke Koordinator Lomba.');
-    if (currentCompetition.value.direct_contact_wa_url) {
-      window.open(currentCompetition.value.direct_contact_wa_url, '_blank');
+    const waUrl = getDirectRegistrationWaUrl(currentCompetition.value);
+    if (waUrl && waUrl !== '#') {
+      window.open(waUrl, '_blank');
     }
     return;
   }
@@ -915,8 +997,8 @@ function handleUnifiedSubmit() {
                         </p>
                         <div class="d-flex flex-wrap gap-2">
                           <a 
-                            v-if="currentCompetition.direct_contact_wa_url"
-                            :href="currentCompetition.direct_contact_wa_url"
+                            v-if="currentCompetition.direct_contact_wa_url || currentCompetition.primary_coordinator?.contact"
+                            :href="getDirectRegistrationWaUrl(currentCompetition)"
                             target="_blank"
                             rel="noopener"
                             class="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
@@ -1195,7 +1277,7 @@ function handleUnifiedSubmit() {
                           <span v-else class="reg-desc fs-11 fw-normal ms-1">(Opsional)</span>
                         </span>
                         <span v-if="field.type === 'file'" class="badge badge-subtle-info fs-10">
-                          {{ (field.allowed_extensions && field.allowed_extensions.length) ? field.allowed_extensions.join(', ').toUpperCase() : 'PDF / JPG / PNG' }} • Maks. {{ field.max_size_mb || 5 }} MB
+                          {{ (field.allowed_extensions && field.allowed_extensions.length) ? field.allowed_extensions.join(', ').toUpperCase() : 'PDF / JPG / PNG' }} • Maks. {{ field.max_size_mb || 5 }} MB • {{ (field.max_files || 1) > 1 ? `Maks. ${field.max_files} Berkas` : '1 Berkas' }}
                         </span>
                       </label>
 
@@ -1306,27 +1388,89 @@ function handleUnifiedSubmit() {
                       />
 
                       <!-- 9. Upload Berkas Khusus Cabang -->
-                      <div v-else-if="field.type === 'file'" class="p-3 rounded-3 border border-dashed reg-upload-zone text-center">
-                        <input
-                          type="file"
-                          :id="'cf-' + field.name"
-                          :accept="field.allowed_extensions ? field.allowed_extensions.map(e => '.' + e).join(',') : undefined"
-                          class="d-none"
-                          @change="e => handleCustomFile(field.name, e)"
-                        />
-                        <label :for="'cf-' + field.name" class="cursor-pointer mb-0">
-                          <i class="ri-upload-cloud-line fs-24 text-primary mb-1 d-block"></i>
-                          <span class="fs-12 fw-semibold text-primary d-block">
-                            {{ customFileState[field.name] ? customFileState[field.name].name : `Pilih Berkas ${field.label}` }}
-                          </span>
-                          <span class="fs-10 reg-desc">
-                            Format: {{ (field.allowed_extensions && field.allowed_extensions.length) ? field.allowed_extensions.join(', ').toUpperCase() : 'PDF, JPG, PNG' }} • Maks. {{ field.max_size_mb || 5 }} MB
-                          </span>
-                        </label>
-                        <div v-if="customFileState[field.name]" class="mt-2 text-end">
-                          <button type="button" class="btn btn-xs btn-outline-danger" @click="removeCustomFile(field.name)">
-                            <i class="ri-close-line me-1"></i> Batal Berkas
-                          </button>
+                      <div v-else-if="field.type === 'file'">
+                        <!-- Single File Mode -->
+                        <div v-if="(field.max_files || 1) <= 1" class="p-3 rounded-3 border border-dashed reg-upload-zone text-center">
+                          <input
+                            type="file"
+                            :id="'cf-' + field.name"
+                            :accept="field.allowed_extensions ? field.allowed_extensions.map(e => '.' + e).join(',') : undefined"
+                            class="d-none"
+                            @change="e => handleCustomFile(field.name, e, 1)"
+                          />
+                          <label :for="'cf-' + field.name" class="cursor-pointer mb-0">
+                            <i class="ri-upload-cloud-line fs-24 text-primary mb-1 d-block"></i>
+                            <span class="fs-12 fw-semibold text-primary d-block">
+                              {{ customFileState[field.name] ? customFileState[field.name].name : `Pilih Berkas ${field.label}` }}
+                            </span>
+                            <span class="fs-10 reg-desc">
+                              Format: {{ (field.allowed_extensions && field.allowed_extensions.length) ? field.allowed_extensions.join(', ').toUpperCase() : 'PDF, JPG, PNG' }} • Maks. {{ field.max_size_mb || 5 }} MB
+                            </span>
+                          </label>
+                          <div v-if="customFileState[field.name]" class="mt-2 text-end">
+                            <button type="button" class="btn btn-xs btn-outline-danger" @click="removeCustomFile(field.name)">
+                              <i class="ri-close-line me-1"></i> Batal Berkas
+                            </button>
+                          </div>
+                        </div>
+
+                        <!-- Multi File Mode -->
+                        <div v-else class="p-3 rounded-3 border border-dashed reg-upload-zone">
+                          <input
+                            type="file"
+                            :id="'cf-' + field.name"
+                            multiple
+                            :accept="field.allowed_extensions ? field.allowed_extensions.map(e => '.' + e).join(',') : undefined"
+                            class="d-none"
+                            @change="e => handleCustomFile(field.name, e, field.max_files)"
+                          />
+                          <div v-if="getRegistrantFileList(field.name).length === 0" class="text-center">
+                            <label :for="'cf-' + field.name" class="cursor-pointer mb-0">
+                              <i class="ri-folders-line fs-24 text-primary mb-1 d-block"></i>
+                              <span class="fs-12 fw-semibold text-primary d-block">
+                                Unggah Dokumen {{ field.label }} (Hingga {{ field.max_files }} Berkas)
+                              </span>
+                              <span class="fs-10 reg-desc">
+                                Format: {{ (field.allowed_extensions && field.allowed_extensions.length) ? field.allowed_extensions.join(', ').toUpperCase() : 'PDF, JPG, PNG' }} • Maks. {{ field.max_size_mb || 5 }} MB per berkas
+                              </span>
+                            </label>
+                          </div>
+                          <div v-else class="d-flex flex-column gap-2 text-start">
+                            <div class="d-flex align-items-center justify-content-between pb-1 border-bottom">
+                              <span class="fs-12 fw-bold text-dark d-flex align-items-center gap-1">
+                                <i class="ri-folders-fill text-primary"></i> Berkas Terpilih ({{ getRegistrantFileList(field.name).length }} dari {{ field.max_files }})
+                              </span>
+                              <label 
+                                v-if="getRegistrantFileList(field.name).length < field.max_files"
+                                :for="'cf-' + field.name" 
+                                class="btn btn-xs btn-outline-primary mb-0 cursor-pointer d-inline-flex align-items-center gap-1"
+                              >
+                                <i class="ri-add-line"></i> Tambah Berkas
+                              </label>
+                            </div>
+                            <div 
+                              v-for="(fItem, fIdx) in getRegistrantFileList(field.name)" 
+                              :key="fIdx"
+                              class="d-flex align-items-center justify-content-between p-2 rounded-2 bg-white border"
+                            >
+                              <div class="d-flex align-items-center gap-2 min-w-0">
+                                <span class="badge bg-light text-muted fs-10 px-1.5 py-0.5">#{{ fIdx + 1 }}</span>
+                                <i class="ri-file-text-line fs-18 text-primary"></i>
+                                <div class="min-w-0">
+                                  <div class="fs-12 fw-semibold text-dark text-truncate">{{ fItem.name }}</div>
+                                  <div class="fs-10 text-muted font-monospace">{{ (fItem.size / 1024).toFixed(1) }} KB</div>
+                                </div>
+                              </div>
+                              <button 
+                                type="button" 
+                                class="btn btn-xs btn-outline-danger py-0.5 px-2"
+                                @click="removeCustomFile(field.name, fIdx)"
+                                title="Hapus berkas ini"
+                              >
+                                <i class="ri-close-line"></i>
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
@@ -1644,16 +1788,21 @@ function handleUnifiedSubmit() {
                       Metode Pembayaran <span class="text-danger">*</span>
                     </label>
                     <div class="d-flex flex-column gap-2">
-                      <label class="p-2.5 rounded-3 border cursor-pointer reg-radio-option d-flex align-items-center justify-content-between" :class="allInForm.payment_method === 'Transfer Bank BSI' ? 'is-selected' : ''">
+                      <label 
+                        v-for="acc in activeBankAccounts" 
+                        :key="'allin-pay-' + (acc.id || acc.account_number)"
+                        class="p-2.5 rounded-3 border cursor-pointer reg-radio-option d-flex align-items-center justify-content-between" 
+                        :class="allInForm.payment_method === ('Transfer ' + acc.bank_name) ? 'is-selected' : ''"
+                      >
                         <div class="d-flex align-items-center gap-2">
                           <input
                             type="radio"
                             name="allin_payment_method"
-                            value="Transfer Bank BSI"
+                            :value="'Transfer ' + acc.bank_name"
                             v-model="allInForm.payment_method"
                             class="form-check-input mt-0"
                           />
-                          <span class="fs-12 fw-semibold reg-title">Transfer Bank / ATM / m-Banking BSI</span>
+                          <span class="fs-12 fw-semibold reg-title">Transfer {{ acc.bank_name }} (Rek. {{ acc.account_number }})</span>
                         </div>
                         <i class="ri-bank-line text-success fs-16"></i>
                       </label>
@@ -1675,7 +1824,7 @@ function handleUnifiedSubmit() {
                   </div>
 
                   <!-- Upload Bukti Transfer Paket Komplit (Opsional / Bisa Susulan) -->
-                  <div v-if="allInForm.payment_method === 'Transfer Bank BSI'">
+                  <div v-if="allInForm.payment_method !== 'Tunai di Sekretariat'">
                     <label class="form-label fs-13 fw-semibold reg-label mb-1">
                       Bukti Transfer Pembayaran (Opsional / Bisa Susulan)
                     </label>
@@ -1779,16 +1928,21 @@ function handleUnifiedSubmit() {
                       Metode Pembayaran <span class="text-danger">*</span>
                     </label>
                     <div class="d-flex flex-column gap-2">
-                      <label class="p-2.5 rounded-3 border cursor-pointer reg-radio-option d-flex align-items-center justify-content-between" :class="form.payment_method === 'Transfer Bank BSI' ? 'is-selected' : ''">
+                      <label 
+                        v-for="acc in activeBankAccounts" 
+                        :key="'single-pay-' + (acc.id || acc.account_number)"
+                        class="p-2.5 rounded-3 border cursor-pointer reg-radio-option d-flex align-items-center justify-content-between" 
+                        :class="form.payment_method === ('Transfer ' + acc.bank_name) ? 'is-selected' : ''"
+                      >
                         <div class="d-flex align-items-center gap-2">
                           <input
                             type="radio"
                             name="payment_method"
-                            value="Transfer Bank BSI"
+                            :value="'Transfer ' + acc.bank_name"
                             v-model="form.payment_method"
                             class="form-check-input mt-0"
                           />
-                          <span class="fs-12 fw-semibold reg-title">Transfer Bank / ATM / m-Banking BSI</span>
+                          <span class="fs-12 fw-semibold reg-title">Transfer {{ acc.bank_name }} (Rek. {{ acc.account_number }})</span>
                         </div>
                         <i class="ri-bank-line text-success fs-16"></i>
                       </label>
@@ -1810,7 +1964,7 @@ function handleUnifiedSubmit() {
                   </div>
 
                   <!-- Upload Bukti Transfer -->
-                  <div v-if="calculatedFee > 0 && form.payment_method === 'Transfer Bank BSI'">
+                  <div v-if="calculatedFee > 0 && form.payment_method !== 'Tunai di Sekretariat'">
                     <label class="form-label fs-13 fw-semibold reg-label mb-1">
                       Unggah Bukti Transfer Pembayaran (Opsional / Bisa Susulan)
                     </label>
@@ -1840,7 +1994,7 @@ function handleUnifiedSubmit() {
                   <!-- Submit Button Paket Satuan -->
                   <template v-if="currentCompetition && (currentCompetition.is_direct_registration || currentCompetition.registration_type === 'direct_contact')">
                     <a
-                      :href="currentCompetition.direct_contact_wa_url"
+                      :href="getDirectRegistrationWaUrl(currentCompetition)"
                       target="_blank"
                       rel="noopener"
                       class="btn btn-success w-100 py-2.5 fs-14 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center gap-2 mt-2"

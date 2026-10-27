@@ -58,6 +58,7 @@ const createForm = useForm({
   status: 'open',
   registration_type: 'online',
   direct_registration_note: '',
+  direct_registration_template: '',
 });
 
 // Edit Modal State
@@ -83,6 +84,7 @@ const editForm = useForm({
   status: 'open',
   registration_type: 'online',
   direct_registration_note: '',
+  direct_registration_template: '',
 });
 
 // Delete Modal State
@@ -623,7 +625,22 @@ function openCreateModal() {
   ];
   createForm.registration_type = 'online';
   createForm.direct_registration_note = '';
+  createForm.direct_registration_template = '';
   showCreateModal.value = true;
+}
+
+const defaultDirectTemplate = "Assalamu'alaikum Wr. Wb. Kak {nama_pj},\\n\\nSaya perwakilan dari {nama_sekolah}, bermaksud mendaftarkan delegasi sekolah kami untuk cabang lomba *{cabang_lomba}* pada agenda *{nama_event}*.\\n\\n• Asal Lembaga: {nama_sekolah}\\n• Cabang Lomba: {cabang_lomba}\\n• Biaya Pendaftaran: {biaya}\\n• Narahubung/Pembina: {nama_pendaftar} ({nomor_wa})\\n\\nMohon petunjuk teknis pendaftaran langsung, persyaratan berkas, serta ketersediaan kuota delegasi. Terima kasih.\\n\\nWassalamu'alaikum Wr. Wb.";
+
+function applyDefaultDirectTemplate(targetForm) {
+  targetForm.direct_registration_template = defaultDirectTemplate;
+  toast.success('Template pesan WhatsApp standar berhasil diterapkan ke formulir.');
+}
+
+function insertTemplateTag(targetForm, tag) {
+  if (!targetForm.direct_registration_template) {
+    targetForm.direct_registration_template = '';
+  }
+  targetForm.direct_registration_template += (targetForm.direct_registration_template.length > 0 ? ' ' : '') + tag;
 }
 
 // Auto-fill ID slug from title in Create Form
@@ -718,6 +735,7 @@ function openEditModal(comp) {
   editForm.status = comp.status;
   editForm.registration_type = comp.registration_type || 'online';
   editForm.direct_registration_note = comp.direct_registration_note || '';
+  editForm.direct_registration_template = comp.direct_registration_template || '';
   editForm.description = comp.description || '';
 
   editForm.coordinators = initializeCoordinators(comp.coordinators, comp.coordinator_id, comp.contact_person);
@@ -2012,18 +2030,59 @@ function confirmDelete() {
                         </div>
                       </div>
 
-                      <!-- Catatan Khusus Pendaftaran Langsung jika opsi direct_contact dipilih -->
-                      <div v-if="createForm.registration_type === 'direct_contact'" class="mt-2.5 p-2.5 rounded bg-success-subtle border border-success-subtle">
-                        <label class="form-label fs-11 fw-bold text-success mb-1 d-flex align-items-center gap-1">
-                          <i class="ri-information-line"></i> Petunjuk / Catatan Pendaftaran Kontak Langsung (Opsional)
-                        </label>
-                        <input 
-                          v-model="createForm.direct_registration_note"
-                          type="text"
-                          class="form-control form-control-sm fs-12 bg-white"
-                          placeholder="Cth: Pendaftaran cabang ini wajib konfirmasi langsung ke Koordinator via WhatsApp untuk alokasi pool tim."
-                        />
-                        <small class="text-muted fs-11 d-block mt-1">
+                      <!-- Catatan & Template Pendaftaran Langsung jika opsi direct_contact dipilih -->
+                      <div v-if="createForm.registration_type === 'direct_contact'" class="mt-2.5 p-3 rounded bg-success-subtle border border-success-subtle">
+                        <div class="mb-2.5">
+                          <label class="form-label fs-11 fw-bold text-success mb-1 d-flex align-items-center gap-1">
+                            <i class="ri-information-line"></i> Petunjuk / Catatan Pendaftaran Kontak Langsung (Opsional)
+                          </label>
+                          <input 
+                            v-model="createForm.direct_registration_note"
+                            type="text"
+                            class="form-control form-control-sm fs-12 bg-white"
+                            placeholder="Cth: Pendaftaran cabang ini wajib konfirmasi langsung ke Koordinator via WhatsApp untuk alokasi pool tim."
+                          />
+                        </div>
+
+                        <div>
+                          <div class="d-flex align-items-center justify-content-between mb-1">
+                            <label class="form-label fs-11 fw-bold text-success mb-0 d-flex align-items-center gap-1">
+                              <i class="ri-message-3-line"></i> Template Pesan WhatsApp Pendaftaran via PJ (Opsional)
+                            </label>
+                            <button
+                              type="button"
+                              class="btn btn-xs btn-outline-success bg-white rounded-pill px-2 py-0.5 fs-11 fw-semibold d-inline-flex align-items-center gap-1 shadow-xs"
+                              @click="applyDefaultDirectTemplate(createForm)"
+                              title="Terapkan teks format template standar"
+                            >
+                              <i class="ri-magic-line"></i> Gunakan Format Standar
+                            </button>
+                          </div>
+                          <p class="fs-11 text-muted mb-1.5" style="line-height: 1.4;">
+                            Sesuaikan format pesan pembuka yang otomatis disiapkan saat peserta mengklik tombol WhatsApp PJ. Kosongkan jika ingin memakai template standar global.
+                          </p>
+                          <textarea
+                            v-model="createForm.direct_registration_template"
+                            rows="5"
+                            class="form-control form-control-sm font-monospace fs-11 bg-white"
+                            placeholder="Contoh: Assalamu'alaikum Kak {nama_pj}, saya {nama_pendaftar} dari {nama_sekolah}..."
+                          ></textarea>
+                          <div class="d-flex flex-wrap align-items-center gap-1 mt-1.5">
+                            <span class="fs-11 text-muted me-1">Sisipkan tag:</span>
+                            <button
+                              v-for="tag in ['{nama_pj}', '{cabang_lomba}', '{nama_event}', '{nama_sekolah}', '{nama_pendaftar}', '{nomor_wa}', '{biaya}', '{kontak_pj}']"
+                              :key="tag"
+                              type="button"
+                              class="badge bg-white text-dark border font-monospace fs-10 px-1.5 py-0.5 cursor-pointer hover:bg-success hover:text-white transition-all"
+                              @click="insertTemplateTag(createForm, tag)"
+                              :title="'Klik untuk sisipkan ' + tag"
+                            >
+                              {{ tag }}
+                            </button>
+                          </div>
+                        </div>
+
+                        <small class="text-muted fs-11 d-block mt-2 pt-2 border-top border-success-subtle">
                           <i class="ri-checkbox-circle-line text-success me-0.5"></i> Pastikan nomor WhatsApp koordinator lomba sudah terisi pada baris koordinator di atas agar tautan chat otomatis berfungsi.
                         </small>
                       </div>
@@ -2552,18 +2611,59 @@ function confirmDelete() {
                         </div>
                       </div>
 
-                      <!-- Catatan Khusus Pendaftaran Langsung jika opsi direct_contact dipilih -->
-                      <div v-if="editForm.registration_type === 'direct_contact'" class="mt-2.5 p-2.5 rounded bg-success-subtle border border-success-subtle">
-                        <label class="form-label fs-11 fw-bold text-success mb-1 d-flex align-items-center gap-1">
-                          <i class="ri-information-line"></i> Petunjuk / Catatan Pendaftaran Kontak Langsung (Opsional)
-                        </label>
-                        <input 
-                          v-model="editForm.direct_registration_note"
-                          type="text"
-                          class="form-control form-control-sm fs-12 bg-white"
-                          placeholder="Cth: Pendaftaran cabang ini wajib konfirmasi langsung ke Koordinator via WhatsApp untuk alokasi pool tim."
-                        />
-                        <small class="text-muted fs-11 d-block mt-1">
+                      <!-- Catatan & Template Pendaftaran Langsung jika opsi direct_contact dipilih -->
+                      <div v-if="editForm.registration_type === 'direct_contact'" class="mt-2.5 p-3 rounded bg-success-subtle border border-success-subtle">
+                        <div class="mb-2.5">
+                          <label class="form-label fs-11 fw-bold text-success mb-1 d-flex align-items-center gap-1">
+                            <i class="ri-information-line"></i> Petunjuk / Catatan Pendaftaran Kontak Langsung (Opsional)
+                          </label>
+                          <input 
+                            v-model="editForm.direct_registration_note"
+                            type="text"
+                            class="form-control form-control-sm fs-12 bg-white"
+                            placeholder="Cth: Pendaftaran cabang ini wajib konfirmasi langsung ke Koordinator via WhatsApp untuk alokasi pool tim."
+                          />
+                        </div>
+
+                        <div>
+                          <div class="d-flex align-items-center justify-content-between mb-1">
+                            <label class="form-label fs-11 fw-bold text-success mb-0 d-flex align-items-center gap-1">
+                              <i class="ri-message-3-line"></i> Template Pesan WhatsApp Pendaftaran via PJ (Opsional)
+                            </label>
+                            <button
+                              type="button"
+                              class="btn btn-xs btn-outline-success bg-white rounded-pill px-2 py-0.5 fs-11 fw-semibold d-inline-flex align-items-center gap-1 shadow-xs"
+                              @click="applyDefaultDirectTemplate(editForm)"
+                              title="Terapkan teks format template standar"
+                            >
+                              <i class="ri-magic-line"></i> Gunakan Format Standar
+                            </button>
+                          </div>
+                          <p class="fs-11 text-muted mb-1.5" style="line-height: 1.4;">
+                            Sesuaikan format pesan pembuka yang otomatis disiapkan saat peserta mengklik tombol WhatsApp PJ. Kosongkan jika ingin memakai template standar global.
+                          </p>
+                          <textarea
+                            v-model="editForm.direct_registration_template"
+                            rows="5"
+                            class="form-control form-control-sm font-monospace fs-11 bg-white"
+                            placeholder="Contoh: Assalamu'alaikum Kak {nama_pj}, saya {nama_pendaftar} dari {nama_sekolah}..."
+                          ></textarea>
+                          <div class="d-flex flex-wrap align-items-center gap-1 mt-1.5">
+                            <span class="fs-11 text-muted me-1">Sisipkan tag:</span>
+                            <button
+                              v-for="tag in ['{nama_pj}', '{cabang_lomba}', '{nama_event}', '{nama_sekolah}', '{nama_pendaftar}', '{nomor_wa}', '{biaya}', '{kontak_pj}']"
+                              :key="tag"
+                              type="button"
+                              class="badge bg-white text-dark border font-monospace fs-10 px-1.5 py-0.5 cursor-pointer hover:bg-success hover:text-white transition-all"
+                              @click="insertTemplateTag(editForm, tag)"
+                              :title="'Klik untuk sisipkan ' + tag"
+                            >
+                              {{ tag }}
+                            </button>
+                          </div>
+                        </div>
+
+                        <small class="text-muted fs-11 d-block mt-2 pt-2 border-top border-success-subtle">
                           <i class="ri-checkbox-circle-line text-success me-0.5"></i> Pastikan nomor WhatsApp koordinator lomba sudah terisi pada baris koordinator di atas agar tautan chat otomatis berfungsi.
                         </small>
                       </div>

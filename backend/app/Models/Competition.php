@@ -37,6 +37,7 @@ class Competition extends Model
         'tm_settings',
         'registration_type',
         'direct_registration_note',
+        'direct_registration_template',
         'juknis_file',
         'juknis_original_name',
         'juknis_size',
@@ -365,7 +366,32 @@ class Competition extends Model
         }
 
         $coordName = $primary['name'] ?? ('Koordinator ' . $this->title);
-        $text = "Halo {$coordName}, saya ingin mendaftarkan delegasi sekolah kami untuk cabang lomba {$this->title} di Semarak Aliyah XIV 2026. Mohon informasi petunjuk teknis pendaftaran dan kuota cabang ini. Terima kasih.";
+        $coordContact = $primary['contact'] ?? $phone;
+
+        $tpl = !empty(trim((string)$this->direct_registration_template))
+            ? $this->direct_registration_template
+            : Setting::get('wa_tpl_direct_registration', '');
+
+        if (empty(trim((string)$tpl))) {
+            $tpl = "Assalamu'alaikum Wr. Wb. Kak {nama_pj},\n\nSaya perwakilan dari {nama_sekolah}, bermaksud mendaftarkan delegasi sekolah kami untuk cabang lomba *{cabang_lomba}* pada agenda *{nama_event}*.\n\n• Asal Lembaga: {nama_sekolah}\n• Cabang Lomba: {cabang_lomba}\n• Biaya Pendaftaran: {biaya}\n• Narahubung/Pembina: {nama_pendaftar} ({nomor_wa})\n\nMohon petunjuk teknis pendaftaran langsung, persyaratan berkas, serta ketersediaan kuota delegasi. Terima kasih.\n\nWassalamu'alaikum Wr. Wb.";
+        }
+
+        $eventName = Setting::get('event_name', 'Semarak Aliyah XIV 2026');
+        $feeFormatted = ($this->fee && $this->fee > 0) ? 'Rp ' . number_format($this->fee, 0, ',', '.') : 'Gratis';
+
+        $replacements = [
+            '{nama_pj}' => $coordName,
+            '{nama_koordinator}' => $coordName,
+            '{cabang_lomba}' => $this->title,
+            '{nama_event}' => $eventName,
+            '{nama_sekolah}' => '[Nama Sekolah]',
+            '{nama_pendaftar}' => '[Nama Pendaftar]',
+            '{nomor_wa}' => '[Nomor WA]',
+            '{biaya}' => $feeFormatted,
+            '{kontak_pj}' => $coordContact,
+        ];
+
+        $text = str_replace(array_keys($replacements), array_values($replacements), $tpl);
 
         return "https://wa.me/{$cleanPhone}?text=" . rawurlencode($text);
     }

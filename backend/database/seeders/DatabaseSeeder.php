@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             GallerySeeder::class,
             FaqSeeder::class,
             SponsorSeeder::class,
+            RegistrantSeeder::class,
             // CompetitionSeeder::class, // Dinonaktifkan: Cabang lomba dibuat manual dari nol oleh panitia
             // FormFieldSeeder::class,
             // SchoolSeeder::class,      // Dinonaktifkan: Database sekolah diisi manual / impor oleh panitia

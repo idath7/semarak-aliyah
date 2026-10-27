@@ -126,16 +126,41 @@ watch(activeComp, (newComp) => {
   newComp.custom_fields.forEach(f => {
     if (f.type === 'participant_repeater') return;
     if (f.name && currentFields[f.name] === undefined) {
-      currentFields[f.name] = f.type === 'checkbox' ? [] : (f.type === 'file' ? null : '');
+      if (f.type === 'checkbox') {
+        currentFields[f.name] = [];
+      } else if (f.type === 'file') {
+        currentFields[f.name] = (f.max_files || 1) > 1 ? [] : null;
+      } else {
+        currentFields[f.name] = '';
+      }
     }
   });
   form.custom_fields = currentFields;
 }, { immediate: true });
 
-function handleCustomFileChange(fieldName, event) {
-  const file = event.target.files?.[0];
-  if (file) {
-    form.custom_fields[fieldName] = file;
+function handleCustomFileChange(fieldName, event, maxFiles = 1) {
+  const selectedFiles = Array.from(event.target.files || []);
+  if (!selectedFiles.length) return;
+
+  if (maxFiles > 1) {
+    const existing = Array.isArray(form.custom_fields[fieldName]) ? [...form.custom_fields[fieldName]] : (form.custom_fields[fieldName] ? [form.custom_fields[fieldName]] : []);
+    const combined = [...existing, ...selectedFiles];
+    if (combined.length > maxFiles) {
+      alert(`Maksimal hanya dapat mengunggah ${maxFiles} berkas untuk kolom ini.`);
+      form.custom_fields[fieldName] = combined.slice(0, maxFiles);
+    } else {
+      form.custom_fields[fieldName] = combined;
+    }
+  } else {
+    form.custom_fields[fieldName] = selectedFiles[0];
+  }
+
+  if (event.target) event.target.value = '';
+}
+
+function removeCustomFileIndex(fieldName, idx) {
+  if (Array.isArray(form.custom_fields[fieldName])) {
+    form.custom_fields[fieldName].splice(idx, 1);
   }
 }
 
@@ -143,15 +168,20 @@ function clearCustomFile(fieldName) {
   form.custom_fields[fieldName] = null;
 }
 
-function getCustomFileName(fieldName) {
-  const f = form.custom_fields[fieldName];
-  if (!f) return '';
-  return f.name || 'Dokumen Terpilih';
+function getCustomFileList(fieldName) {
+  const f = form.custom_fields?.[fieldName];
+  if (!f) return [];
+  if (Array.isArray(f)) return f;
+  return [f];
 }
 
-function getCustomFileSize(fieldName) {
-  const f = form.custom_fields[fieldName];
-  return f?.size || 0;
+function getCustomFileName(fileOrObj) {
+  if (!fileOrObj) return '';
+  return fileOrObj.name || 'Dokumen Terpilih';
+}
+
+function getCustomFileSize(fileOrObj) {
+  return fileOrObj?.size || 0;
 }
 
 function formatFileSize(bytes) {
@@ -347,6 +377,48 @@ const kecamatanList = [
   'Sumberbaru', 'Sumberjambe', 'Sumbersari', 'Tanggul', 'Tempurejo', 'Umbulsari', 'Wuluhan',
   'Luar Kabupaten Jember'
 ];
+
+// Konfigurasi Rekening Bank Pembayaran Dinamis
+const activeBankAccounts = computed(() => {
+  const globalAccounts = page.props.paymentBankAccounts;
+  if (Array.isArray(globalAccounts) && globalAccounts.length > 0) {
+    return globalAccounts.filter(a => a.is_active !== false);
+  }
+  const propAccounts = props.pricingSettings?.bank_accounts;
+  if (Array.isArray(propAccounts) && propAccounts.length > 0) {
+    return propAccounts.filter(a => a.is_active !== false);
+  }
+  return [
+    {
+      id: 'default',
+      bank_name: props.pricingSettings?.bank_name || 'Bank Syariah Indonesia (BSI)',
+      account_number: props.pricingSettings?.account_number || '7123456789',
+      account_holder: props.pricingSettings?.account_holder || (school.value?.event_name || 'Semarak Aliyah'),
+      is_primary: true,
+      notes: 'Rekening Resmi Panitia'
+    }
+  ];
+});
+
+const primaryBankAccount = computed(() => {
+  return activeBankAccounts.value.find(a => a.is_primary) || activeBankAccounts.value[0] || {
+    bank_name: props.pricingSettings?.bank_name || 'Bank Syariah Indonesia (BSI)',
+    account_number: props.pricingSettings?.account_number || '7123456789',
+    account_holder: props.pricingSettings?.account_holder || (school.value?.event_name || 'Semarak Aliyah'),
+  };
+});
+
+const copiedAccId = ref(null);
+function copySpecificAccountNumber(acc) {
+  const num = acc.account_number || props.pricingSettings?.account_number || '7123456789';
+  if (navigator?.clipboard) {
+    navigator.clipboard.writeText(num);
+    copiedAccId.value = acc.id || acc.account_number;
+    setTimeout(() => {
+      copiedAccId.value = null;
+    }, 2500);
+  }
+}
 
 // State & Handler Verifikasi Kode Paket Komplit (All-In)
 const isCheckingPackageCode = ref(false);
@@ -597,6 +669,9 @@ function openAllInModal() {
   if (selectedSchool.value) {
     allInForm.school_name = selectedSchool.value.name;
     allInForm.npsn = selectedSchool.value.npsn || '';
+  }
+  if (!allInForm.payment_method || allInForm.payment_method === 'Transfer Bank BSI') {
+    allInForm.payment_method = 'Transfer ' + (primaryBankAccount.value?.bank_name || 'Bank BSI');
   }
   showAllInModal.value = true;
 }
@@ -957,12 +1032,40 @@ const isSelectedCompDirect = computed(() => {
 
 function getDirectRegistrationWaUrl(comp) {
   if (!comp) return '#';
-  if (comp.direct_contact_wa_url) return comp.direct_contact_wa_url;
-  const phone = comp.primary_coordinator?.phone || comp.contact_person || school.value?.phone || school.value?.contact_phone || '6281234567890';
-  const title = comp.title || 'Lomba';
-  const schoolName = form.school_name ? ` dari ${form.school_name}` : '';
-  const text = `Halo Koordinator/PJ Lomba ${title} Semarak Aliyah XIV, saya${schoolName} ingin mendaftar untuk cabang lomba ${title}. Mohon informasi dan prosedur pendaftarannya. Terima kasih.`;
-  return getWaChatUrl(phone, text);
+  const phone = comp.primary_coordinator?.contact || comp.primary_coordinator?.phone || comp.contact_person || school.value?.phone || school.value?.contact_phone || '083850070767';
+  const cleanPhone = String(phone).replace(/\D/g, '');
+  const targetPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : (cleanPhone.startsWith('62') ? cleanPhone : '62' + cleanPhone);
+
+  let tpl = comp.direct_registration_template || '';
+  if (!tpl.trim()) {
+    if (!form.school_name && !form.mentor_name && comp.direct_contact_wa_url) {
+      return comp.direct_contact_wa_url;
+    }
+    tpl = "Assalamu'alaikum Wr. Wb. Kak {nama_pj},\n\nSaya perwakilan dari {nama_sekolah}, bermaksud mendaftarkan delegasi sekolah kami untuk cabang lomba *{cabang_lomba}* pada agenda *{nama_event}*.\n\n• Asal Lembaga: {nama_sekolah}\n• Cabang Lomba: {cabang_lomba}\n• Biaya Pendaftaran: {biaya}\n• Narahubung/Pembina: {nama_pendaftar} ({nomor_wa})\n\nMohon petunjuk teknis pendaftaran langsung, persyaratan berkas, serta ketersediaan kuota delegasi. Terima kasih.\nWassalamu'alaikum Wr. Wb.";
+  }
+
+  const coordName = comp.primary_coordinator?.name || ('Koordinator ' + (comp.title || 'Lomba'));
+  const feeFormatted = comp.fee && comp.fee > 0 ? ('Rp ' + Number(comp.fee).toLocaleString('id-ID')) : 'Gratis';
+  const eventName = 'Semarak Aliyah XIV 2026';
+
+  const replacements = {
+    '{nama_pj}': coordName,
+    '{nama_koordinator}': coordName,
+    '{cabang_lomba}': comp.title || 'Lomba',
+    '{nama_event}': eventName,
+    '{nama_sekolah}': form.school_name || '[Nama Sekolah]',
+    '{nama_pendaftar}': form.mentor_name || '[Nama Pendaftar]',
+    '{nomor_wa}': form.mentor_phone || '[Nomor WA]',
+    '{biaya}': feeFormatted,
+    '{kontak_pj}': phone,
+  };
+
+  let rendered = tpl;
+  for (const [k, v] of Object.entries(replacements)) {
+    rendered = rendered.split(k).join(v);
+  }
+
+  return `https://wa.me/${targetPhone}?text=${encodeURIComponent(rendered)}`;
 }
 
 function getCompDropdownSuffix(c) {
@@ -2456,7 +2559,7 @@ function getCompDropdownSuffix(c) {
 
                         <!-- File Spec Tag -->
                         <span v-if="field.type === 'file'" class="file-spec-tag">
-                          {{ (field.allowed_extensions && field.allowed_extensions.length) ? field.allowed_extensions.join(', ').toUpperCase() : 'PDF / JPG / PNG' }} • Maks. {{ field.max_size_mb || 5 }} MB
+                          {{ (field.allowed_extensions && field.allowed_extensions.length) ? field.allowed_extensions.join(', ').toUpperCase() : 'PDF / JPG / PNG' }} • Maks. {{ field.max_size_mb || 5 }} MB • {{ (field.max_files || 1) > 1 ? `Maks. ${field.max_files} Berkas` : '1 Berkas' }}
                         </span>
                       </label>
 
@@ -2560,44 +2663,111 @@ function getCompDropdownSuffix(c) {
                       <div 
                         v-else-if="field.type === 'file'"
                         class="reg-file-dropzone-box"
-                        :class="{ 'has-file': form.custom_fields[field.name] }"
+                        :class="{ 'has-file': (field.max_files || 1) > 1 ? getCustomFileList(field.name).length > 0 : !!form.custom_fields[field.name] }"
                       >
-                        <div v-if="!form.custom_fields[field.name]" class="dropzone-empty">
-                          <i class="ri-upload-cloud-2-line dropzone-icon"></i>
-                          <div class="dropzone-title">Pilih Berkas Dokumen untuk Diunggah</div>
-                          <div class="dropzone-spec">
-                            Format: {{ (field.allowed_extensions && field.allowed_extensions.length) ? field.allowed_extensions.join(', ').toUpperCase() : 'PDF, JPG, PNG, DOCX' }} • Maks. {{ field.max_size_mb || 5 }} MB
-                          </div>
-                          <input 
-                            type="file" 
-                            :id="'cf-' + field.name"
-                            class="form-control file-input-element"
-                            :accept="field.allowed_extensions ? field.allowed_extensions.map(e => '.' + e).join(',') : undefined"
-                            @change="e => handleCustomFileChange(field.name, e)"
-                            :required="field.required && !form.custom_fields[field.name]"
-                          />
-                        </div>
-                        <div v-else class="dropzone-filled">
-                          <div class="file-filled-left">
-                            <div class="file-icon-box">
-                              <i class="ri-file-text-line"></i>
+                        <!-- Single File Mode (max_files <= 1) -->
+                        <template v-if="(field.max_files || 1) <= 1">
+                          <div v-if="!form.custom_fields[field.name]" class="dropzone-empty">
+                            <i class="ri-upload-cloud-2-line dropzone-icon"></i>
+                            <div class="dropzone-title">Pilih Berkas Dokumen untuk Diunggah</div>
+                            <div class="dropzone-spec">
+                              Format: {{ (field.allowed_extensions && field.allowed_extensions.length) ? field.allowed_extensions.join(', ').toUpperCase() : 'PDF, JPG, PNG, DOCX' }} • Maks. {{ field.max_size_mb || 5 }} MB
                             </div>
-                            <div class="file-meta">
-                              <div class="file-name">{{ getCustomFileName(field.name) }}</div>
-                              <div class="file-size-status">
-                                <i class="ri-checkbox-circle-fill"></i> Siap diunggah ({{ formatFileSize(getCustomFileSize(field.name)) }})
+                            <input 
+                              type="file" 
+                              :id="'cf-' + field.name"
+                              class="form-control file-input-element"
+                              :accept="field.allowed_extensions ? field.allowed_extensions.map(e => '.' + e).join(',') : undefined"
+                              @change="e => handleCustomFileChange(field.name, e, 1)"
+                              :required="field.required && !form.custom_fields[field.name]"
+                            />
+                          </div>
+                          <div v-else class="dropzone-filled">
+                            <div class="file-filled-left">
+                              <div class="file-icon-box">
+                                <i class="ri-file-text-line"></i>
+                              </div>
+                              <div class="file-meta">
+                                <div class="file-name">{{ getCustomFileName(form.custom_fields[field.name]) }}</div>
+                                <div class="file-size-status">
+                                  <i class="ri-checkbox-circle-fill"></i> Siap diunggah ({{ formatFileSize(getCustomFileSize(form.custom_fields[field.name])) }})
+                                </div>
                               </div>
                             </div>
+                            <button 
+                              type="button" 
+                              class="btn-remove-file"
+                              @click="clearCustomFile(field.name)" 
+                              title="Hapus / ganti berkas"
+                            >
+                              <i class="ri-delete-bin-line"></i> Hapus
+                            </button>
                           </div>
-                          <button 
-                            type="button" 
-                            class="btn-remove-file"
-                            @click="clearCustomFile(field.name)" 
-                            title="Hapus / ganti berkas"
-                          >
-                            <i class="ri-delete-bin-line"></i> Hapus
-                          </button>
-                        </div>
+                        </template>
+
+                        <!-- Multi-File Mode (max_files > 1) -->
+                        <template v-else>
+                          <div v-if="getCustomFileList(field.name).length === 0" class="dropzone-empty">
+                            <i class="ri-folders-line dropzone-icon"></i>
+                            <div class="dropzone-title">Pilih Hingga {{ field.max_files }} Berkas untuk Diunggah</div>
+                            <div class="dropzone-spec">
+                              Format: {{ (field.allowed_extensions && field.allowed_extensions.length) ? field.allowed_extensions.join(', ').toUpperCase() : 'PDF, JPG, PNG, DOCX' }} • Maks. {{ field.max_size_mb || 5 }} MB per berkas
+                            </div>
+                            <input 
+                              type="file" 
+                              :id="'cf-' + field.name"
+                              multiple
+                              class="form-control file-input-element"
+                              :accept="field.allowed_extensions ? field.allowed_extensions.map(e => '.' + e).join(',') : undefined"
+                              @change="e => handleCustomFileChange(field.name, e, field.max_files)"
+                              :required="field.required && getCustomFileList(field.name).length === 0"
+                            />
+                          </div>
+                          <div v-else class="d-flex flex-column gap-2 text-start">
+                            <div class="d-flex align-items-center justify-content-between pb-1 border-bottom">
+                              <span class="fs-12 fw-bold text-dark d-flex align-items-center gap-1.5">
+                                <i class="ri-folders-fill text-success"></i> Berkas Terpilih ({{ getCustomFileList(field.name).length }} dari maks. {{ field.max_files }})
+                              </span>
+                              <label 
+                                v-if="getCustomFileList(field.name).length < field.max_files"
+                                :for="'cf-' + field.name" 
+                                class="btn btn-xs btn-outline-primary mb-0 cursor-pointer d-inline-flex align-items-center gap-1"
+                              >
+                                <i class="ri-add-line"></i> Tambah Berkas
+                              </label>
+                            </div>
+                            <input 
+                              type="file" 
+                              :id="'cf-' + field.name"
+                              multiple
+                              class="d-none"
+                              :accept="field.allowed_extensions ? field.allowed_extensions.map(e => '.' + e).join(',') : undefined"
+                              @change="e => handleCustomFileChange(field.name, e, field.max_files)"
+                            />
+                            <div 
+                              v-for="(fItem, fIdx) in getCustomFileList(field.name)" 
+                              :key="fIdx"
+                              class="d-flex align-items-center justify-content-between p-2 rounded-2 bg-white border"
+                            >
+                              <div class="d-flex align-items-center gap-2 min-w-0">
+                                <span class="badge bg-light text-muted fs-10 px-1.5 py-0.5">#{{ fIdx + 1 }}</span>
+                                <i class="ri-file-text-line fs-18 text-primary"></i>
+                                <div class="min-w-0">
+                                  <div class="fs-12 fw-semibold text-dark text-truncate">{{ getCustomFileName(fItem) }}</div>
+                                  <div class="fs-10 text-muted">{{ formatFileSize(getCustomFileSize(fItem)) }}</div>
+                                </div>
+                              </div>
+                              <button 
+                                type="button" 
+                                class="btn btn-xs btn-outline-danger py-0.5 px-2"
+                                @click="removeCustomFileIndex(field.name, fIdx)"
+                                title="Hapus berkas ini"
+                              >
+                                <i class="ri-delete-bin-line"></i>
+                              </button>
+                            </div>
+                          </div>
+                        </template>
                       </div>
 
                       <!-- 9. Tanggal (Wajib dd/mm/yyyy Flatpickr) -->
@@ -2623,6 +2793,49 @@ function getCompDropdownSuffix(c) {
                       </div>
                     </div>
                   </template>
+                </div>
+              </div>
+
+              <!-- CARD 4.5: INFORMASI REKENING TRANSFER TUJUAN (JIKA BERBAYAR) -->
+              <div v-if="calculatedFee > 0 && !isAllInFree" class="reg-section-card mb-3">
+                <div class="reg-section-title">
+                  <i class="ri-wallet-3-line text-success"></i> Rekening Tujuan Transfer Pembayaran
+                </div>
+                <div class="bank-accounts-container">
+                  <div 
+                    v-for="acc in activeBankAccounts" 
+                    :key="'single-bank-' + (acc.id || acc.account_number)"
+                    class="bank-account-card"
+                    :class="{ 'is-primary': acc.is_primary }"
+                  >
+                    <div class="bank-acc-header">
+                      <div class="d-flex align-items-center gap-1.5">
+                        <span class="bank-badge">
+                          <i class="ri-bank-card-line"></i> {{ acc.bank_name }}
+                        </span>
+                        <span v-if="acc.is_primary" class="bank-badge primary-tag">
+                          Rekening Utama
+                        </span>
+                      </div>
+                      <button 
+                        type="button" 
+                        class="bank-copy-btn"
+                        :class="{ 'is-copied': copiedAccId === (acc.id || acc.account_number) }"
+                        @click="copySpecificAccountNumber(acc)"
+                      >
+                        <i :class="copiedAccId === (acc.id || acc.account_number) ? 'ri-check-line text-success' : 'ri-file-copy-line'"></i>
+                        <span>{{ copiedAccId === (acc.id || acc.account_number) ? 'Tersalin!' : 'Salin Rekening' }}</span>
+                      </button>
+                    </div>
+                    <div class="bank-acc-body">
+                      <span class="bank-acc-num">{{ acc.account_number }}</span>
+                      <span class="bank-acc-holder">a.n. <strong>{{ acc.account_holder }}</strong></span>
+                    </div>
+                    <div class="bank-acc-footer">
+                      <span>Biaya registrasi: <strong style="color: #0f172a;">Rp {{ calculatedFee.toLocaleString('id-ID') }}</strong></span>
+                      <span v-if="acc.notes" class="fst-italic">• {{ acc.notes }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -2658,10 +2871,10 @@ function getCompDropdownSuffix(c) {
                   <i class="ri-checkbox-circle-fill"></i> Tercover Bebas Biaya (Paket Komplit: {{ manualCodeSuccessData?.school_name || form.school_name }})
                 </span>
                 <template v-else>
-                  <span>Transfer {{ pricingSettings?.bank_name || 'Bank BSI' }}</span>
+                  <span>Transfer {{ primaryBankAccount.bank_name }}</span>
                   <span class="bank-dot">•</span>
-                  <span class="bank-acc">Rek. {{ pricingSettings?.account_number || '7123456789' }}</span>
-                  <span class="bank-name">a.n. {{ pricingSettings?.account_holder || (school.event_name || 'Semarak Aliyah') }}</span>
+                  <span class="bank-acc">Rek. {{ primaryBankAccount.account_number }}</span>
+                  <span class="bank-name">a.n. {{ primaryBankAccount.account_holder }}</span>
                 </template>
               </div>
             </div>
@@ -3048,23 +3261,90 @@ function getCompDropdownSuffix(c) {
               <i class="ri-wallet-3-line text-success"></i> 3. Rekening Transfer & Bukti Pembayaran
             </div>
 
-            <div class="p-3 bg-white border rounded mb-3">
-              <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
-                <span class="fs-12 text-muted">Rekening Resmi Panitia:</span>
-                <span class="badge bg-success-subtle text-success fs-11 font-mono fw-bold">
-                  {{ pricingSettings?.bank_name || 'Bank Syariah Indonesia (BSI)' }}
-                </span>
-              </div>
-              <div class="d-flex align-items-baseline gap-2 mb-1">
-                <h4 class="fs-18 fw-bold font-mono text-dark mb-0">{{ pricingSettings?.account_number || '7123456789' }}</h4>
-                <small class="text-muted">a.n. {{ pricingSettings?.account_holder || (school.event_name || 'Semarak Aliyah') }}</small>
-              </div>
-              <div class="fs-11 text-muted">
-                Jumlah transfer tepat: <strong class="text-dark">Rp {{ Number(pricingSettings?.allin_price || 200000).toLocaleString('id-ID') }}</strong>
+            <!-- Daftar Rekening Bank Aktif Dinamis -->
+            <div class="bank-accounts-container mb-3">
+              <div 
+                v-for="acc in activeBankAccounts" 
+                :key="'allin-acc-' + (acc.id || acc.account_number)"
+                class="bank-account-card"
+                :class="{ 'is-primary': acc.is_primary }"
+              >
+                <div class="bank-acc-header">
+                  <div class="d-flex align-items-center gap-1.5">
+                    <span class="bank-badge">
+                      <i class="ri-bank-card-line"></i> {{ acc.bank_name }}
+                    </span>
+                    <span v-if="acc.is_primary" class="bank-badge primary-tag">
+                      Rekening Utama
+                    </span>
+                  </div>
+                  <button 
+                    type="button" 
+                    class="bank-copy-btn"
+                    :class="{ 'is-copied': copiedAccId === (acc.id || acc.account_number) }"
+                    @click="copySpecificAccountNumber(acc)"
+                  >
+                    <i :class="copiedAccId === (acc.id || acc.account_number) ? 'ri-check-line text-success' : 'ri-file-copy-line'"></i>
+                    <span>{{ copiedAccId === (acc.id || acc.account_number) ? 'Tersalin!' : 'Salin Rekening' }}</span>
+                  </button>
+                </div>
+                <div class="bank-acc-body">
+                  <span class="bank-acc-num">{{ acc.account_number }}</span>
+                  <span class="bank-acc-holder">a.n. <strong>{{ acc.account_holder }}</strong></span>
+                </div>
+                <div class="bank-acc-footer">
+                  <span>{{ acc.notes || 'Rekening Resmi Panitia Semarak Aliyah XIV' }}</span>
+                  <span>Jumlah transfer: <strong style="color: #0f172a;">Rp {{ Number(pricingSettings?.allin_price || 200000).toLocaleString('id-ID') }}</strong></span>
+                </div>
               </div>
             </div>
 
+            <!-- Pilihan Saluran Pembayaran -->
             <div class="form-group mb-3">
+              <label class="form-label mb-1">
+                <span>Pilih Saluran Pembayaran</span>
+                <span class="required-star">*</span>
+              </label>
+              <div class="d-flex flex-column gap-2">
+                <label 
+                  v-for="acc in activeBankAccounts" 
+                  :key="'allin-opt-' + (acc.id || acc.account_number)"
+                  class="reg-radio-item"
+                  :class="{ 'is-active': allInForm.payment_method === ('Transfer ' + acc.bank_name) }"
+                >
+                  <div class="d-flex align-items-center gap-2">
+                    <input
+                      type="radio"
+                      name="allin_payment_method"
+                      :value="'Transfer ' + acc.bank_name"
+                      v-model="allInForm.payment_method"
+                      class="form-check-input mt-0"
+                    />
+                    <span class="reg-radio-label-text">Transfer {{ acc.bank_name }} (Rek. {{ acc.account_number }})</span>
+                  </div>
+                  <i class="ri-bank-line text-success fs-16"></i>
+                </label>
+
+                <label 
+                  class="reg-radio-item"
+                  :class="{ 'is-active': allInForm.payment_method === 'Tunai di Sekretariat' }"
+                >
+                  <div class="d-flex align-items-center gap-2">
+                    <input
+                      type="radio"
+                      name="allin_payment_method"
+                      value="Tunai di Sekretariat"
+                      v-model="allInForm.payment_method"
+                      class="form-check-input mt-0"
+                    />
+                    <span class="reg-radio-label-text">Tunai Langsung di Sekretariat Panitia</span>
+                  </div>
+                  <i class="ri-money-dollar-circle-line text-warning fs-16"></i>
+                </label>
+              </div>
+            </div>
+
+            <div v-if="allInForm.payment_method !== 'Tunai di Sekretariat'" class="form-group mb-3">
               <label class="form-label">
                 <span>Unggah Bukti Transfer Bank (Opsional)</span>
                 <span class="text-muted fs-11">Format: JPG, PNG, PDF (Maks. 5MB)</span>
@@ -3146,6 +3426,131 @@ function getCompDropdownSuffix(c) {
 @keyframes regFadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* Bank Account Card Design */
+.bank-accounts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bank-account-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+}
+.bank-account-card.is-primary {
+  border-color: #86efac;
+  background: linear-gradient(to bottom, #f0fdf4 0%, #ffffff 100%);
+}
+.bank-acc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bank-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+.bank-badge.primary-tag {
+  background: #eff6ff;
+  color: #1e40af;
+  border-color: #bfdbfe;
+}
+.bank-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.bank-copy-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+.bank-copy-btn.is-copied {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+.bank-acc-body {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.bank-acc-num {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.5px;
+}
+.bank-acc-holder {
+  font-size: 12px;
+  color: #475569;
+}
+.bank-acc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #64748b;
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Radio Option Selector */
+.reg-radio-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.reg-radio-item:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+.reg-radio-item.is-active {
+  border-color: #2563eb !important;
+  background: #eff6ff !important;
+  border-left: 4px solid #2563eb !important;
+}
+.reg-radio-label-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e293b;
 }
 
 .reg-modal-card {

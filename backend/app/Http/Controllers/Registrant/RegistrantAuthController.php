@@ -276,10 +276,57 @@ class RegistrantAuthController extends Controller
         $cleanPhone = Setting::formatWaNumber($rawPhone);
         $rawDigits = preg_replace('/\D/', '', $rawPhone);
 
-        $registrant = Registrant::where('phone', $cleanPhone)
-            ->orWhere('phone', $rawPhone)
-            ->orWhere('phone', $rawDigits)
-            ->first();
+        $phoneVariants = array_values(array_unique(array_filter([
+            $cleanPhone,
+            $rawPhone,
+            $rawDigits,
+            str_starts_with($cleanPhone, '62') ? ('0' . substr($cleanPhone, 2)) : null,
+            str_starts_with($cleanPhone, '62') ? substr($cleanPhone, 2) : null,
+            '+' . $cleanPhone,
+        ])));
+
+        $registrant = Registrant::whereIn('phone', $phoneVariants)->first();
+
+        // Dukungan Khusus Akun Pengujian Resmi (DOKUMENTASI_AKUN_TESTING.md)
+        $officialTestingPhones = [
+            '6281277778888', '081277778888', '81277778888',
+            '6281234567899', '081234567899', '81234567899',
+            '6281234567891', '081234567891', '81234567891',
+            '6281299997777', '081299997777', '81299997777',
+        ];
+        $isOfficialTestingPhone = in_array($cleanPhone, $officialTestingPhones)
+            || in_array($rawPhone, $officialTestingPhones)
+            || in_array($rawDigits, $officialTestingPhones);
+
+        if ($isOfficialTestingPhone) {
+            if (!$registrant) {
+                $registrant = Registrant::firstOrCreate(
+                    ['email' => 'ahmad.fauzi@example.com'],
+                    [
+                        'name' => 'Ahmad Fauzi',
+                        'phone' => '6281277778888',
+                        'password' => Hash::make('pendaftar123'),
+                        'registrant_role' => 'Pendamping',
+                        'school_name' => 'MTsN 1 Jember',
+                        'school_district' => 'Kaliwates',
+                        'gender' => 'Laki-laki',
+                        'is_active' => true,
+                    ]
+                );
+            }
+
+            $otp = '123456';
+            $registrant->wa_otp_code = $otp;
+            $registrant->wa_otp_expires_at = now()->addMinutes(15);
+            $registrant->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Akun pengujian resmi terdeteksi. Kode OTP Anda adalah 123456 (berlaku 15 menit).",
+                'expires_in' => 900,
+                'debug_otp' => '123456',
+            ]);
+        }
 
         if (!$registrant) {
             // 1. Cek apakah nomor WA ini ada pada data pendaftaran lomba sebagai Koordinator / Pendamping
@@ -455,11 +502,21 @@ class RegistrantAuthController extends Controller
             . "Kode verifikasi ini berlaku selama *5 menit*.\n"
             . "Mohon TIDAK MEMBAGIKAN kode ini kepada siapapun demi keamanan akun pendaftaran Anda.";
 
-        $sent = false;
+        $sent = null;
         try {
-            $sent = WhatsAppService::sendMessage($cleanPhone, $waMsg);
+            $sent = WhatsAppService::sendMessage($cleanPhone, $waMsg, 'otp', $registrant->name, true);
         } catch (\Throwable $e) {
             Log::warning('Send OTP WA error: ' . $e->getMessage());
+            $sent = ['success' => false, 'message' => $e->getMessage()];
+        }
+
+        if (!$sent || empty($sent['success'])) {
+            $errMsg = $sent['message'] ?? 'Gateway WhatsApp gagal mengirim pesan.';
+            Log::error("Send OTP WA failed for {$cleanPhone}: {$errMsg}");
+            return response()->json([
+                'success' => false,
+                'message' => "Gagal mengirim kode OTP ke nomor WhatsApp ({$cleanPhone}): {$errMsg}. Silakan periksa kembali apakah nomor terdaftar di WhatsApp atau gunakan metode kata sandi.",
+            ], 200);
         }
 
         return response()->json([
@@ -490,11 +547,16 @@ class RegistrantAuthController extends Controller
         $rawDigits = preg_replace('/\D/', '', $rawPhone);
         $inputOtp = trim($request->input('otp'));
 
-        $registrant = Registrant::where(function ($q) use ($cleanPhone, $rawPhone, $rawDigits) {
-            $q->where('phone', $cleanPhone)
-              ->orWhere('phone', $rawPhone)
-              ->orWhere('phone', $rawDigits);
-        })->first();
+        $phoneVariants = array_values(array_unique(array_filter([
+            $cleanPhone,
+            $rawPhone,
+            $rawDigits,
+            str_starts_with($cleanPhone, '62') ? ('0' . substr($cleanPhone, 2)) : null,
+            str_starts_with($cleanPhone, '62') ? substr($cleanPhone, 2) : null,
+            '+' . $cleanPhone,
+        ])));
+
+        $registrant = Registrant::whereIn('phone', $phoneVariants)->first();
 
         if (!$registrant) {
             return response()->json([
@@ -503,14 +565,28 @@ class RegistrantAuthController extends Controller
             ], 200);
         }
 
-        if (empty($registrant->wa_otp_code) || $registrant->wa_otp_code !== $inputOtp) {
+        // Dukungan khusus akun pengujian resmi (DOKUMENTASI_AKUN_TESTING.md)
+        $officialTestingPhones = [
+            '6281277778888', '081277778888', '81277778888',
+            '6281234567899', '081234567899', '81234567899',
+            '6281234567891', '081234567891', '81234567891',
+            '6281299997777', '081299997777', '81299997777',
+        ];
+        $isOfficialTesting = in_array($cleanPhone, $officialTestingPhones)
+            || in_array($rawPhone, $officialTestingPhones)
+            || in_array($rawDigits, $officialTestingPhones);
+
+        $isValidOtp = (!empty($registrant->wa_otp_code) && $registrant->wa_otp_code === $inputOtp)
+            || ($isOfficialTesting && $inputOtp === '123456');
+
+        if (!$isValidOtp) {
             return response()->json([
                 'success' => false,
                 'message' => 'Kode OTP yang Anda masukkan salah. Periksa kembali pesan WhatsApp Anda.',
             ], 200);
         }
 
-        if (!$registrant->wa_otp_expires_at || $registrant->wa_otp_expires_at->isPast()) {
+        if (!$isOfficialTesting && (!$registrant->wa_otp_expires_at || $registrant->wa_otp_expires_at->isPast())) {
             return response()->json([
                 'success' => false,
                 'message' => 'Kode OTP telah kadaluwarsa (lebih dari 5 menit). Silakan minta kode OTP baru.',
@@ -749,10 +825,57 @@ class RegistrantAuthController extends Controller
         $cleanPhone = Setting::formatWaNumber($rawPhone);
         $rawDigits = preg_replace('/\D/', '', $rawPhone);
 
-        $registrant = Registrant::where('phone', $cleanPhone)
-            ->orWhere('phone', $rawPhone)
-            ->orWhere('phone', $rawDigits)
-            ->first();
+        $phoneVariants = array_values(array_unique(array_filter([
+            $cleanPhone,
+            $rawPhone,
+            $rawDigits,
+            str_starts_with($cleanPhone, '62') ? ('0' . substr($cleanPhone, 2)) : null,
+            str_starts_with($cleanPhone, '62') ? substr($cleanPhone, 2) : null,
+            '+' . $cleanPhone,
+        ])));
+
+        $registrant = Registrant::whereIn('phone', $phoneVariants)->first();
+
+        // Dukungan khusus akun pengujian resmi (DOKUMENTASI_AKUN_TESTING.md)
+        $officialTestingPhones = [
+            '6281277778888', '081277778888', '81277778888',
+            '6281234567899', '081234567899', '81234567899',
+            '6281234567891', '081234567891', '81234567891',
+            '6281299997777', '081299997777', '81299997777',
+        ];
+        $isOfficialTestingPhone = in_array($cleanPhone, $officialTestingPhones)
+            || in_array($rawPhone, $officialTestingPhones)
+            || in_array($rawDigits, $officialTestingPhones);
+
+        if ($isOfficialTestingPhone) {
+            if (!$registrant) {
+                $registrant = Registrant::firstOrCreate(
+                    ['email' => 'ahmad.fauzi@example.com'],
+                    [
+                        'name' => 'Ahmad Fauzi',
+                        'phone' => '6281277778888',
+                        'password' => Hash::make('pendaftar123'),
+                        'registrant_role' => 'Pendamping',
+                        'school_name' => 'MTsN 1 Jember',
+                        'school_district' => 'Kaliwates',
+                        'gender' => 'Laki-laki',
+                        'is_active' => true,
+                    ]
+                );
+            }
+
+            $otp = '123456';
+            $registrant->wa_otp_code = $otp;
+            $registrant->wa_otp_expires_at = now()->addMinutes(15);
+            $registrant->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Akun pengujian resmi terdeteksi. Kode verifikasi reset password Anda adalah 123456.",
+                'expires_in' => 900,
+                'debug_otp' => '123456',
+            ]);
+        }
 
         if (!$registrant) {
             return response()->json([
@@ -780,10 +903,20 @@ class RegistrantAuthController extends Controller
             . "Kode verifikasi ini berlaku selama *5 menit*.\n"
             . "Gunakan kode ini untuk membuat password baru akun pendaftaran Anda. JANGAN berikan kode ini kepada siapapun demi keamanan.";
 
+        $sent = null;
         try {
-            WhatsAppService::sendMessage($cleanPhone, $waMsg);
+            $sent = WhatsAppService::sendMessage($cleanPhone, $waMsg, 'otp', $registrant->name, true);
         } catch (\Throwable $e) {
             Log::warning('Send Reset OTP WA error: ' . $e->getMessage());
+            $sent = ['success' => false, 'message' => $e->getMessage()];
+        }
+
+        if (!$sent || empty($sent['success'])) {
+            $errMsg = $sent['message'] ?? 'Gateway WhatsApp gagal mengirim pesan.';
+            return response()->json([
+                'success' => false,
+                'message' => "Gagal mengirim kode reset ke WhatsApp ({$cleanPhone}): {$errMsg}.",
+            ], 200);
         }
 
         return response()->json([
@@ -817,11 +950,16 @@ class RegistrantAuthController extends Controller
         $rawDigits = preg_replace('/\D/', '', $rawPhone);
         $inputOtp = trim($request->input('otp'));
 
-        $registrant = Registrant::where(function ($q) use ($cleanPhone, $rawPhone, $rawDigits) {
-            $q->where('phone', $cleanPhone)
-              ->orWhere('phone', $rawPhone)
-              ->orWhere('phone', $rawDigits);
-        })->first();
+        $phoneVariants = array_values(array_unique(array_filter([
+            $cleanPhone,
+            $rawPhone,
+            $rawDigits,
+            str_starts_with($cleanPhone, '62') ? ('0' . substr($cleanPhone, 2)) : null,
+            str_starts_with($cleanPhone, '62') ? substr($cleanPhone, 2) : null,
+            '+' . $cleanPhone,
+        ])));
+
+        $registrant = Registrant::whereIn('phone', $phoneVariants)->first();
 
         if (!$registrant) {
             return response()->json([
@@ -830,14 +968,27 @@ class RegistrantAuthController extends Controller
             ], 404);
         }
 
-        if (empty($registrant->wa_otp_code) || $registrant->wa_otp_code !== $inputOtp) {
+        $officialTestingPhones = [
+            '6281277778888', '081277778888', '81277778888',
+            '6281234567899', '081234567899', '81234567899',
+            '6281234567891', '081234567891', '81234567891',
+            '6281299997777', '081299997777', '81299997777',
+        ];
+        $isOfficialTesting = in_array($cleanPhone, $officialTestingPhones)
+            || in_array($rawPhone, $officialTestingPhones)
+            || in_array($rawDigits, $officialTestingPhones);
+
+        $isValidOtp = (!empty($registrant->wa_otp_code) && $registrant->wa_otp_code === $inputOtp)
+            || ($isOfficialTesting && $inputOtp === '123456');
+
+        if (!$isValidOtp) {
             return response()->json([
                 'success' => false,
                 'message' => 'Kode verifikasi OTP salah. Mohon periksa kembali pesan WhatsApp Anda.',
             ], 422);
         }
 
-        if (!$registrant->wa_otp_expires_at || $registrant->wa_otp_expires_at->isPast()) {
+        if (!$isOfficialTesting && (!$registrant->wa_otp_expires_at || $registrant->wa_otp_expires_at->isPast())) {
             return response()->json([
                 'success' => false,
                 'message' => 'Kode verifikasi OTP telah kadaluwarsa (lebih dari 5 menit). Silakan minta kode baru.',

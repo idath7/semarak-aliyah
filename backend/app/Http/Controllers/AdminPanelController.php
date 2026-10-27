@@ -442,6 +442,7 @@ class AdminPanelController extends Controller
             'status' => 'nullable|in:open,closed',
             'registration_type' => 'nullable|in:online,direct_contact',
             'direct_registration_note' => 'nullable|string|max:1000',
+            'direct_registration_template' => 'nullable|string',
         ], $messages);
 
         $id = !empty($validated['id']) ? \Illuminate\Support\Str::slug($validated['id']) : \Illuminate\Support\Str::slug($validated['title']);
@@ -541,6 +542,7 @@ class AdminPanelController extends Controller
             'status' => $validated['status'] ?? 'open',
             'registration_type' => $validated['registration_type'] ?? 'online',
             'direct_registration_note' => $validated['direct_registration_note'] ?? null,
+            'direct_registration_template' => $validated['direct_registration_template'] ?? null,
             'participant_type' => $partType,
             'max_teams' => $maxTeams,
             'max_participants' => $maxParts,
@@ -619,6 +621,7 @@ class AdminPanelController extends Controller
             'status' => 'nullable|in:open,closed',
             'registration_type' => 'nullable|in:online,direct_contact',
             'direct_registration_note' => 'nullable|string|max:1000',
+            'direct_registration_template' => 'nullable|string',
         ], $messages);
 
         $category = strtolower($validated['category']);
@@ -733,6 +736,7 @@ class AdminPanelController extends Controller
             'status' => $validated['status'] ?? $comp->status,
             'registration_type' => $validated['registration_type'] ?? ($comp->registration_type ?: 'online'),
             'direct_registration_note' => array_key_exists('direct_registration_note', $validated) ? $validated['direct_registration_note'] : $comp->direct_registration_note,
+            'direct_registration_template' => array_key_exists('direct_registration_template', $validated) ? $validated['direct_registration_template'] : $comp->direct_registration_template,
             'participant_type' => $partType,
             'max_teams' => $maxTeams,
             'max_participants' => $maxParts,

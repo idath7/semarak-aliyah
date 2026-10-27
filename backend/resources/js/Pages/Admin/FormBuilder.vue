@@ -39,8 +39,22 @@ const isSaving = ref(false);
 // Accordion Expand/Collapse Map: { [fieldId]: boolean }
 const expandedMap = ref({});
 
+function isDistrictField(f) {
+  if (!f) return false;
+  return f.name === 'school_district' || 
+         f.default_name === 'school_district' || 
+         (f.label && f.label.toLowerCase().includes('kecamatan'));
+}
+
 function isExpanded(id) {
-  return expandedMap.value[id] !== false;
+  if (expandedMap.value[id] !== undefined) {
+    return expandedMap.value[id];
+  }
+  const field = fields.value.find(f => f.id === id);
+  if (isDistrictField(field)) {
+    return false;
+  }
+  return true;
 }
 
 function toggleExpand(id) {
@@ -345,7 +359,9 @@ function ensureMandatoryIdentityFields() {
 function restoreMandatoryFields() {
   ensureMandatoryIdentityFields();
   fields.value.forEach((f, idx) => {
-    if (idx < 7) {
+    if (isDistrictField(f)) {
+      expandedMap.value[f.id] = false;
+    } else if (idx < 7) {
       expandedMap.value[f.id] = true;
     }
   });
@@ -391,10 +407,14 @@ function initializeData() {
     }
   });
 
-  // Setup initial expansion: if more than 3 fields, expand first 2, collapse rest
+  // Setup initial expansion: if more than 3 fields, expand first 2 (excluding district), collapse rest
   const newMap = {};
   fields.value.forEach((f, idx) => {
-    newMap[f.id] = fields.value.length <= 3 ? true : (idx < 2);
+    if (isDistrictField(f)) {
+      newMap[f.id] = false;
+    } else {
+      newMap[f.id] = fields.value.length <= 3 ? true : (idx < 2);
+    }
   });
   expandedMap.value = newMap;
 
@@ -825,6 +845,7 @@ function addField(typeObj) {
     options: typeObj.defaultOptions ? [...typeObj.defaultOptions] : [],
     allowed_extensions: typeObj.type === 'file' ? ['pdf', 'jpg', 'jpeg', 'png'] : [],
     max_size_mb: typeObj.type === 'file' ? 5 : null,
+    max_files: typeObj.type === 'file' ? 1 : null,
     min_items: typeObj.type === 'participant_repeater' ? 1 : null,
     max_items: typeObj.type === 'participant_repeater' ? 10 : null,
     sub_fields: typeObj.type === 'participant_repeater' ? createDefaultSubFields() : null,
@@ -837,7 +858,7 @@ function addField(typeObj) {
   };
 
   fields.value.push(newField);
-  expandedMap.value[id] = true;
+  expandedMap.value[id] = !isDistrictField(newField);
   if (typeObj.type === 'participant_repeater') {
     previewValues.value[name + '_count'] = 3;
   }
@@ -858,6 +879,7 @@ function addCorePreset(preset) {
     options: preset.options ? [...preset.options] : [],
     allowed_extensions: [],
     max_size_mb: null,
+    max_files: null,
     is_mandatory_identity: !!preset.is_mandatory_identity,
     conditional_logic: {
       enabled: false,
@@ -868,7 +890,7 @@ function addCorePreset(preset) {
   };
 
   fields.value.push(newField);
-  expandedMap.value[id] = true;
+  expandedMap.value[id] = !isDistrictField(preset);
   toast.success(`Field "${preset.name}" ditambahkan!`);
 }
 
@@ -887,6 +909,7 @@ function addQuickPreset(preset) {
     options: preset.options ? [...preset.options] : [],
     allowed_extensions: preset.allowed_extensions ? [...preset.allowed_extensions] : [],
     max_size_mb: preset.max_size_mb || (preset.type === 'file' ? 5 : null),
+    max_files: preset.max_files || (preset.type === 'file' ? 1 : null),
     min_items: preset.min_items || (preset.type === 'participant_repeater' ? 1 : null),
     max_items: preset.max_items !== undefined ? preset.max_items : null,
     sub_fields: preset.sub_fields ? JSON.parse(JSON.stringify(preset.sub_fields)) : (preset.type === 'participant_repeater' ? createDefaultSubFields() : null),
@@ -899,7 +922,7 @@ function addQuickPreset(preset) {
   };
 
   fields.value.push(newField);
-  expandedMap.value[id] = true;
+  expandedMap.value[id] = !isDistrictField(newField);
   if (preset.type === 'participant_repeater') {
     previewValues.value[name + '_count'] = 3;
   }
@@ -2126,6 +2149,23 @@ function setParticipantCountDirect(field, val) {
                         <i class="ri-flashlight-line"></i> Bersyarat
                       </span>
 
+                      <!-- File Multi-Upload Badge -->
+                      <span 
+                        v-if="field.type === 'file' && (field.max_files || 1) > 1"
+                        class="badge bg-danger-subtle text-danger border border-danger-subtle fs-10 d-inline-flex align-items-center gap-1"
+                        title="Maksimal upload lebih dari 1 berkas"
+                      >
+                        <i class="ri-folders-line"></i> {{ field.max_files }} Berkas
+                      </span>
+
+                      <!-- Options Count Badge for Select / Radio / Checkbox -->
+                      <span 
+                        v-if="['select', 'radio', 'checkbox'].includes(field.type) && field.options?.length"
+                        class="badge bg-secondary-subtle text-secondary border border-secondary-subtle fs-10 d-inline-flex align-items-center gap-1"
+                      >
+                        <i class="ri-list-check"></i> {{ field.options.length }} Opsi
+                      </span>
+
                     </div>
 
                     <!-- Right Controls: Required Switch, Reorder Arrows, Duplicate, Delete, Chevron -->
@@ -2602,7 +2642,7 @@ function setParticipantCountDirect(field, val) {
                           </div>
 
                           <!-- Options Rows -->
-                          <div class="d-flex flex-column gap-1.5">
+                          <div class="d-flex flex-column gap-1.5" style="max-height: 280px; overflow-y: auto; padding-right: 4px;">
                             <div 
                               v-for="(opt, oIdx) in field.options" 
                               :key="oIdx"
@@ -2636,14 +2676,14 @@ function setParticipantCountDirect(field, val) {
                       <div v-if="field.type === 'file'" class="col-12">
                         <div class="p-3 bg-danger-subtle/20 rounded-3 border border-danger-subtle">
                           <div class="row g-2.5">
-                            <div class="col-md-7">
+                            <div class="col-md-5">
                               <div class="d-flex align-items-center justify-content-between mb-1.5">
                                 <label class="form-label fs-11 fw-bold text-dark mb-0">
-                                  <i class="ri-file-shield-2-line text-danger me-1"></i> Format Berkas Diizinkan:
+                                  <i class="ri-file-shield-2-line text-danger me-1"></i> Format Diizinkan:
                                 </label>
                                 <div class="d-flex gap-1">
-                                  <button type="button" class="btn btn-xs btn-ghost-danger py-0 px-1 text-[10px]" @click="setFilePreset(field, 'pdf')">PDF Saja</button>
-                                  <button type="button" class="btn btn-xs btn-ghost-danger py-0 px-1 text-[10px]" @click="setFilePreset(field, 'images')">Foto/JPG</button>
+                                  <button type="button" class="btn btn-xs btn-ghost-danger py-0 px-1 text-[10px]" @click="setFilePreset(field, 'pdf')">PDF</button>
+                                  <button type="button" class="btn btn-xs btn-ghost-danger py-0 px-1 text-[10px]" @click="setFilePreset(field, 'images')">Foto</button>
                                   <button type="button" class="btn btn-xs btn-ghost-danger py-0 px-1 text-[10px]" @click="setFilePreset(field, 'audio')">Audio</button>
                                   <button type="button" class="btn btn-xs btn-ghost-danger py-0 px-1 text-[10px]" @click="setFilePreset(field, 'all')">Semua</button>
                                 </div>
@@ -2663,9 +2703,9 @@ function setParticipantCountDirect(field, val) {
                               </div>
                             </div>
 
-                            <div class="col-md-5">
+                            <div class="col-md-3">
                               <label class="form-label fs-11 fw-bold text-dark mb-1">
-                                Ukuran Maksimal Berkas
+                                <i class="ri-hard-drive-2-line text-danger me-1"></i> Ukuran Maksimal
                               </label>
                               <div class="input-group input-group-sm">
                                 <input 
@@ -2682,6 +2722,38 @@ function setParticipantCountDirect(field, val) {
                                 <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" @click="field.max_size_mb = 5">5MB</button>
                                 <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" @click="field.max_size_mb = 10">10MB</button>
                               </div>
+                            </div>
+
+                            <div class="col-md-4">
+                              <div class="d-flex align-items-center justify-content-between mb-1">
+                                <label class="form-label fs-11 fw-bold text-dark mb-0">
+                                  <i class="ri-folders-line text-danger me-1"></i> Batas Jumlah Berkas
+                                </label>
+                                <span class="badge bg-danger-subtle text-danger fs-10 px-1.5 py-0.5">
+                                  {{ (field.max_files || 1) > 1 ? `${field.max_files} Berkas (Multi)` : '1 Berkas (Tunggal)' }}
+                                </span>
+                              </div>
+                              <div class="input-group input-group-sm">
+                                <input 
+                                  type="number" 
+                                  v-model.number="field.max_files"
+                                  class="form-control fs-12 font-mono"
+                                  min="1"
+                                  max="20"
+                                  placeholder="1"
+                                />
+                                <span class="input-group-text bg-light-subtle text-muted fs-11">Berkas</span>
+                              </div>
+                              <div class="d-flex flex-wrap gap-1 mt-1">
+                                <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" :class="{'btn-danger text-white': !field.max_files || field.max_files === 1}" @click="field.max_files = 1">1 File</button>
+                                <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" :class="{'btn-danger text-white': field.max_files === 2}" @click="field.max_files = 2">2</button>
+                                <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" :class="{'btn-danger text-white': field.max_files === 3}" @click="field.max_files = 3">3</button>
+                                <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" :class="{'btn-danger text-white': field.max_files === 5}" @click="field.max_files = 5">5</button>
+                                <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" :class="{'btn-danger text-white': field.max_files === 10}" @click="field.max_files = 10">10</button>
+                              </div>
+                              <small class="text-muted fs-10 d-block mt-1">
+                                {{ (field.max_files || 1) > 1 ? 'Peserta dapat mengunggah hingga ' + field.max_files + ' berkas sekaligus.' : 'Hanya 1 berkas per pendaftaran.' }}
+                              </small>
                             </div>
                           </div>
                         </div>
@@ -3175,9 +3247,11 @@ function setParticipantCountDirect(field, val) {
                         <div v-else-if="field.type === 'file'" class="pt-0.5">
                           <div class="border border-dashed border-slate-800 hover:border-amber-500/50 rounded-xl p-3 text-center bg-slate-950/70 transition-all cursor-pointer">
                             <i class="ri-upload-cloud-2-line text-lg text-amber-400 mb-0.5 d-block"></i>
-                            <div class="text-slate-300 font-semibold text-[11px]">Unggah Berkas</div>
+                            <div class="text-slate-300 font-semibold text-[11px]">
+                              Unggah Berkas {{ (field.max_files || 1) > 1 ? `(Bisa s.d ${field.max_files} berkas)` : '' }}
+                            </div>
                             <div class="text-[10px] text-slate-500 mt-0.5">
-                              {{ field.allowed_extensions?.join(', ') || 'Semua format' }} • Max {{ field.max_size_mb || 5 }} MB
+                              {{ field.allowed_extensions?.join(', ') || 'Semua format' }} • Max {{ field.max_size_mb || 5 }} MB • {{ (field.max_files || 1) > 1 ? `Maks. ${field.max_files} file` : '1 file' }}
                             </div>
                           </div>
                         </div>
@@ -3599,9 +3673,11 @@ function setParticipantCountDirect(field, val) {
                     <div v-else-if="field.type === 'file'" class="pt-1">
                       <div class="border-2 border-dashed border-slate-800 hover:border-amber-500/50 rounded-2xl p-4 text-center bg-slate-950/70 transition-all cursor-pointer">
                         <i class="ri-upload-cloud-2-line text-2xl text-amber-400 mb-1 d-block"></i>
-                        <div class="text-slate-300 font-semibold text-xs">Klik atau seret berkas ke sini</div>
+                        <div class="text-slate-300 font-semibold text-xs">
+                          Klik atau seret berkas ke sini {{ (field.max_files || 1) > 1 ? `(Maks. ${field.max_files} berkas)` : '' }}
+                        </div>
                         <div class="text-[11px] text-slate-500 mt-0.5">
-                          Format: {{ field.allowed_extensions?.join(', ') || 'Semua berkas' }} • Maksimal {{ field.max_size_mb || 5 }} MB
+                          Format: {{ field.allowed_extensions?.join(', ') || 'Semua berkas' }} • Maksimal {{ field.max_size_mb || 5 }} MB per berkas • {{ (field.max_files || 1) > 1 ? `Hingga ${field.max_files} berkas` : '1 berkas tunggal' }}
                         </div>
                       </div>
                     </div>

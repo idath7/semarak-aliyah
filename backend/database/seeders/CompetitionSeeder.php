@@ -80,8 +80,8 @@ class CompetitionSeeder extends Seeder
             [
                 'id' => 'albanjari',
                 'title' => 'Festival Albanjari',
-                'category' => 'seni',
-                'category_label' => 'Religi & Seni',
+                'category' => 'keagamaan',
+                'category_label' => "Bidang Keagamaan & Da'wah",
                 'icon' => '🥁',
                 'fee' => 50000,
                 'max_quota' => 25,
@@ -168,8 +168,8 @@ class CompetitionSeeder extends Seeder
             [
                 'id' => 'mobile-legends',
                 'title' => 'Tournament Mobile Legends (MSA S4)',
-                'category' => 'olahraga',
-                'category_label' => 'E-Sport',
+                'category' => 'teknologi',
+                'category_label' => "Bidang Teknologi & E-Sport",
                 'icon' => '🎮',
                 'fee' => 50000,
                 'max_quota' => 32,

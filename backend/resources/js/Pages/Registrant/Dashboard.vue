@@ -1,10 +1,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import CustomSelect from '@/Components/CustomSelect.vue';
 import { useToast } from '@/Composables/useToast';
 import { useTheme } from '@/Composables/useTheme';
 import AvatarCropperModal from '@/Components/AvatarCropperModal.vue';
+
+const page = usePage();
 
 const props = defineProps({
   user: { type: Object, required: true },
@@ -23,6 +25,36 @@ const { isDark, toggleTheme, initTheme } = useTheme();
 
 onMounted(() => {
   initTheme();
+});
+
+// Rekening Bank Pembayaran Dinamis
+const activeBankAccounts = computed(() => {
+  const globalAccounts = page.props.paymentBankAccounts;
+  if (Array.isArray(globalAccounts) && globalAccounts.length > 0) {
+    return globalAccounts.filter(a => a.is_active !== false);
+  }
+  const propAccounts = props.paymentInfo?.bank_accounts;
+  if (Array.isArray(propAccounts) && propAccounts.length > 0) {
+    return propAccounts.filter(a => a.is_active !== false);
+  }
+  return [
+    {
+      id: 'default',
+      bank_name: props.paymentInfo?.bank_name || 'Bank Syariah Indonesia (BSI)',
+      account_number: props.paymentInfo?.account_number || '7123456789',
+      account_holder: props.paymentInfo?.account_holder || 'Semarak Aliyah',
+      is_primary: true,
+      notes: 'Rekening Resmi Panitia'
+    }
+  ];
+});
+
+const primaryBankAccount = computed(() => {
+  return activeBankAccounts.value.find(a => a.is_primary) || activeBankAccounts.value[0] || {
+    bank_name: props.paymentInfo?.bank_name || 'Bank Syariah Indonesia (BSI)',
+    account_number: props.paymentInfo?.account_number || '7123456789',
+    account_holder: props.paymentInfo?.account_holder || 'Semarak Aliyah',
+  };
 });
 
 const packageDetails = computed(() => {
@@ -49,9 +81,9 @@ const packagePayment = computed(() => {
     master_reg_id: null,
     master_comp_title: null,
     payment_proof_url: null,
-    bank_name: props.paymentInfo?.bank_name || 'Bank Syariah Indonesia (BSI)',
-    account_number: props.paymentInfo?.account_number || '7123456789',
-    account_holder: props.paymentInfo?.account_holder || 'Semarak Aliyah',
+    bank_name: primaryBankAccount.value.bank_name,
+    account_number: primaryBankAccount.value.account_number,
+    account_holder: primaryBankAccount.value.account_holder,
   };
 });
 
@@ -145,7 +177,7 @@ function openEditModal(reg) {
   editForm.mentor_name = reg.mentor_name || '';
   editForm.mentor_wa = reg.mentor_wa || '';
   editForm.notes = reg.notes || '';
-  editForm.payment_method = reg.payment_method || 'Transfer Bank BSI';
+  editForm.payment_method = reg.payment_method || ('Transfer ' + primaryBankAccount.value.bank_name);
   editForm.payment_proof = null;
   editForm.custom_files = {};
   paymentProofPreview.value = null;
@@ -424,23 +456,31 @@ function removeAssignedPic(regId) {
 const isPackageProofModalOpen = ref(false);
 const packageProofFile = ref(null);
 const packageProofPreview = ref(null);
-const packageProofMethod = ref('Transfer Bank BSI');
-const packagePaymentMethodOptions = [
-  { value: 'Transfer Bank BSI', label: 'Transfer Bank BSI (Rek. 7123456789 a.n Semarak Aliyah)' },
-  { value: 'Tunai di Kantor Panitia', label: 'Pembayaran Tunai di Kantor Sekretariat Panitia' },
-];
+const packageProofMethod = ref('Transfer ' + primaryBankAccount.value.bank_name);
+const packagePaymentMethodOptions = computed(() => {
+  const options = activeBankAccounts.value.map(acc => ({
+    value: 'Transfer ' + acc.bank_name,
+    label: `Transfer ${acc.bank_name} (Rek. ${acc.account_number} a.n ${acc.account_holder})`
+  }));
+  options.push({
+    value: 'Tunai di Kantor Panitia',
+    label: 'Pembayaran Tunai di Kantor Sekretariat Panitia'
+  });
+  return options;
+});
 
 const packageProofForm = useForm({
   payment_proof: null,
-  payment_method: 'Transfer Bank BSI',
+  payment_method: 'Transfer ' + primaryBankAccount.value.bank_name,
 });
 
 function openPackageProofModal() {
   packageProofFile.value = null;
   packageProofPreview.value = null;
-  packageProofMethod.value = 'Transfer Bank BSI';
+  const defMethod = 'Transfer ' + primaryBankAccount.value.bank_name;
+  packageProofMethod.value = defMethod;
   packageProofForm.payment_proof = null;
-  packageProofForm.payment_method = 'Transfer Bank BSI';
+  packageProofForm.payment_method = defMethod;
   isPackageProofModalOpen.value = true;
 }
 
@@ -1526,7 +1566,7 @@ function submitPackageProof() {
                   Saluran: <strong class="detail-value">{{ detailReg.payment_method }}</strong>
                 </div>
                 <div class="fs-11 modal-desc-text mt-0.5">
-                  Rek. Tujuan: <strong>BSI 7123456789 (Semarak Aliyah)</strong>
+                  Rek. Tujuan: <strong>{{ primaryBankAccount.bank_name }} {{ primaryBankAccount.account_number }} ({{ primaryBankAccount.account_holder }})</strong>
                 </div>
               </div>
 
@@ -1867,7 +1907,7 @@ function submitPackageProof() {
                   </tr>
                   <tr>
                     <td class="print-col-label">Saluran Pembayaran</td>
-                    <td class="print-col-value">{{ printReg.payment_method }} (Rek. Bank BSI 7123456789 a.n Semarak Aliyah)</td>
+                    <td class="print-col-value">{{ printReg.payment_method }} (Rek. {{ primaryBankAccount.bank_name }} {{ primaryBankAccount.account_number }} a.n {{ primaryBankAccount.account_holder }})</td>
                   </tr>
                   <tr>
                     <td class="print-col-label">Status Pembayaran</td>

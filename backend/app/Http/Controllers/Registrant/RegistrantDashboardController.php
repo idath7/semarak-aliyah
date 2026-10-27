@@ -119,7 +119,13 @@ class RegistrantDashboardController extends Controller
             }
         }
 
-        $registrations = $rawCollection->map(function ($reg) use ($user, $cleanPhone, $sharedAllInProofUrl, $masterAllInId, $allInPaymentStatus) {
+        $bankAccounts = Setting::getBankAccounts();
+        $primaryAccount = collect($bankAccounts)->firstWhere('is_primary', true) ?? ($bankAccounts[0] ?? null);
+        $bankName = $primaryAccount['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)');
+        $accountNumber = $primaryAccount['account_number'] ?? Setting::get('payment_account_number', '7123456789');
+        $accountHolder = $primaryAccount['account_holder'] ?? Setting::get('payment_account_holder', 'Semarak Aliyah');
+
+        $registrations = $rawCollection->map(function ($reg) use ($user, $cleanPhone, $sharedAllInProofUrl, $masterAllInId, $allInPaymentStatus, $bankName) {
             $comp = $reg->competition;
             $isCompClosed = $comp ? ($comp->status === 'closed' || $comp->isDeadlinePassed()) : false;
             
@@ -170,7 +176,7 @@ class RegistrantDashboardController extends Controller
                 'total_fee' => (int)$reg->total_fee,
                 'registration_status' => $reg->registration_status ?: 'Menunggu Verifikasi',
                 'payment_status' => $isAllIn ? $allInPaymentStatus : ($reg->payment_status ?: 'Menunggu Verifikasi'),
-                'payment_method' => $reg->payment_method ?: 'Transfer Bank BSI',
+                'payment_method' => $reg->payment_method ?: ('Transfer ' . $bankName),
                 'checkin_status' => $reg->checkin_status ?: 'belum_hadir',
                 'verification_notes' => $reg->verification_notes,
                 'draw_number' => $reg->draw_number,
@@ -215,9 +221,6 @@ class RegistrantDashboardController extends Controller
         });
 
         $helpdeskWa = Setting::get('contact_wa', '0838 5007 0767');
-        $bankName = Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)');
-        $accountNumber = Setting::get('payment_account_number', '7123456789');
-        $accountHolder = Setting::get('payment_account_holder', 'Semarak Aliyah');
 
         $isCurrentUserPicOnly = $registrations->isNotEmpty() && $registrations->every(fn($r) => $r['is_pic'] && !$r['is_owner']);
 
@@ -246,6 +249,7 @@ class RegistrantDashboardController extends Controller
                 'bank_name' => $bankName,
                 'account_number' => $accountNumber,
                 'account_holder' => $accountHolder,
+                'bank_accounts' => $bankAccounts,
                 'helpdesk_wa' => $helpdeskWa,
             ],
             'allInPricing' => [
@@ -307,12 +311,11 @@ class RegistrantDashboardController extends Controller
             'notes' => 'nullable|string',
             'payment_method' => 'nullable|string',
             'payment_proof' => 'nullable|file|mimes:jpeg,png,jpg,webp,pdf|max:5120',
-            'custom_files.*' => 'nullable|file|mimes:jpeg,png,jpg,webp,pdf,doc,docx,xls,xlsx,zip,rar|max:10240',
+            'custom_files' => 'nullable|array',
+            'custom_files.*' => 'nullable',
         ], [
             'payment_proof.mimes' => 'Bukti pembayaran harus berformat JPEG, PNG, JPG, WEBP, atau PDF.',
             'payment_proof.max' => 'Ukuran berkas bukti pembayaran maksimal 5MB.',
-            'custom_files.*.mimes' => 'Format berkas lampiran tidak didukung.',
-            'custom_files.*.max' => 'Ukuran berkas lampiran maksimal 10MB.',
         ]);
 
         $isOwner = ($registration->registrant_id === $user->id || $registration->user_id === $user->id || Setting::formatWaNumber($registration->mentor_wa) === $cleanPhone);
@@ -389,32 +392,59 @@ class RegistrantDashboardController extends Controller
         if ($request->hasFile('custom_files')) {
             $uploadedFiles = $request->file('custom_files');
             if (is_array($uploadedFiles)) {
-                foreach ($uploadedFiles as $fieldKey => $file) {
-                    if ($file && $file->isValid()) {
-                        $customExt = strtolower($file->getClientOriginalExtension());
-                        $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $file->getClientOriginalName());
-                        $path = $file->storeAs("uploads/registrations/{$regCode}", time() . "_{$fieldKey}_{$safeName}", 'public');
-                        $fileUrl = '/storage/' . $path;
+                $comp = $registration->competition;
+                $compCustomFields = ($comp && is_array($comp->custom_fields)) ? $comp->custom_fields : [];
+                $compFieldMap = [];
+                foreach ($compCustomFields as $cf) {
+                    if (!empty($cf['name'])) $compFieldMap[$cf['name']] = $cf;
+                }
 
-                        $fieldLabel = ucwords(str_replace(['_', '-'], ' ', $fieldKey));
+                foreach ($uploadedFiles as $fieldKey => $fileOrFiles) {
+                    $fieldDef = $compFieldMap[$fieldKey] ?? [];
+                    $maxFiles = !empty($fieldDef['max_files']) ? (int)$fieldDef['max_files'] : 1;
+                    $fieldLabel = !empty($fieldDef['label']) ? $fieldDef['label'] : ucwords(str_replace(['_', '-'], ' ', $fieldKey));
 
-                        // Replace or append to file_documents
-                        $existingFiles = array_filter($existingFiles, fn($f) => ($f['title'] ?? '') !== $fieldLabel);
-                        $existingFiles[] = [
-                            'title' => $fieldLabel,
-                            'url' => $fileUrl,
-                            'filename' => $file->getClientOriginalName(),
-                            'type' => $customExt,
-                            'uploaded_at' => now()->toIso8601String(),
-                        ];
+                    $fileList = is_array($fileOrFiles) 
+                        ? array_values(array_filter($fileOrFiles, fn($f) => $f instanceof \Illuminate\Http\UploadedFile)) 
+                        : ($fileOrFiles instanceof \Illuminate\Http\UploadedFile ? [$fileOrFiles] : []);
 
-                        $existingCustom[$fieldKey] = [
-                            'type' => 'file',
-                            'label' => $fieldLabel,
-                            'name' => $file->getClientOriginalName(),
-                            'url' => $fileUrl,
-                            'extension' => $customExt,
-                        ];
+                    if ($maxFiles > 0 && count($fileList) > $maxFiles) {
+                        $fileList = array_slice($fileList, 0, $maxFiles);
+                    }
+
+                    $processedMetas = [];
+                    foreach ($fileList as $file) {
+                        if ($file->isValid()) {
+                            $customExt = strtolower($file->getClientOriginalExtension());
+                            $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $file->getClientOriginalName());
+                            $path = $file->storeAs("uploads/registrations/{$regCode}", time() . "_" . uniqid() . "_{$fieldKey}_{$safeName}", 'public');
+                            $fileUrl = '/storage/' . $path;
+
+                            $existingFiles[] = [
+                                'title' => $fieldLabel,
+                                'url' => $fileUrl,
+                                'filename' => $file->getClientOriginalName(),
+                                'type' => $customExt,
+                                'uploaded_at' => now()->toIso8601String(),
+                            ];
+
+                            $processedMetas[] = [
+                                'type' => 'file',
+                                'label' => $fieldLabel,
+                                'name' => $file->getClientOriginalName(),
+                                'url' => $fileUrl,
+                                'size' => $file->getSize(),
+                                'extension' => $customExt,
+                            ];
+                        }
+                    }
+
+                    if (!empty($processedMetas)) {
+                        if ($maxFiles > 1) {
+                            $existingCustom[$fieldKey] = $processedMetas;
+                        } else {
+                            $existingCustom[$fieldKey] = $processedMetas[0] ?? null;
+                        }
                     }
                 }
                 $registration->custom_fields = $existingCustom;
@@ -576,7 +606,7 @@ class RegistrantDashboardController extends Controller
                 . "Anda dapat masuk ke Portal Pendaftar untuk melengkapi nama delegasi dan mengunggah berkas menggunakan *kode OTP WhatsApp* ke nomor ini di:\n"
                 . "👉 {$loginUrl}\n\n"
                 . "Terima kasih,\n*Panitia Semarak Aliyah XIV 2026*";
-            WhatsAppService::sendMessage($assignedCleanPhone, $waMsg);
+            WhatsAppService::sendMessage($assignedCleanPhone, $waMsg, 'delegation', $registration->assigned_name, true);
         } catch (\Throwable $e) {
             Log::warning('Kirim WA penunjukan PIC gagal: ' . $e->getMessage());
         }
@@ -714,7 +744,7 @@ class RegistrantDashboardController extends Controller
                 'total_fee' => $fee,
                 'registration_status' => 'Menunggu Verifikasi',
                 'payment_status' => $paymentStatus,
-                'payment_method' => 'Transfer Bank BSI',
+                'payment_method' => 'Transfer ' . (collect(Setting::getBankAccounts())->firstWhere('is_primary', true)['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)')),
                 'checkin_status' => 'belum_hadir',
                 'file_documents' => $fileDocs,
             ]);
@@ -766,9 +796,8 @@ class RegistrantDashboardController extends Controller
         $masterReg = $allInRegs->firstWhere('total_fee', '>', 0) ?: $allInRegs->first();
         $regCode = $masterReg->reg_code;
         $path = $proof->storeAs("uploads/registrations/{$regCode}", time() . "_bukti_{$safeName}", 'public');
-        $fileUrl = '/storage/' . $path;
-
-        $paymentMethod = $request->input('payment_method') ?: 'Transfer Bank BSI';
+        $primaryBankName = collect(Setting::getBankAccounts())->firstWhere('is_primary', true)['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)');
+        $paymentMethod = $request->input('payment_method') ?: ('Transfer ' . $primaryBankName);
 
         foreach ($allInRegs as $reg) {
             $existingFiles = $reg->file_documents ?: [];
@@ -829,6 +858,7 @@ class RegistrantDashboardController extends Controller
                 'registration_type' => $c->registration_type ?: 'online',
                 'is_direct_registration' => $c->isDirectRegistration(),
                 'direct_registration_note' => $c->direct_registration_note,
+                'direct_registration_template' => $c->direct_registration_template,
                 'direct_contact_wa_url' => $c->direct_contact_wa_url,
                 'primary_coordinator' => $c->primary_coordinator,
                 'coordinators' => $c->coordinators ?: [],
@@ -863,14 +893,18 @@ class RegistrantDashboardController extends Controller
         $isAutoOriginalPrice = Setting::get('package_allin_auto_original_price', '1') === '1';
         $allinOriginalPrice = $isAutoOriginalPrice ? $sumCompFees : (int)Setting::get('package_allin_original_price', $sumCompFees);
 
+        $bankAccounts = Setting::getBankAccounts();
+        $primaryAccount = collect($bankAccounts)->firstWhere('is_primary', true) ?? ($bankAccounts[0] ?? null);
+
         $pricingSettings = [
             'allin_is_active' => Setting::get('package_allin_is_active', '1') === '1',
             'allin_name' => Setting::get('package_allin_name', 'Paket All-In Komplit'),
             'allin_price' => (int)Setting::get('package_allin_price', 200000),
             'allin_original_price' => $allinOriginalPrice ?: 400000,
-            'bank_name' => Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'),
-            'account_number' => Setting::get('payment_account_number', '7123456789'),
-            'account_holder' => Setting::get('payment_account_holder', 'Semarak Aliyah'),
+            'bank_name' => $primaryAccount['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'),
+            'account_number' => $primaryAccount['account_number'] ?? Setting::get('payment_account_number', '7123456789'),
+            'account_holder' => $primaryAccount['account_holder'] ?? Setting::get('payment_account_holder', 'Semarak Aliyah'),
+            'bank_accounts' => $bankAccounts,
             'confirmation_wa' => Setting::get('payment_confirmation_wa', '0838 5007 0767'),
             'instructions' => Setting::get('payment_instructions', ''),
             'cash_enabled' => Setting::get('payment_cash_enabled', '1') === '1',
@@ -989,7 +1023,7 @@ class RegistrantDashboardController extends Controller
                 'total_fee' => $allinPrice,
                 'registration_status' => 'Menunggu Verifikasi',
                 'payment_status' => $hasProof ? 'Menunggu Verifikasi' : 'Menunggu Pembayaran',
-                'payment_method' => $validatedAllIn['payment_method'] ?? 'Transfer Bank BSI',
+                'payment_method' => $validatedAllIn['payment_method'] ?? ('Transfer ' . (collect(Setting::getBankAccounts())->firstWhere('is_primary', true)['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'))),
                 'checkin_status' => 'belum_hadir',
                 'custom_fields' => [
                     'is_package_allin_master' => true,
@@ -1060,7 +1094,8 @@ class RegistrantDashboardController extends Controller
             'allin_code' => 'nullable|string',
             'payment_proof' => 'nullable|file|mimes:jpeg,png,jpg,webp,pdf|max:5120',
             'file_documents.*' => 'nullable|file|mimes:jpeg,png,jpg,webp,pdf,doc,docx,xls,xlsx,zip,rar|max:10240',
-            'custom_files.*' => 'nullable|file|mimes:jpeg,png,jpg,webp,pdf,doc,docx,xls,xlsx,zip,rar|max:10240',
+            'custom_files' => 'nullable|array',
+            'custom_files.*' => 'nullable',
         ], [
             'competition_id.required' => 'Pilih cabang lomba yang ingin didaftarkan.',
             'participants_names.required' => 'Daftar nama peserta / delegasi wajib diisi.',
@@ -1068,8 +1103,6 @@ class RegistrantDashboardController extends Controller
             'payment_proof.max' => 'Ukuran berkas bukti pembayaran maksimal 5MB.',
             'file_documents.*.mimes' => 'Format berkas dokumen tidak didukung.',
             'file_documents.*.max' => 'Ukuran berkas dokumen maksimal 10MB.',
-            'custom_files.*.mimes' => 'Format berkas lampiran tidak didukung.',
-            'custom_files.*.max' => 'Ukuran berkas lampiran maksimal 10MB.',
         ]);
 
         $competition = Competition::find($validated['competition_id']);
@@ -1209,28 +1242,57 @@ class RegistrantDashboardController extends Controller
         if ($request->hasFile('custom_files') || $request->hasFile('custom_fields')) {
             $customUploads = $request->file('custom_files') ?: $request->file('custom_fields');
             if (is_array($customUploads)) {
+                $compCustomFields = ($competition && is_array($competition->custom_fields)) ? $competition->custom_fields : [];
+                $compFieldMap = [];
+                foreach ($compCustomFields as $cf) {
+                    if (!empty($cf['name'])) $compFieldMap[$cf['name']] = $cf;
+                }
+
                 foreach ($customUploads as $fName => $uFile) {
-                    if ($uFile && $uFile->isValid()) {
-                        $ext = strtolower($uFile->getClientOriginalExtension());
-                        $safeOriginalName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $uFile->getClientOriginalName());
-                        $path = $uFile->storeAs("uploads/registrations/{$regCode}", time() . "_{$safeOriginalName}", 'public');
-                        $fileUrl = '/storage/' . $path;
-                        $fileMeta = [
-                            'type' => 'file',
-                            'label' => ucwords(str_replace('_', ' ', $fName)),
-                            'name' => $uFile->getClientOriginalName(),
-                            'url' => $fileUrl,
-                            'size' => $uFile->getSize(),
-                            'extension' => $ext,
-                        ];
-                        $customFields[$fName] = $fileMeta;
-                        $fileDocuments[] = [
-                            'title' => ucwords(str_replace('_', ' ', $fName)),
-                            'filename' => $uFile->getClientOriginalName(),
-                            'url' => $fileUrl,
-                            'type' => $ext,
-                            'uploaded_at' => now()->toIso8601String(),
-                        ];
+                    $fieldDef = $compFieldMap[$fName] ?? [];
+                    $maxFiles = !empty($fieldDef['max_files']) ? (int)$fieldDef['max_files'] : 1;
+                    $fieldLabel = !empty($fieldDef['label']) ? $fieldDef['label'] : ucwords(str_replace('_', ' ', $fName));
+
+                    $uFileList = is_array($uFile) 
+                        ? array_values(array_filter($uFile, fn($f) => $f instanceof \Illuminate\Http\UploadedFile)) 
+                        : ($uFile instanceof \Illuminate\Http\UploadedFile ? [$uFile] : []);
+
+                    if ($maxFiles > 0 && count($uFileList) > $maxFiles) {
+                        $uFileList = array_slice($uFileList, 0, $maxFiles);
+                    }
+
+                    $processedMetas = [];
+                    foreach ($uFileList as $singleFile) {
+                        if ($singleFile->isValid()) {
+                            $ext = strtolower($singleFile->getClientOriginalExtension());
+                            $safeOriginalName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $singleFile->getClientOriginalName());
+                            $path = $singleFile->storeAs("uploads/registrations/{$regCode}", time() . "_" . uniqid() . "_{$safeOriginalName}", 'public');
+                            $fileUrl = '/storage/' . $path;
+                            $fileMeta = [
+                                'type' => 'file',
+                                'label' => $fieldLabel,
+                                'name' => $singleFile->getClientOriginalName(),
+                                'url' => $fileUrl,
+                                'size' => $singleFile->getSize(),
+                                'extension' => $ext,
+                            ];
+                            $processedMetas[] = $fileMeta;
+                            $fileDocuments[] = [
+                                'title' => $fieldLabel,
+                                'filename' => $singleFile->getClientOriginalName(),
+                                'url' => $fileUrl,
+                                'type' => $ext,
+                                'uploaded_at' => now()->toIso8601String(),
+                            ];
+                        }
+                    }
+
+                    if (!empty($processedMetas)) {
+                        if ($maxFiles > 1) {
+                            $customFields[$fName] = $processedMetas;
+                        } else {
+                            $customFields[$fName] = $processedMetas[0] ?? null;
+                        }
                     }
                 }
             }
@@ -1260,7 +1322,7 @@ class RegistrantDashboardController extends Controller
             'registration_status' => $isAllInVerified ? 'Terverifikasi' : 'Menunggu Verifikasi',
             'payment_status' => $paymentStatus,
             'checkin_status' => 'belum_hadir',
-            'payment_method' => $validated['payment_method'] ?? 'Transfer Bank BSI',
+            'payment_method' => $validated['payment_method'] ?? ('Transfer ' . (collect(Setting::getBankAccounts())->firstWhere('is_primary', true)['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'))),
             'custom_fields' => !empty($customFields) ? $customFields : null,
             'file_documents' => !empty($fileDocuments) ? $fileDocuments : null,
         ]);

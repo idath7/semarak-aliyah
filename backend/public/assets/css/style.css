@@ -2033,6 +2033,31 @@ ul {
   box-shadow: 0 4px 15px var(--pink-glow);
 }
 
+[data-bs-theme="dark"] .filter-btn,
+[data-theme="dark"] .filter-btn,
+body.dark-theme .filter-btn {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+}
+
+[data-bs-theme="dark"] .filter-btn:hover,
+[data-theme="dark"] .filter-btn:hover,
+body.dark-theme .filter-btn:hover {
+  background: rgba(139, 92, 246, 0.25);
+  color: #ffffff;
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+[data-bs-theme="dark"] .filter-btn.active,
+[data-theme="dark"] .filter-btn.active,
+body.dark-theme .filter-btn.active {
+  background: var(--grad-primary);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 4px 15px var(--pink-glow);
+}
+
 .competitions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));

@@ -177,6 +177,7 @@ class FormFieldSeeder extends Seeder
                     'options' => [],
                     'allowed_extensions' => ['pdf', 'jpg', 'jpeg', 'png'],
                     'max_size_mb' => 5,
+                    'max_files' => 1,
                 ],
             ]),
 
@@ -216,6 +217,7 @@ class FormFieldSeeder extends Seeder
                     'options' => [],
                     'allowed_extensions' => ['pdf', 'jpg', 'jpeg', 'png'],
                     'max_size_mb' => 5,
+                    'max_files' => 1,
                 ],
                 [
                     'id' => 'cf_link_murottal',
@@ -279,6 +281,7 @@ class FormFieldSeeder extends Seeder
                     'options' => [],
                     'allowed_extensions' => ['mp3', 'wav', 'pdf', 'docx'],
                     'max_size_mb' => 10,
+                    'max_files' => 1,
                 ],
             ]),
 
@@ -342,6 +345,7 @@ class FormFieldSeeder extends Seeder
                     'options' => [],
                     'allowed_extensions' => ['jpg', 'jpeg', 'png'],
                     'max_size_mb' => 5,
+                    'max_files' => 1,
                 ],
             ]),
 
@@ -381,6 +385,7 @@ class FormFieldSeeder extends Seeder
                     'options' => [],
                     'allowed_extensions' => ['pdf'],
                     'max_size_mb' => 10,
+                    'max_files' => 1,
                 ],
             ]),
 

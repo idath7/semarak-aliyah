@@ -151,6 +151,12 @@ function getFileSizeStr(val) {
   return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
 }
 
+function getCustomFileList(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return [val];
+}
+
 // Custom Fields Map dari Registrasi
 const customValues = computed(() => {
   return props.registration.custom_fields || {};
@@ -1132,46 +1138,54 @@ function sendOfficialNotification(templateKey) {
                         <!-- Render Berdasarkan Tipe Input Form Builder -->
                         <!-- A. TIPE FILE -->
                         <div v-if="field.type === 'file'">
-                          <div v-if="customValues[field.name]">
-                            <div class="d-flex align-items-center justify-content-between p-2.5 rounded-3 bg-white border">
-                              <div class="d-flex align-items-center gap-2 min-w-0">
-                                <i class="ri-file-text-line fs-20 text-primary"></i>
-                                <div class="min-w-0">
-                                  <div class="fs-12 fw-semibold text-dark text-truncate">
-                                    {{ getFileName(customValues[field.name]) }}
-                                  </div>
-                                  <div v-if="getFileSizeStr(customValues[field.name])" class="fs-10 text-muted font-monospace">
-                                    {{ getFileSizeStr(customValues[field.name]) }}
+                          <div v-if="getCustomFileList(customValues[field.name]).length > 0" class="d-flex flex-column gap-2">
+                            <div 
+                              v-for="(fItem, fIdx) in getCustomFileList(customValues[field.name])" 
+                              :key="fIdx"
+                            >
+                              <div class="d-flex align-items-center justify-content-between p-2.5 rounded-3 bg-white border">
+                                <div class="d-flex align-items-center gap-2 min-w-0">
+                                  <span v-if="getCustomFileList(customValues[field.name]).length > 1" class="badge bg-light text-muted fs-10 px-1.5 py-0.5">
+                                    #{{ fIdx + 1 }}
+                                  </span>
+                                  <i class="ri-file-text-line fs-20 text-primary"></i>
+                                  <div class="min-w-0">
+                                    <div class="fs-12 fw-semibold text-dark text-truncate">
+                                      {{ getFileName(fItem) }}
+                                    </div>
+                                    <div v-if="getFileSizeStr(fItem)" class="fs-10 text-muted font-monospace">
+                                      {{ getFileSizeStr(fItem) }}
+                                    </div>
                                   </div>
                                 </div>
+                                <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+                                  <button 
+                                    v-if="isImageFile(fItem)"
+                                    type="button" 
+                                    class="btn btn-xs btn-outline-primary"
+                                    @click="openImagePreview(getFileUrl(fItem), field.label + (getCustomFileList(customValues[field.name]).length > 1 ? ` #${fIdx + 1}` : ''))"
+                                  >
+                                    <i class="ri-eye-line"></i> Pratinjau
+                                  </button>
+                                  <a 
+                                    :href="getFileUrl(fItem)" 
+                                    target="_blank" 
+                                    class="btn btn-xs btn-primary d-inline-flex align-items-center gap-1"
+                                  >
+                                    <i class="ri-download-cloud-line"></i> Buka / Unduh
+                                  </a>
+                                </div>
                               </div>
-                              <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
-                                <button 
-                                  v-if="isImageFile(customValues[field.name])"
-                                  type="button" 
-                                  class="btn btn-xs btn-outline-primary"
-                                  @click="openImagePreview(getFileUrl(customValues[field.name]), field.label)"
-                                >
-                                  <i class="ri-eye-line"></i> Pratinjau
-                                </button>
-                                <a 
-                                  :href="getFileUrl(customValues[field.name])" 
-                                  target="_blank" 
-                                  class="btn btn-xs btn-primary d-inline-flex align-items-center gap-1"
-                                >
-                                  <i class="ri-download-cloud-line"></i> Buka / Unduh
-                                </a>
+                              <!-- Mini Image Preview jika file gambar -->
+                              <div v-if="isImageFile(fItem)" class="mt-2 text-center">
+                                <img 
+                                  :src="getFileUrl(fItem)" 
+                                  alt="Pratinjau" 
+                                  class="rounded-3 border cursor-pointer hover-opacity"
+                                  style="max-height: 140px; max-width: 100%; object-fit: contain;"
+                                  @click="openImagePreview(getFileUrl(fItem), field.label + (getCustomFileList(customValues[field.name]).length > 1 ? ` #${fIdx + 1}` : ''))"
+                                />
                               </div>
-                            </div>
-                            <!-- Mini Image Preview jika file gambar -->
-                            <div v-if="isImageFile(customValues[field.name])" class="mt-2 text-center">
-                              <img 
-                                :src="getFileUrl(customValues[field.name])" 
-                                alt="Pratinjau" 
-                                class="rounded-3 border cursor-pointer hover-opacity"
-                                style="max-height: 140px; max-width: 100%; object-fit: contain;"
-                                @click="openImagePreview(getFileUrl(customValues[field.name]), field.label)"
-                              />
                             </div>
                           </div>
                           <div v-else class="text-muted fs-12 fst-italic">

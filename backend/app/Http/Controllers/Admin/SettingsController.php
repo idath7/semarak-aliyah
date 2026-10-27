@@ -417,6 +417,7 @@ class SettingsController extends Controller
             'wa_tpl_admin_notification' => 'required|string',
             'wa_tpl_verified_registration' => 'required|string',
             'wa_tpl_verified_payment' => 'required|string',
+            'wa_tpl_direct_registration' => 'required|string',
         ]);
 
         foreach ($validated as $key => $value) {

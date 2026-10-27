@@ -16,7 +16,11 @@ class WhatsAppService
      */
     public static function isEnabled(): bool
     {
-        return Setting::get('wa_gateway_enabled', '0') === '1';
+        $val = Setting::get('wa_gateway_enabled');
+        if ($val !== null && $val !== '') {
+            return $val === '1';
+        }
+        return (bool) config('whatsapp.enabled', true);
     }
 
     /**
@@ -24,20 +28,40 @@ class WhatsAppService
      */
     public static function getConfig(): array
     {
+        $gatewayUrl = Setting::get('wa_gateway_url');
+        if (empty($gatewayUrl) || $gatewayUrl === 'http://localhost:8085') {
+            $gatewayUrl = config('whatsapp.gateway_url', 'https://wacld.maswahas.sch.id');
+        }
+
+        $apiKey = Setting::get('wa_api_key');
+        if (empty($apiKey)) {
+            $apiKey = config('whatsapp.api_key', 'owa_k1_42615b3b5088559ee636063f25e8ca7e801057e5a43091aae5ff55eb7a59dd68');
+        }
+
+        $senderSession = Setting::get('wa_sender_session');
+        if (empty($senderSession) || $senderSession === 'default') {
+            $senderSession = config('whatsapp.sender_session', '0571fd01-e2d4-495e-9cf7-1c3c272b7b6b');
+        }
+
+        $enabledVal = Setting::get('wa_gateway_enabled');
+        $enabled = ($enabledVal !== null && $enabledVal !== '')
+            ? ($enabledVal === '1')
+            : (bool) config('whatsapp.enabled', true);
+
         return [
-            'enabled' => Setting::get('wa_gateway_enabled', '0') === '1',
-            'provider' => Setting::get('wa_gateway_provider', 'openwa'),
-            'gateway_url' => rtrim(Setting::get('wa_gateway_url', 'http://localhost:8085'), '/'),
-            'api_key' => Setting::get('wa_api_key', ''),
-            'sender_session' => Setting::get('wa_sender_session', 'default'),
-            'endpoint_send' => Setting::get('wa_endpoint_send', '/sendText'),
-            'endpoint_status' => Setting::get('wa_endpoint_status', '/check-auth'),
-            'auth_header_type' => Setting::get('wa_auth_header_type', 'api_key'),
-            'chat_id_format' => Setting::get('wa_chat_id_format', 'c_us'),
-            'ssl_bypass' => Setting::get('wa_ssl_bypass', '1') === '1',
+            'enabled' => $enabled,
+            'provider' => Setting::get('wa_gateway_provider', config('whatsapp.provider', 'openwa')),
+            'gateway_url' => rtrim($gatewayUrl, '/'),
+            'api_key' => $apiKey,
+            'sender_session' => $senderSession,
+            'endpoint_send' => Setting::get('wa_endpoint_send', config('whatsapp.endpoint_send', '/sendText')),
+            'endpoint_status' => Setting::get('wa_endpoint_status', config('whatsapp.endpoint_status', '/check-auth')),
+            'auth_header_type' => Setting::get('wa_auth_header_type', config('whatsapp.auth_header_type', 'api_key')),
+            'chat_id_format' => Setting::get('wa_chat_id_format', config('whatsapp.chat_id_format', 'c_us')),
+            'ssl_bypass' => Setting::get('wa_ssl_bypass', config('whatsapp.ssl_bypass', true) ? '1' : '0') === '1',
             'notify_new_registration' => Setting::get('wa_notify_new_registration', '1') === '1',
             'notify_admin_new_registration' => Setting::get('wa_notify_admin_new_registration', '1') === '1',
-            'admin_notification_numbers' => Setting::get('wa_admin_notification_numbers', '083850070767'),
+            'admin_notification_numbers' => Setting::get('wa_admin_notification_numbers', config('whatsapp.admin_notification_numbers', '083850070767')),
             'admin_group_id' => Setting::get('wa_admin_group_id', ''),
             'notify_admin_group' => Setting::get('wa_notify_admin_group', '0') === '1',
             'notify_verified_registration' => Setting::get('wa_notify_verified_registration', '1') === '1',
@@ -46,6 +70,7 @@ class WhatsAppService
             'tpl_admin_notification' => Setting::get('wa_tpl_admin_notification', ''),
             'tpl_verified_registration' => Setting::get('wa_tpl_verified_registration', ''),
             'tpl_verified_payment' => Setting::get('wa_tpl_verified_payment', ''),
+            'tpl_direct_registration' => Setting::get('wa_tpl_direct_registration', ''),
         ];
     }
 
@@ -314,7 +339,10 @@ class WhatsAppService
         // Fetch available sessions from OpenWA
         $sessions = self::fetchSessions($forceFresh);
         if (empty($sessions)) {
-            return !empty($input) ? $input : null;
+            $fallback = config('whatsapp.sender_session', '0571fd01-e2d4-495e-9cf7-1c3c272b7b6b');
+            return (!empty($input) && preg_match('/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/', $input))
+                ? $input
+                : $fallback;
         }
 
         $resolved = null;
@@ -338,8 +366,12 @@ class WhatsAppService
             }
         }
 
-        // 3. Fallback to first session or input
-        $final = $resolved ?: ($sessions[0]['id'] ?? (!empty($input) ? $input : null));
+        // 3. Fallback to first session or known ready session UUID
+        $final = $resolved ?: ($sessions[0]['id'] ?? config('whatsapp.sender_session', '0571fd01-e2d4-495e-9cf7-1c3c272b7b6b'));
+        if (empty($final) || $final === 'default' || $final === 'awh1') {
+            $final = config('whatsapp.sender_session', '0571fd01-e2d4-495e-9cf7-1c3c272b7b6b');
+        }
+
         if ($final) {
             Cache::put($cacheKey, $final, now()->addMinutes(15));
         }

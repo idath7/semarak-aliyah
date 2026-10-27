@@ -122,6 +122,7 @@ const form = useForm({
   wa_tpl_admin_notification: props.settings.tpl_admin_notification || '',
   wa_tpl_verified_registration: props.settings.tpl_verified_registration || '',
   wa_tpl_verified_payment: props.settings.tpl_verified_payment || '',
+  wa_tpl_direct_registration: props.settings.tpl_direct_registration || '',
 });
 
 // Admin Group Selector state
@@ -441,6 +442,13 @@ function copyVariable(v) {
   navigator.clipboard.writeText(v).then(() => {
     info(`Variabel ${v} disalin ke clipboard!`);
   });
+}
+
+const defaultDirectRegistrationTemplate = "Assalamu'alaikum Wr. Wb. Kak {nama_pj},\\n\\nSaya perwakilan dari {nama_sekolah}, bermaksud mendaftarkan delegasi sekolah kami untuk cabang lomba *{cabang_lomba}* pada agenda *{nama_event}*.\\n\\n• Asal Lembaga: {nama_sekolah}\\n• Cabang Lomba: {cabang_lomba}\\n• Biaya Pendaftaran: {biaya}\\n• Narahubung/Pembina: {nama_pendaftar} ({nomor_wa})\\n\\nMohon petunjuk teknis pendaftaran langsung, persyaratan berkas, serta ketersediaan kuota delegasi. Terima kasih.\\n\\nWassalamu'alaikum Wr. Wb.";
+
+function resetToDefaultDirectTpl() {
+  form.wa_tpl_direct_registration = defaultDirectRegistrationTemplate;
+  info('Template pendaftaran via PJ dipulihkan ke format standar.');
 }
 
 // Modal View Full Message
@@ -1462,7 +1470,7 @@ const successRate = computed(() => {
               <!-- Variable Cheatsheet Pills -->
               <div class="d-flex flex-wrap gap-1">
                 <button
-                  v-for="tag in ['{nama_sekolah}', '{nama_koordinator}', '{kode_pendaftaran}', '{cabang_lomba}', '{paket_pendaftaran}', '{total_biaya}', '{status_pendaftaran}', '{status_pembayaran}', '{url_status}']"
+                  v-for="tag in ['{nama_sekolah}', '{nama_koordinator}', '{nama_pj}', '{kode_pendaftaran}', '{cabang_lomba}', '{paket_pendaftaran}', '{total_biaya}', '{biaya}', '{nomor_wa}', '{nama_pendaftar}', '{kontak_pj}', '{status_pendaftaran}', '{status_pembayaran}', '{url_status}']"
                   :key="tag"
                   type="button"
                   class="badge bg-body-secondary text-dark-emphasis border px-2 py-1 cursor-pointer hover:bg-success hover:text-white transition-all font-monospace fs-11"
@@ -1517,6 +1525,16 @@ const successRate = computed(() => {
                     <i class="ri-checkbox-circle-line me-1 text-success"></i> Pembayaran Lunas
                   </button>
                 </li>
+                <li class="nav-item">
+                  <button
+                    type="button"
+                    class="nav-link fs-12 fw-semibold cursor-pointer"
+                    :class="{ 'active': activeTemplateTab === 'direct_reg' }"
+                    @click="activeTemplateTab = 'direct_reg'"
+                  >
+                    <i class="ri-whatsapp-line me-1 text-success"></i> Daftar via PJ / Koordinator
+                  </button>
+                </li>
               </ul>
 
               <!-- Tab Contents -->
@@ -1562,6 +1580,32 @@ const successRate = computed(() => {
                     class="form-control font-monospace fs-12"
                     placeholder="Tuliskan template notifikasi pelunasan biaya lomba..."
                   ></textarea>
+                </div>
+
+                <!-- Tab 5: Daftar via PJ / Koordinator -->
+                <div v-show="activeTemplateTab === 'direct_reg'">
+                  <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="fs-12 text-muted">
+                      Template pesan awal WhatsApp yang disiapkan ketika calon pendaftar memilih pendaftaran khusus <strong>Kontak Langsung (PJ / Koordinator Lomba)</strong>.
+                    </span>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-secondary rounded-pill fs-11 px-2.5 py-0.5 d-inline-flex align-items-center gap-1"
+                      @click="resetToDefaultDirectTpl"
+                      title="Pulihkan ke teks bawaan sistem"
+                    >
+                      <i class="ri-restart-line"></i> Reset ke Standar
+                    </button>
+                  </div>
+                  <textarea
+                    v-model="form.wa_tpl_direct_registration"
+                    rows="9"
+                    class="form-control font-monospace fs-12"
+                    placeholder="Tuliskan template pesan WhatsApp untuk pendaftaran langsung via Koordinator Lomba..."
+                  ></textarea>
+                  <small class="fs-11 text-muted mt-1.5 d-block">
+                    Format WhatsApp: <code>*tebal*</code>, <code>_miring_</code>, <code>~coret~</code>. Placeholder: <code>{nama_pj}</code>, <code>{cabang_lomba}</code>, <code>{nama_event}</code>, <code>{nama_sekolah}</code>, <code>{nama_pendaftar}</code>, <code>{nomor_wa}</code>, <code>{biaya}</code>, <code>{kontak_pj}</code>.
+                  </small>
                 </div>
               </div>
             </div>

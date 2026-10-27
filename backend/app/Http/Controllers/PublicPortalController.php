@@ -8,6 +8,7 @@ use App\Models\Competition;
 use App\Models\Registration;
 use App\Models\Sponsor;
 use App\Models\Gallery;
+use App\Models\Category;
 use App\Models\Setting;
 use App\Models\Faq;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +18,16 @@ class PublicPortalController extends Controller
     public function home()
     {
         $competitions = Competition::orderBy('id')->get();
+        Category::ensureDefaultsExist();
+        $categories = Category::withCount('competitions')
+            ->orderByRaw("CASE 
+                WHEN id = 'akademik' THEN 1 
+                WHEN id = 'seni' THEN 2 
+                WHEN id = 'keagamaan' THEN 3 
+                WHEN id = 'olahraga' THEN 4 
+                WHEN id = 'teknologi' THEN 5 
+                ELSE 6 END, id ASC")
+            ->get();
 
         $sponsors = Sponsor::where('is_active', true)
             ->orderBy('sort_order', 'asc')
@@ -134,6 +145,9 @@ class PublicPortalController extends Controller
             $allinOriginalPrice = $sumCompFees ?: 400000;
         }
 
+        $bankAccounts = Setting::getBankAccounts();
+        $primaryAccount = collect($bankAccounts)->firstWhere('is_primary', true) ?? ($bankAccounts[0] ?? null);
+
         $pricingSettings = [
             'allin_is_active' => Setting::get('package_allin_is_active', '1') === '1',
             'allin_name' => Setting::get('package_allin_name', 'Paket All-In Komplit'),
@@ -145,9 +159,10 @@ class PublicPortalController extends Controller
             'satuan_name' => Setting::get('package_satuan_name', 'Paket Fleksibel Satuan'),
             'satuan_desc' => Setting::get('package_satuan_desc', 'Pilihan tepat bagi madrasah/sekolah yang ingin mengirimkan delegasi spesifik pada cabang lomba tertentu.'),
             'satuan_features' => json_decode(Setting::get('package_satuan_features', '[]'), true) ?: [],
-            'bank_name' => Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'),
-            'account_number' => Setting::get('payment_account_number', '7123456789'),
-            'account_holder' => Setting::get('payment_account_holder', 'Semarak Aliyah'),
+            'bank_name' => $primaryAccount['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'),
+            'account_number' => $primaryAccount['account_number'] ?? Setting::get('payment_account_number', '7123456789'),
+            'account_holder' => $primaryAccount['account_holder'] ?? Setting::get('payment_account_holder', 'Semarak Aliyah'),
+            'bank_accounts' => $bankAccounts,
             'confirmation_wa' => Setting::get('payment_confirmation_wa', '0838 5007 0767'),
             'instructions' => Setting::get('payment_instructions', ''),
             'cash_enabled' => Setting::get('payment_cash_enabled', '1') === '1',
@@ -217,6 +232,7 @@ class PublicPortalController extends Controller
 
         return Inertia::render('Public/Home', compact(
             'competitions',
+            'categories',
             'sponsors',
             'sponsorSettings',
             'galleries',
@@ -263,6 +279,9 @@ class PublicPortalController extends Controller
             $allinOriginalPrice = $sumCompFees ?: 400000;
         }
 
+        $bankAccounts = Setting::getBankAccounts();
+        $primaryAccount = collect($bankAccounts)->firstWhere('is_primary', true) ?? ($bankAccounts[0] ?? null);
+
         $pricingSettings = [
             'allin_is_active' => Setting::get('package_allin_is_active', '1') === '1',
             'allin_name' => Setting::get('package_allin_name', 'Paket All-In Komplit'),
@@ -271,9 +290,10 @@ class PublicPortalController extends Controller
             'allin_tag' => Setting::get('package_allin_tag', 'Paling Hemat • Rekomendasi'),
             'allin_desc' => Setting::get('package_allin_desc', 'Pilihan terbaik & paling hemat! Daftarkan kontingen sekolah Anda ke seluruh 8 cabang lomba sekaligus hanya dengan setengah harga.'),
             'allin_features' => json_decode(Setting::get('package_allin_features', '[]'), true) ?: [],
-            'bank_name' => Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'),
-            'account_number' => Setting::get('payment_account_number', '7123456789'),
-            'account_holder' => Setting::get('payment_account_holder', 'Semarak Aliyah'),
+            'bank_name' => $primaryAccount['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'),
+            'account_number' => $primaryAccount['account_number'] ?? Setting::get('payment_account_number', '7123456789'),
+            'account_holder' => $primaryAccount['account_holder'] ?? Setting::get('payment_account_holder', 'Semarak Aliyah'),
+            'bank_accounts' => $bankAccounts,
             'confirmation_wa' => Setting::get('payment_confirmation_wa', '0838 5007 0767'),
             'instructions' => Setting::get('payment_instructions', ''),
             'cash_enabled' => Setting::get('payment_cash_enabled', '1') === '1',
@@ -391,54 +411,91 @@ class PublicPortalController extends Controller
                 $isRequired = !empty($field['required']);
 
                 if ($fType === 'file') {
-                    $uploadedFile = $request->file("custom_files.{$fName}") 
+                    $rawFiles = $request->file("custom_files.{$fName}") 
                         ?: ($request->file("custom_fields.{$fName}") ?: $request->file($fName));
 
-                    if ($uploadedFile && $uploadedFile->isValid()) {
-                        $maxMb = !empty($field['max_size_mb']) ? (int)$field['max_size_mb'] : 10;
-                        if ($uploadedFile->getSize() > ($maxMb * 1024 * 1024)) {
-                            $customErrors["cf_{$fName}"] = "Ukuran file \"{$fLabel}\" melebihi batas maksimal {$maxMb}MB.";
+                    $maxFiles = !empty($field['max_files']) ? (int)$field['max_files'] : 1;
+                    $maxMb = !empty($field['max_size_mb']) ? (int)$field['max_size_mb'] : 10;
+                    $defaultAllowed = ['pdf', 'jpg', 'jpeg', 'png', 'docx', 'doc', 'zip'];
+                    $allowedExts = !empty($field['allowed_extensions']) && is_array($field['allowed_extensions'])
+                        ? array_map('strtolower', $field['allowed_extensions'])
+                        : $defaultAllowed;
+                    $dangerousExtensions = ['php', 'phtml', 'phar', 'php3', 'php4', 'php5', 'php7', 'phps', 'sh', 'bash', 'exe', 'bat', 'cmd', 'cgi', 'pl', 'py', 'js', 'html', 'htm', 'htaccess'];
+
+                    $fileList = [];
+                    if (is_array($rawFiles)) {
+                        $fileList = array_values(array_filter($rawFiles, fn($f) => $f instanceof \Illuminate\Http\UploadedFile));
+                    } elseif ($rawFiles instanceof \Illuminate\Http\UploadedFile) {
+                        $fileList = [$rawFiles];
+                    }
+
+                    if (!empty($fileList)) {
+                        if ($maxFiles > 0 && count($fileList) > $maxFiles) {
+                            $customErrors["cf_{$fName}"] = "Jumlah berkas \"{$fLabel}\" melebihi batas maksimal ({$maxFiles} berkas).";
                             continue;
                         }
 
-                        $ext = strtolower($uploadedFile->getClientOriginalExtension());
-                        $dangerousExtensions = ['php', 'phtml', 'phar', 'php3', 'php4', 'php5', 'php7', 'phps', 'sh', 'bash', 'exe', 'bat', 'cmd', 'cgi', 'pl', 'py', 'js', 'html', 'htm', 'htaccess'];
-                        if (in_array($ext, $dangerousExtensions)) {
-                            $customErrors["cf_{$fName}"] = "Tipe file \"{$ext}\" tidak diizinkan demi keamanan sistem.";
+                        $processedFiles = [];
+                        $hasFileError = false;
+
+                        foreach ($fileList as $uFile) {
+                            if (!$uFile->isValid()) {
+                                $customErrors["cf_{$fName}"] = "Berkas \"{$fLabel}\" tidak valid atau gagal diunggah.";
+                                $hasFileError = true;
+                                break;
+                            }
+
+                            if ($uFile->getSize() > ($maxMb * 1024 * 1024)) {
+                                $customErrors["cf_{$fName}"] = "Ukuran berkas \"{$uFile->getClientOriginalName()}\" pada \"{$fLabel}\" melebihi batas maksimal {$maxMb}MB.";
+                                $hasFileError = true;
+                                break;
+                            }
+
+                            $ext = strtolower($uFile->getClientOriginalExtension());
+                            if (in_array($ext, $dangerousExtensions)) {
+                                $customErrors["cf_{$fName}"] = "Tipe file \"{$ext}\" tidak diizinkan demi keamanan sistem.";
+                                $hasFileError = true;
+                                break;
+                            }
+
+                            if (!in_array($ext, $allowedExts)) {
+                                $customErrors["cf_{$fName}"] = "Format berkas \"{$uFile->getClientOriginalName()}\" harus berupa: " . implode(', ', $allowedExts) . ".";
+                                $hasFileError = true;
+                                break;
+                            }
+
+                            $safeOriginalName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $uFile->getClientOriginalName());
+                            $storagePath = $uFile->storeAs("uploads/registrations/{$regCode}", time() . "_" . uniqid() . "_{$safeOriginalName}", 'public');
+                            $fileUrl = '/storage/' . $storagePath;
+
+                            $fileMeta = [
+                                'type' => 'file',
+                                'label' => $fLabel,
+                                'name' => $uFile->getClientOriginalName(),
+                                'url' => $fileUrl,
+                                'size' => $uFile->getSize(),
+                                'extension' => $ext,
+                            ];
+
+                            $processedFiles[] = $fileMeta;
+                            $fileDocuments[] = [
+                                'title' => $fLabel,
+                                'url' => $fileUrl,
+                                'filename' => $uFile->getClientOriginalName(),
+                                'type' => $ext,
+                                'uploaded_at' => now()->toIso8601String(),
+                            ];
+                        }
+
+                        if ($hasFileError) {
                             continue;
                         }
 
-                        $defaultAllowed = ['pdf', 'jpg', 'jpeg', 'png', 'docx', 'doc', 'zip'];
-                        $allowedExts = !empty($field['allowed_extensions']) && is_array($field['allowed_extensions'])
-                            ? array_map('strtolower', $field['allowed_extensions'])
-                            : $defaultAllowed;
-
-                        if (!in_array($ext, $allowedExts)) {
-                            $customErrors["cf_{$fName}"] = "Format berkas \"{$fLabel}\" harus berupa: " . implode(', ', $allowedExts) . ".";
-                            continue;
+                        if ($maxFiles > 1) {
+                            $processedCustomFields[$fName] = $processedFiles;
+                        } else {
+                            $processedCustomFields[$fName] = $processedFiles[0] ?? null;
                         }
-
-                        $safeOriginalName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $uploadedFile->getClientOriginalName());
-                        $storagePath = $uploadedFile->storeAs("uploads/registrations/{$regCode}", time() . "_{$safeOriginalName}", 'public');
-                        $fileUrl = '/storage/' . $storagePath;
-
-                        $fileMeta = [
-                            'type' => 'file',
-                            'label' => $fLabel,
-                            'name' => $uploadedFile->getClientOriginalName(),
-                            'url' => $fileUrl,
-                            'size' => $uploadedFile->getSize(),
-                            'extension' => $ext,
-                        ];
-
-                        $processedCustomFields[$fName] = $fileMeta;
-                        $fileDocuments[] = [
-                            'title' => $fLabel,
-                            'url' => $fileUrl,
-                            'filename' => $uploadedFile->getClientOriginalName(),
-                            'type' => $ext,
-                            'uploaded_at' => now()->toIso8601String(),
-                        ];
                     } elseif ($isRequired) {
                         $customErrors["cf_{$fName}"] = "Dokumen berkas \"{$fLabel}\" wajib diunggah.";
                     }
@@ -882,7 +939,7 @@ class PublicPortalController extends Controller
             'registration_status' => $regStatus,
             'payment_status' => $paymentStatus,
             'checkin_status' => 'belum_hadir',
-            'payment_method' => $validated['payment_method'] ?? 'Transfer Bank BSI',
+            'payment_method' => $validated['payment_method'] ?? ('Transfer ' . (collect(Setting::getBankAccounts())->firstWhere('is_primary', true)['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'))),
             'custom_fields' => !empty($processedCustomFields) ? $processedCustomFields : null,
             'file_documents' => !empty($fileDocuments) ? $fileDocuments : null,
         ]);

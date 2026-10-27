@@ -600,10 +600,10 @@ async function deleteSponsor(sponsor) {
 
             <!-- EMPTY STATE -->
             <div v-if="filteredSponsors.length === 0" class="text-center py-5">
-              <div class="avatar-lg rounded-circle bg-light text-muted d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+              <div class="avatar-lg rounded-circle bg-primary-subtle text-primary border border-primary-subtle shadow-sm d-inline-flex align-items-center justify-content-center mb-3">
                 <i class="ri-inbox-line fs-28"></i>
               </div>
-              <h6 class="fw-bold text-dark mb-1">Tidak Ada Mitra Sponsor Ditemukan</h6>
+              <h6 class="fw-bold text-body mb-1">Tidak Ada Mitra Sponsor Ditemukan</h6>
               <p class="text-muted fs-13 mb-3">Tidak ada data yang sesuai dengan pencarian atau filter yang dipilih.</p>
               <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" @click="openAddModal">
                 <i class="ri-add-line me-1"></i> Tambah Mitra Sekarang

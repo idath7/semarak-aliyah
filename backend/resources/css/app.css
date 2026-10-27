@@ -1440,19 +1440,46 @@ p, span, a, label, li, td, th {
 }
 
 /* Avatar Components */
+.avatar-xxs {
+    height: 1.5rem !important;
+    width: 1.5rem !important;
+    min-width: 1.5rem !important;
+    min-height: 1.5rem !important;
+}
+
 .avatar-xs {
-    height: 1.8rem;
-    width: 1.8rem;
+    height: 2rem !important;
+    width: 2rem !important;
+    min-width: 2rem !important;
+    min-height: 2rem !important;
 }
 
 .avatar-sm {
-    height: 3rem;
-    width: 3rem;
+    height: 2.75rem !important;
+    width: 2.75rem !important;
+    min-width: 2.75rem !important;
+    min-height: 2.75rem !important;
 }
 
 .avatar-md {
-    height: 4.5rem;
-    width: 4.5rem;
+    height: 3.75rem !important;
+    width: 3.75rem !important;
+    min-width: 3.75rem !important;
+    min-height: 3.75rem !important;
+}
+
+.avatar-lg {
+    height: 5rem !important;
+    width: 5rem !important;
+    min-width: 5rem !important;
+    min-height: 5rem !important;
+}
+
+.avatar-xl {
+    height: 6.5rem !important;
+    width: 6.5rem !important;
+    min-width: 6.5rem !important;
+    min-height: 6.5rem !important;
 }
 
 .avatar-title {
@@ -1461,7 +1488,6 @@ p, span, a, label, li, td, th {
     height: 100%;
     justify-content: center;
     width: 100%;
-    font-size: 1.5rem;
     border-radius: 0.35rem;
 }
 
@@ -1592,26 +1618,6 @@ p, span, a, label, li, td, th {
 /* ==========================================================================
    Velzon Official Recent Activity & Timeline
    ========================================================================== */
-.avatar-xs {
-    height: 2rem !important;
-    width: 2rem !important;
-}
-
-.avatar-sm {
-    height: 2.5rem !important;
-    width: 2.5rem !important;
-}
-
-.avatar-title {
-    align-items: center;
-    display: flex;
-    font-weight: 500;
-    height: 100%;
-    justify-content: center;
-    width: 100%;
-    font-size: 1rem;
-}
-
 .acitivity-timeline {
     position: relative;
     padding-left: 0.25rem;

@@ -2606,11 +2606,11 @@ function confirmDelete() {
           <div class="modal-content border-0 shadow-lg text-center p-3">
             <div class="modal-body py-4">
               <div class="avatar-lg mx-auto mb-3">
-                <div class="avatar-title bg-danger-subtle text-danger rounded-circle fs-36" style="width: 60px; height: 60px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                <div class="avatar-title bg-danger-subtle text-danger rounded-circle fs-36 shadow-sm border border-danger-subtle">
                   <i class="ri-delete-bin-line"></i>
                 </div>
               </div>
-              <h5 class="fs-15 fw-bold text-dark mb-1">Hapus Cabang Lomba?</h5>
+              <h5 class="fs-15 fw-bold text-body mb-1">Hapus Cabang Lomba?</h5>
               <p class="text-muted fs-12 mb-0">
                 Apakah Anda yakin ingin menghapus cabang lomba <strong>{{ activeDeleteItem.title }}</strong>? Tindakan ini tidak dapat dibatalkan.
               </p>

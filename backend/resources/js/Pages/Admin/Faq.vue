@@ -261,11 +261,11 @@
         <div class="card-body p-0">
           <div v-if="filteredFaqs.length === 0" class="text-center py-5">
             <div class="avatar-lg mx-auto mb-3">
-              <div class="avatar-title bg-light text-muted rounded-circle fs-36">
+              <div class="avatar-title bg-info-subtle text-info rounded-circle fs-36 shadow-sm border border-info-subtle">
                 <i class="ri-question-line"></i>
               </div>
             </div>
-            <h5 class="text-dark fw-bold">Tidak ada FAQ ditemukan</h5>
+            <h5 class="text-body fw-bold mb-2">Tidak ada FAQ ditemukan</h5>
             <p class="text-muted fs-13 mb-3">Coba ubah kata kunci pencarian atau tambah pertanyaan FAQ baru.</p>
             <button type="button" class="btn btn-primary btn-sm" @click="openAddModal">
               <i class="ri-add-line me-1"></i> Tambah FAQ Baru
@@ -623,11 +623,11 @@
         <div class="modal-content border-0 shadow-lg">
           <div class="modal-body text-center p-4">
             <div class="avatar-lg mx-auto mb-3">
-              <div class="avatar-title bg-danger-subtle text-danger rounded-circle fs-36">
+              <div class="avatar-title bg-danger-subtle text-danger rounded-circle fs-36 shadow-sm border border-danger-subtle">
                 <i class="ri-delete-bin-line"></i>
               </div>
             </div>
-            <h5 class="fw-bold text-dark">Hapus Pertanyaan FAQ Ini?</h5>
+            <h5 class="fw-bold text-body">Hapus Pertanyaan FAQ Ini?</h5>
             <p class="text-muted fs-13 mb-3">
               Pertanyaan: <br/>
               <strong class="text-dark">"{{ deletingFaq?.question }}"</strong>

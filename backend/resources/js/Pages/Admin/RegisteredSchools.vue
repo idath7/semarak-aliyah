@@ -667,20 +667,22 @@ function printReport() {
       <div v-if="schools.length === 0" class="card shadow-sm border-0 py-5 text-center">
         <div class="card-body">
           <div class="avatar-lg mx-auto mb-3">
-            <span class="avatar-title bg-light text-muted rounded-circle fs-36">
+            <span class="avatar-title bg-primary-subtle text-primary rounded-circle fs-36 shadow-sm border border-primary-subtle">
               <i class="ri-community-line"></i>
             </span>
           </div>
-          <h5 class="fw-bold text-dark">Belum Ada Sekolah yang Sesuai</h5>
-          <p class="text-muted fs-13 mb-3">
+          <h5 class="fw-bold text-body mb-2">Belum Ada Sekolah yang Sesuai</h5>
+          <p class="text-muted fs-13 mb-4 mx-auto" style="max-width: 480px;">
             Tidak ditemukan pendaftaran sekolah yang cocok dengan kriteria filter saat ini.
           </p>
-          <button type="button" class="btn btn-sm btn-outline-primary me-2" @click="resetFilters">
-            <i class="ri-refresh-line"></i> Reset Filter
-          </button>
-          <button type="button" class="btn btn-sm btn-primary" @click="openManualModal()">
-            <i class="ri-user-add-line"></i> Input Manual Pendaftaran
-          </button>
+          <div class="d-flex justify-content-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary px-3 shadow-sm" @click="resetFilters">
+              <i class="ri-refresh-line me-1"></i> Reset Filter
+            </button>
+            <button type="button" class="btn btn-sm btn-primary px-3 shadow-sm" @click="openManualModal()">
+              <i class="ri-user-add-line me-1"></i> Input Manual Pendaftaran
+            </button>
+          </div>
         </div>
       </div>
 

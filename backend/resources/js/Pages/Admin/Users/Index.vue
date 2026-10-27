@@ -1259,29 +1259,29 @@ async function executeSync() {
 
             <!-- 3. HASIL SINKRONISASI (SUMMARY) -->
             <div v-else-if="syncSummary" class="text-center py-4">
-              <div class="avatar-lg bg-success-subtle text-success rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center">
-                <i class="ri-checkbox-circle-line fs-36"></i>
+              <div class="avatar-lg bg-success-subtle text-success rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center shadow-sm border border-success-subtle" style="box-shadow: 0 0 25px rgba(16, 185, 129, 0.2) !important;">
+                <i class="ri-checkbox-circle-fill fs-36 text-success"></i>
               </div>
-              <h5 class="fs-18 fw-bold text-dark mb-1">Sinkronisasi Selesai!</h5>
-              <p class="text-muted fs-13 mb-4">{{ syncSummary.message }}</p>
+              <h5 class="fs-18 fw-bold text-body mb-1">Sinkronisasi Selesai!</h5>
+              <p class="text-muted fs-13 mb-4 mx-auto" style="max-width: 480px;">{{ syncSummary.message }}</p>
 
               <div class="row g-3 justify-content-center mb-4">
                 <div class="col-4 col-md-3">
-                  <div class="p-3 bg-success-subtle border border-success-subtle rounded-3">
+                  <div class="p-3 bg-success-subtle border border-success-subtle rounded-3 shadow-sm">
                     <h3 class="fs-22 fw-bold text-success mb-0">+{{ syncSummary.created_count }}</h3>
-                    <small class="text-success fw-medium fs-11">Akun Baru Dibuat</small>
+                    <small class="text-success fw-semibold fs-11">Akun Baru Dibuat</small>
                   </div>
                 </div>
                 <div class="col-4 col-md-3">
-                  <div class="p-3 bg-info-subtle border border-info-subtle rounded-3">
+                  <div class="p-3 bg-info-subtle border border-info-subtle rounded-3 shadow-sm">
                     <h3 class="fs-22 fw-bold text-info mb-0">{{ syncSummary.updated_count }}</h3>
-                    <small class="text-info fw-medium fs-11">Akun Diperbarui</small>
+                    <small class="text-info fw-semibold fs-11">Akun Diperbarui</small>
                   </div>
                 </div>
                 <div class="col-4 col-md-3">
-                  <div class="p-3 bg-secondary-subtle border border-secondary-subtle rounded-3">
+                  <div class="p-3 bg-secondary-subtle border border-secondary-subtle rounded-3 shadow-sm">
                     <h3 class="fs-22 fw-bold text-secondary mb-0">{{ syncSummary.skipped_count }}</h3>
-                    <small class="text-secondary fw-medium fs-11">Akun Dilewati</small>
+                    <small class="text-secondary fw-semibold fs-11">Akun Dilewati</small>
                   </div>
                 </div>
               </div>

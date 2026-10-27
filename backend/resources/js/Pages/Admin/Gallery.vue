@@ -636,11 +636,11 @@ function executeDelete() {
             <!-- Empty State -->
             <div v-if="filteredGalleries.length === 0" class="text-center py-5">
               <div class="avatar-lg mx-auto mb-3">
-                <span class="avatar-title bg-light text-muted rounded-circle fs-1">
+                <span class="avatar-title bg-warning-subtle text-warning rounded-circle fs-36 shadow-sm border border-warning-subtle">
                   <i class="ri-image-line"></i>
                 </span>
               </div>
-              <h5 class="fw-bold text-dark">Tidak ada foto ditemukan</h5>
+              <h5 class="fw-bold text-body mb-2">Tidak ada foto ditemukan</h5>
               <p class="text-muted fs-13 mb-3">
                 {{ searchQuery ? 'Tidak ada foto yang cocok dengan kata kunci pencarian.' : 'Belum ada foto galeri yang ditambahkan.' }}
               </p>
@@ -1170,11 +1170,11 @@ function executeDelete() {
         <div class="modal-dialog modal-dialog-centered modal-sm">
           <div class="modal-content border-0 shadow-lg rounded-3 text-center p-3">
             <div class="avatar-lg mx-auto my-2">
-              <span class="avatar-title bg-danger-subtle text-danger rounded-circle fs-1">
+              <span class="avatar-title bg-danger-subtle text-danger rounded-circle fs-36 shadow-sm border border-danger-subtle">
                 <i class="ri-delete-bin-line"></i>
               </span>
             </div>
-            <h5 class="fw-bold text-dark mt-2">Hapus Foto Galeri?</h5>
+            <h5 class="fw-bold text-body mt-2">Hapus Foto Galeri?</h5>
             <p class="text-muted fs-13 mb-3">
               Apakah Anda yakin ingin menghapus foto <strong>"{{ itemToDelete?.title }}"</strong>? Tindakan ini tidak dapat dibatalkan.
             </p>

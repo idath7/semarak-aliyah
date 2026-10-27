@@ -846,6 +846,9 @@ function addField(typeObj) {
     allowed_extensions: typeObj.type === 'file' ? ['pdf', 'jpg', 'jpeg', 'png'] : [],
     max_size_mb: typeObj.type === 'file' ? 5 : null,
     max_files: typeObj.type === 'file' ? 1 : null,
+    min_date: typeObj.min_date || null,
+    max_date: typeObj.max_date || null,
+    date_default: typeObj.date_default || '',
     min_items: typeObj.type === 'participant_repeater' ? 1 : null,
     max_items: typeObj.type === 'participant_repeater' ? 10 : null,
     sub_fields: typeObj.type === 'participant_repeater' ? createDefaultSubFields() : null,
@@ -2117,12 +2120,13 @@ function setParticipantCountDirect(field, val) {
                           'bg-info-subtle text-info': field.type === 'textarea' || field.type === 'url' || field.type === 'email',
                           'bg-success-subtle text-success': field.type === 'select' || field.type === 'radio' || field.type === 'checkbox',
                           'bg-danger-subtle text-danger': field.type === 'file',
-                          'bg-secondary-subtle text-secondary': field.type === 'number' || field.type === 'date'
+                          'bg-primary-subtle text-primary border border-primary-subtle': field.type === 'date',
+                          'bg-secondary-subtle text-secondary': field.type === 'number'
                         }"
                       >
-                        <i :class="field.type === 'participant_repeater' ? 'ri-group-line' : (field.type === 'file' ? 'ri-upload-cloud-2-line' : (field.type === 'url' ? 'ri-link' : (field.type === 'email' ? 'ri-mail-line' : (field.type === 'select' ? 'ri-arrow-down-s-line' : (field.type === 'number' ? 'ri-hashtag' : 'ri-input-field')))))"></i>
+                        <i :class="field.type === 'participant_repeater' ? 'ri-group-line' : (field.type === 'file' ? 'ri-upload-cloud-2-line' : (field.type === 'url' ? 'ri-link' : (field.type === 'email' ? 'ri-mail-line' : (field.type === 'select' ? 'ri-arrow-down-s-line' : (field.type === 'number' ? 'ri-hashtag' : (field.type === 'date' ? 'ri-calendar-line' : 'ri-input-field'))))))"></i>
                         <span v-if="field.type === 'participant_repeater'">Multi-Peserta Dinamis <template v-if="field.max_items">(Maks. {{ field.max_items }})</template></span>
-                        <span v-else>{{ field.type }}</span>
+                        <span v-else>{{ field.type === 'date' ? 'Tanggal' : field.type }}</span>
                       </span>
 
                       <!-- Question Label Title -->
@@ -2759,6 +2763,70 @@ function setParticipantCountDirect(field, val) {
                         </div>
                       </div>
 
+                      <!-- Date Picker Settings Zone -->
+                      <div v-if="field.type === 'date'" class="col-12">
+                        <div class="p-3 bg-primary-subtle/20 rounded-3 border border-primary-subtle">
+                          <div class="d-flex align-items-center justify-content-between mb-2">
+                            <label class="form-label fs-11 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
+                              <i class="ri-calendar-2-line text-primary fs-14"></i>
+                              <span>Pengaturan Kalender & Format Tanggal (Flatpickr Baku)</span>
+                            </label>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-10 font-mono">Rule 4: dd/mm/yyyy</span>
+                          </div>
+
+                          <div class="row g-2.5">
+                            <div class="col-md-4">
+                              <label class="form-label fs-11 text-muted mb-1">
+                                Batas Tanggal Minimal (Min Date)
+                              </label>
+                              <IndoDatePicker 
+                                v-model="field.min_date"
+                                placeholder="dd/mm/yyyy"
+                                inputClass="form-control form-control-sm fs-12 bg-body"
+                              />
+                              <div class="d-flex gap-1 mt-1">
+                                <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" @click="field.min_date = '01/01/2000'">Thn 2000</button>
+                                <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" @click="field.min_date = '01/01/2010'">Thn 2010</button>
+                                <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" @click="field.min_date = ''">Kosongkan</button>
+                              </div>
+                            </div>
+
+                            <div class="col-md-4">
+                              <label class="form-label fs-11 text-muted mb-1">
+                                Batas Tanggal Maksimal (Max Date)
+                              </label>
+                              <IndoDatePicker 
+                                v-model="field.max_date"
+                                placeholder="dd/mm/yyyy"
+                                inputClass="form-control form-control-sm fs-12 bg-body"
+                              />
+                              <div class="d-flex gap-1 mt-1">
+                                <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" @click="field.max_date = '31/12/2026'">Akhir 2026</button>
+                                <button type="button" class="btn btn-xs btn-light border py-0 px-1 text-[10px]" @click="field.max_date = ''">Kosongkan</button>
+                              </div>
+                            </div>
+
+                            <div class="col-md-4">
+                              <label class="form-label fs-11 text-muted mb-1">
+                                Nilai Standar Awal
+                              </label>
+                              <CustomSelect 
+                                v-model="field.date_default"
+                                :options="[
+                                  { value: '', label: 'Biarkan Kosong (Wajib Dipilih Pendaftar)' },
+                                  { value: 'today', label: 'Otomatis Tanggal Hari Ini' }
+                                ]"
+                                size="sm"
+                                placeholder="Pilih default..."
+                              />
+                              <small class="text-muted fs-10 d-block mt-1">
+                                Kalender otomatis tervalidasi dengan Flatpickr lokal offline.
+                              </small>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       <!-- ============================================================ -->
                       <!-- GENERAL CONDITIONAL LOGIC ACCORDION FOR EVERY FIELD          -->
                       <!-- ============================================================ -->
@@ -3169,8 +3237,25 @@ function setParticipantCountDirect(field, val) {
                                     <span>{{ col.label || 'Kolom Tambahan' }}</span>
                                     <span v-if="col.required" class="text-rose-400 ms-1">*</span>
                                   </label>
+                                  <IndoDatePicker 
+                                    v-if="col.type === 'date'"
+                                    v-model="previewValues[field.name + '_' + (col.id || col.label) + '_' + pIdx]"
+                                    placeholder="dd/mm/yyyy"
+                                    inputClass="w-full px-2 py-1 rounded bg-slate-900 border border-slate-800 text-white text-[11px]"
+                                    iconClass="ri-calendar-line text-amber-400 text-xs"
+                                  />
+                                  <CustomSelect 
+                                    v-else-if="col.type === 'select'"
+                                    v-model="previewValues[field.name + '_' + (col.id || col.label) + '_' + pIdx]"
+                                    :options="col.options || ['Opsi 1', 'Opsi 2']"
+                                    size="xs"
+                                    variant="dark-slate"
+                                    placeholder="Pilih opsi..."
+                                  />
                                   <input 
+                                    v-else
                                     :type="col.type === 'number' ? 'number' : 'text'" 
+                                    v-model="previewValues[field.name + '_' + (col.id || col.label) + '_' + pIdx]"
                                     :placeholder="`Masukkan ${col.label || 'data'}`"
                                     class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono"
                                   />
@@ -3259,6 +3344,8 @@ function setParticipantCountDirect(field, val) {
                         <div v-else-if="field.type === 'date'">
                           <IndoDatePicker 
                             v-model="previewValues[field.name]"
+                            :min-date="field.min_date"
+                            :max-date="field.max_date"
                             placeholder="dd/mm/yyyy"
                             inputClass="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
                             iconClass="ri-calendar-line text-amber-400 text-xs"
@@ -3596,8 +3683,25 @@ function setParticipantCountDirect(field, val) {
                                 <span>{{ col.label || 'Kolom Tambahan' }}</span>
                                 <span v-if="col.required" class="text-rose-400">*</span>
                               </label>
+                              <IndoDatePicker 
+                                v-if="col.type === 'date'"
+                                v-model="previewValues[field.name + '_' + (col.id || col.label) + '_' + pIdx]"
+                                placeholder="dd/mm/yyyy"
+                                inputClass="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
+                                iconClass="ri-calendar-line text-amber-400 text-sm"
+                              />
+                              <CustomSelect 
+                                v-else-if="col.type === 'select'"
+                                v-model="previewValues[field.name + '_' + (col.id || col.label) + '_' + pIdx]"
+                                :options="col.options || ['Opsi 1', 'Opsi 2']"
+                                size="sm"
+                                variant="dark-slate"
+                                placeholder="Pilih opsi..."
+                              />
                               <input 
+                                v-else
                                 :type="col.type === 'number' ? 'number' : 'text'" 
+                                v-model="previewValues[field.name + '_' + (col.id || col.label) + '_' + pIdx]"
                                 :placeholder="`Masukkan ${col.label || 'data'}...`" 
                                 class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono"
                               />
@@ -3685,6 +3789,8 @@ function setParticipantCountDirect(field, val) {
                     <div v-else-if="field.type === 'date'">
                       <IndoDatePicker 
                         v-model="previewValues[field.name]"
+                        :min-date="field.min_date"
+                        :max-date="field.max_date"
                         placeholder="dd/mm/yyyy"
                         inputClass="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
                         iconClass="ri-calendar-line text-amber-400 text-sm"

@@ -389,6 +389,7 @@ function createEmptyParticipant() {
     custom_id: '',
     wa_number: '',
     is_captain: false,
+    custom_columns: {},
   };
 }
 
@@ -683,6 +684,11 @@ function submitRegistration() {
       if (p.nisn) details.push(`NISN: ${p.nisn}`);
       if (p.custom_id) details.push(`ID: ${p.custom_id}`);
       if (p.wa_number) details.push(`WA: ${p.wa_number}`);
+      if (p.custom_columns) {
+        Object.entries(p.custom_columns).forEach(([k, v]) => {
+          if (v) details.push(`${k}: ${v}`);
+        });
+      }
       lines.push(`${i + 1}. ${pName}${details.length ? ' (' + details.join(', ') + ')' : ''}`);
     }
     form.participants_names = lines.join('\n');
@@ -1384,6 +1390,8 @@ function handleUnifiedSubmit() {
                         v-else-if="field.type === 'date'"
                         :id="'cf-' + field.name"
                         v-model="form.custom_fields[field.name]"
+                        :min-date="field.min_date"
+                        :max-date="field.max_date"
                         placeholder="dd/mm/yyyy"
                         inputClass="form-control reg-input fs-12 py-2"
                         iconClass="ri-calendar-line text-primary"
@@ -1623,6 +1631,51 @@ function handleUnifiedSubmit() {
                             placeholder="Nomor Induk Siswa Nasional"
                           />
                         </div>
+
+                        <!-- Kolom Tambahan Biodata Siswa dari Form Builder -->
+                        <template v-if="repeaterField.sub_fields?.custom_columns?.length">
+                          <div 
+                            v-for="col in repeaterField.sub_fields.custom_columns" 
+                            :key="col.id || col.label" 
+                            class="col-sm-6"
+                          >
+                            <label class="form-label fs-12 fw-semibold reg-label mb-0.5 d-flex justify-content-between align-items-center">
+                              <span>{{ col.label || 'Kolom Tambahan' }}</span>
+                              <span v-if="col.required" class="text-danger">*</span>
+                            </label>
+
+                            <!-- Kolom Tanggal Flatpickr -->
+                            <IndoDatePicker
+                              v-if="col.type === 'date'"
+                              v-model="participantsList[pIdx - 1].custom_columns[col.name || col.id || col.label]"
+                              placeholder="dd/mm/yyyy"
+                              inputClass="form-control reg-input fs-12 py-1.5"
+                              iconClass="ri-calendar-line text-primary"
+                              :required="col.required"
+                            />
+
+                            <!-- Kolom Pilihan CustomSelect -->
+                            <CustomSelect
+                              v-else-if="col.type === 'select'"
+                              v-model="participantsList[pIdx - 1].custom_columns[col.name || col.id || col.label]"
+                              :options="col.options || []"
+                              size="sm"
+                              :placeholder="`Pilih ${col.label}...`"
+                              :required="col.required"
+                            />
+
+                            <!-- Kolom Angka / Teks / Email -->
+                            <input
+                              v-else
+                              :type="col.type === 'number' ? 'number' : (col.type === 'email' ? 'email' : 'text')"
+                              :inputmode="col.type === 'number' ? 'numeric' : undefined"
+                              v-model="participantsList[pIdx - 1].custom_columns[col.name || col.id || col.label]"
+                              :placeholder="`Masukkan ${col.label}...`"
+                              class="form-control reg-input fs-12 py-1.5"
+                              :required="col.required"
+                            />
+                          </div>
+                        </template>
                       </div>
                     </div>
                   </div>

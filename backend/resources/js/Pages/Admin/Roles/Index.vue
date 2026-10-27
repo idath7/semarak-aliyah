@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import CustomSelect from '@/Components/CustomSelect.vue';
@@ -38,6 +38,81 @@ const { confirm: confirmDialog } = useConfirmDialog();
 const activeTab = ref('matrix'); // 'matrix' | 'roles' | 'users'
 
 // -----------------------------------------------------------------------------
+// STANDARDIZED ROLE BADGE & ICON HELPERS
+// -----------------------------------------------------------------------------
+function getRoleLabel(roleKey, fallbackLabel = null) {
+  if (fallbackLabel) return fallbackLabel;
+  if (!roleKey) return 'Panitia';
+  const defaultLabels = {
+    super_admin: 'Super Admin',
+    admin: 'Administrator',
+    ketua_panitia: 'Ketua Panitia',
+    wakil_ketua_panitia: 'Wakil Ketua Panitia',
+    sekretaris: 'Sekretaris Pelaksana',
+    koordinator_lomba: 'Koordinator Lomba',
+    panitia: 'Panitia Pelaksana',
+    kesekretariatan: 'Kesekretariatan',
+    bendahara: 'Bendahara & Tiket',
+    juri: 'Dewan Juri',
+    wasit: 'Wasit / Match Official',
+  };
+  return defaultLabels[roleKey] || roleKey.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+function getRoleBadgeClass(roleKey, badgeColor = null) {
+  const badgeMap = {
+    super_admin: 'badge-role-danger',
+    admin: 'badge-role-primary',
+    ketua_panitia: 'badge-role-purple',
+    wakil_ketua_panitia: 'badge-role-indigo',
+    sekretaris: 'badge-role-teal',
+    koordinator_lomba: 'badge-role-warning',
+    panitia: 'badge-role-info',
+    kesekretariatan: 'badge-role-secondary',
+    bendahara: 'badge-role-success',
+    juri: 'badge-role-amber',
+    wasit: 'badge-role-dark',
+  };
+
+  if (badgeMap[roleKey]) return badgeMap[roleKey];
+
+  if (badgeColor) {
+    const colorMap = {
+      danger: 'badge-role-danger',
+      primary: 'badge-role-primary',
+      success: 'badge-role-success',
+      warning: 'badge-role-warning',
+      info: 'badge-role-info',
+      secondary: 'badge-role-secondary',
+      dark: 'badge-role-dark',
+      purple: 'badge-role-purple',
+      indigo: 'badge-role-indigo',
+      teal: 'badge-role-teal',
+    };
+    return colorMap[badgeColor] || 'badge-role-primary';
+  }
+
+  return 'badge-role-secondary';
+}
+
+function getRoleIcon(roleKey) {
+  const iconMap = {
+    super_admin: 'ri-shield-star-fill',
+    admin: 'ri-shield-user-line',
+    ketua_panitia: 'ri-vip-crown-line',
+    wakil_ketua_panitia: 'ri-user-star-line',
+    sekretaris: 'ri-file-text-line',
+    koordinator_lomba: 'ri-medal-fill',
+    panitia: 'ri-team-line',
+    kesekretariatan: 'ri-file-user-line',
+    bendahara: 'ri-money-dollar-circle-line',
+    juri: 'ri-award-line',
+    wasit: 'ri-flag-line',
+  };
+  return iconMap[roleKey] || 'ri-shield-keyhole-line';
+}
+
+// -----------------------------------------------------------------------------
 // ROLE MATRIX STATE
 // -----------------------------------------------------------------------------
 // Peran aktif yang sedang diatur izinnya
@@ -59,6 +134,32 @@ function initMatrixState() {
 }
 
 initMatrixState();
+
+// Watch update props.roles dari Inertia
+watch(() => props.roles, () => {
+  initMatrixState();
+}, { deep: true });
+
+function isRoleModified(roleId) {
+  const role = props.roles.find(r => r.id === roleId);
+  if (!role || role.name === 'super_admin') return false;
+  const original = role.permission_ids || [];
+  const current = matrixState.value[roleId] || [];
+  if (original.length !== current.length) return true;
+  const currentSet = new Set(current);
+  return original.some(id => !currentSet.has(id));
+}
+
+const hasUnsavedChanges = computed(() => {
+  return isRoleModified(selectedRoleId.value);
+});
+
+function resetCurrentRoleMatrix() {
+  const role = props.roles.find(r => r.id === selectedRoleId.value);
+  if (!role) return;
+  matrixState.value[selectedRoleId.value] = [...role.permission_ids];
+  info(`Perubahan hak akses peran '${role.label}' dikembalikan ke data tersimpan.`);
+}
 
 const currentRolePermIds = computed(() => {
   return matrixState.value[selectedRoleId.value] || [];
@@ -110,6 +211,83 @@ function revokeAllPermissions() {
   matrixState.value[selectedRoleId.value] = [];
   info(`Seluruh hak akses dicabut untuk peran ${selectedRole.value.label}.`);
 }
+
+// -----------------------------------------------------------------------------
+// MATRIX LIVE SEARCH & FILTERING
+// -----------------------------------------------------------------------------
+const permSearch = ref('');
+const moduleFilter = ref('all');
+const statusPermFilter = ref('all'); // 'all' | 'active' | 'inactive'
+
+const filteredPermissionsGrouped = computed(() => {
+  const query = permSearch.value.trim().toLowerCase();
+  const selectedMod = moduleFilter.value;
+  const statusFilt = statusPermFilter.value;
+
+  const result = {};
+
+  for (const [groupName, perms] of Object.entries(props.permissionsGrouped || {})) {
+    if (selectedMod !== 'all' && selectedMod !== groupName) {
+      continue;
+    }
+
+    const filteredPerms = perms.filter(p => {
+      // 1. Text Search Filter
+      const matchesSearch = !query || 
+        p.label.toLowerCase().includes(query) || 
+        p.name.toLowerCase().includes(query) || 
+        (p.description && p.description.toLowerCase().includes(query)) ||
+        groupName.toLowerCase().includes(query);
+
+      if (!matchesSearch) return false;
+
+      // 2. Status Filter
+      if (statusFilt === 'active') {
+        return isPermChecked(selectedRoleId.value, p.id);
+      }
+      if (statusFilt === 'inactive') {
+        return !isPermChecked(selectedRoleId.value, p.id);
+      }
+      return true;
+    });
+
+    if (filteredPerms.length > 0) {
+      result[groupName] = filteredPerms;
+    }
+  }
+
+  return result;
+});
+
+const totalFilteredCount = computed(() => {
+  return Object.values(filteredPermissionsGrouped.value).reduce((acc, perms) => acc + perms.length, 0);
+});
+
+const moduleOptions = computed(() => {
+  const opts = [
+    { value: 'all', label: 'Semua Kategori Modul' },
+  ];
+  Object.keys(props.permissionsGrouped || {}).forEach(groupName => {
+    opts.push({
+      value: groupName,
+      label: `${groupName} (${props.permissionsGrouped[groupName]?.length || 0} Izin)`,
+    });
+  });
+  return opts;
+});
+
+const statusFilterOptions = [
+  { value: 'all', label: 'Semua Status Izin' },
+  { value: 'active', label: 'Hanya Izin Aktif' },
+  { value: 'inactive', label: 'Hanya Izin Non-aktif' },
+];
+
+function resetFilters() {
+  permSearch.value = '';
+  moduleFilter.value = 'all';
+  statusPermFilter.value = 'all';
+}
+
 
 function saveRolePermissions() {
   isRoleSaving.value = true;
@@ -312,6 +490,34 @@ function setUserPermState(permName, state) {
     delete userOverrides.value[permName];
   }
 }
+
+const userPermSearch = ref('');
+
+function doesRoleHavePerm(permName) {
+  if (!selectedUser.value) return false;
+  if (selectedUser.value.role === 'super_admin') return true;
+  const userRole = props.roles.find(r => r.name === selectedUser.value.role);
+  if (!userRole) return false;
+  return (userRole.permission_names || []).includes(permName);
+}
+
+const filteredModalPermissionsGrouped = computed(() => {
+  const q = userPermSearch.value.trim().toLowerCase();
+  if (!q) return props.permissionsGrouped;
+
+  const res = {};
+  for (const [groupName, perms] of Object.entries(props.permissionsGrouped || {})) {
+    const matched = perms.filter(p => 
+      p.label.toLowerCase().includes(q) || 
+      p.name.toLowerCase().includes(q) || 
+      (p.description && p.description.toLowerCase().includes(q))
+    );
+    if (matched.length > 0) {
+      res[groupName] = matched;
+    }
+  }
+  return res;
+});
 
 function resetUserOverrides() {
   userOverrides.value = {};
@@ -530,108 +736,236 @@ function saveUserOverrides() {
           <!-- ============================================================= -->
           <div v-if="activeTab === 'matrix'">
             
-            <!-- Role Selector Pills Bar -->
-            <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4 p-3 rounded-4 bg-light-subtle border">
-              <div>
-                <span class="fs-11 fw-bold text-muted text-uppercase d-block mb-1.5">Pilih Peran yang Ingin Dikelola:</span>
-                <div class="d-flex flex-wrap gap-1.5">
-                  <button
-                    v-for="role in roles"
-                    :key="role.id"
-                    type="button"
-                    class="btn btn-sm rounded-pill px-3 py-1.5 fs-12 fw-semibold d-inline-flex align-items-center gap-1.5 transition-all"
-                    :class="selectedRoleId === role.id ? `btn-${role.badge_color || 'primary'} shadow-sm` : 'btn-outline-secondary'"
-                    @click="selectedRoleId = role.id"
-                  >
-                    <i v-if="selectedRoleId === role.id" class="ri-checkbox-circle-fill"></i>
-                    <span>{{ role.label }}</span>
-                    <span class="badge bg-white text-dark rounded-pill fs-10 px-1.5 ms-0.5">
-                      {{ matrixState[role.id]?.length || 0 }}
-                    </span>
-                  </button>
-                </div>
+            <!-- Role Selector Strip -->
+            <div class="p-3 rounded-4 bg-light-subtle border mb-4">
+              <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-2.5">
+                <span class="fs-12 fw-bold text-dark-emphasis d-flex align-items-center gap-1.5">
+                  <i class="ri-user-settings-line text-primary"></i>
+                  <span>PILIH PERAN PANITIA:</span>
+                </span>
+                <span class="fs-11 text-muted">
+                  Klik peran untuk mengonfigurasi matriks izinnya. Peran dengan tanda bintang memiliki perubahan belum disimpan.
+                </span>
               </div>
+              <div class="d-flex flex-wrap gap-2">
+                <button
+                  v-for="role in roles"
+                  :key="role.id"
+                  type="button"
+                  class="btn btn-sm rounded-pill px-3 py-1.5 fs-12 fw-semibold d-inline-flex align-items-center gap-2 transition-all position-relative"
+                  :class="selectedRoleId === role.id 
+                    ? 'btn-primary text-white shadow' 
+                    : 'btn-light border text-dark-emphasis bg-card'"
+                  @click="selectedRoleId = role.id"
+                >
+                  <i :class="getRoleIcon(role.name)" class="fs-13"></i>
+                  <span>{{ getRoleLabel(role.name, role.label) }}</span>
+                  
+                  <!-- Permission Count Pill -->
+                  <span 
+                    class="badge rounded-pill fs-10 px-1.5 py-0.5"
+                    :class="selectedRoleId === role.id ? 'bg-white text-primary' : 'bg-primary-subtle text-primary border border-primary-subtle'"
+                  >
+                    {{ role.name === 'super_admin' ? allPermissions.length : (matrixState[role.id]?.length || 0) }}
+                  </span>
 
-              <!-- Save Matrix Button -->
-              <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                <button
-                  v-if="selectedRole?.name !== 'super_admin'"
-                  type="button"
-                  class="btn btn-sm btn-outline-success rounded-pill px-3"
-                  @click="grantAllPermissions"
-                >
-                  <i class="ri-check-line me-1"></i>Pilih Semua
-                </button>
-                <button
-                  v-if="selectedRole?.name !== 'super_admin'"
-                  type="button"
-                  class="btn btn-sm btn-outline-secondary rounded-pill px-3"
-                  @click="revokeAllPermissions"
-                >
-                  <i class="ri-close-line me-1"></i>Kosongkan
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-primary rounded-pill px-4 shadow-sm fw-semibold d-flex align-items-center gap-1.5"
-                  :disabled="isRoleSaving || selectedRole?.name === 'super_admin'"
-                  @click="saveRolePermissions"
-                >
-                  <span v-if="isRoleSaving" class="spinner-border spinner-border-sm"></span>
-                  <i v-else class="ri-save-3-line"></i>
-                  <span>{{ isRoleSaving ? 'Menyimpan...' : 'Simpan Izin Peran' }}</span>
+                  <!-- Unsaved Dot Indicator -->
+                  <span 
+                    v-if="isRoleModified(role.id)" 
+                    class="position-absolute top-0 start-100 translate-middle p-1 bg-warning border border-light rounded-circle"
+                    title="Ada perubahan belum disimpan"
+                  >
+                    <span class="visually-hidden">Belum disimpan</span>
+                  </span>
                 </button>
               </div>
             </div>
 
             <!-- Role Summary Banner -->
-            <div 
-              class="alert py-3 px-3.5 rounded-4 mb-4 border d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3"
-              :class="`alert-${selectedRole?.badge_color || 'primary'}`"
-            >
-              <div class="d-flex align-items-start gap-3">
-                <div class="fs-28 flex-shrink-0 mt-0.5">
-                  <i v-if="selectedRole?.name === 'super_admin'" class="ri-shield-flash-fill text-danger"></i>
-                  <i v-else-if="selectedRole?.name === 'admin'" class="ri-shield-check-fill text-primary"></i>
-                  <i v-else class="ri-shield-keyhole-fill"></i>
-                </div>
-                <div>
-                  <div class="d-flex align-items-center gap-2 mb-0.5">
-                    <h5 class="mb-0 fw-bold fs-16">{{ selectedRole?.label }}</h5>
-                    <span class="badge bg-dark text-white rounded-pill fs-10 font-monospace">slug: {{ selectedRole?.name }}</span>
-                    <span v-if="selectedRole?.is_system" class="badge bg-secondary-subtle text-secondary rounded-pill fs-10">Bawaan Sistem</span>
+            <div class="card border rounded-4 p-3.5 mb-4 shadow-sm bg-card">
+              <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+                <div class="d-flex align-items-start gap-3">
+                  <div class="avatar-md flex-shrink-0">
+                    <span 
+                      class="avatar-title rounded-circle fs-24 border shadow-sm"
+                      :class="getRoleBadgeClass(selectedRole?.name, selectedRole?.badge_color)"
+                    >
+                      <i :class="getRoleIcon(selectedRole?.name)"></i>
+                    </span>
                   </div>
-                  <p class="mb-0 fs-12 opacity-85">{{ selectedRole?.description || 'Tidak ada keterangan khusus untuk peran ini.' }}</p>
+                  <div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                      <h5 class="mb-0 fw-bold fs-16 text-dark-emphasis">{{ selectedRole?.label }}</h5>
+                      <span class="badge bg-dark-subtle text-dark-emphasis rounded-pill fs-11 font-monospace border">
+                        slug: {{ selectedRole?.name }}
+                      </span>
+                      <span 
+                        class="badge rounded-pill fs-11 fw-semibold"
+                        :class="getRoleBadgeClass(selectedRole?.name, selectedRole?.badge_color)"
+                      >
+                        {{ selectedRole?.is_system ? 'Peran Bawaan Sistem' : 'Peran Kustom' }}
+                      </span>
+                      <span v-if="hasUnsavedChanges" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill fs-11 fw-semibold">
+                        <i class="ri-alert-line me-1"></i>Ada Perubahan Belum Disimpan
+                      </span>
+                    </div>
+                    <p class="mb-0 fs-12 text-muted lh-sm">{{ selectedRole?.description || 'Tidak ada deskripsi rinci untuk peran ini.' }}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div class="text-md-end flex-shrink-0">
-                <div class="fs-12 fw-bold">
-                  {{ selectedRole?.name === 'super_admin' ? allPermissions.length : (matrixState[selectedRoleId]?.length || 0) }} / {{ allPermissions.length }} Izin Aktif
+                <!-- Stats & Primary Action Buttons -->
+                <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-3 ms-lg-auto">
+                  <div class="text-start text-lg-end pe-lg-3 border-lg-end">
+                    <div class="fs-13 fw-bold text-dark-emphasis">
+                      {{ selectedRole?.name === 'super_admin' ? allPermissions.length : (matrixState[selectedRoleId]?.length || 0) }} / {{ allPermissions.length }} Izin Aktif
+                    </div>
+                    <small class="text-muted fs-11 d-flex align-items-center gap-1 justify-content-lg-end">
+                      <i class="ri-user-line"></i>
+                      <span>{{ selectedRole?.users_count || 0 }} Panitia Bertugas</span>
+                    </small>
+                  </div>
+
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <button
+                      v-if="selectedRole?.name !== 'super_admin'"
+                      type="button"
+                      class="btn btn-sm btn-outline-success rounded-pill px-3 fw-semibold"
+                      @click="grantAllPermissions"
+                      title="Pilih seluruh hak akses untuk peran ini"
+                    >
+                      <i class="ri-checkbox-multiple-line me-1"></i>Pilih Semua
+                    </button>
+                    <button
+                      v-if="selectedRole?.name !== 'super_admin'"
+                      type="button"
+                      class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold"
+                      @click="revokeAllPermissions"
+                      title="Hapus seluruh hak akses untuk peran ini"
+                    >
+                      <i class="ri-close-circle-line me-1"></i>Kosongkan
+                    </button>
+                    <button
+                      v-if="hasUnsavedChanges"
+                      type="button"
+                      class="btn btn-sm btn-outline-warning rounded-pill px-3 fw-semibold"
+                      @click="resetCurrentRoleMatrix"
+                      title="Kembalikan perubahan yang belum disimpan"
+                    >
+                      <i class="ri-restart-line me-1"></i>Batal
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-primary rounded-pill px-3.5 shadow-sm fw-bold d-flex align-items-center gap-1.5"
+                      :disabled="isRoleSaving || selectedRole?.name === 'super_admin'"
+                      @click="saveRolePermissions"
+                    >
+                      <span v-if="isRoleSaving" class="spinner-border spinner-border-sm"></span>
+                      <i v-else class="ri-save-3-fill"></i>
+                      <span>{{ isRoleSaving ? 'Menyimpan...' : 'Simpan Izin Peran' }}</span>
+                    </button>
+                  </div>
                 </div>
-                <small class="opacity-75 fs-11">{{ selectedRole?.users_count || 0 }} Anggota panitia terdaftar</small>
               </div>
             </div>
 
             <!-- Super Admin Notice -->
-            <div v-if="selectedRole?.name === 'super_admin'" class="alert alert-danger py-2.5 px-3.5 rounded-3 mb-4 fs-12 d-flex align-items-center gap-2">
-              <i class="ri-alert-fill fs-16 text-danger"></i>
-              <span><strong>Hak Akses Super Admin Bersifat Mutlak (Bypass).</strong> Seluruh izin sistem otomatis aktif dan tidak dapat dinonaktifkan demi integritas kendali penuh sistem.</span>
+            <div v-if="selectedRole?.name === 'super_admin'" class="alert alert-danger py-2.5 px-3.5 rounded-3 mb-4 fs-12 d-flex align-items-center gap-2.5 border border-danger-subtle">
+              <i class="ri-shield-flash-fill fs-18 text-danger flex-shrink-0"></i>
+              <div>
+                <strong>Hak Akses Super Admin Bersifat Mutlak (Bypass Penuh):</strong> Seluruh izin sistem otomatis aktif secara permanen dan tidak dapat dinonaktifkan demi integritas kendali penuh sistem.
+              </div>
+            </div>
+
+            <!-- Filter & Search Toolbar -->
+            <div class="card border rounded-4 p-3 mb-3.5 bg-light-subtle shadow-none">
+              <div class="row g-2.5 align-items-center">
+                <!-- Search Box -->
+                <div class="col-12 col-md-5">
+                  <div class="position-relative">
+                    <input 
+                      v-model="permSearch" 
+                      type="text" 
+                      class="form-control form-control-sm rounded-pill ps-4 pe-4 bg-card border" 
+                      placeholder="Cari izin berdasarkan nama, modul, deskripsi..."
+                    />
+                    <i class="ri-search-line position-absolute top-50 translate-middle-y text-muted" style="left: 12px; font-size: 13px;"></i>
+                    <button 
+                      v-if="permSearch" 
+                      type="button" 
+                      class="btn btn-link btn-sm position-absolute top-50 translate-middle-y text-muted p-0" 
+                      style="right: 12px;"
+                      @click="permSearch = ''"
+                    >
+                      <i class="ri-close-circle-fill"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Module Category Filter (CustomSelect) -->
+                <div class="col-12 col-sm-6 col-md-4">
+                  <CustomSelect
+                    v-model="moduleFilter"
+                    :options="moduleOptions"
+                    placeholder="Pilih Kategori Modul"
+                  />
+                </div>
+
+                <!-- Status Filter (CustomSelect) -->
+                <div class="col-12 col-sm-6 col-md-3">
+                  <CustomSelect
+                    v-model="statusPermFilter"
+                    :options="statusFilterOptions"
+                    placeholder="Pilih Status Izin"
+                  />
+                </div>
+              </div>
+
+              <!-- Filter Info & Reset Link -->
+              <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top fs-11 text-muted">
+                <span>
+                  Menampilkan <strong>{{ totalFilteredCount }}</strong> dari {{ allPermissions.length }} total izin sistem
+                </span>
+                <button 
+                  v-if="permSearch || moduleFilter !== 'all' || statusPermFilter !== 'all'"
+                  type="button" 
+                  class="btn btn-link btn-xs p-0 text-primary text-decoration-none fw-semibold"
+                  @click="resetFilters"
+                >
+                  <i class="ri-refresh-line me-1"></i>Reset Filter Pencarian
+                </button>
+              </div>
+            </div>
+
+            <!-- Empty Filter State -->
+            <div v-if="totalFilteredCount === 0" class="card border rounded-4 p-5 text-center bg-card shadow-sm mb-4">
+              <div class="avatar-lg mx-auto mb-3">
+                <span class="avatar-title bg-light text-muted rounded-circle fs-32">
+                  <i class="ri-filter-off-line"></i>
+                </span>
+              </div>
+              <h5 class="fs-15 fw-bold text-dark-emphasis mb-1">Tidak Ada Izin yang Cocok</h5>
+              <p class="fs-12 text-muted mb-3">Tidak ditemukan izin yang sesuai dengan kata kunci pencarian atau filter yang dipilih.</p>
+              <div>
+                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3.5" @click="resetFilters">
+                  <i class="ri-refresh-line me-1"></i>Reset Filter
+                </button>
+              </div>
             </div>
 
             <!-- Permission Groups Accordions / Cards -->
-            <div class="d-flex flex-column gap-3.5">
+            <div v-else class="d-flex flex-column gap-3.5">
               <div 
-                v-for="(perms, groupName) in permissionsGrouped" 
+                v-for="(perms, groupName) in filteredPermissionsGrouped" 
                 :key="groupName"
-                class="card border rounded-4 shadow-none permission-group-card"
+                class="card border rounded-4 shadow-none permission-group-card bg-card overflow-hidden"
               >
                 <!-- Group Header -->
                 <div class="card-header bg-light-subtle py-2.5 px-3.5 d-flex align-items-center justify-content-between border-bottom">
                   <div class="d-flex align-items-center gap-2">
                     <i class="ri-folder-keyhole-line text-primary fs-16"></i>
                     <h6 class="mb-0 fs-13 fw-bold text-dark-emphasis">{{ groupName }}</h6>
-                    <span class="badge bg-primary-subtle text-primary rounded-pill fs-11 px-2">
-                      {{ perms.filter(p => isPermChecked(selectedRoleId, p.id)).length }} / {{ perms.length }}
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill fs-11 px-2">
+                      {{ perms.filter(p => isPermChecked(selectedRoleId, p.id)).length }} / {{ perms.length }} Aktif
                     </span>
                   </div>
 
@@ -639,19 +973,19 @@ function saveUserOverrides() {
                   <div v-if="selectedRole?.name !== 'super_admin'" class="d-flex align-items-center gap-1.5">
                     <button 
                       type="button" 
-                      class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0.5 fs-11"
+                      class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-1 fs-11 fw-medium"
                       @click="toggleGroupPermissions(perms, true)"
                       title="Beri semua izin di modul ini"
                     >
-                      Pilih Semua
+                      <i class="ri-check-line me-0.5"></i>Pilih Semua
                     </button>
                     <button 
                       type="button" 
-                      class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-0.5 fs-11"
+                      class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 fs-11 fw-medium"
                       @click="toggleGroupPermissions(perms, false)"
                       title="Cabut semua izin di modul ini"
                     >
-                      Hapus
+                      <i class="ri-close-line me-0.5"></i>Kosongkan
                     </button>
                   </div>
                 </div>
@@ -665,33 +999,36 @@ function saveUserOverrides() {
                       class="col-md-6 col-xl-4"
                     >
                       <div 
-                        class="p-2.5 rounded-3 border permission-item-box transition-all cursor-pointer h-100 d-flex align-items-start gap-2.5"
+                        class="p-2.5 rounded-3 border permission-item-box transition-all cursor-pointer h-100 d-flex align-items-start gap-2.5 position-relative"
                         :class="{ 
                           'is-active': isPermChecked(selectedRoleId, perm.id),
                           'disabled-super': selectedRole?.name === 'super_admin'
                         }"
                         @click="togglePermission(perm.id)"
                       >
-                        <!-- Custom Switch / Checkbox -->
-                        <div class="form-check form-switch m-0 pt-0.5">
+                        <!-- Custom Switch (pointer-events none to eliminate double click bug permanently) -->
+                        <div class="form-check form-switch m-0 pt-0.5 flex-shrink-0" style="pointer-events: none;">
                           <input 
-                            class="form-check-input cursor-pointer" 
+                            class="form-check-input" 
                             type="checkbox" 
-                            :id="`perm-${selectedRoleId}-${perm.id}`"
                             :checked="isPermChecked(selectedRoleId, perm.id)"
                             :disabled="selectedRole?.name === 'super_admin'"
-                            @click.stop="togglePermission(perm.id)"
                           />
                         </div>
 
                         <!-- Permission Label & Details -->
-                        <div class="flex-grow-1">
-                          <label 
-                            :for="`perm-${selectedRoleId}-${perm.id}`"
-                            class="form-check-label d-block fs-12 fw-semibold text-dark-emphasis cursor-pointer mb-0.5"
-                          >
-                            {{ perm.label }}
-                          </label>
+                        <div class="flex-grow-1 user-select-none">
+                          <div class="d-flex align-items-center justify-content-between gap-1 mb-0.5">
+                            <span class="fs-12 fw-semibold text-dark-emphasis">
+                              {{ perm.label }}
+                            </span>
+                            <span 
+                              v-if="isPermChecked(selectedRoleId, perm.id)" 
+                              class="badge bg-success-subtle text-success border border-success-subtle fs-10 px-1.5 py-0.5 rounded-pill flex-shrink-0"
+                            >
+                              <i class="ri-check-line"></i> Aktif
+                            </span>
+                          </div>
                           <div class="font-monospace fs-10 text-muted mb-1">{{ perm.name }}</div>
                           <p class="fs-11 text-muted mb-0 lh-sm">{{ perm.description || 'Tidak ada deskripsi rinci.' }}</p>
                         </div>
@@ -705,22 +1042,48 @@ function saveUserOverrides() {
             <!-- Sticky Bottom Save Bar -->
             <div 
               v-if="selectedRole?.name !== 'super_admin'" 
-              class="sticky-bottom mt-4 p-3 bg-card border rounded-4 shadow-lg d-flex align-items-center justify-content-between"
+              class="sticky-bottom mt-4 p-3 bg-card border rounded-4 shadow-lg d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3"
               style="z-index: 100;"
             >
-              <div class="fs-12 text-muted d-none d-sm-block">
-                Perubahan pada matriks <strong>{{ selectedRole?.label }}</strong> akan langsung berlaku untuk seluruh panitia yang bertugas pada peran ini.
+              <div class="d-flex align-items-center gap-2">
+                <span 
+                  class="badge p-1.5 rounded-circle"
+                  :class="hasUnsavedChanges ? 'bg-warning text-dark' : 'bg-success text-white'"
+                >
+                  <i :class="hasUnsavedChanges ? 'ri-alert-fill' : 'ri-check-fill'"></i>
+                </span>
+                <div class="fs-12 text-dark-emphasis">
+                  <strong v-if="hasUnsavedChanges" class="text-warning-emphasis">
+                    Ada perubahan belum disimpan untuk peran '{{ selectedRole?.label }}'.
+                  </strong>
+                  <span v-else class="text-muted">
+                    Matriks hak akses peran <strong>{{ selectedRole?.label }}</strong> tersimpan sinkron.
+                  </span>
+                  <div class="fs-11 text-muted">
+                    Perubahan akan langsung berdampak pada seluruh panitia dengan peran ini.
+                  </div>
+                </div>
               </div>
-              <div class="d-flex align-items-center gap-2 ms-auto">
+
+              <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-sm-auto">
+                <button
+                  v-if="hasUnsavedChanges"
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                  @click="resetCurrentRoleMatrix"
+                >
+                  <i class="ri-restart-line me-1"></i>Batalkan
+                </button>
                 <button
                   type="button"
                   class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center gap-2"
+                  :class="{ 'btn-warning text-dark': hasUnsavedChanges }"
                   :disabled="isRoleSaving"
                   @click="saveRolePermissions"
                 >
                   <span v-if="isRoleSaving" class="spinner-border spinner-border-sm"></span>
-                  <i v-else class="ri-save-3-fill fs-16"></i>
-                  <span>{{ isRoleSaving ? 'Menyimpan Matriks...' : 'Simpan Perubahan Matriks' }}</span>
+                  <i v-else class="ri-save-3-fill fs-15"></i>
+                  <span>{{ isRoleSaving ? 'Menyimpan...' : (hasUnsavedChanges ? 'Simpan Perubahan' : 'Simpan Matriks') }}</span>
                 </button>
               </div>
             </div>
@@ -759,10 +1122,11 @@ function saveUserOverrides() {
                       <!-- Card Top Header -->
                       <div class="d-flex align-items-start justify-content-between gap-2 mb-2.5">
                         <span 
-                          class="badge rounded-pill px-3 py-1 fs-12 fw-bold"
-                          :class="`bg-${role.badge_color || 'primary'}-subtle text-${role.badge_color || 'primary'} border border-${role.badge_color || 'primary'}-subtle`"
+                          class="badge rounded-pill px-3 py-1 fs-12 fw-bold d-inline-flex align-items-center gap-1.5"
+                          :class="getRoleBadgeClass(role.name, role.badge_color)"
                         >
-                          {{ role.label }}
+                          <i :class="getRoleIcon(role.name)"></i>
+                          <span>{{ getRoleLabel(role.name, role.label) }}</span>
                         </span>
                         
                         <span v-if="role.is_system" class="badge bg-secondary-subtle text-secondary rounded-pill fs-10">
@@ -872,16 +1236,21 @@ function saveUserOverrides() {
                       <span class="text-muted">{{ user.email }}</span>
                     </td>
                     <td>
-                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-0.5 fs-11">
-                        {{ user.role }}
+                      <span 
+                        class="badge rounded-pill px-2.5 py-1 fs-11 fw-semibold d-inline-flex align-items-center gap-1.5"
+                        :class="getRoleBadgeClass(user.role)"
+                      >
+                        <i :class="getRoleIcon(user.role)"></i>
+                        <span>{{ getRoleLabel(user.role) }}</span>
                       </span>
                     </td>
                     <td>
                       <span 
                         v-if="user.custom_permissions && Object.keys(user.custom_permissions).length > 0"
-                        class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2.5 py-1 fs-11 fw-semibold"
+                        class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2.5 py-1 fs-11 fw-semibold d-inline-flex align-items-center gap-1"
                       >
-                        <i class="ri-tools-line me-1"></i>{{ Object.keys(user.custom_permissions).length }} Izin Khusus
+                        <i class="ri-tools-line"></i>
+                        <span>{{ Object.keys(user.custom_permissions).length }} Izin Khusus</span>
                       </span>
                       <span 
                         v-else 
@@ -1029,13 +1398,21 @@ function saveUserOverrides() {
         <div class="modal-content border-0 shadow-lg rounded-4">
           <div class="modal-header border-bottom p-3.5">
             <div>
-              <h5 class="modal-title fs-15 fw-bold d-flex align-items-center gap-2 mb-0.5">
-                <i class="ri-user-settings-line text-primary"></i>
+              <h5 class="modal-title fs-15 fw-bold d-flex align-items-center gap-2 mb-1">
+                <i class="ri-user-settings-line text-primary fs-18"></i>
                 <span>Hak Akses Khusus: {{ selectedUser.name }}</span>
               </h5>
-              <div class="fs-11 text-muted">
-                Peran Utama: <span class="badge bg-primary-subtle text-primary">{{ selectedUser.role }}</span>
-                <span class="mx-1">•</span> Email: {{ selectedUser.email }}
+              <div class="fs-11 text-muted d-flex align-items-center gap-2 flex-wrap">
+                <span>Peran Utama:</span>
+                <span 
+                  class="badge rounded-pill px-2.5 py-0.5 fs-11 fw-semibold d-inline-flex align-items-center gap-1"
+                  :class="getRoleBadgeClass(selectedUser.role)"
+                >
+                  <i :class="getRoleIcon(selectedUser.role)"></i>
+                  <span>{{ getRoleLabel(selectedUser.role) }}</span>
+                </span>
+                <span class="mx-0.5">•</span>
+                <span>Email: {{ selectedUser.email }}</span>
               </div>
             </div>
             <button 
@@ -1048,45 +1425,91 @@ function saveUserOverrides() {
 
           <div class="modal-body p-4">
             
-            <div class="alert alert-info py-2.5 px-3 fs-11 rounded-3 mb-3 d-flex align-items-start gap-2">
-              <i class="ri-information-line fs-14 text-primary flex-shrink-0 mt-0.5"></i>
+            <div class="alert alert-info py-2.5 px-3 fs-11 rounded-3 mb-3 d-flex align-items-start gap-2 border border-info-subtle">
+              <i class="ri-information-line fs-15 text-primary flex-shrink-0 mt-0.5"></i>
               <div>
-                <strong>3 Pilihan Override untuk Setiap Modul Izin:</strong><br>
-                <span class="badge bg-secondary-subtle text-secondary me-1">Ikuti Peran</span> Mengikuti izin default dari peran utama.<br>
-                <span class="badge bg-success-subtle text-success me-1">Izinkan Khusus</span> Berikan akses meskipun peran utamanya tidak memilikinya.<br>
-                <span class="badge bg-danger-subtle text-danger me-1">Larang Khusus</span> Cabut akses meskipun peran utamanya mengizinkannya.
+                <strong>Panduan Otorisasi Khusus (Override):</strong><br>
+                <span class="badge bg-secondary text-white me-1">Ikuti Peran</span> Mengikuti izin default peran panitia.<br>
+                <span class="badge bg-success text-white me-1">Izinkan</span> Memberikan hak akses khusus meskipun perannya tidak memilikinya.<br>
+                <span class="badge bg-danger text-white me-1">Larang</span> Mencabut hak akses meskipun peran utamanya mengizinkannya.
               </div>
+            </div>
+
+            <!-- Modal Search Input -->
+            <div class="position-relative mb-3.5">
+              <input 
+                v-model="userPermSearch" 
+                type="text" 
+                class="form-control form-control-sm rounded-pill ps-4 pe-4 bg-light-subtle" 
+                placeholder="Cari izin modul khusus untuk panitia ini..."
+              />
+              <i class="ri-search-line position-absolute top-50 translate-middle-y text-muted" style="left: 12px; font-size: 13px;"></i>
+              <button 
+                v-if="userPermSearch" 
+                type="button" 
+                class="btn btn-link btn-sm position-absolute top-50 translate-middle-y text-muted p-0" 
+                style="right: 12px;"
+                @click="userPermSearch = ''"
+              >
+                <i class="ri-close-circle-fill"></i>
+              </button>
             </div>
 
             <!-- Permission Groups for User -->
             <div class="d-flex flex-column gap-3">
               <div 
-                v-for="(perms, groupName) in permissionsGrouped" 
+                v-for="(perms, groupName) in filteredModalPermissionsGrouped" 
                 :key="groupName"
                 class="border rounded-3 p-3 bg-light-subtle"
               >
                 <h6 class="fs-12 fw-bold text-dark-emphasis mb-2.5 d-flex align-items-center gap-1.5">
                   <i class="ri-folder-keyhole-line text-primary"></i>
                   <span>{{ groupName }}</span>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill fs-10 px-2 ms-auto">
+                    {{ perms.length }} Izin
+                  </span>
                 </h6>
 
                 <div class="d-flex flex-column gap-2">
                   <div 
                     v-for="perm in perms" 
                     :key="perm.id"
-                    class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between p-2 rounded border bg-card gap-2"
+                    class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between p-2.5 rounded-3 border bg-card gap-2"
                   >
                     <div>
                       <div class="fs-12 fw-semibold text-dark-emphasis">{{ perm.label }}</div>
-                      <small class="text-muted font-monospace fs-10">{{ perm.name }}</small>
+                      <small class="text-muted font-monospace fs-10 d-block">{{ perm.name }}</small>
+                      
+                      <!-- Default Role Indicator -->
+                      <div class="d-flex align-items-center gap-1.5 mt-1">
+                        <span 
+                          v-if="doesRoleHavePerm(perm.name)" 
+                          class="badge bg-success-subtle text-success border border-success-subtle fs-10 fw-normal rounded-pill"
+                        >
+                          <i class="ri-check-line me-0.5"></i>Bawaan Peran: Aktif
+                        </span>
+                        <span 
+                          v-else 
+                          class="badge bg-secondary-subtle text-secondary border border-secondary-subtle fs-10 fw-normal rounded-pill"
+                        >
+                          <i class="ri-close-line me-0.5"></i>Bawaan Peran: Non-aktif
+                        </span>
+
+                        <span 
+                          v-if="getUserPermState(perm.name) !== 'inherit'" 
+                          class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-10 fw-semibold rounded-pill"
+                        >
+                          Override: {{ getUserPermState(perm.name) === 'granted' ? 'Diizinkan' : 'Dilarang' }}
+                        </span>
+                      </div>
                     </div>
 
                     <!-- 3-Way Selector Pills -->
-                    <div class="btn-group btn-group-sm rounded-pill border p-0.5 bg-light flex-shrink-0" role="group">
+                    <div class="btn-group btn-group-sm rounded-pill border p-0.5 bg-light-subtle flex-shrink-0" role="group">
                       <button 
                         type="button" 
-                        class="btn btn-xs rounded-pill px-2.5 py-0.5 fs-11 transition-all"
-                        :class="getUserPermState(perm.name) === 'inherit' ? 'btn-secondary text-white' : 'btn-light border-0 text-muted'"
+                        class="btn btn-xs rounded-pill px-2.5 py-1 fs-11 transition-all"
+                        :class="getUserPermState(perm.name) === 'inherit' ? 'btn-secondary text-white shadow-sm fw-semibold' : 'btn-light border-0 text-muted'"
                         @click="setUserPermState(perm.name, 'inherit')"
                         title="Mengikuti izin default peran"
                       >
@@ -1094,8 +1517,8 @@ function saveUserOverrides() {
                       </button>
                       <button 
                         type="button" 
-                        class="btn btn-xs rounded-pill px-2.5 py-0.5 fs-11 transition-all"
-                        :class="getUserPermState(perm.name) === 'granted' ? 'btn-success text-white' : 'btn-light border-0 text-muted'"
+                        class="btn btn-xs rounded-pill px-2.5 py-1 fs-11 transition-all"
+                        :class="getUserPermState(perm.name) === 'granted' ? 'btn-success text-white shadow-sm fw-semibold' : 'btn-light border-0 text-muted'"
                         @click="setUserPermState(perm.name, 'granted')"
                         title="Beri izin khusus"
                       >
@@ -1103,8 +1526,8 @@ function saveUserOverrides() {
                       </button>
                       <button 
                         type="button" 
-                        class="btn btn-xs rounded-pill px-2.5 py-0.5 fs-11 transition-all"
-                        :class="getUserPermState(perm.name) === 'denied' ? 'btn-danger text-white' : 'btn-light border-0 text-muted'"
+                        class="btn btn-xs rounded-pill px-2.5 py-1 fs-11 transition-all"
+                        :class="getUserPermState(perm.name) === 'denied' ? 'btn-danger text-white shadow-sm fw-semibold' : 'btn-light border-0 text-muted'"
                         @click="setUserPermState(perm.name, 'denied')"
                         title="Larang secara spesifik"
                       >
@@ -1138,7 +1561,7 @@ function saveUserOverrides() {
               </button>
               <button 
                 type="button" 
-                class="btn btn-sm btn-primary rounded-pill px-4 fw-semibold"
+                class="btn btn-sm btn-primary rounded-pill px-4 fw-semibold" 
                 :disabled="isSavingUserOverride"
                 @click="saveUserOverrides"
               >
@@ -1174,12 +1597,12 @@ function saveUserOverrides() {
 
 .permission-item-box:hover {
   border-color: var(--vz-primary, #405189) !important;
-  background-color: rgba(64, 81, 137, 0.02);
+  background-color: rgba(64, 81, 137, 0.03);
 }
 
 .permission-item-box.is-active {
   border-color: rgba(10, 179, 156, 0.5) !important;
-  background-color: rgba(10, 179, 156, 0.04);
+  background-color: rgba(10, 179, 156, 0.05);
 }
 
 .permission-item-box.disabled-super {
@@ -1197,7 +1620,129 @@ function saveUserOverrides() {
   padding: 0.2rem 0.6rem;
 }
 
-/* Dark Mode Overrides */
+/* High-Contrast Standardized Role Badges (WCAG AA Compliant in Light & Dark Mode) */
+.badge-role-danger {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+  border-color: #fca5a5 !important;
+}
+[data-bs-theme="dark"] .badge-role-danger {
+  background-color: rgba(239, 68, 68, 0.18) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+.badge-role-primary {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+  border-color: #93c5fd !important;
+}
+[data-bs-theme="dark"] .badge-role-primary {
+  background-color: rgba(59, 130, 246, 0.18) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+.badge-role-purple {
+  background-color: #f3e8ff !important;
+  color: #6b21a8 !important;
+  border-color: #d8b4fe !important;
+}
+[data-bs-theme="dark"] .badge-role-purple {
+  background-color: rgba(168, 85, 247, 0.18) !important;
+  color: #d8b4fe !important;
+  border-color: rgba(168, 85, 247, 0.4) !important;
+}
+
+.badge-role-indigo {
+  background-color: #e0e7ff !important;
+  color: #3730a3 !important;
+  border-color: #a5b4fc !important;
+}
+[data-bs-theme="dark"] .badge-role-indigo {
+  background-color: rgba(99, 102, 241, 0.18) !important;
+  color: #a5b4fc !important;
+  border-color: rgba(99, 102, 241, 0.4) !important;
+}
+
+.badge-role-teal {
+  background-color: #ccfbf1 !important;
+  color: #115e59 !important;
+  border-color: #5eead4 !important;
+}
+[data-bs-theme="dark"] .badge-role-teal {
+  background-color: rgba(20, 184, 166, 0.18) !important;
+  color: #5eead4 !important;
+  border-color: rgba(20, 184, 166, 0.4) !important;
+}
+
+.badge-role-warning {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+  border-color: #fcd34d !important;
+}
+[data-bs-theme="dark"] .badge-role-warning {
+  background-color: rgba(245, 158, 11, 0.18) !important;
+  color: #fde047 !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+}
+
+.badge-role-amber {
+  background-color: #fffbeb !important;
+  color: #78350f !important;
+  border-color: #fde68a !important;
+}
+[data-bs-theme="dark"] .badge-role-amber {
+  background-color: rgba(217, 119, 6, 0.18) !important;
+  color: #fde047 !important;
+  border-color: rgba(217, 119, 6, 0.4) !important;
+}
+
+.badge-role-info {
+  background-color: #e0f2fe !important;
+  color: #075985 !important;
+  border-color: #7dd3fc !important;
+}
+[data-bs-theme="dark"] .badge-role-info {
+  background-color: rgba(14, 165, 233, 0.18) !important;
+  color: #7dd3fc !important;
+  border-color: rgba(14, 165, 233, 0.4) !important;
+}
+
+.badge-role-secondary {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+[data-bs-theme="dark"] .badge-role-secondary {
+  background-color: rgba(148, 163, 184, 0.18) !important;
+  color: #cbd5e1 !important;
+  border-color: rgba(148, 163, 184, 0.4) !important;
+}
+
+.badge-role-success {
+  background-color: #dcfce7 !important;
+  color: #166534 !important;
+  border-color: #86efac !important;
+}
+[data-bs-theme="dark"] .badge-role-success {
+  background-color: rgba(34, 197, 94, 0.18) !important;
+  color: #86efac !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+}
+
+.badge-role-dark {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+}
+[data-bs-theme="dark"] .badge-role-dark {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Dark Mode Overrides for Containers */
 [data-bs-theme="dark"] .permission-item-box {
   background-color: #1a2234 !important;
   border-color: rgba(255, 255, 255, 0.1) !important;

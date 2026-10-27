@@ -273,6 +273,7 @@ function createEmptyParticipant() {
     captain_wa: '',
     photo_formal_name: '',
     freestyle_count: 0,
+    custom_columns: {},
   };
 }
 
@@ -960,6 +961,11 @@ function handleSubmit() {
       if (p.nisn) details.push(`NISN: ${p.nisn}`);
       if (p.photo_formal_name) details.push(`Pas Foto: ${p.photo_formal_name}`);
       if (p.freestyle_count) details.push(`Foto Bebas: ${p.freestyle_count} file`);
+      if (p.custom_columns) {
+        Object.entries(p.custom_columns).forEach(([k, v]) => {
+          if (v) details.push(`${k}: ${v}`);
+        });
+      }
       lines.push(`${i + 1}. ${pName}${details.length ? ' (' + details.join(', ') + ')' : ''}`);
     }
     form.participants_names = lines.join('\n');
@@ -1278,7 +1284,7 @@ function getCompDropdownSuffix(c) {
             </div>
             <div class="guide-item">
               <i class="ri-checkbox-circle-fill"></i>
-              <span>Pilihan Skema Biaya: Paket Fleksibel Satuan (Rp 50.000 / lomba) atau Paket All-In Komplit (Rp 200.000 / seluruh cabang lomba).</span>
+              <span>Pilihan Skema Biaya: Paket Fleksibel Satuan (Rp 50.000 / lomba) atau Paket All-In Komplit (Rp 250.000 / seluruh cabang lomba).</span>
             </div>
           </div>
         </div>
@@ -2556,6 +2562,51 @@ function getCompDropdownSuffix(c) {
                             </div>
                           </div>
                         </div>
+
+                        <!-- Kolom Tambahan Siswa (Custom Columns dari Form Builder) -->
+                        <template v-if="repeaterField.sub_fields?.custom_columns?.length">
+                          <div 
+                            v-for="col in repeaterField.sub_fields.custom_columns" 
+                            :key="col.id || col.label" 
+                            class="form-group"
+                          >
+                            <label class="form-label d-flex align-items-center justify-content-between">
+                              <span>{{ col.label || 'Kolom Tambahan' }}</span>
+                              <span v-if="col.required" class="required-star">*</span>
+                            </label>
+                            
+                            <!-- Tipe Tanggal: IndoDatePicker (dd/mm/yyyy Flatpickr) -->
+                            <IndoDatePicker 
+                              v-if="col.type === 'date'"
+                              v-model="participantsList[pIdx - 1].custom_columns[col.name || col.id || col.label]"
+                              placeholder="dd/mm/yyyy"
+                              inputClass="form-control"
+                              iconClass="ri-calendar-line text-amber-500"
+                              :required="col.required"
+                            />
+
+                            <!-- Tipe Pilihan: CustomSelect -->
+                            <CustomSelect 
+                              v-else-if="col.type === 'select'"
+                              v-model="participantsList[pIdx - 1].custom_columns[col.name || col.id || col.label]"
+                              :options="col.options || []"
+                              size="md"
+                              :placeholder="`Pilih ${col.label}...`"
+                              :required="col.required"
+                            />
+
+                            <!-- Tipe Angka / Teks / Email -->
+                            <input 
+                              v-else
+                              :type="col.type === 'number' ? 'number' : (col.type === 'email' ? 'email' : 'text')"
+                              :inputmode="col.type === 'number' ? 'numeric' : undefined"
+                              v-model="participantsList[pIdx - 1].custom_columns[col.name || col.id || col.label]"
+                              :placeholder="`Masukkan ${col.label}...`"
+                              class="form-control"
+                              :required="col.required"
+                            />
+                          </div>
+                        </template>
                       </div>
                     </div>
                   </div>
@@ -2818,6 +2869,8 @@ function getCompDropdownSuffix(c) {
                         v-else-if="field.type === 'date'"
                         :id="'cf-' + field.name"
                         v-model="form.custom_fields[field.name]"
+                        :min-date="field.min_date"
+                        :max-date="field.max_date"
                         placeholder="dd/mm/yyyy"
                         inputClass="form-control"
                         iconClass="ri-calendar-line text-amber-500"

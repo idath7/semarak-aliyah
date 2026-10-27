@@ -315,6 +315,101 @@ function getWaLink(phone) {
 }
 
 // -----------------------------------------------------------------------------
+// ROLE BADGE & FORMATTING HELPERS
+// -----------------------------------------------------------------------------
+function getRoleLabel(roleKey) {
+  if (!roleKey) return 'Panitia';
+  if (props.roles && props.roles[roleKey]?.label) {
+    return props.roles[roleKey].label;
+  }
+  const defaultLabels = {
+    super_admin: 'Super Admin',
+    admin: 'Administrator',
+    ketua_panitia: 'Ketua Panitia',
+    wakil_ketua_panitia: 'Wakil Ketua Panitia',
+    sekretaris: 'Sekretaris Pelaksana',
+    koordinator_lomba: 'Koordinator Lomba',
+    panitia: 'Panitia Pelaksana',
+    kesekretariatan: 'Kesekretariatan',
+    bendahara: 'Bendahara & Tiket',
+    juri: 'Dewan Juri',
+    wasit: 'Wasit / Match Official',
+  };
+  return defaultLabels[roleKey] || roleKey.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+function getRoleBadgeClass(roleKey) {
+  const badgeMap = {
+    super_admin: 'badge-role-danger',
+    admin: 'badge-role-primary',
+    ketua_panitia: 'badge-role-purple',
+    wakil_ketua_panitia: 'badge-role-indigo',
+    sekretaris: 'badge-role-teal',
+    koordinator_lomba: 'badge-role-warning',
+    panitia: 'badge-role-info',
+    kesekretariatan: 'badge-role-secondary',
+    bendahara: 'badge-role-success',
+    juri: 'badge-role-amber',
+    wasit: 'badge-role-dark',
+  };
+
+  if (badgeMap[roleKey]) return badgeMap[roleKey];
+
+  const roleCfg = props.roles?.[roleKey];
+  if (roleCfg?.badge) {
+    const colorMap = {
+      danger: 'badge-role-danger',
+      primary: 'badge-role-primary',
+      success: 'badge-role-success',
+      warning: 'badge-role-warning',
+      info: 'badge-role-info',
+      secondary: 'badge-role-secondary',
+      dark: 'badge-role-dark',
+      purple: 'badge-role-purple',
+      indigo: 'badge-role-indigo',
+      teal: 'badge-role-teal',
+    };
+    return colorMap[roleCfg.badge] || 'badge-role-primary';
+  }
+
+  return 'badge-role-secondary';
+}
+
+function getRoleIcon(roleKey) {
+  const iconMap = {
+    super_admin: 'ri-shield-star-fill',
+    admin: 'ri-shield-user-line',
+    ketua_panitia: 'ri-vip-crown-line',
+    wakil_ketua_panitia: 'ri-user-star-line',
+    sekretaris: 'ri-file-text-line',
+    koordinator_lomba: 'ri-medal-fill',
+    panitia: 'ri-team-line',
+    kesekretariatan: 'ri-file-user-line',
+    bendahara: 'ri-money-dollar-circle-line',
+    juri: 'ri-award-line',
+    wasit: 'ri-flag-line',
+  };
+  return iconMap[roleKey] || 'ri-shield-keyhole-line';
+}
+
+function getAvatarRoleClass(roleKey) {
+  const map = {
+    super_admin: 'bg-danger',
+    admin: 'bg-primary',
+    ketua_panitia: 'bg-purple',
+    wakil_ketua_panitia: 'bg-indigo',
+    sekretaris: 'bg-teal',
+    koordinator_lomba: 'bg-warning',
+    panitia: 'bg-info',
+    kesekretariatan: 'bg-secondary',
+    bendahara: 'bg-success',
+    juri: 'bg-warning',
+    wasit: 'bg-dark',
+  };
+  return map[roleKey] || 'bg-primary';
+}
+
+// -----------------------------------------------------------------------------
 // SIPRESENSI SYNC STATE & ACTIONS
 // -----------------------------------------------------------------------------
 const isSyncModalOpen = ref(false);
@@ -724,8 +819,8 @@ async function executeSync() {
                       />
                       <div 
                         v-else 
-                        class="w-100 h-100 rounded-circle d-flex align-items-center justify-content-center text-white fw-bold fs-11"
-                        :class="user.role === 'super_admin' ? 'bg-danger' : (user.role === 'admin' ? 'bg-primary' : (user.role === 'juri' || user.role === 'wasit' ? 'bg-warning' : 'bg-info'))"
+                        class="w-100 h-100 rounded-circle d-flex align-items-center justify-content-center text-white fw-bold fs-11 shadow-xs"
+                        :class="getAvatarRoleClass(user.role)"
                       >
                         {{ getInitials(user.name) }}
                       </div>
@@ -736,7 +831,7 @@ async function executeSync() {
                     </div>
                     <div>
                       <div class="d-flex align-items-center gap-1.5 flex-wrap">
-                        <span class="fw-semibold text-dark">{{ user.name }}</span>
+                        <span class="fw-semibold user-table-text">{{ user.name }}</span>
                         <span v-if="user.id === currentUserId" class="badge bg-success-subtle text-success fs-10 px-1.5 py-0.5">
                           Anda
                         </span>
@@ -754,39 +849,32 @@ async function executeSync() {
                   </div>
                 </td>
 
-                <!-- Peran / Role -->
+                <!-- Peran / Hak Akses -->
                 <td>
-                  <span 
-                    class="badge px-2 py-1 fs-11 border"
-                    :class="{
-                      'bg-danger-subtle text-danger border-danger-subtle': user.role === 'super_admin',
-                      'bg-primary-subtle text-primary border-primary-subtle': user.role === 'admin',
-                      'bg-info-subtle text-info border-info-subtle': user.role === 'panitia',
-                      'bg-secondary-subtle text-secondary border-secondary-subtle': user.role === 'kesekretariatan',
-                      'bg-success-subtle text-success border-success-subtle': user.role === 'bendahara',
-                      'bg-warning-subtle text-warning border-warning-subtle': user.role === 'juri',
-                      'bg-dark-subtle text-dark border-dark-subtle': user.role === 'wasit',
-                    }"
-                  >
-                    <i 
-                      class="align-middle me-1"
-                      :class="{
-                        'ri-shield-star-line': user.role === 'super_admin',
-                        'ri-shield-user-line': user.role === 'admin',
-                        'ri-team-line': user.role === 'panitia',
-                        'ri-file-user-line': user.role === 'kesekretariatan',
-                        'ri-money-dollar-circle-line': user.role === 'bendahara',
-                        'ri-award-line': user.role === 'juri',
-                        'ri-flag-line': user.role === 'wasit',
-                      }"
-                    ></i>
-                    {{ roles[user.role]?.label || user.role }}
-                  </span>
+                  <div class="d-flex flex-column align-items-start gap-1">
+                    <span 
+                      class="badge px-2.5 py-1 fs-11 border d-inline-flex align-items-center gap-1.5 shadow-xs"
+                      :class="getRoleBadgeClass(user.role)"
+                    >
+                      <i :class="getRoleIcon(user.role)" class="fs-12"></i>
+                      <span class="fw-semibold">{{ getRoleLabel(user.role) }}</span>
+                    </span>
+
+                    <!-- Override Izin Khusus Panitia jika ada -->
+                    <span 
+                      v-if="user.custom_permissions && Object.keys(user.custom_permissions).length > 0"
+                      class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-10 px-1.5 py-0.5 d-inline-flex align-items-center gap-1"
+                      title="Akun panitia ini memiliki konfigurasi izin override khusus"
+                    >
+                      <i class="ri-equalizer-line"></i>
+                      <span>{{ Object.keys(user.custom_permissions).length }} Izin Khusus</span>
+                    </span>
+                  </div>
                 </td>
 
                 <!-- Divisi Panitia -->
                 <td>
-                  <span v-if="user.division" class="fw-medium text-dark">
+                  <span v-if="user.division" class="fw-medium user-table-text">
                     {{ user.division }}
                   </span>
                   <span v-else class="text-muted fs-12">-</span>
@@ -794,7 +882,7 @@ async function executeSync() {
 
                 <!-- Penugasan Lomba -->
                 <td>
-                  <span v-if="user.competition" class="badge bg-light text-dark border border-secondary-subtle fs-11">
+                  <span v-if="user.competition" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-11 px-2 py-1">
                     <i class="ri-medal-fill text-warning me-1"></i>{{ user.competition.title }}
                   </span>
                   <span v-else class="text-muted fs-12">Umum / Semua Cabang</span>
@@ -1571,5 +1659,146 @@ async function executeSync() {
 }
 .avatar-hover-box:hover .avatar-hover-overlay {
   opacity: 1;
+}
+
+/* User Table Dark Mode Typography */
+.user-table-text {
+  color: #0f172a;
+}
+[data-bs-theme="dark"] .user-table-text {
+  color: #f8fafc !important;
+}
+
+/* Specific Avatar Colors */
+.bg-purple {
+  background-color: #8b5cf6 !important;
+}
+.bg-indigo {
+  background-color: #6366f1 !important;
+}
+.bg-teal {
+  background-color: #14b8a6 !important;
+}
+
+/* High-Contrast Standardized Role Badges (WCAG AA Compliant in Light & Dark Mode) */
+.badge-role-danger {
+  background-color: #fee2e2 !important;
+  color: #991b1b !important;
+  border-color: #fca5a5 !important;
+}
+[data-bs-theme="dark"] .badge-role-danger {
+  background-color: rgba(239, 68, 68, 0.18) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+.badge-role-primary {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+  border-color: #93c5fd !important;
+}
+[data-bs-theme="dark"] .badge-role-primary {
+  background-color: rgba(59, 130, 246, 0.18) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+.badge-role-purple {
+  background-color: #f3e8ff !important;
+  color: #6b21a8 !important;
+  border-color: #d8b4fe !important;
+}
+[data-bs-theme="dark"] .badge-role-purple {
+  background-color: rgba(168, 85, 247, 0.18) !important;
+  color: #d8b4fe !important;
+  border-color: rgba(168, 85, 247, 0.4) !important;
+}
+
+.badge-role-indigo {
+  background-color: #e0e7ff !important;
+  color: #3730a3 !important;
+  border-color: #a5b4fc !important;
+}
+[data-bs-theme="dark"] .badge-role-indigo {
+  background-color: rgba(99, 102, 241, 0.18) !important;
+  color: #a5b4fc !important;
+  border-color: rgba(99, 102, 241, 0.4) !important;
+}
+
+.badge-role-teal {
+  background-color: #ccfbf1 !important;
+  color: #115e59 !important;
+  border-color: #5eead4 !important;
+}
+[data-bs-theme="dark"] .badge-role-teal {
+  background-color: rgba(20, 184, 166, 0.18) !important;
+  color: #5eead4 !important;
+  border-color: rgba(20, 184, 166, 0.4) !important;
+}
+
+.badge-role-warning {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+  border-color: #fcd34d !important;
+}
+[data-bs-theme="dark"] .badge-role-warning {
+  background-color: rgba(245, 158, 11, 0.18) !important;
+  color: #fde047 !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+}
+
+.badge-role-amber {
+  background-color: #fffbeb !important;
+  color: #78350f !important;
+  border-color: #fde68a !important;
+}
+[data-bs-theme="dark"] .badge-role-amber {
+  background-color: rgba(217, 119, 6, 0.18) !important;
+  color: #fde047 !important;
+  border-color: rgba(217, 119, 6, 0.4) !important;
+}
+
+.badge-role-info {
+  background-color: #e0f2fe !important;
+  color: #075985 !important;
+  border-color: #7dd3fc !important;
+}
+[data-bs-theme="dark"] .badge-role-info {
+  background-color: rgba(14, 165, 233, 0.18) !important;
+  color: #7dd3fc !important;
+  border-color: rgba(14, 165, 233, 0.4) !important;
+}
+
+.badge-role-secondary {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+[data-bs-theme="dark"] .badge-role-secondary {
+  background-color: rgba(148, 163, 184, 0.18) !important;
+  color: #cbd5e1 !important;
+  border-color: rgba(148, 163, 184, 0.4) !important;
+}
+
+.badge-role-success {
+  background-color: #dcfce7 !important;
+  color: #166534 !important;
+  border-color: #86efac !important;
+}
+[data-bs-theme="dark"] .badge-role-success {
+  background-color: rgba(34, 197, 94, 0.18) !important;
+  color: #86efac !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+}
+
+.badge-role-dark {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+}
+[data-bs-theme="dark"] .badge-role-dark {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
 }
 </style>

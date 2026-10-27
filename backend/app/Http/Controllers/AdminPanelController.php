@@ -1389,6 +1389,9 @@ class AdminPanelController extends Controller
                 'main_members' => isset($f['main_members']) && $f['main_members'] !== null && $f['main_members'] !== '' ? (int) $f['main_members'] : null,
                 'reserve_members' => isset($f['reserve_members']) && $f['reserve_members'] !== null && $f['reserve_members'] !== '' ? (int) $f['reserve_members'] : null,
                 'sub_fields' => is_array($f['sub_fields'] ?? null) ? $f['sub_fields'] : null,
+                'min_date' => !empty($f['min_date']) ? (string)$f['min_date'] : null,
+                'max_date' => !empty($f['max_date']) ? (string)$f['max_date'] : null,
+                'date_default' => !empty($f['date_default']) ? (string)$f['date_default'] : null,
                 'conditional_logic' => is_array($f['conditional_logic'] ?? null) ? $f['conditional_logic'] : null,
                 'is_mandatory_identity' => !empty($f['is_mandatory_identity']),
             ];

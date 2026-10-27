@@ -288,7 +288,7 @@ class AdminPanelController extends Controller
     /**
      * Cek otorisasi apakah user yang sedang login berhak mengubah / mengelola cabang lomba spesifik.
      */
-    protected function authorizeCompetitionAccess(string|int $competitionId, string $action = 'kelola'): bool
+    protected function authorizeCompetitionAccess(string|int|null $competitionId = null, string $action = 'kelola'): bool
     {
         /** @var User|null $user */
         $user = Auth::guard('web')->user();
@@ -299,6 +299,10 @@ class AdminPanelController extends Controller
         // Super Admin, Admin, Ketua Panitia, Wakil Ketua Panitia, dan Sekretaris memiliki akses ke seluruh lomba
         if ($user->isSuperAdmin() || in_array($user->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'])) {
             return true;
+        }
+
+        if (!$competitionId) {
+            return false;
         }
 
         // Koordinator Lomba: Berhak atas cabang lomba yang dikoordinasikannya

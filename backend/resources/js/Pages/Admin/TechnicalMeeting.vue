@@ -1341,6 +1341,22 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
       </div>
     </div>
 
+    <!-- Empty State jika Belum Ada Cabang Lomba -->
+    <div v-else class="card border-0 shadow-sm text-center py-5 mb-4">
+      <div class="card-body">
+        <div class="avatar-lg bg-info-subtle text-info rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3">
+          <i class="ri-calendar-todo-line fs-32"></i>
+        </div>
+        <h5 class="fw-bold text-dark mb-1">Belum Ada Cabang Lomba</h5>
+        <p class="text-muted fs-13 mb-3">
+          Belum ada cabang lomba yang terdaftar di sistem. Silakan buat cabang lomba terlebih dahulu di menu Manajemen Lomba.
+        </p>
+        <Link href="/admin/lomba" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm">
+          <i class="ri-add-line"></i> Buka Manajemen Lomba
+        </Link>
+      </div>
+    </div>
+
     <!-- ============================================================== -->
     <!-- MODAL: KONFIRMASI KOCOK ACAK (RANDOM DRAW)                     -->
     <!-- ============================================================== -->

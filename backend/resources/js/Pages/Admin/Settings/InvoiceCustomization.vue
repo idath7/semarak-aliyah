@@ -808,7 +808,7 @@ const todayFormatted = computed(() => {
             </div>
 
             <!-- Paper Container (A4 Mini Preview with Realistic Shadows) -->
-            <div class="card-body p-3 d-flex justify-content-center overflow-auto" style="max-height: 85vh; background-color: #1e293b !important;">
+            <div class="card-body p-3 d-flex justify-content-center overflow-auto" style="max-height: 85vh; background-color: #f1f5f9 !important;">
               <div 
                 class="preview-paper-sheet p-4 rounded-1 shadow-lg position-relative d-flex flex-column justify-content-between"
                 style="width: 100%; max-width: 540px; min-height: 680px; font-family: 'Poppins', sans-serif; font-size: 8pt; background-color: #ffffff !important; color: #0f172a !important; border: 1px solid #94a3b8;"
@@ -887,9 +887,9 @@ const todayFormatted = computed(() => {
                   <!-- Mini Itemization Table -->
                   <table class="w-100 mb-2" style="border-collapse: collapse; font-size: 6.8pt;">
                     <thead>
-                      <tr style="background-color: #1e293b; color: #ffffff;">
-                        <th style="padding: 4px 6px; border: 1px solid #334155;">Deskripsi Layanan / Lomba</th>
-                        <th style="padding: 4px 6px; border: 1px solid #334155; text-align: right; width: 90px;">Jumlah</th>
+                      <tr style="background-color: #f8fafc; color: #0f172a; border-bottom: 2px solid #64748b;">
+                        <th style="padding: 4px 6px; border: 1px solid #cbd5e1;">Deskripsi Layanan / Lomba</th>
+                        <th style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: right; width: 90px;">Jumlah</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -997,9 +997,9 @@ const todayFormatted = computed(() => {
                       <span>Subtotal Biaya</span>
                       <span>Rp 60.000</span>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center p-1.5 rounded-1 bg-dark text-white fw-bold">
-                      <span style="font-size: 6.5pt; text-transform: uppercase;">Total Akhir</span>
-                      <span style="color: #34d399; font-size: 8.5pt;">Rp 60.000</span>
+                    <div class="d-flex justify-content-between align-items-center p-1.5 rounded-1 border fw-bold" style="background-color: #ecfdf5; border-color: #a7f3d0 !important; color: #065f46;">
+                      <span style="font-size: 6.5pt; text-transform: uppercase; color: #065f46;">Total Akhir</span>
+                      <span style="color: #047857; font-size: 8.5pt;">Rp 60.000</span>
                     </div>
                   </div>
 
@@ -1177,8 +1177,8 @@ const todayFormatted = computed(() => {
   color: #475569 !important;
 }
 .preview-paper-sheet th {
-  background-color: #1e293b !important;
-  color: #ffffff !important;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
 }
 .preview-paper-sheet td {
   color: #1e293b !important;

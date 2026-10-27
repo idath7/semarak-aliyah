@@ -22,7 +22,7 @@
         }
 
         body {
-            background-color: #1e293b;
+            background-color: #f1f5f9;
             font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: #0f172a;
             display: flex;
@@ -36,8 +36,9 @@
         /* Top Sticky Toolbar (Hidden on Print) */
         .no-print-toolbar {
             width: 100%;
-            background-color: #0f172a;
-            color: #ffffff;
+            background-color: #ffffff;
+            color: #0f172a;
+            border-bottom: 1px solid #cbd5e1;
             padding: 10px 24px;
             display: flex;
             justify-content: space-between;
@@ -45,7 +46,7 @@
             position: sticky;
             top: 0;
             z-index: 999;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
             gap: 12px;
             flex-wrap: wrap;
         }
@@ -58,9 +59,9 @@
         }
 
         .toolbar-btn {
-            background-color: transparent;
-            color: #f1f5f9;
-            border: 1px solid #475569;
+            background-color: #f8fafc;
+            color: #334155;
+            border: 1px solid #cbd5e1;
             padding: 6px 12px;
             border-radius: 6px;
             font-size: 12.5px;
@@ -73,14 +74,14 @@
             transition: all 0.2s ease;
         }
         .toolbar-btn:hover {
-            background-color: #1e293b;
-            color: #ffffff;
-            border-color: #64748b;
+            background-color: #e2e8f0;
+            color: #0f172a;
+            border-color: #94a3b8;
         }
 
         .toolbar-btn.btn-active {
             background-color: #2563eb;
-            border-color: #3b82f6;
+            border-color: #2563eb;
             color: #ffffff;
             font-weight: 600;
         }
@@ -102,7 +103,7 @@
             align-items: center;
             gap: 6px;
             font-size: 12px;
-            color: #cbd5e1;
+            color: #475569;
             cursor: pointer;
             user-select: none;
         }
@@ -351,12 +352,13 @@
         }
 
         .formal-table th {
-            background-color: #1e293b;
-            color: #ffffff;
+            background-color: #f8fafc;
+            color: #0f172a;
             font-weight: 700;
             text-align: center;
             padding: 7px 8px;
-            border: 1px solid #334155;
+            border: 1px solid #cbd5e1;
+            border-bottom: 2px solid #64748b;
             font-size: 8.5pt;
             text-transform: uppercase;
             letter-spacing: 0.3px;
@@ -855,16 +857,17 @@
             justify-content: space-between;
             align-items: center;
             padding: 8px 12px;
-            background-color: #0f172a;
-            color: #ffffff;
+            background-color: #ecfdf5;
+            border: 1.5px solid #10b981;
+            color: #065f46;
             border-radius: 6px;
             margin-top: 6px;
         }
 
         .pro-total-val {
-            font-size: 11.5pt;
+            font-size: 12pt;
             font-weight: 900;
-            color: #34d399;
+            color: #047857;
             letter-spacing: 0.3px;
         }
 

@@ -72,3 +72,43 @@ Artisan::command('competitions:sync-mandatory-fields', function () {
     $this->info("Berhasil menyinkronkan {$updatedCount} cabang lomba dengan 8 field identitas & paket standar!");
 })->purpose('Sinkronisasi 8 field standar (Sekolah, Kecamatan, NPSN, Alamat, Pendamping, WA, Email, Kode Paket Komplit) ke seluruh cabang lomba');
 
+/*
+|--------------------------------------------------------------------------
+| Jadwal Otomatis Cadangan Aplikasi & Database (Docker & Google Drive)
+|--------------------------------------------------------------------------
+*/
+try {
+    $backupEnabled = filter_var(\App\Models\Setting::get('backup_schedule_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+    $backupFreq = \App\Models\Setting::get('backup_schedule_frequency', 'daily');
+    $backupTime = \App\Models\Setting::get('backup_schedule_time', '02:00');
+    $backupFormat = \App\Models\Setting::get('backup_schedule_format', 'both');
+    $backupGdrive = filter_var(\App\Models\Setting::get('backup_schedule_gdrive', '0'), FILTER_VALIDATE_BOOLEAN);
+
+    $backupCmd = 'backup:run --format=' . escapeshellarg($backupFormat);
+    if ($backupGdrive) {
+        $backupCmd .= ' --gdrive';
+    }
+
+    $scheduledBackup = \Illuminate\Support\Facades\Schedule::command($backupCmd)
+        ->when(function () {
+            return filter_var(\App\Models\Setting::get('backup_schedule_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+        })
+        ->name('semarak:scheduled-backup')
+        ->withoutOverlapping(60)
+        ->appendOutputTo(storage_path('logs/backup-cron.log'));
+
+    if ($backupFreq === 'hourly') {
+        $scheduledBackup->hourly();
+    } elseif ($backupFreq === 'weekly') {
+        $scheduledBackup->weeklyOn(1, $backupTime ?: '02:00');
+    } elseif ($backupFreq === 'monthly') {
+        $scheduledBackup->monthlyOn(1, $backupTime ?: '02:00');
+    } else {
+        $scheduledBackup->dailyAt($backupTime ?: '02:00');
+    }
+} catch (\Throwable $e) {
+    \Illuminate\Support\Facades\Schedule::command('backup:run')
+        ->dailyAt('02:00')
+        ->name('semarak:scheduled-backup-fallback');
+}
+

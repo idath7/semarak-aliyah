@@ -168,15 +168,77 @@ class PublicPortalController extends Controller
             'is_active' => Setting::get('tm_section_active', '1') === '1',
         ];
 
-        return Inertia::render('Public/Home', compact('competitions', 'sponsors', 'sponsorSettings', 'galleries', 'gallerySettings', 'tickerSettings', 'faqs', 'faqSettings', 'pricingSettings', 'tmScheduleSettings'));
+        $heroSettings = [
+            'hero_badge_text' => Setting::get('hero_badge_text', 'Ajang Kompetisi Pelajar SMP/MTs Se-Kabupaten Jember'),
+            'hero_badge_pulse' => Setting::get('hero_badge_pulse', '1') === '1',
+            'hero_headline_prefix' => Setting::get('hero_headline_prefix', 'Selamat Datang di Laman Official'),
+            'hero_headline_highlight' => Setting::get('hero_headline_highlight', ''),
+            'hero_subheadline' => Setting::get('hero_subheadline', 'Panggung unjuk prestasi, bakat seni, kecerdasan sains, dan sportivitas pelajar SMP/MTs sederajat se-Kabupaten Jember. Raih Piala Juara, Bantuan Uang Pembinaan, serta Beasiswa Tabungan Pendidikan di MA Unggulan Wahid Hasyim Balung.'),
+            'hero_cta1_text' => Setting::get('hero_cta1_text', 'Daftar Sekarang'),
+            'hero_cta1_url' => Setting::get('hero_cta1_url', ''),
+            'hero_cta1_active' => Setting::get('hero_cta1_active', '1') === '1',
+            'hero_cta2_text' => Setting::get('hero_cta2_text', 'Unduh Juknis (PDF)'),
+            'hero_cta2_url' => Setting::get('hero_cta2_url', ''),
+            'hero_cta2_active' => Setting::get('hero_cta2_active', '1') === '1',
+            'hero_cta3_text' => Setting::get('hero_cta3_text', 'Lihat Cabang Lomba'),
+            'hero_cta3_url' => Setting::get('hero_cta3_url', '#kompetisi'),
+            'hero_cta3_active' => Setting::get('hero_cta3_active', '1') === '1',
+            'hero_poster_image' => Setting::get('hero_poster_image', '/assets/img/pamflet.jpg'),
+            'hero_mascot_image' => Setting::get('hero_mascot_image', '/assets/img/kadita.png'),
+            'hero_mascot_active' => Setting::get('hero_mascot_active', '1') === '1',
+            'hero_float_badge_active' => Setting::get('hero_float_badge_active', '1') === '1',
+            'hero_float_badge_icon' => Setting::get('hero_float_badge_icon', 'ri-trophy-line'),
+            'hero_float_badge_title' => Setting::get('hero_float_badge_title', 'Hadiah Jutaan Rupiah'),
+            'hero_float_badge_desc' => Setting::get('hero_float_badge_desc', '+ Beasiswa Pendidikan'),
+        ];
+
+        $rawStats = Setting::get('stats_items', null);
+        $statsItems = $rawStats ? json_decode($rawStats, true) : null;
+        if (empty($statsItems) || !is_array($statsItems)) {
+            $statsItems = AdminPanelController::getDefaultStatsItems();
+        }
+        $statsSettings = [
+            'is_active' => Setting::get('stats_active', '1') === '1',
+            'items' => $statsItems,
+        ];
+
+        $rawAbout = Setting::get('about_items', null);
+        $aboutItems = $rawAbout ? json_decode($rawAbout, true) : null;
+        if (empty($aboutItems) || !is_array($aboutItems)) {
+            $aboutItems = AdminPanelController::getDefaultAboutPrizes();
+        }
+        $aboutSettings = [
+            'is_active' => Setting::get('about_active', '1') === '1',
+            'tag' => Setting::get('about_tag', 'Apresiasi & Fasilitas'),
+            'title' => Setting::get('about_title', 'Dapatkan Hadiah Bergengsi & Beasiswa Pendidikan'),
+            'desc' => Setting::get('about_desc', 'Semarak Aliyah diselenggarakan oleh MA Unggulan Wahid Hasyim Balung sebagai bentuk apresiasi nyata bagi generasi muda yang berprestasi dan berkarakter.'),
+            'items' => $aboutItems,
+        ];
+
+        return Inertia::render('Public/Home', compact(
+            'competitions',
+            'sponsors',
+            'sponsorSettings',
+            'galleries',
+            'gallerySettings',
+            'tickerSettings',
+            'faqs',
+            'faqSettings',
+            'pricingSettings',
+            'tmScheduleSettings',
+            'heroSettings',
+            'statsSettings',
+            'aboutSettings'
+        ));
     }
 
     public function register(Request $request)
     {
         $isLoginRequired = Setting::get('registration_login_required', '0') === '1';
         $lomba = $request->query('lomba');
-
-        $isRegistrantLoggedIn = Auth::check() && Auth::user()->isRegistrant();
+        /** @var \App\Models\Registrant|\App\Models\User|null $user */
+        $user = Auth::guard('pendaftar')->user() ?? Auth::user();
+        $isRegistrantLoggedIn = Auth::guard('pendaftar')->check() || ($user instanceof \App\Models\Registrant) || ($user instanceof \App\Models\User && $user->isRegistrant());
 
         // Jika pendaftaran diset Wajib Login dan pengguna belum login sebagai pendaftar:
         if ($isLoginRequired && !$isRegistrantLoggedIn) {
@@ -248,7 +310,9 @@ class PublicPortalController extends Controller
     public function storeRegistration(Request $request)
     {
         $isLoginRequired = Setting::get('registration_login_required', '0') === '1';
-        $isRegistrantLoggedIn = Auth::check() && Auth::user()->isRegistrant();
+        /** @var \App\Models\Registrant|\App\Models\User|null $user */
+        $user = Auth::guard('pendaftar')->user() ?? Auth::user();
+        $isRegistrantLoggedIn = Auth::guard('pendaftar')->check() || ($user instanceof \App\Models\Registrant) || ($user instanceof \App\Models\User && $user->isRegistrant());
         if ($isLoginRequired && !$isRegistrantLoggedIn) {
             return redirect()->route('pendaftar.login', ['redirect_to' => 'register', 'notice' => 'required'])
                 ->withErrors(['login' => 'Pendaftaran mewajibkan login akun pendaftar. Silakan masuk terlebih dahulu.']);
@@ -263,6 +327,14 @@ class PublicPortalController extends Controller
 
         $competition = Competition::find($validated['competition_id']);
         if ($competition) {
+            if ($competition->isDirectRegistration()) {
+                $coordName = $competition->primary_coordinator['name'] ?? 'Koordinator Lomba';
+                $coordPhone = $competition->primary_coordinator['contact'] ?? '';
+                $contactInfo = $coordPhone ? "{$coordName} ({$coordPhone})" : $coordName;
+                return redirect()->back()->withErrors([
+                    'competition_id' => "Pendaftaran cabang lomba {$competition->title} hanya dapat dilakukan melalui kontak langsung ke Koordinator Lomba: {$contactInfo}."
+                ]);
+            }
             if ($competition->isDeadlinePassed()) {
                 return redirect()->back()->withErrors([
                     'competition_id' => "Pendaftaran untuk cabang {$competition->title} telah ditutup karena melewati batas tanggal pendaftaran ({$competition->registration_deadline})."
@@ -724,11 +796,12 @@ class PublicPortalController extends Controller
         // di tabel terpisah 'registrants' berdasarkan kontak & email koordinator/pendamping/kapten.
         // =========================================================================
         $registrantUser = null;
+        $cleanWa = ($mentorWa !== '-' && !empty($mentorWa)) ? Setting::formatWaNumber($mentorWa) : null;
+        $rawWaDigits = ($mentorWa !== '-' && !empty($mentorWa)) ? preg_replace('/\D/', '', (string)$mentorWa) : null;
+
         if (Auth::guard('pendaftar')->check()) {
             $registrantUser = Auth::guard('pendaftar')->user();
         } else {
-            $cleanWa = ($mentorWa !== '-' && !empty($mentorWa)) ? Setting::formatWaNumber($mentorWa) : null;
-            $rawWaDigits = ($mentorWa !== '-' && !empty($mentorWa)) ? preg_replace('/\D/', '', (string)$mentorWa) : null;
 
             if (!empty($cleanWa) || !empty($contactEmail)) {
                 // 1. Cari apakah akun Registrant sudah ada sebelumnya berdasarkan nomor WA atau Email

@@ -41,6 +41,8 @@ const selectedActivityFilter = ref('all');
 const isActivityDropdownOpen = ref(false);
 
 const activityFilterLabel = computed(() => {
+  if (selectedActivityFilter.value === 'panitia') return 'Aktivitas Panitia';
+  if (selectedActivityFilter.value === 'auth') return 'Login & Logout';
   if (selectedActivityFilter.value === 'registration') return 'Pendaftaran';
   if (selectedActivityFilter.value === 'verification') return 'Verifikasi';
   if (selectedActivityFilter.value === 'checkin') return 'Gate Check-in';
@@ -54,6 +56,12 @@ function setActivityFilter(type) {
 
 const filteredActivities = computed(() => {
   if (selectedActivityFilter.value === 'all') return activitiesList.value;
+  if (selectedActivityFilter.value === 'panitia') {
+    return activitiesList.value.filter(a => a.type === 'panitia' || a.type === 'auth' || a.action === 'login' || a.action === 'logout');
+  }
+  if (selectedActivityFilter.value === 'auth') {
+    return activitiesList.value.filter(a => a.type === 'auth' || a.action === 'login' || a.action === 'logout');
+  }
   return activitiesList.value.filter(a => a.type === selectedActivityFilter.value);
 });
 
@@ -468,39 +476,55 @@ onMounted(() => {
                 <div 
                   v-if="isActivityDropdownOpen" 
                   class="dropdown-menu dropdown-menu-end show position-absolute end-0 mt-1 shadow-sm"
-                  style="min-width: 170px; z-index: 1050;"
+                  style="min-width: 190px; z-index: 1050;"
                 >
                   <button 
                     class="dropdown-item fs-12 py-1.5 d-flex align-items-center justify-content-between" 
-                    :class="{ 'active fw-semibold': activityFilter === 'all' }"
+                    :class="{ 'active fw-semibold': selectedActivityFilter === 'all' }"
                     @click="setActivityFilter('all')"
                   >
                     <span><i class="ri-list-check align-middle me-1 text-primary"></i> Semua Aktivitas</span>
-                    <i v-if="activityFilter === 'all'" class="ri-check-line text-primary fs-14 ms-2"></i>
+                    <i v-if="selectedActivityFilter === 'all'" class="ri-check-line text-primary fs-14 ms-2"></i>
                   </button>
                   <button 
                     class="dropdown-item fs-12 py-1.5 d-flex align-items-center justify-content-between" 
-                    :class="{ 'active fw-semibold': activityFilter === 'registration' }"
+                    :class="{ 'active fw-semibold': selectedActivityFilter === 'panitia' }"
+                    @click="setActivityFilter('panitia')"
+                  >
+                    <span><i class="ri-shield-user-line align-middle me-1 text-primary"></i> Aktivitas Panitia</span>
+                    <i v-if="selectedActivityFilter === 'panitia'" class="ri-check-line text-primary fs-14 ms-2"></i>
+                  </button>
+                  <button 
+                    class="dropdown-item fs-12 py-1.5 d-flex align-items-center justify-content-between" 
+                    :class="{ 'active fw-semibold': selectedActivityFilter === 'auth' }"
+                    @click="setActivityFilter('auth')"
+                  >
+                    <span><i class="ri-login-box-line align-middle me-1 text-success"></i> Login & Logout</span>
+                    <i v-if="selectedActivityFilter === 'auth'" class="ri-check-line text-primary fs-14 ms-2"></i>
+                  </button>
+                  <button 
+                    class="dropdown-item fs-12 py-1.5 d-flex align-items-center justify-content-between" 
+                    :class="{ 'active fw-semibold': selectedActivityFilter === 'registration' }"
                     @click="setActivityFilter('registration')"
                   >
                     <span><i class="ri-user-add-line align-middle me-1 text-info"></i> Pendaftaran Baru</span>
-                    <i v-if="activityFilter === 'registration'" class="ri-check-line text-primary fs-14 ms-2"></i>
+                    <i v-if="selectedActivityFilter === 'registration'" class="ri-check-line text-primary fs-14 ms-2"></i>
                   </button>
                   <button 
                     class="dropdown-item fs-12 py-1.5 d-flex align-items-center justify-content-between" 
-                    :class="{ 'active fw-semibold': activityFilter === 'verification' }"
+                    :class="{ 'active fw-semibold': selectedActivityFilter === 'verification' }"
                     @click="setActivityFilter('verification')"
                   >
                     <span><i class="ri-shield-check-line align-middle me-1 text-success"></i> Verifikasi Berkas</span>
-                    <i v-if="activityFilter === 'verification'" class="ri-check-line text-primary fs-14 ms-2"></i>
+                    <i v-if="selectedActivityFilter === 'verification'" class="ri-check-line text-primary fs-14 ms-2"></i>
                   </button>
                   <button 
                     class="dropdown-item fs-12 py-1.5 d-flex align-items-center justify-content-between" 
-                    :class="{ 'active fw-semibold': activityFilter === 'checkin' }"
+                    :class="{ 'active fw-semibold': selectedActivityFilter === 'checkin' }"
                     @click="setActivityFilter('checkin')"
                   >
                     <span><i class="ri-qr-code-line align-middle me-1 text-warning"></i> Gate Check-in</span>
-                    <i v-if="activityFilter === 'checkin'" class="ri-check-line text-primary fs-14 ms-2"></i>
+                    <i v-if="selectedActivityFilter === 'checkin'" class="ri-check-line text-primary fs-14 ms-2"></i>
                   </button>
                 </div>
               </div>
@@ -529,12 +553,18 @@ onMounted(() => {
                       <span v-if="act.highlight" class="text-primary fw-bold ms-1">• {{ act.highlight }}</span>
                     </h6>
                     <p class="text-muted fs-12 mb-1 lh-sm">{{ act.desc }}</p>
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
                       <small class="text-muted fs-11">
                         <i class="ri-time-line align-middle me-0.5"></i> {{ act.time_str }}
                       </small>
                       <span v-if="act.reg_code" class="badge bg-light text-muted border fs-10 font-mono">
                         {{ act.reg_code }}
+                      </span>
+                      <span v-if="act.role" class="badge bg-primary-subtle text-primary fs-10 text-capitalize">
+                        {{ String(act.role).replace(/_/g, ' ') }}
+                      </span>
+                      <span v-if="act.ip_address" class="text-muted fs-10 font-mono" title="IP Address">
+                        <i class="ri-map-pin-user-line me-0.5"></i>{{ act.ip_address }}
                       </span>
                     </div>
                   </div>

@@ -5,6 +5,7 @@ import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { useToast } from '@/Composables/useToast';
 import { useConfirmDialog } from '@/Composables/useConfirmDialog';
 import { getWaChatUrl } from '@/Utils/whatsapp';
+import AvatarCropperModal from '@/Components/AvatarCropperModal.vue';
 
 const props = defineProps({
   users: { type: Object, required: true },
@@ -69,9 +70,81 @@ const form = ref({
   phone: '',
   competition_id: '',
   is_active: true,
+  avatar_data: null,
+  avatar_preview: null,
+  remove_avatar: false,
 });
 
 const formErrors = ref({});
+
+// Form Avatar Cropper State
+const isFormAvatarCropperOpen = ref(false);
+
+function openFormAvatarCropper() {
+  isFormAvatarCropperOpen.value = true;
+}
+
+function handleSaveFormAvatar(payload) {
+  form.value.avatar_data = payload.dataUrl;
+  form.value.avatar_preview = payload.dataUrl;
+  form.value.remove_avatar = false;
+  isFormAvatarCropperOpen.value = false;
+  success('Foto profil berhasil disesuaikan!');
+}
+
+function handleRemoveFormAvatar() {
+  form.value.avatar_data = null;
+  form.value.avatar_preview = null;
+  form.value.remove_avatar = true;
+}
+
+// Table Row Direct User Avatar Cropper State
+const isUserAvatarModalOpen = ref(false);
+const selectedUserForAvatar = ref(null);
+const isSavingUserAvatar = ref(false);
+
+function openUserAvatarCropper(user) {
+  selectedUserForAvatar.value = user;
+  isUserAvatarModalOpen.value = true;
+}
+
+function handleSaveUserAvatar(payload) {
+  if (!selectedUserForAvatar.value) return;
+  isSavingUserAvatar.value = true;
+  router.post(`/admin/pengguna/${selectedUserForAvatar.value.id}/avatar`, {
+    avatar_data: payload.dataUrl,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSavingUserAvatar.value = false;
+      isUserAvatarModalOpen.value = false;
+      success(`Foto profil ${selectedUserForAvatar.value.name} berhasil diperbarui!`);
+      selectedUserForAvatar.value = null;
+    },
+    onError: (errs) => {
+      isSavingUserAvatar.value = false;
+      error(Object.values(errs)[0] || 'Gagal memperbarui foto profil pengguna.');
+    }
+  });
+}
+
+function handleDeleteUserAvatar() {
+  if (!selectedUserForAvatar.value) return;
+  isSavingUserAvatar.value = true;
+  router.delete(`/admin/pengguna/${selectedUserForAvatar.value.id}/avatar`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSavingUserAvatar.value = false;
+      isUserAvatarModalOpen.value = false;
+      success(`Foto profil ${selectedUserForAvatar.value.name} berhasil dihapus.`);
+      selectedUserForAvatar.value = null;
+    },
+    onError: (errs) => {
+      isSavingUserAvatar.value = false;
+      error(Object.values(errs)[0] || 'Gagal menghapus foto profil.');
+    }
+  });
+}
 
 function openCreateModal() {
   isEditing.value = false;
@@ -88,6 +161,9 @@ function openCreateModal() {
     phone: '',
     competition_id: '',
     is_active: true,
+    avatar_data: null,
+    avatar_preview: null,
+    remove_avatar: false,
   };
   isModalOpen.value = true;
 }
@@ -107,6 +183,9 @@ function openEditModal(user) {
     phone: user.phone || '',
     competition_id: user.competition_id || '',
     is_active: user.is_active !== false,
+    avatar_data: null,
+    avatar_preview: user.avatar || null,
+    remove_avatar: false,
   };
   isModalOpen.value = true;
 }
@@ -632,11 +711,28 @@ async function executeSync() {
                 <td>
                   <div class="d-flex align-items-center gap-2.5">
                     <div 
-                      class="avatar-xs rounded-circle d-flex align-items-center justify-content-center text-white fw-bold fs-11 flex-shrink-0"
-                      :class="user.role === 'super_admin' ? 'bg-danger' : (user.role === 'admin' ? 'bg-primary' : (user.role === 'juri' || user.role === 'wasit' ? 'bg-warning' : 'bg-info'))"
-                      style="width: 34px; height: 34px;"
+                      class="position-relative avatar-hover-box rounded-circle flex-shrink-0 cursor-pointer"
+                      @click="openUserAvatarCropper(user)"
+                      :title="`Klik untuk sesuaikan & ganti foto ${user.name}`"
+                      style="width: 36px; height: 36px;"
                     >
-                      {{ getInitials(user.name) }}
+                      <img 
+                        v-if="user.avatar"
+                        :src="user.avatar"
+                        :alt="user.name"
+                        class="rounded-circle object-fit-cover w-100 h-100 border shadow-xs"
+                      />
+                      <div 
+                        v-else 
+                        class="w-100 h-100 rounded-circle d-flex align-items-center justify-content-center text-white fw-bold fs-11"
+                        :class="user.role === 'super_admin' ? 'bg-danger' : (user.role === 'admin' ? 'bg-primary' : (user.role === 'juri' || user.role === 'wasit' ? 'bg-warning' : 'bg-info'))"
+                      >
+                        {{ getInitials(user.name) }}
+                      </div>
+                      <!-- Hover Overlay Camera Icon -->
+                      <div class="avatar-hover-overlay rounded-circle d-flex align-items-center justify-content-center">
+                        <i class="ri-camera-lens-fill text-white fs-13"></i>
+                      </div>
                     </div>
                     <div>
                       <div class="d-flex align-items-center gap-1.5 flex-wrap">
@@ -740,6 +836,14 @@ async function executeSync() {
                   <div class="d-inline-flex align-items-center gap-1">
                     <button 
                       type="button" 
+                      class="btn btn-sm btn-light border text-info" 
+                      @click="openUserAvatarCropper(user)"
+                      title="Ubah & Sesuaikan Foto Profil"
+                    >
+                      <i class="ri-camera-lens-line"></i>
+                    </button>
+                    <button 
+                      type="button" 
                       class="btn btn-sm btn-light border text-primary" 
                       @click="openEditModal(user)"
                       title="Edit Pengguna"
@@ -813,6 +917,52 @@ async function executeSync() {
           <form @submit.prevent="submitForm">
             <div class="modal-body p-4">
               <div class="row g-3">
+                <!-- Avatar Profil Foto Pengguna -->
+                <div class="col-12">
+                  <div class="p-3 rounded-3 bg-light border d-flex flex-column flex-sm-row align-items-center gap-3">
+                    <div class="position-relative flex-shrink-0">
+                      <img 
+                        v-if="form.avatar_preview" 
+                        :src="form.avatar_preview" 
+                        alt="Preview Foto" 
+                        class="rounded-circle object-fit-cover border shadow-sm"
+                        style="width: 64px; height: 64px;"
+                      />
+                      <div 
+                        v-else 
+                        class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold fs-20 shadow-sm"
+                        style="width: 64px; height: 64px;"
+                      >
+                        {{ getInitials(form.name) }}
+                      </div>
+                    </div>
+                    <div class="flex-grow-1 text-center text-sm-start">
+                      <div class="fw-semibold text-dark fs-13 mb-1">Foto Profil Pengguna</div>
+                      <p class="text-muted fs-11 mb-2">Unggah foto lalu sesuaikan ukuran zoom dan posisi geser secara interaktif.</p>
+                      <div class="d-flex flex-wrap gap-1.5 justify-content-center justify-content-sm-start">
+                        <button 
+                          type="button" 
+                          class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 py-1 px-2.5 fs-12"
+                          @click="openFormAvatarCropper"
+                        >
+                          <i class="ri-crop-2-line fs-14"></i>
+                          <span>{{ form.avatar_preview ? 'Sesuaikan / Ganti Foto' : 'Pilih & Sesuaikan Foto' }}</span>
+                        </button>
+                        <button 
+                          v-if="form.avatar_preview" 
+                          type="button" 
+                          class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 py-1 px-2.5 fs-12"
+                          @click="handleRemoveFormAvatar"
+                          title="Hapus Foto"
+                        >
+                          <i class="ri-delete-bin-line fs-14"></i>
+                          <span>Hapus Foto</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- Nama Lengkap -->
                 <div class="col-12 col-md-6">
                   <label class="form-label fs-12 fw-semibold text-dark">
@@ -1376,5 +1526,50 @@ async function executeSync() {
         </div>
       </div>
     </div>
+
+    <!-- Modal Sesuaikan Foto Profil Pengguna Spesifik dari Tabel -->
+    <AvatarCropperModal
+      :show="isUserAvatarModalOpen"
+      :title="`Sesuaikan Foto: ${selectedUserForAvatar?.name || 'Pengguna'}`"
+      :current-avatar="selectedUserForAvatar?.avatar"
+      :user-name="selectedUserForAvatar?.name"
+      :is-processing="isSavingUserAvatar"
+      @close="isUserAvatarModalOpen = false"
+      @save="handleSaveUserAvatar"
+      @delete="handleDeleteUserAvatar"
+    />
+
+    <!-- Modal Sesuaikan Foto Profil di Dalam Form Modal Tambah/Edit -->
+    <AvatarCropperModal
+      :show="isFormAvatarCropperOpen"
+      :title="`Sesuaikan Foto: ${form.name || 'Pengguna'}`"
+      :current-avatar="form.avatar_preview"
+      :user-name="form.name"
+      @close="isFormAvatarCropperOpen = false"
+      @save="handleSaveFormAvatar"
+      @delete="handleRemoveFormAvatar"
+    />
   </VelzonLayout>
 </template>
+
+<style scoped>
+.avatar-hover-box {
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.15s ease-in-out;
+}
+.avatar-hover-box:hover {
+  transform: scale(1.06);
+}
+.avatar-hover-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.65);
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+.avatar-hover-box:hover .avatar-hover-overlay {
+  opacity: 1;
+}
+</style>

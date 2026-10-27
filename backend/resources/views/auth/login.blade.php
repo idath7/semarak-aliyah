@@ -17,6 +17,7 @@
 <html lang="id" data-layout="vertical" data-topbar="light" data-sidebar="dark" data-sidebar-size="lg" data-bs-theme="light">
 <head>
     <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark">
     <title>Masuk Panel Panitia | {{ $eventName }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta content="Panel Admin Panitia {{ $eventName }} - {{ $schoolName }}" name="description" />
@@ -25,11 +26,10 @@
 
     <!-- Favicon -->
     <link rel="shortcut icon" href="/assets/img/logo.png">
-
-    <!-- Google Fonts (Poppins - Velzon Official Typography) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Local Offline Fonts & Icons -->
+    <link rel="stylesheet" href="/assets/css/fonts.css">
+    <link rel="stylesheet" href="/assets/vendor/remixicon/remixicon.css">
+    <link rel="stylesheet" href="/assets/vendor/boxicons/css/boxicons.min.css">
 
     <!-- Laravel Vite Asset Bundling -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])

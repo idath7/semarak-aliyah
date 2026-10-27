@@ -15,10 +15,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta content="Buat Kata Sandi Baru Panitia {{ $eventName }}" name="description" />
     <link rel="shortcut icon" href="/assets/img/logo.png">
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Local Offline Fonts & Icons -->
+    <link rel="stylesheet" href="/assets/css/fonts.css">
+    <link rel="stylesheet" href="/assets/vendor/remixicon/remixicon.css">
+    <link rel="stylesheet" href="/assets/vendor/boxicons/css/boxicons.min.css">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 

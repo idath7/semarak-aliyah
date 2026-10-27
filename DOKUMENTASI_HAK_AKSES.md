@@ -60,6 +60,10 @@ Migrasi database didefinisikan dalam berkas:
 | :--- | :--- | :--- | :--- |
 | `super_admin` | **Super Administrator** | `danger` | Akses mutlak ke seluruh sistem & konfigurasi (Bypass otomatis). |
 | `admin` | **Administrator Utama** | `primary` | Akses penuh operasional, pengguna, pendaftaran, dan sistem. |
+| `ketua_panitia` | **Ketua Panitia** | `danger` | Penanggung jawab umum, wewenang penuh atas seluruh regulasi lomba, kuota, agenda TM, dan pengundian. |
+| `wakil_ketua_panitia` | **Wakil Ketua Panitia** | `primary` | Wakil penanggung jawab, supervisi teknis lomba, verifikasi regulasi, dan pendampingan agenda TM seluruh cabang. |
+| `sekretaris` | **Sekretaris Panitia** | `info` | Administrasi persuratan, buku panduan Juknis, Form Builder dinamis, dan berita acara pengundian TM. |
+| `koordinator_lomba`| **Koordinator Lomba** | `warning` | Penanggung jawab teknis cabang lomba spesifik. Mengelola agenda TM, nomor undian, dan rincian lomba yang dikoordinasikan. |
 | `kesekretariatan`| **Kesekretariatan** | `info` | Kelola peserta, verifikasi formulir, surat menyurat, dan sertifikat. |
 | `bendahara` | **Bendahara & Keuangan** | `success` | Verifikasi bukti pembayaran registrasi, invoice, dan laporan keuangan. |
 | `panitia` | **Panitia Lapangan** | `secondary` | Presensi gate check-in, visualisasi bagan, dan pendataan juara. |
@@ -68,7 +72,29 @@ Migrasi database didefinisikan dalam berkas:
 
 ---
 
-### 2.3. Daftar 25 Hak Akses Riil Sistem (9 Kategori Fungsional)
+### 2.3. Struktur Relasi Panitia Terkait Manajemen Lomba & Technical Meeting (TM)
+
+Untuk menjamin keamanan dan keteraturan koordinasi, modul **Manajemen Lomba** (`/admin/lomba`) dan **Manajemen Technical Meeting** (`/admin/tm`) tidak dapat diakses sembarang panitia. Keterlibatan panitia diatur berdasarkan 4 peran kunci:
+
+1. **Ketua Panitia (`ketua_panitia`)**:
+   - Memegang legalitas tertinggi atas pembukaan/penutupan pendaftaran, perubahan kuota darurat, pengesahan juknis, dan validasi nomor undian TM untuk **seluruh cabang lomba**.
+2. **Wakil Ketua Panitia (`wakil_ketua_panitia`)**:
+   - Memiliki wewenang manajemen dan supervisi penuh yang setara dengan Ketua Panitia untuk memastikan kesiapan teknis seluruh cabang lomba dan pelaksanaan TM berjalan lancar.
+3. **Sekretaris Panitia (`sekretaris` / `kesekretariatan`)**:
+   - Mengelola aspek administratif pendaftaran lomba: perancangan Form Builder dinamis (`/admin/form-builder`), pengunggahan berkas Juknis (`/admin/juknis`), serta pendokumentasian berita acara hasil TM.
+4. **Koordinator Lomba (`koordinator_lomba`)**:
+   - Dihubungkan secara relasional ke cabang lomba tertentu melalui:
+     - Foreign key `coordinator_id` pada tabel `competitions` (menunjuk ke `users.id`).
+     - Foreign key `competition_id` pada tabel `users` (menunjuk ke `competitions.id`).
+   - **Batasan Akses Spesifik (*Granular Authorization*)**:
+     - Koordinator hanya dapat menyunting rincian cabang lomba yang berada di bawah koordinasinya (`authorizeCompetitionAccess`).
+     - Koordinator hanya dapat mengacak nomor undian (*random draw*), mereset nomor, atau mengubah urutan tampil pada cabang lombanya sendiri.
+     - Bila koordinator membuka cabang lomba lain di Manajemen TM, sistem otomatis memberlakukan **Mode Pratinjau Terkunci (*Read-Only*)** dengan notifikasi peringatan yang jelas.
+     - Penambahan cabang lomba baru dan penghapusan cabang lomba diproteksi hanya untuk Ketua, Wakil Ketua, Sekretaris, dan Administrator Utama.
+
+---
+
+### 2.4. Daftar 25 Hak Akses Riil Sistem (9 Kategori Fungsional)
 
 Tabel berikut mencantumkan seluruh kode permission yang aktif dan dapat dikelola langsung di tab **Matriks Hak Akses Peran**:
 

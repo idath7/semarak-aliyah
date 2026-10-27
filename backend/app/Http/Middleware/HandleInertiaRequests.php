@@ -50,6 +50,7 @@ class HandleInertiaRequests extends Middleware
                                 'email' => $user->email,
                                 'nip' => $user->nip,
                                 'phone' => $user->phone,
+                                'avatar' => $user->avatar_url,
                                 'role' => $user->role,
                                 'role_label' => $user->roleRelation?->label ?? ucfirst(str_replace('_', ' ', $user->role)),
                                 'role_badge' => $user->roleRelation?->badge_color ?? 'primary',
@@ -176,6 +177,17 @@ class HandleInertiaRequests extends Middleware
             ],
             'generalJuknis' => fn () => \App\Models\Setting::getGeneralJuknis(),
             'paymentBankAccounts' => fn () => \App\Models\Setting::getBankAccounts(),
+            'footerCompetitions' => fn () => \App\Models\Competition::orderBy('id', 'asc')
+                ->get(['id', 'title', 'registration_type', 'status'])
+                ->map(function ($comp) {
+                    return [
+                        'id' => $comp->id,
+                        'title' => $comp->title,
+                        'name' => $comp->title,
+                        'slug' => $comp->id,
+                        'registration_type' => $comp->registration_type,
+                    ];
+                }),
         ];
     }
 }

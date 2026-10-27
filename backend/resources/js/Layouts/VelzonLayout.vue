@@ -3,7 +3,9 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { useToast } from '@/Composables/useToast';
 import { usePermission } from '@/Composables/usePermission';
+import { useTheme } from '@/Composables/useTheme';
 import VelzonConfirmModal from '@/Components/VelzonConfirmModal.vue';
+import AvatarCropperModal from '@/Components/AvatarCropperModal.vue';
 
 const page = usePage();
 const { can, canAny, isSuperAdmin } = usePermission();
@@ -102,7 +104,7 @@ watch(() => page.props.flash?.error, (val) => {
 
 const isSidebarCollapsed = ref(false);
 const isMobileSidebarOpen = ref(false);
-const isDarkTheme = ref(false);
+const { isDark: isDarkTheme, toggleTheme, initTheme } = useTheme();
 const isUserDropdownOpen = ref(false);
 const isAppsDropdownOpen = ref(false);
 const isMobileSearchOpen = ref(false);
@@ -122,24 +124,6 @@ function toggleSidebar() {
   }
 }
 
-function toggleTheme() {
-  isDarkTheme.value = !isDarkTheme.value;
-  const theme = isDarkTheme.value ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-bs-theme', theme);
-  document.documentElement.style.colorScheme = theme;
-  if (theme === 'dark') {
-    document.documentElement.style.backgroundColor = '#0b0f19';
-    document.body.style.backgroundColor = '#0b0f19';
-    document.body.style.color = '#f1f5f9';
-  } else {
-    document.documentElement.style.backgroundColor = '#f3f3f9';
-    document.body.style.backgroundColor = '#f3f3f9';
-    document.body.style.color = '#495057';
-  }
-  localStorage.setItem('velzon_theme_v2', theme);
-  localStorage.setItem('velzon_theme', theme);
-}
-
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(() => {});
@@ -152,6 +136,49 @@ function logout() {
   router.post('/logout', {}, {
     onFinish: () => {
       window.location.href = '/login';
+    }
+  });
+}
+
+// Avatar Cropper Modal State
+const isAvatarCropperOpen = ref(false);
+const isSavingAvatar = ref(false);
+
+function openMyAvatarCropper() {
+  isUserDropdownOpen.value = false;
+  isAvatarCropperOpen.value = true;
+}
+
+function handleSaveMyAvatar(payload) {
+  isSavingAvatar.value = true;
+  router.post('/admin/profile/avatar', {
+    avatar_data: payload.dataUrl,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSavingAvatar.value = false;
+      isAvatarCropperOpen.value = false;
+      success('Foto profil Anda berhasil disesuaikan dan disimpan!', 'Berhasil');
+    },
+    onError: (errs) => {
+      isSavingAvatar.value = false;
+      error(Object.values(errs)[0] || 'Gagal menyimpan foto profil.');
+    }
+  });
+}
+
+function handleDeleteMyAvatar() {
+  isSavingAvatar.value = true;
+  router.delete('/admin/profile/avatar', {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSavingAvatar.value = false;
+      isAvatarCropperOpen.value = false;
+      success('Foto profil berhasil dihapus.', 'Berhasil');
+    },
+    onError: (errs) => {
+      isSavingAvatar.value = false;
+      error(Object.values(errs)[0] || 'Gagal menghapus foto profil.');
     }
   });
 }
@@ -170,23 +197,7 @@ function handleDocumentClick(e) {
 
 onMounted(() => {
   document.addEventListener('click', handleDocumentClick);
-  const savedTheme = localStorage.getItem('velzon_theme_v2');
-  const effectiveTheme = savedTheme || 'dark';
-
-  isDarkTheme.value = (effectiveTheme === 'dark');
-  document.documentElement.setAttribute('data-bs-theme', effectiveTheme);
-  document.documentElement.style.colorScheme = effectiveTheme;
-  if (effectiveTheme === 'dark') {
-    document.documentElement.style.backgroundColor = '#0b0f19';
-    document.body.style.backgroundColor = '#0b0f19';
-    document.body.style.color = '#f1f5f9';
-  } else {
-    document.documentElement.style.backgroundColor = '#f3f3f9';
-    document.body.style.backgroundColor = '#f3f3f9';
-    document.body.style.color = '#495057';
-  }
-  localStorage.setItem('velzon_theme_v2', effectiveTheme);
-  localStorage.setItem('velzon_theme', effectiveTheme);
+  initTheme();
 });
 
 onUnmounted(() => {
@@ -372,10 +383,19 @@ onUnmounted(() => {
               title="Profil Pengguna"
             >
               <img 
-                src="/assets/img/logo.png" 
-                alt="Admin Avatar" 
-                class="rounded-circle topbar-user-avatar" 
+                v-if="authUser.avatar"
+                :src="authUser.avatar" 
+                :alt="authUser.name" 
+                class="rounded-circle topbar-user-avatar object-fit-cover shadow-xs border" 
+                style="width: 34px; height: 34px;"
               />
+              <div 
+                v-else 
+                class="rounded-circle topbar-user-avatar d-flex align-items-center justify-content-center text-white fw-bold fs-12 bg-primary shadow-xs flex-shrink-0"
+                style="width: 34px; height: 34px;"
+              >
+                {{ authUser.name ? authUser.name.charAt(0).toUpperCase() : 'A' }}
+              </div>
               <div class="d-none d-xl-block text-start user-info-wrapper">
                 <span class="d-block fw-semibold topbar-user-name fs-13 text-truncate" style="max-width: 140px;">{{ authUser.name }}</span>
                 <span class="d-block topbar-user-role fs-11 text-truncate" style="max-width: 140px;">{{ authUser.role_label || 'Panitia' }}</span>
@@ -385,25 +405,57 @@ onUnmounted(() => {
             <div 
               v-if="isUserDropdownOpen" 
               class="dropdown-menu dropdown-menu-end shadow-lg show position-absolute end-0 mt-2 topbar-dropdown-menu"
-              style="min-width: 210px; max-width: calc(100vw - 24px); z-index: 1050;"
+              style="min-width: 230px; max-width: calc(100vw - 24px); z-index: 1050;"
             >
-              <div class="px-3 py-2 border-bottom">
-                <h6 class="mb-0 fs-13 fw-semibold text-truncate">{{ authUser.name }}</h6>
-                <small class="text-muted text-truncate d-block">{{ authUser.email }}</small>
+              <div class="px-3 py-2.5 border-bottom d-flex align-items-center gap-2.5">
+                <div class="position-relative flex-shrink-0">
+                  <img 
+                    v-if="authUser.avatar" 
+                    :src="authUser.avatar" 
+                    :alt="authUser.name" 
+                    class="rounded-circle object-fit-cover border shadow-xs" 
+                    style="width: 40px; height: 40px;"
+                  />
+                  <div 
+                    v-else 
+                    class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold fs-13 bg-primary shadow-xs"
+                    style="width: 40px; height: 40px;"
+                  >
+                    {{ authUser.name ? authUser.name.charAt(0).toUpperCase() : 'A' }}
+                  </div>
+                </div>
+                <div class="min-w-0 flex-grow-1">
+                  <h6 class="mb-0 fs-13 fw-semibold text-truncate">{{ authUser.name }}</h6>
+                  <small class="text-muted text-truncate d-block">{{ authUser.email }}</small>
+                </div>
               </div>
-              <Link class="dropdown-item py-2" href="/admin">
-                <i class="ri-dashboard-line text-muted me-2 align-middle"></i> Dashboard
+
+              <!-- Menu Ubah Foto Profil Mandiri -->
+              <button 
+                type="button" 
+                class="dropdown-item py-2 d-flex align-items-center gap-2 text-primary fw-medium"
+                @click="openMyAvatarCropper"
+              >
+                <i class="ri-camera-lens-line fs-16"></i>
+                <span>Ubah & Sesuaikan Foto</span>
+              </button>
+
+              <Link class="dropdown-item py-2 d-flex align-items-center gap-2" href="/admin">
+                <i class="ri-dashboard-line text-muted fs-16"></i>
+                <span>Dashboard</span>
               </Link>
-              <a class="dropdown-item py-2" href="/admin/export">
-                <i class="ri-download-cloud-line text-muted me-2 align-middle"></i> Download Data
+              <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="/admin/export">
+                <i class="ri-download-cloud-line text-muted fs-16"></i>
+                <span>Download Data</span>
               </a>
               <div class="dropdown-divider"></div>
               <button 
                 type="button" 
                 @click="logout" 
-                class="dropdown-item py-2 text-danger border-0 bg-transparent w-100 text-start"
+                class="dropdown-item py-2 text-danger border-0 bg-transparent w-100 text-start d-flex align-items-center gap-2"
               >
-                <i class="ri-logout-box-line text-danger me-2 align-middle"></i> Keluar (Logout)
+                <i class="ri-logout-box-line text-danger fs-16"></i>
+                <span>Keluar (Logout)</span>
               </button>
             </div>
           </div>
@@ -756,6 +808,26 @@ onUnmounted(() => {
                     <span>Informasi Sistem</span>
                   </Link>
                 </li>
+                <li class="nav-item">
+                  <Link 
+                    href="/admin/pengaturan/backup" 
+                    class="nav-link d-flex align-items-center gap-2"
+                    :class="{ 'active': currentUrl.includes('/backup') }"
+                  >
+                    <i class="ri-save-3-line fs-14 text-warning"></i>
+                    <span>Cadangan &amp; Pemulihan</span>
+                  </Link>
+                </li>
+                <li class="nav-item">
+                  <Link 
+                    href="/admin/pengaturan/kop-invoice" 
+                    class="nav-link d-flex align-items-center gap-2"
+                    :class="{ 'active': currentUrl.includes('/kop-invoice') }"
+                  >
+                    <i class="ri-file-paper-2-line fs-14 text-info"></i>
+                    <span>KOP &amp; Stempel Invoice</span>
+                  </Link>
+                </li>
               </ul>
             </div>
           </li>
@@ -1022,11 +1094,23 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
+
+      <!-- Modal Sesuaikan Foto Profil Pengguna Mandiri -->
+      <AvatarCropperModal
+        :show="isAvatarCropperOpen"
+        title="Sesuaikan & Potong Foto Profil Saya"
+        :current-avatar="authUser.avatar"
+        :user-name="authUser.name"
+        :is-processing="isSavingAvatar"
+        @close="isAvatarCropperOpen = false"
+        @save="handleSaveMyAvatar"
+        @delete="handleDeleteMyAvatar"
+      />
     </main>
   </div>
 </template>
 
-<style scoped>
+<style>
 /* ============================================================== */
 /* NAVBAR EDITION BADGE & MASTER MODAL STYLES                     */
 /* ============================================================== */
@@ -1435,37 +1519,50 @@ onUnmounted(() => {
 [data-bs-theme="dark"] #page-topbar {
   background-color: #111827 !important;
   background: #111827 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.1) !important;
   color: #f8fafc !important;
 }
 
-[data-bs-theme="dark"] #app-sidebar,
-[data-bs-theme="dark"] .navbar-menu,
-[data-bs-theme="dark"] .app-menu {
+#app-sidebar,
+.navbar-menu,
+.app-menu,
+[data-sidebar="dark"] #app-sidebar,
+[data-sidebar="dark"] .navbar-menu,
+[data-sidebar="dark"] .app-menu {
   background-color: #111827 !important;
   background: #111827 !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-[data-bs-theme="dark"] .navbar-brand-box {
+.navbar-brand-box,
+[data-sidebar="dark"] .navbar-brand-box {
   background-color: #0f172a !important;
   background: #0f172a !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-[data-bs-theme="dark"] .navbar-menu .navbar-nav .nav-link {
-  color: #cbd5e1 !important;
+#app-sidebar .navbar-nav .nav-link,
+.navbar-menu .navbar-nav .nav-link {
+  color: #abb9e8 !important;
 }
 
-[data-bs-theme="dark"] .navbar-menu .navbar-nav .nav-link:hover,
-[data-bs-theme="dark"] .navbar-menu .navbar-nav .nav-link.active {
+#app-sidebar .navbar-nav .nav-link:hover,
+#app-sidebar .navbar-nav .nav-link.active,
+.navbar-menu .navbar-nav .nav-link:hover,
+.navbar-menu .navbar-nav .nav-link.active {
   color: #ffffff !important;
 }
 
-[data-bs-theme="dark"] .card,
+[data-bs-theme="dark"] .card {
+  background-color: #111827 !important;
+  /* Color only: never change border width vs light mode (prevents layout shift) */
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  color: #f1f5f9 !important;
+}
+
 [data-bs-theme="dark"] .card-body {
   background-color: #111827 !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
   color: #f1f5f9 !important;
 }
 
@@ -1474,6 +1571,21 @@ onUnmounted(() => {
   background-color: #162032 !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
   color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .card-header.bg-transparent,
+[data-bs-theme="dark"] .card-footer.bg-transparent {
+  background-color: transparent !important;
+}
+
+[data-bs-theme="dark"] .card.bg-primary-subtle {
+  background-color: rgba(59, 130, 246, 0.14) !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+  color: #93c5fd !important;
+}
+
+[data-bs-theme="dark"] .card.bg-primary-subtle .card-body {
+  background-color: transparent !important;
 }
 
 [data-bs-theme="dark"] .bg-white {
@@ -1506,9 +1618,44 @@ onUnmounted(() => {
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
+[data-bs-theme="dark"] .border-warning,
+[data-bs-theme="dark"] .border-start.border-warning,
+[data-bs-theme="dark"] .card.border-warning,
+[data-bs-theme="dark"] .card.border-start.border-warning {
+  border-color: #f59e0b !important;
+}
+
+[data-bs-theme="dark"] .border-info,
+[data-bs-theme="dark"] .border-start.border-info,
+[data-bs-theme="dark"] .card.border-info,
+[data-bs-theme="dark"] .card.border-start.border-info {
+  border-color: #0ea5e9 !important;
+}
+
+[data-bs-theme="dark"] .border-success,
+[data-bs-theme="dark"] .border-start.border-success,
+[data-bs-theme="dark"] .card.border-success,
+[data-bs-theme="dark"] .card.border-start.border-success {
+  border-color: #10b981 !important;
+}
+
+[data-bs-theme="dark"] .border-primary,
+[data-bs-theme="dark"] .border-start.border-primary,
+[data-bs-theme="dark"] .card.border-primary,
+[data-bs-theme="dark"] .card.border-start.border-primary {
+  border-color: #3b82f6 !important;
+}
+
+[data-bs-theme="dark"] .border-danger,
+[data-bs-theme="dark"] .border-start.border-danger,
+[data-bs-theme="dark"] .card.border-danger,
+[data-bs-theme="dark"] .card.border-start.border-danger {
+  border-color: #ef4444 !important;
+}
+
 [data-bs-theme="dark"] .footer {
   background-color: #111827 !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-top-color: rgba(255, 255, 255, 0.1) !important;
   color: #94a3b8 !important;
 }
 
@@ -1524,14 +1671,13 @@ onUnmounted(() => {
 [data-bs-theme="dark"] .table-light th {
   background-color: #162032 !important;
   color: #f1f5f9 !important;
-  font-weight: 700;
-  border-bottom: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.18) !important;
 }
 
 [data-bs-theme="dark"] .table td {
   background-color: #111827 !important;
   color: #f8fafc !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 [data-bs-theme="dark"] .table tr:hover td {

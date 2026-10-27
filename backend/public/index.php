@@ -10,6 +10,11 @@ if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php'))
     require $maintenance;
 }
 
+// Ensure stray hot file is deleted so compiled assets are always served
+if (file_exists(__DIR__.'/hot')) {
+    @unlink(__DIR__.'/hot');
+}
+
 // Register the Composer autoloader...
 require __DIR__.'/../vendor/autoload.php';
 

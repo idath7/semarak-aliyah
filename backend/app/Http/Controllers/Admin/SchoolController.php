@@ -6,6 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\School;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 
 class SchoolController extends Controller
 {
@@ -247,56 +253,201 @@ class SchoolController extends Controller
     }
 
     /**
-     * Export schools database to CSV for Excel / Google Sheets.
+     * Export schools database to Excel (.xlsx) or CSV.
      */
-    public function exportCsv()
+    public function exportCsv(Request $request)
     {
         $schools = School::orderBy('kecamatan', 'asc')->orderBy('name', 'asc')->get();
 
+        // Optional CSV fallback if specifically requested via ?format=csv
+        if ($request->query('format') === 'csv') {
+            $headers = [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="database_sekolah_jember_' . date('Ymd_His') . '.csv"',
+            ];
+
+            $callback = function () use ($schools) {
+                $file = fopen('php://output', 'w');
+                fputs($file, "\xEF\xBB\xBF");
+
+                fputcsv($file, [
+                    'NPSN',
+                    'Nama Sekolah / Madrasah',
+                    'Jenjang (SMP/MTs)',
+                    'Status (Negeri/Swasta)',
+                    'Kecamatan',
+                    'Kabupaten',
+                    'Alamat',
+                    'No Telepon / WA',
+                    'Email',
+                    'Nama Kepala Sekolah',
+                    'Status Aktif (1/0)'
+                ]);
+
+                foreach ($schools as $s) {
+                    fputcsv($file, [
+                        $s->npsn ?: '',
+                        $s->name,
+                        $s->jenjang,
+                        $s->status,
+                        $s->kecamatan,
+                        $s->kabupaten ?: 'Kabupaten Jember',
+                        $s->alamat ?: '',
+                        $s->phone ?: '',
+                        $s->email ?: '',
+                        $s->principal_name ?: '',
+                        $s->is_active ? '1' : '0',
+                    ]);
+                }
+
+                fclose($file);
+            };
+
+            return response()->stream($callback, 200, $headers);
+        }
+
+        // Native Microsoft Excel (.xlsx) generation via PhpSpreadsheet
+        $spreadsheet = new Spreadsheet();
+        $spreadsheet->getProperties()
+            ->setCreator('Panitia Semarak Aliyah XIV')
+            ->setLastModifiedBy('Admin Semarak Aliyah')
+            ->setTitle('Database Sekolah & Madrasah Se-Kabupaten Jember')
+            ->setSubject('Master Data Sekolah')
+            ->setDescription('Master data referensi SMP/MTs se-Kabupaten Jember.')
+            ->setCategory('Master Data');
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Database Sekolah');
+        $sheet->setShowGridLines(true);
+
+        // Title Block (Rows 1 - 2)
+        $sheet->setCellValue('A1', 'DATABASE REFERENSI SEKOLAH & MADRASAH (SMP / MTs)');
+        $sheet->mergeCells('A1:K1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('0F172A'));
+        $sheet->getStyle('A1')->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getRowDimension(1)->setRowHeight(26);
+
+        $wibTime = now()->setTimezone('Asia/Jakarta')->translatedFormat('l, d F Y - H:i') . ' WIB';
+        $sheet->setCellValue('A2', 'Diekspor pada: ' . $wibTime . ' | Total: ' . $schools->count() . ' Sekolah/Madrasah');
+        $sheet->mergeCells('A2:K2');
+        $sheet->getStyle('A2')->getFont()->setItalic(true)->setSize(10)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('64748B'));
+        $sheet->getRowDimension(2)->setRowHeight(18);
+
+        // Header Row (Row 4)
         $headers = [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="database_sekolah_jember_' . date('Ymd_His') . '.csv"',
+            'A4' => 'NPSN',
+            'B4' => 'Nama Sekolah / Madrasah',
+            'C4' => 'Jenjang',
+            'D4' => 'Status',
+            'E4' => 'Kecamatan',
+            'F4' => 'Kabupaten',
+            'G4' => 'Alamat',
+            'H4' => 'No Telepon / WA',
+            'I4' => 'Email',
+            'J4' => 'Nama Kepala Sekolah',
+            'K4' => 'Status Aktif'
         ];
 
-        $callback = function () use ($schools) {
-            $file = fopen('php://output', 'w');
-            // Write UTF-8 BOM so Excel opens it with proper character encoding
-            fputs($file, "\xEF\xBB\xBF");
+        foreach ($headers as $cell => $text) {
+            $sheet->setCellValue($cell, $text);
+        }
 
-            fputcsv($file, [
-                'NPSN',
-                'Nama Sekolah / Madrasah',
-                'Jenjang (SMP/MTs)',
-                'Status (Negeri/Swasta)',
-                'Kecamatan',
-                'Kabupaten',
-                'Alamat',
-                'No Telepon / WA',
-                'Email',
-                'Nama Kepala Sekolah',
-                'Status Aktif (1/0)'
-            ]);
+        $headerRange = 'A4:K4';
+        $sheet->getStyle($headerRange)->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'size' => 11,
+                'name' => 'Calibri',
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '047857'], // Emerald 700
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '065F46'],
+                ],
+            ],
+        ]);
+        $sheet->getRowDimension(4)->setRowHeight(28);
 
-            foreach ($schools as $s) {
-                fputcsv($file, [
-                    $s->npsn ?: '',
-                    $s->name,
-                    $s->jenjang,
-                    $s->status,
-                    $s->kecamatan,
-                    $s->kabupaten ?: 'Kabupaten Jember',
-                    $s->alamat ?: '',
-                    $s->phone ?: '',
-                    $s->email ?: '',
-                    $s->principal_name ?: '',
-                    $s->is_active ? '1' : '0',
-                ]);
+        // Data Rows
+        $row = 5;
+        foreach ($schools as $idx => $s) {
+            $sheet->setCellValueExplicit("A{$row}", (string) ($s->npsn ?: '-'), DataType::TYPE_STRING);
+            $sheet->setCellValue("B{$row}", $s->name);
+            $sheet->setCellValue("C{$row}", $s->jenjang);
+            $sheet->setCellValue("D{$row}", $s->status);
+            $sheet->setCellValue("E{$row}", $s->kecamatan);
+            $sheet->setCellValue("F{$row}", $s->kabupaten ?: 'Kabupaten Jember');
+            $sheet->setCellValue("G{$row}", $s->alamat ?: '-');
+            $sheet->setCellValueExplicit("H{$row}", (string) ($s->phone ?: '-'), DataType::TYPE_STRING);
+            $sheet->setCellValue("I{$row}", $s->email ?: '-');
+            $sheet->setCellValue("J{$row}", $s->principal_name ?: '-');
+            $sheet->setCellValue("K{$row}", $s->is_active ? 'AKTIF' : 'NONAKTIF');
+
+            // Alignments
+            $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("C{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("D{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("E{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("H{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("K{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            if ($s->is_active) {
+                $sheet->getStyle("K{$row}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('15803D'))->setBold(true);
+            } else {
+                $sheet->getStyle("K{$row}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('B91C1C'));
             }
 
-            fclose($file);
-        };
+            // Alternating row background
+            if ($idx % 2 === 1) {
+                $sheet->getStyle("A{$row}:K{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F8FAFC');
+            }
 
-        return response()->stream($callback, 200, $headers);
+            $row++;
+        }
+
+        $lastDataRow = $row - 1;
+        if ($lastDataRow >= 5) {
+            $sheet->getStyle("A5:K{$lastDataRow}")->applyFromArray([
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => 'E2E8F0'],
+                    ],
+                ],
+                'alignment' => [
+                    'vertical' => Alignment::VERTICAL_CENTER,
+                ],
+            ]);
+
+            $sheet->setAutoFilter("A4:K{$lastDataRow}");
+        }
+
+        $sheet->freezePane('A5');
+
+        foreach (range('A', 'K') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+        $sheet->getColumnDimension('G')->setAutoSize(false)->setWidth(35);
+
+        $filename = 'Database-Sekolah-Jember_' . date('Y-m-d_His') . '.xlsx';
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'max-age=0, no-cache, no-store, must-revalidate',
+            'Pragma' => 'public',
+        ]);
     }
 
     /**

@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { useToast } from '@/Composables/useToast';
+import { getWaChatUrl } from '@/Utils/whatsapp';
 
 const props = defineProps({
   competitions: { type: Array, default: () => [] },
@@ -10,6 +11,7 @@ const props = defineProps({
   participants: { type: Array, default: () => [] },
   stats: { type: Object, default: () => ({}) },
   selectedCompId: { type: String, default: '' },
+  committeeStructure: { type: Object, default: () => ({}) },
   sectionSettings: { 
     type: Object, 
     default: () => ({
@@ -24,6 +26,23 @@ const props = defineProps({
 });
 
 const toast = useToast();
+
+// Committee Leadership & Coordinator Role Helpers
+const canModifyActiveComp = computed(() => {
+  return props.committeeStructure?.can_modify_active_comp !== false;
+});
+
+const isCoordinatorRole = computed(() => {
+  return props.committeeStructure?.is_coordinator === true;
+});
+
+const currentCoordinatorCompId = computed(() => {
+  return props.committeeStructure?.current_user_comp || null;
+});
+
+const currentUserId = computed(() => {
+  return props.committeeStructure?.current_user_id || null;
+});
 
 // Local list of participants for instant reactivity
 const participantsList = ref([...props.participants]);
@@ -116,6 +135,10 @@ function selectCompetition(compId) {
 // Submit TM Settings
 function submitTmSettings() {
   if (!props.activeComp) return;
+  if (!canModifyActiveComp.value) {
+    toast.error('Akses Terbatas: Hanya Koordinator cabang ini atau Pimpinan Panitia yang berwenang mengubah pengaturan TM.');
+    return;
+  }
 
   tmForm.post(`/admin/tm/${props.activeComp.id}`, {
     preserveScroll: true,
@@ -135,6 +158,10 @@ const showResetModal = ref(false);
 
 function triggerRandomDraw() {
   if (!props.activeComp) return;
+  if (!canModifyActiveComp.value) {
+    toast.error('Akses Terbatas: Hanya Koordinator cabang ini atau Pimpinan Panitia yang berwenang mengundi nomor urut TM.');
+    return;
+  }
   if (participantsList.value.length === 0) {
     toast.error('Tidak ada delegasi terdaftar pada cabang lomba ini untuk diundi.');
     return;
@@ -157,6 +184,10 @@ function triggerRandomDraw() {
 
 function triggerResetDraw() {
   if (!props.activeComp) return;
+  if (!canModifyActiveComp.value) {
+    toast.error('Akses Terbatas: Hanya Koordinator cabang ini atau Pimpinan Panitia yang berwenang mereset nomor undian.');
+    return;
+  }
 
   router.post(`/admin/tm/${props.activeComp.id}/reset`, {}, {
     preserveScroll: true,
@@ -180,6 +211,10 @@ const editOrderForm = useForm({
 });
 
 function openEditOrderModal(p) {
+  if (!canModifyActiveComp.value) {
+    toast.error('Akses Terbatas: Hanya Koordinator cabang ini atau Pimpinan Panitia yang berwenang mengubah nomor urut delegasi.');
+    return;
+  }
   activeEditParticipant.value = p;
   editOrderForm.registration_id = p.id;
   editOrderForm.draw_number = p.draw_number;
@@ -189,6 +224,10 @@ function openEditOrderModal(p) {
 
 function submitEditOrder() {
   if (!props.activeComp || !editOrderForm.registration_id) return;
+  if (!canModifyActiveComp.value) {
+    toast.error('Akses Terbatas: Hanya Koordinator cabang ini atau Pimpinan Panitia yang berwenang mengubah nomor urut delegasi.');
+    return;
+  }
 
   editOrderForm.post(`/admin/tm/${props.activeComp.id}/order`, {
     preserveScroll: true,
@@ -535,6 +574,130 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
     </div>
 
     <!-- ============================================================== -->
+    <!-- STRUKTUR KEPANITIAAN & PENGAWASAN TM                           -->
+    <!-- ============================================================== -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card border-0 shadow-sm" style="border-left: 4px solid #06b6d4 !important;">
+          <div class="card-body p-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+              <div>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-info-subtle text-info fs-11 px-2 py-0.5 fw-semibold">
+                    <i class="ri-shield-check-line me-1"></i> Penanggung Jawab Technical Meeting
+                  </span>
+                  <span v-if="isCoordinatorRole" class="badge bg-warning text-dark fs-11 px-2 py-0.5 fw-semibold">
+                    <i class="ri-user-star-line me-1"></i> Mode Koordinator Cabang Lomba
+                  </span>
+                </div>
+                <h5 class="fs-15 fw-bold text-dark mt-1 mb-0">
+                  Struktur Pimpinan Panitia & Penanggung Jawab TM
+                </h5>
+                <p class="text-muted fs-12 mb-0">
+                  Pelaksanaan Technical Meeting, keabsahan berita acara, dan pengundian nomor urut diawasi bersama oleh Pimpinan Panitia dan Koordinator Cabang Lomba.
+                </p>
+              </div>
+            </div>
+
+            <!-- Leadership Grid -->
+            <div class="row g-2 mt-1">
+              <!-- Ketua Panitia -->
+              <div class="col-md-3 col-sm-6">
+                <div class="p-2 rounded border bg-light d-flex align-items-center gap-2 h-100">
+                  <div class="avatar-xs flex-shrink-0">
+                    <span class="avatar-title rounded-circle bg-danger-subtle text-danger fw-bold fs-12">
+                      <i class="ri-vip-crown-line"></i>
+                    </span>
+                  </div>
+                  <div class="flex-grow-1 overflow-hidden">
+                    <div class="text-muted fs-10 text-uppercase fw-semibold">Ketua Panitia</div>
+                    <div class="fw-bold text-dark fs-12 text-truncate">
+                      {{ committeeStructure?.ketua_panitia?.[0]?.name || 'Belum Ditugaskan' }}
+                    </div>
+                    <div v-if="committeeStructure?.ketua_panitia?.[0]?.phone" class="fs-11">
+                      <a :href="getWaChatUrl(committeeStructure.ketua_panitia[0].phone, 'Halo Ketua Panitia Semarak Aliyah XIV: ')" target="_blank" class="text-success text-decoration-none">
+                        <i class="ri-whatsapp-line me-0.5"></i>{{ committeeStructure.ketua_panitia[0].phone }}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Wakil Ketua Panitia -->
+              <div class="col-md-3 col-sm-6">
+                <div class="p-2 rounded border bg-light d-flex align-items-center gap-2 h-100">
+                  <div class="avatar-xs flex-shrink-0">
+                    <span class="avatar-title rounded-circle bg-primary-subtle text-primary fw-bold fs-12">
+                      <i class="ri-shield-star-line"></i>
+                    </span>
+                  </div>
+                  <div class="flex-grow-1 overflow-hidden">
+                    <div class="text-muted fs-10 text-uppercase fw-semibold">Wakil Ketua Panitia</div>
+                    <div class="fw-bold text-dark fs-12 text-truncate">
+                      {{ committeeStructure?.wakil_ketua_panitia?.[0]?.name || 'Belum Ditugaskan' }}
+                    </div>
+                    <div v-if="committeeStructure?.wakil_ketua_panitia?.[0]?.phone" class="fs-11">
+                      <a :href="getWaChatUrl(committeeStructure.wakil_ketua_panitia[0].phone, 'Halo Wakil Ketua Panitia Semarak Aliyah XIV: ')" target="_blank" class="text-success text-decoration-none">
+                        <i class="ri-whatsapp-line me-0.5"></i>{{ committeeStructure.wakil_ketua_panitia[0].phone }}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Sekretaris Panitia -->
+              <div class="col-md-3 col-sm-6">
+                <div class="p-2 rounded border bg-light d-flex align-items-center gap-2 h-100">
+                  <div class="avatar-xs flex-shrink-0">
+                    <span class="avatar-title rounded-circle bg-info-subtle text-info fw-bold fs-12">
+                      <i class="ri-file-list-3-line"></i>
+                    </span>
+                  </div>
+                  <div class="flex-grow-1 overflow-hidden">
+                    <div class="text-muted fs-10 text-uppercase fw-semibold">Sekretaris Panitia</div>
+                    <div class="fw-bold text-dark fs-12 text-truncate">
+                      {{ committeeStructure?.sekretaris?.[0]?.name || 'Belum Ditugaskan' }}
+                    </div>
+                    <div v-if="committeeStructure?.sekretaris?.[0]?.phone" class="fs-11">
+                      <a :href="getWaChatUrl(committeeStructure.sekretaris[0].phone, 'Halo Sekretaris Panitia Semarak Aliyah XIV: ')" target="_blank" class="text-success text-decoration-none">
+                        <i class="ri-whatsapp-line me-0.5"></i>{{ committeeStructure.sekretaris[0].phone }}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Koordinator Cabang Lomba Ini -->
+              <div class="col-md-3 col-sm-6">
+                <div class="p-2 rounded border bg-light d-flex align-items-center gap-2 h-100">
+                  <div class="avatar-xs flex-shrink-0">
+                    <span class="avatar-title rounded-circle bg-warning-subtle text-warning fw-bold fs-12">
+                      <i class="ri-user-star-line"></i>
+                    </span>
+                  </div>
+                  <div class="flex-grow-1 overflow-hidden">
+                    <div class="text-muted fs-10 text-uppercase fw-semibold">Koordinator Cabang Ini</div>
+                    <div class="fw-bold text-dark fs-12 text-truncate">
+                      {{ activeComp?.coordinator?.name || (activeComp?.coordinators && activeComp.coordinators[0]?.name) || activeComp?.contact_person || 'Belum Ditugaskan' }}
+                    </div>
+                    <div v-if="activeComp?.coordinator?.phone || (activeComp?.coordinators && activeComp.coordinators[0]?.contact) || activeComp?.contact_person" class="fs-11">
+                      <a :href="getWaChatUrl(activeComp?.coordinator?.phone || (activeComp?.coordinators && activeComp.coordinators[0]?.contact) || activeComp?.contact_person, `Halo Koordinator TM ${activeComp?.title}: `)" target="_blank" class="text-success text-decoration-none">
+                        <i class="ri-whatsapp-line me-0.5"></i>{{ activeComp?.coordinator?.phone || (activeComp?.coordinators && activeComp.coordinators[0]?.contact) || activeComp?.contact_person }}
+                      </a>
+                    </div>
+                  </div>
+                  <span v-if="isCoordinatorRole && (activeComp?.id === currentCoordinatorCompId || activeComp?.coordinator_id === currentUserId)" class="badge bg-warning text-dark fs-9">
+                    ⭐ Anda
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
     <!-- COMPETITION SELECTOR TABS & SEARCH                             -->
     <!-- ============================================================== -->
     <div class="card border-0 shadow-sm mb-4">
@@ -551,6 +714,13 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
               :class="activeComp?.id === comp.id ? 'btn-info text-white shadow-sm fw-bold' : 'btn-outline-light text-dark bg-light'"
             >
               <span>{{ comp.title }}</span>
+              <span 
+                v-if="comp.id === currentCoordinatorCompId || comp.coordinator_id === currentUserId"
+                class="badge bg-warning text-dark fs-9 px-1"
+                title="Cabang yang Anda koordinasi"
+              >
+                ⭐ Cabang Anda
+              </span>
               <span 
                 class="badge rounded-pill fs-10"
                 :class="activeComp?.id === comp.id ? 'bg-white text-info' : 'bg-secondary text-white'"
@@ -571,6 +741,21 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
             <i class="ri-search-line position-absolute top-50 start-0 translate-middle-y ms-2 text-muted fs-12"></i>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Warning Banner jika Koordinator Lomba melihat cabang yang bukan koordinasinya -->
+    <div v-if="!canModifyActiveComp" class="alert alert-warning border border-warning-subtle d-flex align-items-center gap-3 p-3 mb-4 rounded-3 shadow-sm">
+      <div class="avatar-sm flex-shrink-0">
+        <span class="avatar-title bg-warning-subtle text-warning rounded-circle fs-20">
+          <i class="ri-lock-2-line"></i>
+        </span>
+      </div>
+      <div class="flex-grow-1">
+        <h6 class="fw-bold mb-1 text-dark">Mode Pratinjau (Akses Pengubahan Dibatasi)</h6>
+        <p class="mb-0 fs-12 text-muted">
+          Anda login sebagai Koordinator Lomba. Anda hanya memiliki wewenang mengacak nomor undian dan mengubah agenda TM pada cabang lomba yang Anda koordinasi. Untuk cabang <strong>{{ activeComp?.title }}</strong> ini, perubahan hanya dapat dilakukan oleh Koordinator cabang terkait atau Pimpinan Panitia (Ketua, Wakil Ketua, Sekretaris).
+        </p>
       </div>
     </div>
 
@@ -957,10 +1142,11 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
               <button 
                 type="submit" 
                 class="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-center gap-1 shadow-sm py-2"
-                :disabled="tmForm.processing"
+                :disabled="tmForm.processing || !canModifyActiveComp"
+                :title="!canModifyActiveComp ? 'Hanya Koordinator cabang ini atau Pimpinan Panitia yang berwenang menyimpan perubahan' : 'Simpan Pengaturan TM'"
               >
-                <i class="ri-save-line fs-14"></i>
-                <span class="fw-semibold">Simpan Pengaturan TM</span>
+                <i :class="!canModifyActiveComp ? 'ri-lock-line' : 'ri-save-line'" class="fs-14"></i>
+                <span class="fw-semibold">{{ !canModifyActiveComp ? 'Terkunci (Khusus Koordinator/Pimpinan)' : 'Simpan Pengaturan TM' }}</span>
               </button>
             </form>
           </div>
@@ -989,17 +1175,18 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
                   type="button" 
                   class="btn btn-sm btn-info text-white d-inline-flex align-items-center gap-1 shadow-sm"
                   @click="showDrawModal = true"
-                  :disabled="participantsList.length === 0"
-                  title="Kocok nomor undian secara acak untuk semua delegasi"
+                  :disabled="participantsList.length === 0 || !canModifyActiveComp"
+                  :title="!canModifyActiveComp ? 'Hanya Koordinator cabang ini atau Pimpinan Panitia yang berwenang mengacak nomor undian' : 'Kocok nomor undian secara acak untuk semua delegasi'"
                 >
-                  <i class="ri-shuffle-line"></i> Kocok Acak (Otomatis)
+                  <i :class="!canModifyActiveComp ? 'ri-lock-line' : 'ri-shuffle-line'"></i> Kocok Acak (Otomatis)
                 </button>
                 <button 
                   v-if="drawnCount > 0"
                   type="button" 
                   class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1"
                   @click="showResetModal = true"
-                  title="Kosongkan seluruh nomor undian"
+                  :disabled="!canModifyActiveComp"
+                  :title="!canModifyActiveComp ? 'Hanya Koordinator cabang ini atau Pimpinan Panitia yang berwenang mereset nomor undian' : 'Kosongkan seluruh nomor undian'"
                 >
                   <i class="ri-refresh-line"></i> Reset
                 </button>
@@ -1124,10 +1311,11 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
                       <button 
                         type="button" 
                         class="btn btn-xs btn-outline-primary"
+                        :disabled="!canModifyActiveComp"
                         @click="openEditOrderModal(p)"
-                        title="Atur nomor urut secara manual"
+                        :title="!canModifyActiveComp ? 'Hanya Koordinator cabang ini atau Pimpinan Panitia yang berwenang mengubah nomor undian' : 'Atur nomor urut secara manual'"
                       >
-                        <i class="ri-edit-line"></i>
+                        <i :class="!canModifyActiveComp ? 'ri-lock-line' : 'ri-edit-line'"></i>
                       </button>
                     </td>
                   </tr>

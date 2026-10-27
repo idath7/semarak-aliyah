@@ -28,12 +28,15 @@ class Competition extends Model
         'participants_rule',
         'tm_date',
         'contact_person',
+        'coordinator_id',
         'coordinators',
         'description',
         'scoring_rubrics',
         'custom_fields',
         'form_settings',
         'tm_settings',
+        'registration_type',
+        'direct_registration_note',
         'juknis_file',
         'juknis_original_name',
         'juknis_size',
@@ -60,6 +63,9 @@ class Competition extends Model
         'is_manually_closed',
         'quota_status_text',
         'is_tournament',
+        'is_direct_registration',
+        'direct_contact_wa_url',
+        'primary_coordinator',
         'resolved_tm_settings',
         'juknis_url',
         'juknis_filename',
@@ -309,5 +315,68 @@ class Competition extends Model
             return basename($this->juknis_file);
         }
         return null;
+    }
+
+    public function isDirectRegistration(): bool
+    {
+        return ($this->registration_type ?? 'online') === 'direct_contact';
+    }
+
+    public function getIsDirectRegistrationAttribute(): bool
+    {
+        return $this->isDirectRegistration();
+    }
+
+    public function getPrimaryCoordinatorAttribute(): ?array
+    {
+        if (!empty($this->coordinators) && is_array($this->coordinators) && count($this->coordinators) > 0) {
+            foreach ($this->coordinators as $c) {
+                if (!empty($c['name']) || !empty($c['contact'])) {
+                    return $c;
+                }
+            }
+        }
+
+        $tm = $this->resolved_tm_settings ?? [];
+        if (!empty($tm['pic_name']) || !empty($tm['pic_contact'])) {
+            return [
+                'name' => $tm['pic_name'] ?? ('Koordinator ' . $this->title),
+                'contact' => $tm['pic_contact'] ?? '0838 5007 0767',
+                'role' => 'Koordinator Lomba',
+            ];
+        }
+
+        return null;
+    }
+
+    public function getDirectContactWaUrlAttribute(): ?string
+    {
+        $primary = $this->primary_coordinator;
+        $phone = $primary['contact'] ?? null;
+        if (empty($phone)) {
+            $phone = '0838 5007 0767';
+        }
+
+        $cleanPhone = preg_replace('/\D/', '', (string)$phone);
+        if (str_starts_with($cleanPhone, '0')) {
+            $cleanPhone = '62' . substr($cleanPhone, 1);
+        } elseif (!str_starts_with($cleanPhone, '62')) {
+            $cleanPhone = '62' . $cleanPhone;
+        }
+
+        $coordName = $primary['name'] ?? ('Koordinator ' . $this->title);
+        $text = "Halo {$coordName}, saya ingin mendaftarkan delegasi sekolah kami untuk cabang lomba {$this->title} di Semarak Aliyah XIV 2026. Mohon informasi petunjuk teknis pendaftaran dan kuota cabang ini. Terima kasih.";
+
+        return "https://wa.me/{$cleanPhone}?text=" . rawurlencode($text);
+    }
+
+    public function coordinator(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'coordinator_id');
+    }
+
+    public function assignedCoordinators(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(User::class, 'competition_id');
     }
 }

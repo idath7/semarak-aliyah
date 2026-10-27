@@ -47,11 +47,43 @@ class PrintStudioController extends Controller
     /**
      * Print Official Certificate of Participation / Winner.
      */
-    public function printCertificate($id, Request $request)
+    public function printCertificate(int|string $id, Request $request)
     {
         $reg = Registration::with('competition')->findOrFail($id);
         $rank = $request->input('rank', 'Peserta'); // Peserta, Juara 1, Juara 2, dll.
 
         return view('admin.print-certificate', compact('reg', 'rank'));
     }
+
+    /**
+     * Print Official Nota Invoice / Kwitansi Pembayaran.
+     */
+    public function printInvoice(int|string $id, Request $request)
+    {
+        $reg = Registration::with('competition')->findOrFail($id);
+
+        $isPaid = in_array(strtolower($reg->payment_status ?? ''), ['lunas', 'paid', 'verified', 'terverifikasi', 'diterima']);
+        $mode = $request->input('mode');
+        if (!$mode) {
+            $mode = $isPaid ? 'receipt' : 'invoice';
+        }
+
+        $totalFee = (int) ($reg->total_fee ?? 0);
+        $terbilang = \App\Models\Setting::terbilang($totalFee);
+        $bankAccounts = \App\Models\Setting::getBankAccounts();
+
+        $invoiceConfig = \App\Models\Setting::getInvoiceConfig();
+
+        return view('admin.print-invoice', [
+            'reg' => $reg,
+            'defaultMode' => $mode,
+            'isPaid' => $isPaid,
+            'terbilang' => $terbilang,
+            'bankAccounts' => $bankAccounts,
+            'treasurerName' => $invoiceConfig['treasurer_name'],
+            'treasurerRole' => $invoiceConfig['treasurer_role'],
+            'invoiceConfig' => $invoiceConfig,
+        ]);
+    }
 }
+

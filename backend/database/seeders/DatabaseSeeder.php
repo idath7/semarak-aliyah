@@ -16,10 +16,13 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             AdminUserSeeder::class,
-            CompetitionSeeder::class,
-            FormFieldSeeder::class,
-            TournamentSeeder::class,
-            SchoolSeeder::class,
+            GallerySeeder::class,
+            FaqSeeder::class,
+            SponsorSeeder::class,
+            // CompetitionSeeder::class, // Dinonaktifkan: Cabang lomba dibuat manual dari nol oleh panitia
+            // FormFieldSeeder::class,
+            // SchoolSeeder::class,      // Dinonaktifkan: Database sekolah diisi manual / impor oleh panitia
+            // TournamentSeeder::class,  // Dinonaktifkan: Simulasi turnamen
         ]);
     }
 }

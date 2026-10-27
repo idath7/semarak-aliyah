@@ -10,7 +10,15 @@ use App\Models\Sponsor;
 use App\Models\Gallery;
 use App\Models\Setting;
 use App\Models\Faq;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 
 class AdminPanelController extends Controller
 {
@@ -39,11 +47,19 @@ class AdminPanelController extends Controller
         $registrations = $query->get();
         $competitions = Competition::orderBy('id', 'asc')->get();
 
-        $allRegs = Registration::all();
-        $totalPendaftar = $allRegs->count();
-        $terverifikasi = $allRegs->where('payment_status', 'Terverifikasi')->count();
-        $pending = $allRegs->where('payment_status', 'Menunggu Verifikasi')->count();
-        $totalDana = $allRegs->where('payment_status', 'Terverifikasi')->sum('total_fee');
+        $statsData = Registration::toBase()
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN payment_status = 'Terverifikasi' THEN 1 ELSE 0 END) as terverifikasi,
+                SUM(CASE WHEN payment_status = 'Menunggu Verifikasi' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN payment_status = 'Terverifikasi' THEN total_fee ELSE 0 END) as total_dana
+            ")
+            ->first();
+
+        $totalPendaftar = (int)($statsData->total ?? 0);
+        $terverifikasi = (int)($statsData->terverifikasi ?? 0);
+        $pending = (int)($statsData->pending ?? 0);
+        $totalDana = (int)($statsData->total_dana ?? 0);
 
         $totalMaxQuota = $competitions->sum('max_quota');
         $totalCurrentQuota = $competitions->sum('current_quota');
@@ -63,10 +79,37 @@ class AdminPanelController extends Controller
 
         // Build Recent Activity Timeline (Themesbrand Velzon Activity Design)
         $activities = [];
-        $recentRegs = Registration::orderBy('updated_at', 'desc')->take(12)->get();
+
+        // 1. Log Aktivitas Panitia (Login, Logout, Verifikasi, Operasional) dari ActivityLog
+        try {
+            $panitiaLogs = \App\Models\ActivityLog::orderBy('created_at', 'desc')->take(25)->get();
+            foreach ($panitiaLogs as $log) {
+                $activities[] = [
+                    'id'          => 'log-' . $log->id,
+                    'type'        => $log->activity_type ?: ($log->action === 'login' || $log->action === 'logout' ? 'auth' : 'panitia'),
+                    'action'      => $log->action,
+                    'title'       => $log->title,
+                    'highlight'   => $log->highlight ?: $log->user_name,
+                    'desc'        => $log->description,
+                    'badge_icon'  => $log->badge_icon ?: ($log->action === 'login' ? 'ri-login-box-line' : ($log->action === 'logout' ? 'ri-logout-box-r-line' : 'ri-shield-user-line')),
+                    'badge_class' => $log->badge_class ?: ($log->action === 'login' ? 'bg-success-subtle text-success' : ($log->action === 'logout' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary')),
+                    'time_str'    => $log->created_at ? $log->created_at->diffForHumans() : 'Baru saja',
+                    'timestamp'   => $log->created_at ? $log->created_at->timestamp : time(),
+                    'reg_code'    => $log->properties['reg_code'] ?? ($log->action === 'login' ? 'LOGIN' : ($log->action === 'logout' ? 'LOGOUT' : 'PANITIA')),
+                    'user_name'   => $log->user_name,
+                    'role'        => $log->role,
+                    'ip_address'  => $log->ip_address,
+                ];
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Recent Activity Log load error: ' . $e->getMessage());
+        }
+
+        // 2. Aktivitas Pendaftaran & Delegasi Peserta
+        $recentRegs = Registration::orderBy('updated_at', 'desc')->take(15)->get();
         
         foreach ($recentRegs as $reg) {
-            if ($reg->checkin_status === 'checked_in') {
+            if ($reg->checkin_status === 'checked_in' || $reg->checkin_status === 'hadir') {
                 $activities[] = [
                     'id' => 'checkin-' . $reg->id,
                     'type' => 'checkin',
@@ -126,7 +169,7 @@ class AdminPanelController extends Controller
         usort($activities, function($a, $b) {
             return $b['timestamp'] <=> $a['timestamp'];
         });
-        $activities = array_slice($activities, 0, 10);
+        $activities = array_slice($activities, 0, 25);
 
         return \Inertia\Inertia::render('Admin/Dashboard', [
             'registrations' => $registrations,
@@ -162,12 +205,21 @@ class AdminPanelController extends Controller
         $registrations = $query->get();
         $competitions = Competition::orderBy('id', 'asc')->get();
 
-        $allRegs = Registration::all();
-        $totalPendaftar = $allRegs->count();
-        $terverifikasi = $allRegs->where('payment_status', 'Terverifikasi')->count();
-        $pending = $allRegs->where('payment_status', 'Menunggu Verifikasi')->count();
-        $rejected = $allRegs->where('payment_status', 'Ditolak')->count();
-        $totalDana = $allRegs->where('payment_status', 'Terverifikasi')->sum('total_fee');
+        $statsData = Registration::toBase()
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN payment_status = 'Terverifikasi' THEN 1 ELSE 0 END) as terverifikasi,
+                SUM(CASE WHEN payment_status = 'Menunggu Verifikasi' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN payment_status = 'Ditolak' THEN 1 ELSE 0 END) as rejected,
+                SUM(CASE WHEN payment_status = 'Terverifikasi' THEN total_fee ELSE 0 END) as total_dana
+            ")
+            ->first();
+
+        $totalPendaftar = (int)($statsData->total ?? 0);
+        $terverifikasi = (int)($statsData->terverifikasi ?? 0);
+        $pending = (int)($statsData->pending ?? 0);
+        $rejected = (int)($statsData->rejected ?? 0);
+        $totalDana = (int)($statsData->total_dana ?? 0);
 
         $stats = [
             'total_registrations' => $totalPendaftar,
@@ -185,7 +237,7 @@ class AdminPanelController extends Controller
         ]);
     }
 
-    public function pendaftarDetail($id)
+    public function pendaftarDetail(string|int $id)
     {
         $registration = Registration::with(['competition', 'user'])->findOrFail($id);
         $competition = $registration->competition;
@@ -233,9 +285,47 @@ class AdminPanelController extends Controller
         ]);
     }
 
+    /**
+     * Cek otorisasi apakah user yang sedang login berhak mengubah / mengelola cabang lomba spesifik.
+     */
+    protected function authorizeCompetitionAccess(string|int $competitionId, string $action = 'kelola'): bool
+    {
+        /** @var User|null $user */
+        $user = Auth::guard('web')->user();
+        if (!$user) {
+            return false;
+        }
+
+        // Super Admin, Admin, Ketua Panitia, Wakil Ketua Panitia, dan Sekretaris memiliki akses ke seluruh lomba
+        if ($user->isSuperAdmin() || in_array($user->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'])) {
+            return true;
+        }
+
+        // Koordinator Lomba: Berhak atas cabang lomba yang dikoordinasikannya
+        if ($user->role === 'koordinator_lomba') {
+            if ($user->competition_id === $competitionId) {
+                return true;
+            }
+            $comp = Competition::find($competitionId);
+            if ($comp && (int)$comp->coordinator_id === (int)$user->id) {
+                return true;
+            }
+            return false;
+        }
+
+        return false;
+    }
+
     public function competitionsIndex(Request $request)
     {
-        $query = Competition::withCount('registrations')->orderBy('id', 'asc');
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+        $query = Competition::with([
+                'coordinator:id,name,phone,email,role',
+                'assignedCoordinators:id,name,phone,email,role,competition_id'
+            ])
+            ->withCount('registrations')
+            ->orderBy('id', 'asc');
 
         if ($request->filled('category') && $request->category !== 'all') {
             $query->where('category', $request->category);
@@ -272,16 +362,45 @@ class AdminPanelController extends Controller
             'quota_filled_percentage' => $quotaPercentage,
         ];
 
+        // Struktur Kepanitiaan Terkait Lomba & TM
+        $ketuaPanitia = User::where('role', 'ketua_panitia')->select('id', 'name', 'phone', 'email', 'role')->get();
+        $wakilKetuaPanitia = User::where('role', 'wakil_ketua_panitia')->select('id', 'name', 'phone', 'email', 'role')->get();
+        $sekretaris = User::whereIn('role', ['sekretaris', 'kesekretariatan'])->select('id', 'name', 'phone', 'email', 'role')->get();
+        
+        $committeeUsers = User::where('is_active', true)
+            ->whereIn('role', ['koordinator_lomba', 'panitia', 'kesekretariatan', 'sekretaris', 'admin', 'super_admin', 'ketua_panitia', 'wakil_ketua_panitia'])
+            ->select('id', 'name', 'phone', 'email', 'role', 'division', 'competition_id')
+            ->orderBy('name')
+            ->get();
+
+        $committeeStructure = [
+            'ketua_panitia'       => $ketuaPanitia,
+            'wakil_ketua_panitia' => $wakilKetuaPanitia,
+            'sekretaris'          => $sekretaris,
+            'committee_users'     => $committeeUsers,
+            'current_user_id'     => $authUser?->id,
+            'current_user_role'   => $authUser?->role,
+            'current_user_comp'   => $authUser?->competition_id,
+            'is_coordinator'      => $authUser?->role === 'koordinator_lomba',
+        ];
+
         return \Inertia\Inertia::render('Admin/Competitions', [
             'competitions' => $competitions,
             'categories' => $categories,
             'stats' => $stats,
             'filters' => $request->only(['search', 'category']),
+            'committeeStructure' => $committeeStructure,
         ]);
     }
 
     public function storeCompetition(Request $request)
     {
+        /** @var User|null $user */
+        $user = Auth::guard('web')->user();
+        if ($user && $user->role === 'koordinator_lomba') {
+            return redirect()->back()->with('error', 'Akses Ditolak: Pembuatan cabang lomba baru merupakan wewenang Ketua Panitia, Wakil Ketua, Sekretaris, atau Administrator.');
+        }
+
         $messages = [
             'title.required' => 'Nama cabang lomba wajib diisi.',
             'title.max' => 'Nama cabang lomba tidak boleh lebih dari 150 karakter.',
@@ -311,10 +430,13 @@ class AdminPanelController extends Controller
             'registration_deadline' => 'nullable|string|max:100',
             'participants_rule' => 'nullable|string|max:255',
             'tm_date' => 'nullable|string|max:150',
+            'coordinator_id' => 'nullable|exists:users,id',
             'contact_person' => 'nullable|string|max:255',
             'coordinators' => 'nullable|array',
             'description' => 'nullable|string',
             'status' => 'nullable|in:open,closed',
+            'registration_type' => 'nullable|in:online,direct_contact',
+            'direct_registration_note' => 'nullable|string|max:1000',
         ], $messages);
 
         $id = !empty($validated['id']) ? \Illuminate\Support\Str::slug($validated['id']) : \Illuminate\Support\Str::slug($validated['title']);
@@ -353,6 +475,32 @@ class AdminPanelController extends Controller
             return !empty(trim($c['name'] ?? '')) || !empty(trim($c['contact'] ?? ''));
         }));
 
+        $coordinatorId = $validated['coordinator_id'] ?? null;
+        if (!$coordinatorId && !empty($cleanCoordinators)) {
+            foreach ($cleanCoordinators as $c) {
+                if (!empty($c['user_id']) && is_numeric($c['user_id'])) {
+                    $coordinatorId = (int)$c['user_id'];
+                    break;
+                }
+            }
+        }
+
+        if ($coordinatorId) {
+            $coordUser = User::find($coordinatorId);
+            if ($coordUser) {
+                if (empty($cleanCoordinators)) {
+                    $cleanCoordinators[] = [
+                        'user_id' => $coordUser->id,
+                        'name'    => $coordUser->name,
+                        'contact' => $coordUser->phone ?: '',
+                        'role'    => 'Koordinator Lomba',
+                    ];
+                } elseif (empty($cleanCoordinators[0]['user_id'])) {
+                    $cleanCoordinators[0]['user_id'] = $coordUser->id;
+                }
+            }
+        }
+
         $contactPersonStr = $validated['contact_person'] ?? '';
         if (!empty($cleanCoordinators)) {
             $contacts = [];
@@ -386,12 +534,15 @@ class AdminPanelController extends Controller
             'max_quota' => (int) $validated['max_quota'],
             'current_quota' => 0,
             'status' => $validated['status'] ?? 'open',
+            'registration_type' => $validated['registration_type'] ?? 'online',
+            'direct_registration_note' => $validated['direct_registration_note'] ?? null,
             'participant_type' => $partType,
             'max_teams' => $maxTeams,
             'max_participants' => $maxParts,
             'registration_deadline' => $deadline,
             'participants_rule' => $partRule,
             'tm_date' => $rawTm,
+            'coordinator_id' => $coordinatorId,
             'contact_person' => $contactPersonStr ?: 'Panitia Semarak XIV',
             'coordinators' => $cleanCoordinators,
             'description' => $validated['description'] ?? null,
@@ -412,12 +563,20 @@ class AdminPanelController extends Controller
             ]
         ]);
 
+        if ($coordinatorId) {
+            User::where('id', $coordinatorId)->update(['competition_id' => $comp->id]);
+        }
+
         return redirect()->back()->with('success', "Data Cabang Lomba \"{$comp->title}\" berhasil disimpan ke sistem!");
     }
 
-    public function updateCompetition($id, Request $request)
+    public function updateCompetition(string|int $id, Request $request)
     {
         $comp = Competition::findOrFail($id);
+
+        if (!$this->authorizeCompetitionAccess($id)) {
+            return redirect()->back()->with('error', "Akses Ditolak: Anda hanya berwenang mengelola cabang lomba yang Anda koordinasi.");
+        }
 
         $messages = [
             'title.required' => 'Nama cabang lomba wajib diisi.',
@@ -448,10 +607,13 @@ class AdminPanelController extends Controller
             'registration_deadline' => 'nullable|string|max:100',
             'participants_rule' => 'nullable|string|max:255',
             'tm_date' => 'nullable|string|max:150',
+            'coordinator_id' => 'nullable|exists:users,id',
             'contact_person' => 'nullable|string|max:255',
             'coordinators' => 'nullable|array',
             'description' => 'nullable|string',
             'status' => 'nullable|in:open,closed',
+            'registration_type' => 'nullable|in:online,direct_contact',
+            'direct_registration_note' => 'nullable|string|max:1000',
         ], $messages);
 
         $category = strtolower($validated['category']);
@@ -480,6 +642,32 @@ class AdminPanelController extends Controller
         $cleanCoordinators = array_values(array_filter($coordinators, function($c) {
             return !empty(trim($c['name'] ?? '')) || !empty(trim($c['contact'] ?? ''));
         }));
+
+        $coordinatorId = array_key_exists('coordinator_id', $validated) ? $validated['coordinator_id'] : $comp->coordinator_id;
+        if (!$coordinatorId && !empty($cleanCoordinators)) {
+            foreach ($cleanCoordinators as $c) {
+                if (!empty($c['user_id']) && is_numeric($c['user_id'])) {
+                    $coordinatorId = (int)$c['user_id'];
+                    break;
+                }
+            }
+        }
+
+        if ($coordinatorId) {
+            $coordUser = User::find($coordinatorId);
+            if ($coordUser) {
+                if (empty($cleanCoordinators)) {
+                    $cleanCoordinators[] = [
+                        'user_id' => $coordUser->id,
+                        'name'    => $coordUser->name,
+                        'contact' => $coordUser->phone ?: '',
+                        'role'    => 'Koordinator Lomba',
+                    ];
+                } elseif (empty($cleanCoordinators[0]['user_id'])) {
+                    $cleanCoordinators[0]['user_id'] = $coordUser->id;
+                }
+            }
+        }
 
         $contactPersonStr = $validated['contact_person'] ?? '';
         if (!empty($cleanCoordinators)) {
@@ -523,6 +711,14 @@ class AdminPanelController extends Controller
             'updated_at' => now()->toDateTimeString(),
         ]);
 
+        // Manage User competition_id relationship
+        if ($comp->coordinator_id && (int)$comp->coordinator_id !== (int)$coordinatorId) {
+            User::where('id', $comp->coordinator_id)->where('competition_id', $comp->id)->update(['competition_id' => null]);
+        }
+        if ($coordinatorId) {
+            User::where('id', $coordinatorId)->update(['competition_id' => $comp->id]);
+        }
+
         $comp->update([
             'title' => $validated['title'],
             'category' => $category,
@@ -530,12 +726,15 @@ class AdminPanelController extends Controller
             'fee' => (int) $validated['fee'],
             'max_quota' => (int) $validated['max_quota'],
             'status' => $validated['status'] ?? $comp->status,
+            'registration_type' => $validated['registration_type'] ?? ($comp->registration_type ?: 'online'),
+            'direct_registration_note' => array_key_exists('direct_registration_note', $validated) ? $validated['direct_registration_note'] : $comp->direct_registration_note,
             'participant_type' => $partType,
             'max_teams' => $maxTeams,
             'max_participants' => $maxParts,
             'registration_deadline' => $deadline,
             'participants_rule' => $partRule,
             'tm_date' => $newTmDateRaw,
+            'coordinator_id' => $coordinatorId,
             'contact_person' => $contactPersonStr ?: $comp->contact_person,
             'coordinators' => $cleanCoordinators,
             'description' => $validated['description'] ?? $comp->description,
@@ -549,14 +748,23 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Data Cabang Lomba \"{$comp->title}\" berhasil diperbarui!");
     }
 
-    public function destroyCompetition($id)
+    public function destroyCompetition(string|int $id)
     {
         $comp = Competition::findOrFail($id);
         
+        /** @var User|null $currentUser */
+        $currentUser = Auth::guard('web')->user();
+        if (!$this->authorizeCompetitionAccess($id) || $currentUser?->role === 'koordinator_lomba') {
+            return redirect()->back()->with('error', "Akses Ditolak: Penghapusan cabang lomba hanya dapat dilakukan oleh Ketua Panitia, Wakil Ketua, atau Administrator.");
+        }
+
         $hasRegistrations = Registration::where('competition_id', $id)->count();
         if ($hasRegistrations > 0) {
             return redirect()->back()->with('error', "Cabang Lomba {$comp->title} tidak dapat dihapus karena sudah memiliki {$hasRegistrations} delegasi pendaftar!");
         }
+
+        // Unlink users associated with this competition
+        User::where('competition_id', $comp->id)->update(['competition_id' => null]);
 
         $title = $comp->title;
         $comp->delete();
@@ -616,7 +824,7 @@ class AdminPanelController extends Controller
         }
     }
 
-    public function destroyCategory($id)
+    public function destroyCategory(string|int $id)
     {
         $cat = Category::findOrFail($id);
         $usedCount = Competition::where('category', $id)->count();
@@ -629,7 +837,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Kategori Bidang \"{$name}\" berhasil dihapus!");
     }
 
-    public function verify($id, Request $request)
+    public function verify(string|int $id, Request $request)
     {
         $reg = Registration::findOrFail($id);
 
@@ -696,6 +904,21 @@ class AdminPanelController extends Controller
             \Illuminate\Support\Facades\Log::warning('Auto WA verification notification error: ' . $e->getMessage());
         }
 
+        // Catat Log Aktivitas Panitia Verifikasi
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+        \App\Models\ActivityLog::record(
+            'verification',
+            'Verifikasi Berkas & Pembayaran',
+            "Panitia " . ($authUser ? $authUser->name : 'Sistem') . " memverifikasi pendaftaran {$reg->school_name} ({$reg->competition_title}): {$reg->payment_status}.",
+            [
+                'user' => $authUser,
+                'highlight' => $reg->school_name,
+                'activity_type' => 'verification',
+                'properties' => ['reg_code' => $reg->reg_code, 'status' => $reg->payment_status],
+            ]
+        );
+
         if (!$request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
             return response()->json([
                 'status' => 'success', 
@@ -707,7 +930,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Status verifikasi {$reg->reg_code} berhasil diperbarui!");
     }
 
-    public function toggleQuota($id, Request $request)
+    public function toggleQuota(string|int $id, Request $request)
     {
         $comp = Competition::findOrFail($id);
         $newStatus = $request->input('status', $comp->status === 'open' ? 'closed' : 'open');
@@ -967,7 +1190,7 @@ class AdminPanelController extends Controller
         ]);
     }
 
-    public function formBuilderShow($competitionId, Request $request)
+    public function formBuilderShow(string|int $competitionId, Request $request)
     {
         $competitions = Competition::orderBy('id', 'asc')->get();
         foreach ($competitions as $comp) {
@@ -985,7 +1208,7 @@ class AdminPanelController extends Controller
         ]);
     }
 
-    public function formBuilderSave($competitionId, Request $request)
+    public function formBuilderSave(string|int $competitionId, Request $request)
     {
         $comp = Competition::findOrFail($competitionId);
         $fields = $request->input('custom_fields', []);
@@ -1017,7 +1240,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Formulir pendaftaran cabang lomba \"{$comp->title}\" berhasil diperbarui dengan " . count($cleanFields) . " field formulir!");
     }
 
-    public function formBuilderApplyPreset($competitionId, Request $request)
+    public function formBuilderApplyPreset(string|int $competitionId, Request $request)
     {
         $comp = Competition::findOrFail($competitionId);
         $presetKey = $request->input('preset', 'akademik');
@@ -1131,7 +1354,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Semua template preset telah dikembalikan ke standar bawaan sistem.");
     }
 
-    private function cleanFormFields($fields): array
+    private function cleanFormFields(mixed $fields): array
     {
         $clean = [];
         if (!is_array($fields)) return $clean;
@@ -1163,7 +1386,7 @@ class AdminPanelController extends Controller
         return $clean;
     }
 
-    public function formBuilderCopyFrom($competitionId, Request $request)
+    public function formBuilderCopyFrom(string|int $competitionId, Request $request)
     {
         $comp = Competition::findOrFail($competitionId);
         $sourceId = $request->input('source_competition_id');
@@ -1177,7 +1400,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Berhasil menyalin {$count} field formulir dari \"{$sourceComp->title}\" ke \"{$comp->title}\"!");
     }
 
-    public function formBuilderReset($competitionId)
+    public function formBuilderReset(string|int $competitionId)
     {
         $comp = Competition::findOrFail($competitionId);
         $comp->custom_fields = [];
@@ -1187,41 +1410,293 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Formulir pendaftaran cabang lomba \"{$comp->title}\" telah direset.");
     }
 
-    public function export()
+    public function export(Request $request)
     {
-        $registrations = Registration::orderBy('id', 'desc')->get();
-        $csv = "Kode Registrasi,Asal Sekolah,Guru Pendamping,Nomor WA,Cabang Lomba,Paket,Total Biaya,Status Pembayaran,Field Tambahan / Kustom,Tanggal Daftar\n";
+        $query = Registration::orderBy('id', 'desc');
 
-        foreach ($registrations as $r) {
-            $cleanNames = str_replace(["\r", "\n"], ' | ', $r->participants_names);
-            $cleanNames = str_replace('"', '""', $cleanNames);
-            $cleanSchool = str_replace('"', '""', $r->school_name);
-            $cleanMentor = str_replace('"', '""', $r->mentor_name);
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function($q) use ($s) {
+                $q->where('school_name', 'like', "%{$s}%")
+                  ->orWhere('mentor_name', 'like', "%{$s}%")
+                  ->orWhere('reg_code', 'like', "%{$s}%")
+                  ->orWhere('competition_title', 'like', "%{$s}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('payment_status', $request->status);
+        }
+
+        if ($request->filled('competition')) {
+            $query->where('competition_id', $request->competition);
+        }
+
+        $registrations = $query->get();
+
+        // Optional CSV fallback if specifically requested via ?format=csv
+        if ($request->query('format') === 'csv') {
+            $csv = "No,Kode Registrasi,Asal Sekolah,Guru Pendamping,Nomor WA,Cabang Lomba,Paket,Peserta / Delegasi,Total Biaya,Status Pembayaran,Field Tambahan / Kustom,Tanggal Daftar\n";
+
+            foreach ($registrations as $idx => $r) {
+                $cleanNames = str_replace(["\r", "\n"], ' | ', $r->participants_names ?: '-');
+                $cleanNames = str_replace('"', '""', $cleanNames);
+                $cleanSchool = str_replace('"', '""', $r->school_name ?: '-');
+                $cleanMentor = str_replace('"', '""', $r->mentor_name ?: '-');
+
+                $customSummary = '';
+                if (!empty($r->custom_fields) && is_array($r->custom_fields)) {
+                    $parts = [];
+                    foreach ($r->custom_fields as $k => $v) {
+                        $formattedV = $this->formatCustomFieldValue($v);
+                        $parts[] = "{$k}: {$formattedV}";
+                    }
+                    $customSummary = implode('; ', $parts);
+                    $customSummary = str_replace('"', '""', $customSummary);
+                }
+
+                $csv .= ($idx + 1) . ",\"{$r->reg_code}\",\"{$cleanSchool}\",\"{$cleanMentor}\",\"'{$r->mentor_wa}'\",\"{$r->competition_title}\",\"{$r->package_type}\",\"{$cleanNames}\",\"{$r->total_fee}\",\"{$r->payment_status}\",\"{$customSummary}\",\"{$r->created_at}\"\n";
+            }
+
+            return response("\xEF\xBB\xBF" . $csv, 200, [
+                'Content-Type' => 'text/csv; charset=utf-8',
+                'Content-Disposition' => 'attachment; filename="data-pendaftar-semarak-2026.csv"'
+            ]);
+        }
+
+        // Native Microsoft Excel (.xlsx) generation via PhpSpreadsheet
+        $spreadsheet = new Spreadsheet();
+        $spreadsheet->getProperties()
+            ->setCreator('Panitia Semarak Aliyah XIV')
+            ->setLastModifiedBy('Admin Semarak Aliyah')
+            ->setTitle('Rekapitulasi Pendaftaran Semarak Aliyah XIV')
+            ->setSubject('Data Pendaftar')
+            ->setDescription('Rekapitulasi lengkap data pendaftaran dan peserta lomba Semarak Aliyah XIV.')
+            ->setCategory('Laporan Pendaftaran');
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Data Pendaftar');
+        $sheet->setShowGridLines(true);
+
+        // Title Block (Rows 1 - 2)
+        $sheet->setCellValue('A1', 'SEMARAK ALIYAH XIV - REKAPITULASI PENDAFTARAN PESERTA');
+        $sheet->mergeCells('A1:L1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('0F172A'));
+        $sheet->getStyle('A1')->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getRowDimension(1)->setRowHeight(26);
+
+        $wibTime = now()->setTimezone('Asia/Jakarta')->translatedFormat('l, d F Y - H:i') . ' WIB';
+        $sheet->setCellValue('A2', 'Diekspor pada: ' . $wibTime . ' | Total: ' . $registrations->count() . ' Pendaftaran');
+        $sheet->mergeCells('A2:L2');
+        $sheet->getStyle('A2')->getFont()->setItalic(true)->setSize(10)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('64748B'));
+        $sheet->getRowDimension(2)->setRowHeight(18);
+
+        // Header Row (Row 4)
+        $headers = [
+            'A4' => 'No',
+            'B4' => 'Kode Registrasi',
+            'C4' => 'Asal Sekolah / Madrasah',
+            'D4' => 'Guru Pendamping',
+            'E4' => 'Nomor WhatsApp',
+            'F4' => 'Cabang Lomba',
+            'G4' => 'Paket',
+            'H4' => 'Peserta / Delegasi',
+            'I4' => 'Total Biaya (Rp)',
+            'J4' => 'Status Pembayaran',
+            'K4' => 'Field Kustom / Formulir',
+            'L4' => 'Waktu Pendaftaran'
+        ];
+
+        foreach ($headers as $cell => $text) {
+            $sheet->setCellValue($cell, $text);
+        }
+
+        $headerRange = 'A4:L4';
+        $sheet->getStyle($headerRange)->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'size' => 11,
+                'name' => 'Calibri',
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '1E293B'], // Slate 800
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => '334155'],
+                ],
+            ],
+        ]);
+        $sheet->getRowDimension(4)->setRowHeight(28);
+
+        // Data Rows
+        $row = 5;
+        $totalNominal = 0;
+
+        foreach ($registrations as $idx => $r) {
+            $cleanNames = str_replace(["\r\n", "\r", "\n"], "\n", $r->participants_names ?: '-');
+            $cleanSchool = $r->school_name ?: '-';
+            $cleanMentor = $r->mentor_name ?: '-';
 
             $customSummary = '';
             if (!empty($r->custom_fields) && is_array($r->custom_fields)) {
                 $parts = [];
                 foreach ($r->custom_fields as $k => $v) {
-                    if (is_array($v)) {
-                        if (isset($v['url'])) {
-                            $v = $v['url'];
-                        } else {
-                            $v = implode(', ', $v);
-                        }
-                    }
-                    $parts[] = "{$k}: {$v}";
+                    $formattedV = $this->formatCustomFieldValue($v);
+                    $parts[] = "{$k}: {$formattedV}";
                 }
-                $customSummary = implode('; ', $parts);
-                $customSummary = str_replace('"', '""', $customSummary);
+                $customSummary = implode("\n", $parts);
             }
 
-            $csv .= "\"{$r->reg_code}\",\"{$cleanSchool}\",\"{$cleanMentor}\",\"'{$r->mentor_wa}'\",\"{$r->competition_title}\",\"{$r->package_type}\",\"{$r->total_fee}\",\"{$r->payment_status}\",\"{$customSummary}\",\"{$r->created_at}\"\n";
+            $sheet->setCellValue("A{$row}", $idx + 1);
+            $sheet->setCellValue("B{$row}", $r->reg_code);
+            $sheet->setCellValue("C{$row}", $cleanSchool);
+            $sheet->setCellValue("D{$row}", $cleanMentor);
+            // Explicitly set phone as string to preserve leading zero / format
+            $sheet->setCellValueExplicit("E{$row}", (string) $r->mentor_wa, DataType::TYPE_STRING);
+            $sheet->setCellValue("F{$row}", $r->competition_title ?: '-');
+            $sheet->setCellValue("G{$row}", $r->package_type ?: 'Reguler');
+            $sheet->setCellValue("H{$row}", $cleanNames);
+            $sheet->setCellValue("I{$row}", (int) $r->total_fee);
+            $sheet->setCellValue("J{$row}", strtoupper($r->payment_status ?: 'PENDING'));
+            $sheet->setCellValue("K{$row}", $customSummary ?: '-');
+            $sheet->setCellValue("L{$row}", $r->created_at ? $r->created_at->format('d/m/Y H:i') : '-');
+
+            // Style data row
+            $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("B{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("B{$row}")->getFont()->setBold(true);
+            $sheet->getStyle("E{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("G{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("H{$row}")->getAlignment()->setWrapText(true);
+            $sheet->getStyle("I{$row}")->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle("J{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle("K{$row}")->getAlignment()->setWrapText(true);
+            $sheet->getStyle("L{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            // Highlight payment status cell
+            $statusUpper = strtoupper($r->payment_status ?: '');
+            if (in_array($statusUpper, ['PAID', 'VERIFIED', 'LUNAS', 'BERHASIL'])) {
+                $sheet->getStyle("J{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('DCFCE7'); // Soft green
+                $sheet->getStyle("J{$row}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('166534'))->setBold(true);
+            } elseif (in_array($statusUpper, ['PENDING', 'MENUNGGU'])) {
+                $sheet->getStyle("J{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FEF9C3'); // Soft yellow
+                $sheet->getStyle("J{$row}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('854D0E'));
+            } elseif (in_array($statusUpper, ['REJECTED', 'DITOLAK', 'EXPIRED'])) {
+                $sheet->getStyle("J{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FEE2E2'); // Soft red
+                $sheet->getStyle("J{$row}")->getFont()->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('991B1B'));
+            }
+
+            // Alternating row background for subtle readability
+            if ($idx % 2 === 1) {
+                $sheet->getStyle("A{$row}:I{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F8FAFC');
+                $sheet->getStyle("K{$row}:L{$row}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F8FAFC');
+            }
+
+            $totalNominal += (int) $r->total_fee;
+            $row++;
         }
 
-        return response("\xEF\xBB\xBF" . $csv, 200, [
-            'Content-Type' => 'text/csv; charset=utf-8',
-            'Content-Disposition' => 'attachment; filename="data-pendaftar-semarak-2026.csv"'
+        $lastDataRow = $row - 1;
+
+        // Total Summary Row
+        if ($registrations->count() > 0) {
+            $sheet->setCellValue("A{$row}", 'TOTAL');
+            $sheet->mergeCells("A{$row}:H{$row}");
+            $sheet->setCellValue("I{$row}", "=SUM(I5:I{$lastDataRow})");
+            $sheet->setCellValue("J{$row}", $registrations->count() . ' Pendaftar');
+            $sheet->mergeCells("J{$row}:L{$row}");
+
+            $sheet->getStyle("A{$row}:L{$row}")->applyFromArray([
+                'font' => ['bold' => true, 'size' => 11],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => 'E2E8F0'], // Slate 200
+                ],
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => '94A3B8'],
+                    ],
+                ],
+            ]);
+            $sheet->getStyle("A{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle("I{$row}")->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle("J{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getRowDimension($row)->setRowHeight(22);
+        }
+
+        // Set borders for all data rows
+        if ($lastDataRow >= 5) {
+            $sheet->getStyle("A5:L{$lastDataRow}")->applyFromArray([
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color' => ['rgb' => 'E2E8F0'],
+                    ],
+                ],
+                'alignment' => [
+                    'vertical' => Alignment::VERTICAL_CENTER,
+                ],
+            ]);
+
+            // Auto filter on table range
+            $sheet->setAutoFilter("A4:L{$lastDataRow}");
+        }
+
+        // Freeze panes below header
+        $sheet->freezePane('A5');
+
+        // Auto-size columns with sensible min/max width
+        foreach (range('A', 'L') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+        $sheet->getColumnDimension('H')->setAutoSize(false)->setWidth(30);
+        $sheet->getColumnDimension('K')->setAutoSize(false)->setWidth(35);
+
+        $filename = 'Data-Pendaftar-Semarak-Aliyah-XIV_' . date('Y-m-d_His') . '.xlsx';
+
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'max-age=0, no-cache, no-store, must-revalidate',
+            'Pragma' => 'public',
         ]);
+    }
+
+    /**
+     * Recursively format complex or nested custom fields to a clean human-readable string.
+     */
+    private function formatCustomFieldValue(mixed $val): string
+    {
+        if (is_array($val)) {
+            if (isset($val['url'])) {
+                return (string) $val['url'];
+            }
+            $items = [];
+            foreach ($val as $subK => $subV) {
+                if (is_array($subV)) {
+                    $subStr = $this->formatCustomFieldValue($subV);
+                    $items[] = is_numeric($subK) ? $subStr : "{$subK}: [{$subStr}]";
+                } else {
+                    $items[] = is_numeric($subK) ? (string) $subV : "{$subK}: {$subV}";
+                }
+            }
+            return implode('; ', $items);
+        }
+
+        return (string) ($val ?? '-');
     }
 
     // =========================================================================
@@ -1292,7 +1767,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Mitra sponsor \"{$sponsor->name}\" berhasil ditambahkan.");
     }
 
-    public function updateSponsor(Request $request, $id)
+    public function updateSponsor(Request $request, string|int $id)
     {
         $sponsor = Sponsor::findOrFail($id);
 
@@ -1342,7 +1817,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Data mitra sponsor \"{$sponsor->name}\" berhasil diperbarui.");
     }
 
-    public function destroySponsor($id)
+    public function destroySponsor(string|int $id)
     {
         $sponsor = Sponsor::findOrFail($id);
         $name = $sponsor->name;
@@ -1351,7 +1826,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Mitra sponsor \"{$name}\" berhasil dihapus.");
     }
 
-    public function toggleSponsorActive($id)
+    public function toggleSponsorActive(string|int $id)
     {
         $sponsor = Sponsor::findOrFail($id);
         $sponsor->is_active = !$sponsor->is_active;
@@ -1459,7 +1934,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Foto galeri \"{$gallery->title}\" berhasil ditambahkan.");
     }
 
-    public function updateGallery(Request $request, $id)
+    public function updateGallery(Request $request, string|int $id)
     {
         $gallery = Gallery::findOrFail($id);
 
@@ -1505,7 +1980,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Foto galeri \"{$gallery->title}\" berhasil diperbarui.");
     }
 
-    public function destroyGallery($id)
+    public function destroyGallery(string|int $id)
     {
         $gallery = Gallery::findOrFail($id);
         $title = $gallery->title;
@@ -1514,7 +1989,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Foto galeri \"{$title}\" berhasil dihapus.");
     }
 
-    public function toggleGalleryActive($id)
+    public function toggleGalleryActive(string|int $id)
     {
         $gallery = Gallery::findOrFail($id);
         $gallery->is_active = !$gallery->is_active;
@@ -1685,7 +2160,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "FAQ \"{$faq->question}\" berhasil ditambahkan.");
     }
 
-    public function updateFaq(Request $request, $id)
+    public function updateFaq(Request $request, string|int $id)
     {
         $faq = Faq::findOrFail($id);
 
@@ -1708,7 +2183,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "FAQ \"{$faq->question}\" berhasil diperbarui.");
     }
 
-    public function destroyFaq($id)
+    public function destroyFaq(string|int $id)
     {
         $faq = Faq::findOrFail($id);
         $question = $faq->question;
@@ -1717,7 +2192,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "FAQ \"{$question}\" berhasil dihapus.");
     }
 
-    public function toggleFaqActive($id)
+    public function toggleFaqActive(string|int $id)
     {
         $faq = Faq::findOrFail($id);
         $faq->is_active = !$faq->is_active;
@@ -1763,14 +2238,21 @@ class AdminPanelController extends Controller
     // =========================================================================
     public function tmIndex(Request $request)
     {
-        $competitions = Competition::withCount('registrations')->orderBy('id', 'asc')->get();
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+        $competitions = Competition::with(['coordinator:id,name,phone,email,role'])->withCount('registrations')->orderBy('id', 'asc')->get();
         
         $activeCompId = $request->input('comp');
+        // Jika koordinator lomba membuka halaman TM tanpa query string comp, prioritaskan cabang lombanya
+        if (!$activeCompId && $authUser?->role === 'koordinator_lomba' && $authUser->competition_id) {
+            $activeCompId = $authUser->competition_id;
+        }
+
         if (!$activeCompId || !$competitions->contains('id', $activeCompId)) {
             $activeCompId = $competitions->first() ? $competitions->first()->id : null;
         }
 
-        $activeComp = $activeCompId ? Competition::withCount('registrations')->find($activeCompId) : null;
+        $activeComp = $activeCompId ? Competition::with(['coordinator:id,name,phone,email,role'])->withCount('registrations')->find($activeCompId) : null;
         
         // Delegasi / Peserta terdaftar pada cabang lomba ini
         $participants = [];
@@ -1826,6 +2308,22 @@ class AdminPanelController extends Controller
             'is_active' => Setting::get('tm_section_active', '1') === '1',
         ];
 
+        // Struktur Kepanitiaan Terkait
+        $ketuaPanitia = User::where('role', 'ketua_panitia')->select('id', 'name', 'phone', 'email', 'role')->get();
+        $wakilKetuaPanitia = User::where('role', 'wakil_ketua_panitia')->select('id', 'name', 'phone', 'email', 'role')->get();
+        $sekretaris = User::whereIn('role', ['sekretaris', 'kesekretariatan'])->select('id', 'name', 'phone', 'email', 'role')->get();
+
+        $committeeStructure = [
+            'ketua_panitia'          => $ketuaPanitia,
+            'wakil_ketua_panitia'    => $wakilKetuaPanitia,
+            'sekretaris'             => $sekretaris,
+            'current_user_id'        => $authUser?->id,
+            'current_user_role'      => $authUser?->role,
+            'current_user_comp'      => $authUser?->competition_id,
+            'can_modify_active_comp' => $this->authorizeCompetitionAccess($activeCompId),
+            'is_coordinator'         => $authUser?->role === 'koordinator_lomba',
+        ];
+
         return \Inertia\Inertia::render('Admin/TechnicalMeeting', [
             'competitions' => $competitions,
             'activeComp' => $activeComp,
@@ -1833,6 +2331,7 @@ class AdminPanelController extends Controller
             'stats' => $stats,
             'selectedCompId' => $activeCompId,
             'sectionSettings' => $sectionSettings,
+            'committeeStructure' => $committeeStructure,
         ]);
     }
 
@@ -1902,9 +2401,13 @@ class AdminPanelController extends Controller
         return back()->with('success', 'Pengaturan teks & panduan jadwal Technical Meeting berhasil disimpan.');
     }
 
-    public function updateTmSettings(Request $request, $competitionId)
+    public function updateTmSettings(Request $request, string|int $competitionId)
     {
         $competition = Competition::findOrFail($competitionId);
+
+        if (!$this->authorizeCompetitionAccess($competitionId)) {
+            return redirect()->back()->with('error', "Akses Ditolak: Anda hanya berwenang mengelola Technical Meeting untuk cabang lomba yang Anda koordinasi.");
+        }
 
         $validated = $request->validate([
             'tm_date' => 'nullable|string|max:100',
@@ -1975,10 +2478,14 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Pengaturan Technical Meeting (TM) untuk {$competition->title} berhasil diperbarui.");
     }
 
-    public function randomizeDraw(Request $request, $competitionId)
+    public function randomizeDraw(Request $request, string|int $competitionId)
     {
         $competition = Competition::findOrFail($competitionId);
         
+        if (!$this->authorizeCompetitionAccess($competitionId)) {
+            return redirect()->back()->with('error', "Akses Ditolak: Anda hanya berwenang mengacak nomor undian untuk cabang lomba yang Anda koordinasi.");
+        }
+
         // Ambil semua pendaftar pada cabang lomba ini
         $participants = Registration::where('competition_id', $competitionId)->get();
 
@@ -2008,8 +2515,12 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Pengundian nomor urut TM untuk {$competition->title} berhasil diacak kepada {$participants->count()} delegasi.");
     }
 
-    public function updateParticipantOrder(Request $request, $competitionId)
+    public function updateParticipantOrder(Request $request, string|int $competitionId)
     {
+        if (!$this->authorizeCompetitionAccess($competitionId)) {
+            return redirect()->back()->with('error', "Akses Ditolak: Anda hanya berwenang mengubah urutan peserta untuk cabang lomba yang Anda koordinasi.");
+        }
+
         $request->validate([
             'registration_id' => 'required|exists:registrations,id',
             'draw_number' => 'nullable|integer|min:1|max:999',
@@ -2027,9 +2538,13 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Nomor undian untuk {$reg->school_name} berhasil diperbarui menjadi #{$request->draw_number}.");
     }
 
-    public function resetDraw(Request $request, $competitionId)
+    public function resetDraw(Request $request, string|int $competitionId)
     {
         $competition = Competition::findOrFail($competitionId);
+
+        if (!$this->authorizeCompetitionAccess($competitionId)) {
+            return redirect()->back()->with('error', "Akses Ditolak: Anda hanya berwenang mereset undian untuk cabang lomba yang Anda koordinasi.");
+        }
 
         Registration::where('competition_id', $competitionId)->update([
             'draw_number' => null,
@@ -2140,7 +2655,7 @@ class AdminPanelController extends Controller
         return \Inertia\Inertia::render('Admin/BiayaRegistrasi', compact('competitions', 'stats', 'packageSettings', 'paymentSettings'));
     }
 
-    public function updateCompetitionFee($id, Request $request)
+    public function updateCompetitionFee(string|int $id, Request $request)
     {
         $comp = Competition::findOrFail($id);
 
@@ -2334,7 +2849,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', 'File Juknis Umum berhasil dikembalikan ke berkas master bawaan sistem.');
     }
 
-    public function updateCompetitionJuknis(Request $request, $id)
+    public function updateCompetitionJuknis(Request $request, string|int $id)
     {
         $comp = Competition::findOrFail($id);
         $request->validate([
@@ -2364,7 +2879,7 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Berkas Juknis khusus cabang [{$comp->title}] berhasil diunggah!");
     }
 
-    public function deleteCompetitionJuknis($id)
+    public function deleteCompetitionJuknis(string|int $id)
     {
         $comp = Competition::findOrFail($id);
         $comp->juknis_file = null;
@@ -2380,11 +2895,75 @@ class AdminPanelController extends Controller
         return redirect()->back()->with('success', "Berkas Juknis khusus cabang [{$comp->title}] berhasil dihapus. Cabang ini kini menggunakan rujukan Juknis Umum.");
     }
 
+    public static function getDefaultStatsItems(): array
+    {
+        return [
+            [
+                'icon' => 'ri-focus-2-line',
+                'number' => '8 Cabang',
+                'label' => 'Kompetisi & Olahraga',
+            ],
+            [
+                'icon' => 'ri-building-line',
+                'number' => '50+ Sekolah',
+                'label' => 'SMP/MTs se-Jember',
+            ],
+            [
+                'icon' => 'ri-hand-coin-line',
+                'number' => 'Jutaan Rupiah',
+                'label' => 'Uang Pembinaan & Hadiah',
+            ],
+            [
+                'icon' => 'ri-award-line',
+                'number' => '100% Sertifikat',
+                'label' => 'Peserta & Guru Pendamping',
+            ],
+        ];
+    }
+
+    public static function getDefaultAboutPrizes(): array
+    {
+        return [
+            [
+                'icon' => 'ri-trophy-line',
+                'title' => 'Piala Juara',
+                'desc' => 'Trophy eksklusif dan bergengsi untuk Juara 1, Juara 2, dan Juara 3 pada setiap cabang kompetisi.',
+            ],
+            [
+                'icon' => 'ri-money-dollar-circle-line',
+                'title' => 'Uang Pembinaan',
+                'desc' => 'Bantuan dana pembinaan jutaan rupiah untuk mendukung pengembangan bakat dan prestasi sang juara.',
+            ],
+            [
+                'icon' => 'ri-file-shield-line',
+                'title' => 'E-Piagam & Sertifikat',
+                'desc' => 'Piagam penghargaan resmi ber-barcode untuk seluruh Peserta, Juara, dan Guru Pembimbing / Pendamping.',
+            ],
+            [
+                'icon' => 'ri-graduation-cap-line',
+                'title' => 'Beasiswa Pendidikan',
+                'desc' => 'Jalur beasiswa penuh dan tabungan pendidikan masuk di MA Unggulan Wahid Hasyim Balung, Jember.',
+            ],
+        ];
+    }
+
     // =========================================================================
     // FITUR KUSTOMISASI LANJUTAN WEB PUBLIK
     // =========================================================================
     public function kustomisasiIndex(Request $request)
     {
+        $rawStats = Setting::get('stats_items', null);
+        $statsItems = $rawStats ? json_decode($rawStats, true) : null;
+        if (empty($statsItems) || !is_array($statsItems)) {
+            $statsItems = self::getDefaultStatsItems();
+        }
+
+        $rawAbout = Setting::get('about_items', null);
+        $aboutItems = $rawAbout ? json_decode($rawAbout, true) : null;
+        if (empty($aboutItems) || !is_array($aboutItems)) {
+            $aboutItems = self::getDefaultAboutPrizes();
+        }
+
         $settings = [
             // 1. Banner Pengumuman Mengambang (Floating Announcement Ribbon)
             'announcement_banner_active' => Setting::get('announcement_banner_active', '1') === '1',
@@ -2429,6 +3008,40 @@ class AdminPanelController extends Controller
             'visual_particles_active' => Setting::get('visual_particles_active', '1') === '1',
             'visual_particles_type' => Setting::get('visual_particles_type', 'glitter'),
             'back_to_top_active' => Setting::get('back_to_top_active', '1') === '1',
+
+            // 7. Hero Section Customization
+            'hero_badge_text' => Setting::get('hero_badge_text', 'Ajang Kompetisi Pelajar SMP/MTs Se-Kabupaten Jember'),
+            'hero_badge_pulse' => Setting::get('hero_badge_pulse', '1') === '1',
+            'hero_headline_prefix' => Setting::get('hero_headline_prefix', 'Selamat Datang di Laman Official'),
+            'hero_headline_highlight' => Setting::get('hero_headline_highlight', ''),
+            'hero_subheadline' => Setting::get('hero_subheadline', 'Panggung unjuk prestasi, bakat seni, kecerdasan sains, dan sportivitas pelajar SMP/MTs sederajat se-Kabupaten Jember. Raih Piala Juara, Bantuan Uang Pembinaan, serta Beasiswa Tabungan Pendidikan di MA Unggulan Wahid Hasyim Balung.'),
+            'hero_cta1_text' => Setting::get('hero_cta1_text', 'Daftar Sekarang'),
+            'hero_cta1_url' => Setting::get('hero_cta1_url', ''),
+            'hero_cta1_active' => Setting::get('hero_cta1_active', '1') === '1',
+            'hero_cta2_text' => Setting::get('hero_cta2_text', 'Unduh Juknis (PDF)'),
+            'hero_cta2_url' => Setting::get('hero_cta2_url', ''),
+            'hero_cta2_active' => Setting::get('hero_cta2_active', '1') === '1',
+            'hero_cta3_text' => Setting::get('hero_cta3_text', 'Lihat Cabang Lomba'),
+            'hero_cta3_url' => Setting::get('hero_cta3_url', '#kompetisi'),
+            'hero_cta3_active' => Setting::get('hero_cta3_active', '1') === '1',
+            'hero_poster_image' => Setting::get('hero_poster_image', '/assets/img/pamflet.jpg'),
+            'hero_mascot_image' => Setting::get('hero_mascot_image', '/assets/img/kadita.png'),
+            'hero_mascot_active' => Setting::get('hero_mascot_active', '1') === '1',
+            'hero_float_badge_active' => Setting::get('hero_float_badge_active', '1') === '1',
+            'hero_float_badge_icon' => Setting::get('hero_float_badge_icon', 'ri-trophy-line'),
+            'hero_float_badge_title' => Setting::get('hero_float_badge_title', 'Hadiah Jutaan Rupiah'),
+            'hero_float_badge_desc' => Setting::get('hero_float_badge_desc', '+ Beasiswa Pendidikan'),
+
+            // 8. Stats Section Customization
+            'stats_active' => Setting::get('stats_active', '1') === '1',
+            'stats_items' => $statsItems,
+
+            // 9. Tentang & Hadiah Section Customization
+            'about_active' => Setting::get('about_active', '1') === '1',
+            'about_tag' => Setting::get('about_tag', 'Apresiasi & Fasilitas'),
+            'about_title' => Setting::get('about_title', 'Dapatkan Hadiah Bergengsi & Beasiswa Pendidikan'),
+            'about_desc' => Setting::get('about_desc', 'Semarak Aliyah diselenggarakan oleh MA Unggulan Wahid Hasyim Balung sebagai bentuk apresiasi nyata bagi generasi muda yang berprestasi dan berkarakter.'),
+            'about_items' => $aboutItems,
         ];
 
         return \Inertia\Inertia::render('Admin/KustomisasiLanjutan', compact('settings'));
@@ -2480,6 +3093,40 @@ class AdminPanelController extends Controller
             'visual_particles_active' => 'nullable',
             'visual_particles_type' => 'required|string|in:glitter,confetti,snow',
             'back_to_top_active' => 'nullable',
+
+            // Hero Section
+            'hero_badge_text' => 'nullable|string|max:255',
+            'hero_badge_pulse' => 'nullable',
+            'hero_headline_prefix' => 'nullable|string|max:255',
+            'hero_headline_highlight' => 'nullable|string|max:255',
+            'hero_subheadline' => 'nullable|string|max:1000',
+            'hero_cta1_text' => 'nullable|string|max:100',
+            'hero_cta1_url' => 'nullable|string|max:255',
+            'hero_cta1_active' => 'nullable',
+            'hero_cta2_text' => 'nullable|string|max:100',
+            'hero_cta2_url' => 'nullable|string|max:255',
+            'hero_cta2_active' => 'nullable',
+            'hero_cta3_text' => 'nullable|string|max:100',
+            'hero_cta3_url' => 'nullable|string|max:255',
+            'hero_cta3_active' => 'nullable',
+            'hero_poster_image' => 'nullable|string|max:255',
+            'hero_mascot_image' => 'nullable|string|max:255',
+            'hero_mascot_active' => 'nullable',
+            'hero_float_badge_active' => 'nullable',
+            'hero_float_badge_icon' => 'nullable|string|max:100',
+            'hero_float_badge_title' => 'nullable|string|max:150',
+            'hero_float_badge_desc' => 'nullable|string|max:150',
+
+            // Stats Section
+            'stats_active' => 'nullable',
+            'stats_items' => 'nullable',
+
+            // Tentang Section
+            'about_active' => 'nullable',
+            'about_tag' => 'nullable|string|max:100',
+            'about_title' => 'nullable|string|max:255',
+            'about_desc' => 'nullable|string|max:1000',
+            'about_items' => 'nullable',
         ]);
 
         // Booleans
@@ -2492,6 +3139,18 @@ class AdminPanelController extends Controller
         Setting::set('visual_particles_active', $request->boolean('visual_particles_active') ? '1' : '0');
         Setting::set('back_to_top_active', $request->boolean('back_to_top_active') ? '1' : '0');
 
+        // Hero Booleans
+        Setting::set('hero_badge_pulse', $request->boolean('hero_badge_pulse') ? '1' : '0');
+        Setting::set('hero_cta1_active', $request->boolean('hero_cta1_active') ? '1' : '0');
+        Setting::set('hero_cta2_active', $request->boolean('hero_cta2_active') ? '1' : '0');
+        Setting::set('hero_cta3_active', $request->boolean('hero_cta3_active') ? '1' : '0');
+        Setting::set('hero_mascot_active', $request->boolean('hero_mascot_active') ? '1' : '0');
+        Setting::set('hero_float_badge_active', $request->boolean('hero_float_badge_active') ? '1' : '0');
+
+        // Section Toggles
+        Setting::set('stats_active', $request->boolean('stats_active') ? '1' : '0');
+        Setting::set('about_active', $request->boolean('about_active') ? '1' : '0');
+
         // Strings
         $stringKeys = [
             'announcement_banner_text', 'announcement_banner_type', 'announcement_banner_btn_text', 'announcement_banner_btn_url', 'announcement_banner_position',
@@ -2500,10 +3159,27 @@ class AdminPanelController extends Controller
             'countdown_title', 'countdown_target_date', 'countdown_ended_text',
             'custom_css', 'custom_head_script', 'custom_body_script',
             'visual_particles_type',
+            'hero_badge_text', 'hero_headline_prefix', 'hero_headline_highlight', 'hero_subheadline',
+            'hero_cta1_text', 'hero_cta1_url', 'hero_cta2_text', 'hero_cta2_url', 'hero_cta3_text', 'hero_cta3_url',
+            'hero_poster_image', 'hero_mascot_image',
+            'hero_float_badge_icon', 'hero_float_badge_title', 'hero_float_badge_desc',
+            'about_tag', 'about_title', 'about_desc',
         ];
 
         foreach ($stringKeys as $key) {
             Setting::set($key, (string)($validated[$key] ?? ''));
+        }
+
+        // Stats Items JSON
+        if ($request->has('stats_items')) {
+            $statsData = is_array($request->stats_items) ? $request->stats_items : json_decode($request->stats_items, true);
+            Setting::set('stats_items', json_encode(array_values($statsData ?? [])));
+        }
+
+        // About Items JSON
+        if ($request->has('about_items')) {
+            $aboutData = is_array($request->about_items) ? $request->about_items : json_decode($request->about_items, true);
+            Setting::set('about_items', json_encode(array_values($aboutData ?? [])));
         }
 
         return redirect()->back()->with('success', 'Pengaturan Kustomisasi Lanjutan Web Publik berhasil disimpan!');
@@ -2544,6 +3220,40 @@ class AdminPanelController extends Controller
             'visual_particles_active' => '1',
             'visual_particles_type' => 'glitter',
             'back_to_top_active' => '1',
+
+            // Hero Section Defaults
+            'hero_badge_text' => 'Ajang Kompetisi Pelajar SMP/MTs Se-Kabupaten Jember',
+            'hero_badge_pulse' => '1',
+            'hero_headline_prefix' => 'Selamat Datang di Laman Official',
+            'hero_headline_highlight' => '',
+            'hero_subheadline' => 'Panggung unjuk prestasi, bakat seni, kecerdasan sains, dan sportivitas pelajar SMP/MTs sederajat se-Kabupaten Jember. Raih Piala Juara, Bantuan Uang Pembinaan, serta Beasiswa Tabungan Pendidikan di MA Unggulan Wahid Hasyim Balung.',
+            'hero_cta1_text' => 'Daftar Sekarang',
+            'hero_cta1_url' => '',
+            'hero_cta1_active' => '1',
+            'hero_cta2_text' => 'Unduh Juknis (PDF)',
+            'hero_cta2_url' => '',
+            'hero_cta2_active' => '1',
+            'hero_cta3_text' => 'Lihat Cabang Lomba',
+            'hero_cta3_url' => '#kompetisi',
+            'hero_cta3_active' => '1',
+            'hero_poster_image' => '/assets/img/pamflet.jpg',
+            'hero_mascot_image' => '/assets/img/kadita.png',
+            'hero_mascot_active' => '1',
+            'hero_float_badge_active' => '1',
+            'hero_float_badge_icon' => 'ri-trophy-line',
+            'hero_float_badge_title' => 'Hadiah Jutaan Rupiah',
+            'hero_float_badge_desc' => '+ Beasiswa Pendidikan',
+
+            // Stats Section Defaults
+            'stats_active' => '1',
+            'stats_items' => json_encode(self::getDefaultStatsItems()),
+
+            // Tentang Section Defaults
+            'about_active' => '1',
+            'about_tag' => 'Apresiasi & Fasilitas',
+            'about_title' => 'Dapatkan Hadiah Bergengsi & Beasiswa Pendidikan',
+            'about_desc' => 'Semarak Aliyah diselenggarakan oleh MA Unggulan Wahid Hasyim Balung sebagai bentuk apresiasi nyata bagi generasi muda yang berprestasi dan berkarakter.',
+            'about_items' => json_encode(self::getDefaultAboutPrizes()),
         ];
 
         foreach ($defaults as $k => $v) {
@@ -2908,7 +3618,7 @@ class AdminPanelController extends Controller
                     'kecamatan' => $validated['kecamatan'] ?? null,
                     'jenjang' => $validated['jenjang'] ?? null,
                     'delegates' => $students,
-                    'registered_by_admin' => auth()->user()?->name ?? 'Panitia Admin',
+                    'registered_by_admin' => Auth::guard('web')->user()?->name ?? 'Panitia Admin',
                     'registered_at_desk' => now()->toIso8601String(),
                 ],
             ]);
@@ -2954,7 +3664,7 @@ class AdminPanelController extends Controller
                         'kecamatan' => $validated['kecamatan'] ?? null,
                         'jenjang' => $validated['jenjang'] ?? null,
                         'delegates' => $students,
-                        'registered_by_admin' => auth()->user()?->name ?? 'Panitia Admin',
+                        'registered_by_admin' => Auth::guard('web')->user()?->name ?? 'Panitia Admin',
                         'registered_at_desk' => now()->toIso8601String(),
                     ],
                 ]);

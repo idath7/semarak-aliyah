@@ -83,23 +83,8 @@ class AdminController extends Controller
         ]);
     }
 
-    public function export()
+    public function export(\Illuminate\Http\Request $request)
     {
-        $registrations = Registration::orderBy('id', 'desc')->get();
-        $csv = "Kode Registrasi,Asal Sekolah,Guru Pendamping,Nomor WA,Cabang Lomba,Paket,Total Biaya,Status Pembayaran,Tanggal Daftar\n";
-
-        foreach ($registrations as $r) {
-            $cleanNames = str_replace(["\r", "\n"], ' | ', $r->participants_names);
-            $cleanNames = str_replace('"', '""', $cleanNames);
-            $cleanSchool = str_replace('"', '""', $r->school_name);
-            $cleanMentor = str_replace('"', '""', $r->mentor_name);
-
-            $csv .= "\"{$r->reg_code}\",\"{$cleanSchool}\",\"{$cleanMentor}\",\"'{$r->mentor_wa}'\",\"{$r->competition_title}\",\"{$r->package_type}\",\"{$r->total_fee}\",\"{$r->payment_status}\",\"{$r->created_at}\"\n";
-        }
-
-        return response("\xEF\xBB\xBF" . $csv, 200, [
-            'Content-Type' => 'text/csv; charset=utf-8',
-            'Content-Disposition' => 'attachment; filename="data-pendaftar-semarak-2026.csv"'
-        ]);
+        return app(\App\Http\Controllers\AdminPanelController::class)->export($request);
     }
 }

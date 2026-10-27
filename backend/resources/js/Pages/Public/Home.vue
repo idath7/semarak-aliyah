@@ -84,7 +84,56 @@ const props = defineProps({
       guidelines: [],
       is_active: true
     })
+  },
+  heroSettings: {
+    type: Object,
+    default: () => ({})
+  },
+  statsSettings: {
+    type: Object,
+    default: () => ({
+      is_active: true,
+      items: []
+    })
+  },
+  aboutSettings: {
+    type: Object,
+    default: () => ({
+      is_active: true,
+      tag: 'Apresiasi & Fasilitas',
+      title: 'Dapatkan Hadiah Bergengsi & Beasiswa Pendidikan',
+      desc: '',
+      items: []
+    })
   }
+});
+
+const defaultStatsItems = [
+  { icon: 'ri-focus-2-line', number: '8 Cabang', label: 'Kompetisi & Olahraga' },
+  { icon: 'ri-building-line', number: '50+ Sekolah', label: 'SMP/MTs se-Jember' },
+  { icon: 'ri-hand-coin-line', number: 'Jutaan Rupiah', label: 'Uang Pembinaan & Hadiah' },
+  { icon: 'ri-award-line', number: '100% Sertifikat', label: 'Peserta & Guru Pendamping' }
+];
+
+const displayStatsItems = computed(() => {
+  if (props.statsSettings && Array.isArray(props.statsSettings.items) && props.statsSettings.items.length > 0) {
+    return props.statsSettings.items;
+  }
+  return defaultStatsItems;
+});
+
+const defaultAboutPrizes = computed(() => [
+  { icon: 'ri-trophy-line', title: 'Piala Juara', desc: 'Trophy eksklusif dan bergengsi untuk Juara 1, Juara 2, dan Juara 3 pada setiap cabang kompetisi.' },
+  { icon: 'ri-money-dollar-circle-line', title: 'Uang Pembinaan', desc: 'Bantuan dana pembinaan jutaan rupiah untuk mendukung pengembangan bakat dan prestasi sang juara.' },
+  { icon: 'ri-file-shield-line', title: 'E-Piagam & Sertifikat', desc: 'Piagam penghargaan resmi ber-barcode untuk seluruh Peserta, Juara, dan Guru Pembimbing / Pendamping.' },
+  { icon: 'ri-graduation-cap-line', title: 'Beasiswa Pendidikan', desc: `Jalur beasiswa penuh dan tabungan pendidikan masuk di ${school.value.school_name || 'MA Unggulan Wahid Hasyim Balung'}, ${school.value.school_city || 'Jember'}.` }
+]);
+
+const displayAboutPrizes = computed(() => {
+  if (props.aboutSettings && Array.isArray(props.aboutSettings.items) && props.aboutSettings.items.length > 0) {
+    return props.aboutSettings.items;
+  }
+  return defaultAboutPrizes.value;
 });
 
 const displayTickerItems = computed(() => {
@@ -960,6 +1009,20 @@ function getCompCpList(comp) {
   }];
 }
 
+// Generate direct registration WhatsApp URL for direct contact competitions
+function getDirectRegistrationWaUrl(comp) {
+  if (!comp) return `https://wa.me/${cleanSchoolWa.value}`;
+  if (comp.direct_contact_wa_url) return comp.direct_contact_wa_url;
+  
+  const cpList = getCompCpList(comp);
+  const primaryCp = cpList[0] || {};
+  const phone = primaryCp.phone ? formatWaNumber(primaryCp.phone, cleanSchoolWa.value) : cleanSchoolWa.value;
+  const compTitle = comp.title || 'Lomba';
+  const name = primaryCp.name || 'Koordinator Lomba';
+  const text = `Halo ${name}, saya ingin mendaftarkan delegasi sekolah kami untuk cabang lomba ${compTitle} di Semarak Aliyah XIV 2026. Mohon informasi teknis pendaftaran langsung dan kuotanya. Terima kasih.`;
+  return getWaChatUrl(phone, text, cleanSchoolWa.value);
+}
+
 // 5. Official Sponsors & Partners Slider State
 const fallbackSponsors = [
   {
@@ -1569,18 +1632,20 @@ function handleLightboxKey(e) {
           <div class="hero-content">
             <div class="hero-badge-wrap">
               <span class="hero-badge">
-                <span class="pulse-dot"></span>
-                Ajang Kompetisi Pelajar SMP/MTs Se-Kabupaten Jember
+                <span v-if="heroSettings?.hero_badge_pulse !== false" class="pulse-dot"></span>
+                {{ heroSettings?.hero_badge_text || 'Ajang Kompetisi Pelajar SMP/MTs Se-Kabupaten Jember' }}
               </span>
             </div>
 
             <h1 class="hero-title">
-              Selamat Datang di Laman Official <br>
-              <span class="text-gradient-gold">{{ school.event_name || 'Semarak Aliyah XIV 2026' }}</span>
+              {{ heroSettings?.hero_headline_prefix || 'Selamat Datang di Laman Official' }} <br>
+              <span class="text-gradient-gold">
+                {{ heroSettings?.hero_headline_highlight || (school.event_name || 'Semarak Aliyah XIV 2026') }}
+              </span>
             </h1>
 
             <p class="hero-subtitle">
-              Panggung unjuk prestasi, bakat seni, kecerdasan sains, dan sportivitas pelajar SMP/MTs sederajat se-Kabupaten Jember. Raih Piala Juara, Bantuan Uang Pembinaan, serta Beasiswa Tabungan Pendidikan di {{ school.school_name || 'MA Unggulan Wahid Hasyim Balung' }}.
+              {{ heroSettings?.hero_subheadline || ('Panggung unjuk prestasi, bakat seni, kecerdasan sains, dan sportivitas pelajar SMP/MTs sederajat se-Kabupaten Jember. Raih Piala Juara, Bantuan Uang Pembinaan, serta Beasiswa Tabungan Pendidikan di ' + (school.school_name || 'MA Unggulan Wahid Hasyim Balung') + '.') }}
             </p>
 
             <!-- Live Countdown Timer -->
@@ -1617,22 +1682,31 @@ function handleLightboxKey(e) {
 
             <!-- CTA Buttons -->
             <div class="hero-cta-group">
-              <Link :href="ctaRegisterUrl" class="btn-primary">
+              <Link 
+                v-if="heroSettings?.hero_cta1_active !== false"
+                :href="heroSettings?.hero_cta1_url || ctaRegisterUrl" 
+                class="btn-primary"
+              >
                 <i class="ri-user-follow-line"></i>
-                <span>Daftar Sekarang</span>
+                <span>{{ heroSettings?.hero_cta1_text || 'Daftar Sekarang' }}</span>
               </Link>
               <a 
-                :href="$page.props.generalJuknis?.url || '/assets/JUKNIS-SEMARAK-2026.pdf'" 
+                v-if="heroSettings?.hero_cta2_active !== false"
+                :href="heroSettings?.hero_cta2_url || ($page.props.generalJuknis?.url || '/assets/JUKNIS-SEMARAK-2026.pdf')" 
                 :download="$page.props.generalJuknis?.filename || 'JUKNIS-SEMARAK-2026.pdf'" 
                 target="_blank" 
                 class="btn-secondary"
               >
                 <i class="ri-file-download-line"></i>
-                <span>Unduh Juknis (PDF)</span>
+                <span>{{ heroSettings?.hero_cta2_text || 'Unduh Juknis (PDF)' }}</span>
               </a>
-              <a href="#kompetisi" class="btn-secondary">
+              <a 
+                v-if="heroSettings?.hero_cta3_active !== false"
+                :href="heroSettings?.hero_cta3_url || '#kompetisi'" 
+                class="btn-secondary"
+              >
                 <i class="ri-search-line"></i>
-                <span>Lihat Cabang Lomba</span>
+                <span>{{ heroSettings?.hero_cta3_text || 'Lihat Cabang Lomba' }}</span>
               </a>
             </div>
           </div>
@@ -1641,18 +1715,25 @@ function handleLightboxKey(e) {
           <div class="hero-visual">
             <div class="hero-visual-wrapper">
               <div class="hero-main-card">
-                <img src="/assets/img/pamflet.jpg" alt="Pamflet Resmi Semarak Aliyah XIV 2026" class="hero-poster-img" loading="eager">
+                <img :src="heroSettings?.hero_poster_image || '/assets/img/pamflet.jpg'" alt="Pamflet Resmi Semarak Aliyah XIV 2026" class="hero-poster-img" loading="eager">
               </div>
 
               <!-- Floating Character Mascot -->
-              <img src="/assets/img/kadita.png" alt="Mascot Semarak Aliyah" class="hero-character-float">
+              <img 
+                v-if="heroSettings?.hero_mascot_active !== false"
+                :src="heroSettings?.hero_mascot_image || '/assets/img/kadita.png'" 
+                alt="Mascot Semarak Aliyah" 
+                class="hero-character-float"
+              >
 
               <!-- Floating Info Pill -->
-              <div class="hero-badge-float">
-                <div class="badge-float-icon"><i class="ri-trophy-line"></i></div>
+              <div v-if="heroSettings?.hero_float_badge_active !== false" class="hero-badge-float">
+                <div class="badge-float-icon">
+                  <i :class="heroSettings?.hero_float_badge_icon || 'ri-trophy-line'"></i>
+                </div>
                 <div>
-                  <div class="badge-float-title">Hadiah Jutaan Rupiah</div>
-                  <div class="badge-float-desc">+ Beasiswa Pendidikan</div>
+                  <div class="badge-float-title">{{ heroSettings?.hero_float_badge_title || 'Hadiah Jutaan Rupiah' }}</div>
+                  <div class="badge-float-desc">{{ heroSettings?.hero_float_badge_desc || '+ Beasiswa Pendidikan' }}</div>
                 </div>
               </div>
             </div>
@@ -1710,35 +1791,18 @@ function handleLightboxKey(e) {
     <!-- ==========================================================================
          STATS STRIP
          ========================================================================== -->
-    <section class="stats-strip" aria-label="Statistik Acara">
+    <section v-if="statsSettings?.is_active !== false" class="stats-strip" aria-label="Statistik Acara">
       <div class="container">
         <div class="stats-grid">
-          <div class="stat-item">
-            <div class="stat-icon"><i class="ri-focus-2-line"></i></div>
+          <div 
+            v-for="(item, idx) in displayStatsItems" 
+            :key="idx" 
+            class="stat-item"
+          >
+            <div class="stat-icon"><i :class="item.icon || 'ri-focus-2-line'"></i></div>
             <div>
-              <div class="stat-number">8 Cabang</div>
-              <div class="stat-label">Kompetisi & Olahraga</div>
-            </div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-icon"><i class="ri-building-line"></i></div>
-            <div>
-              <div class="stat-number">50+ Sekolah</div>
-              <div class="stat-label">SMP/MTs se-Jember</div>
-            </div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-icon"><i class="ri-hand-coin-line"></i></div>
-            <div>
-              <div class="stat-number">Jutaan Rupiah</div>
-              <div class="stat-label">Uang Pembinaan & Hadiah</div>
-            </div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-icon"><i class="ri-award-line"></i></div>
-            <div>
-              <div class="stat-number">100% Sertifikat</div>
-              <div class="stat-label">Peserta & Guru Pendamping</div>
+              <div class="stat-number">{{ item.number }}</div>
+              <div class="stat-label">{{ item.label }}</div>
             </div>
           </div>
         </div>
@@ -1748,39 +1812,25 @@ function handleLightboxKey(e) {
     <!-- ==========================================================================
          TENTANG & HADIAH (BENEFITS)
          ========================================================================== -->
-    <section class="section-padding" id="tentang">
+    <section v-if="aboutSettings?.is_active !== false" class="section-padding" id="tentang">
       <div class="container">
         <div class="section-header">
-          <span class="section-tag">Apresiasi & Fasilitas</span>
-          <h2 class="section-title">Dapatkan Hadiah Bergengsi & Beasiswa Pendidikan</h2>
+          <span class="section-tag">{{ aboutSettings?.tag || 'Apresiasi & Fasilitas' }}</span>
+          <h2 class="section-title">{{ aboutSettings?.title || 'Dapatkan Hadiah Bergengsi & Beasiswa Pendidikan' }}</h2>
           <p class="section-desc">
-            {{ school.event_name || 'Semarak Aliyah XIV 2026' }} diselenggarakan oleh {{ school.school_name || 'MA Unggulan Wahid Hasyim Balung' }} sebagai bentuk apresiasi nyata bagi generasi muda yang berprestasi dan berkarakter.
+            {{ aboutSettings?.desc || ((school.event_name || 'Semarak Aliyah XIV 2026') + ' diselenggarakan oleh ' + (school.school_name || 'MA Unggulan Wahid Hasyim Balung') + ' sebagai bentuk apresiasi nyata bagi generasi muda yang berprestasi dan berkarakter.') }}
           </p>
         </div>
 
         <div class="prizes-grid">
-          <div class="prize-card">
-            <div class="prize-card-icon"><i class="ri-trophy-line"></i></div>
-            <h3 class="prize-card-title">Piala Juara</h3>
-            <p class="prize-card-desc">Trophy eksklusif dan bergengsi untuk Juara 1, Juara 2, dan Juara 3 pada setiap cabang kompetisi.</p>
-          </div>
-
-          <div class="prize-card">
-            <div class="prize-card-icon"><i class="ri-money-dollar-circle-line"></i></div>
-            <h3 class="prize-card-title">Uang Pembinaan</h3>
-            <p class="prize-card-desc">Bantuan dana pembinaan jutaan rupiah untuk mendukung pengembangan bakat dan prestasi sang juara.</p>
-          </div>
-
-          <div class="prize-card">
-            <div class="prize-card-icon"><i class="ri-file-shield-line"></i></div>
-            <h3 class="prize-card-title">E-Piagam & Sertifikat</h3>
-            <p class="prize-card-desc">Piagam penghargaan resmi ber-barcode untuk seluruh Peserta, Juara, dan Guru Pembimbing / Pendamping.</p>
-          </div>
-
-          <div class="prize-card">
-            <div class="prize-card-icon"><i class="ri-graduation-cap-line"></i></div>
-            <h3 class="prize-card-title">Beasiswa Pendidikan</h3>
-            <p class="prize-card-desc">Jalur beasiswa penuh dan tabungan pendidikan masuk di {{ school.school_name || 'MA Unggulan Wahid Hasyim Balung' }}, {{ school.school_city || 'Jember' }}.</p>
+          <div 
+            v-for="(prize, idx) in displayAboutPrizes" 
+            :key="idx" 
+            class="prize-card"
+          >
+            <div class="prize-card-icon"><i :class="prize.icon || 'ri-trophy-line'"></i></div>
+            <h3 class="prize-card-title">{{ prize.title }}</h3>
+            <p class="prize-card-desc">{{ prize.desc }}</p>
           </div>
         </div>
       </div>
@@ -2031,6 +2081,14 @@ function handleLightboxKey(e) {
                   </span>
                 </span>
               </div>
+              <div v-if="comp.registration_type === 'direct_contact'" class="meta-item">
+                <span class="meta-label">Metode :</span>
+                <span class="meta-val">
+                  <span class="badge bg-success-subtle text-success fs-10 border border-success-subtle d-inline-flex align-items-center gap-1">
+                    <i class="ri-whatsapp-line"></i> Kontak Koordinator
+                  </span>
+                </span>
+              </div>
             </div>
 
             <div class="comp-card-actions">
@@ -2042,8 +2100,21 @@ function handleLightboxKey(e) {
                 <i class="ri-eye-line"></i>
                 Detail
               </button>
+              <!-- Tombol khusus jika pendaftaran hanya via kontak langsung ke koordinator -->
+              <a 
+                v-if="comp.registration_type === 'direct_contact'"
+                :href="getDirectRegistrationWaUrl(comp)" 
+                target="_blank" 
+                rel="noopener"
+                class="btn-card-register"
+                style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; text-decoration: none;"
+                title="Daftar langsung melalui kontak WhatsApp Koordinator Lomba"
+              >
+                <i class="ri-whatsapp-line"></i>
+                <span>Daftar via PJ</span>
+              </a>
               <Link 
-                v-if="!getCompStatusInfo(comp).isClosed"
+                v-else-if="!getCompStatusInfo(comp).isClosed"
                 :href="getCompRegisterUrl(comp.id)" 
                 class="btn-card-register"
               >
@@ -2686,6 +2757,22 @@ function handleLightboxKey(e) {
         </div>
 
         <div style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; margin-bottom: 20px;">
+          <!-- Banner Khusus Pendaftaran Langsung via Koordinator -->
+          <div 
+            v-if="selectedComp.registration_type === 'direct_contact'" 
+            style="padding: 12px 14px; border-radius: var(--radius-sm); background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 14px; display: flex; align-items: flex-start; gap: 10px;"
+          >
+            <i class="ri-whatsapp-fill" style="font-size: 1.35rem; color: #10b981; flex-shrink: 0; margin-top: 1px;"></i>
+            <div>
+              <div style="font-size: 0.88rem; font-weight: 700; color: #10b981; margin-bottom: 2px;">
+                Pendaftaran Khusus: Kontak Langsung ke Koordinator Lomba
+              </div>
+              <p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;">
+                {{ selectedComp.direct_registration_note || 'Pendaftaran cabang lomba ini tidak melalui sistem formulir online web, melainkan dilayani langsung melalui kontak WhatsApp Koordinator Lomba.' }}
+              </p>
+            </div>
+          </div>
+
           <p style="margin-bottom: 14px;">{{ selectedComp.description }}</p>
           
           <div class="modal-detail-box" style="padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-glass); margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px; font-size: 0.86rem; color: var(--text-main);">
@@ -2799,8 +2886,20 @@ function handleLightboxKey(e) {
           <button type="button" class="btn-modal-close" @click="closeDetailModal">
             Tutup
           </button>
+          <a 
+            v-if="selectedComp.registration_type === 'direct_contact'"
+            :href="getDirectRegistrationWaUrl(selectedComp)" 
+            target="_blank" 
+            rel="noopener"
+            class="btn-modal-primary"
+            style="background: linear-gradient(135deg, #10b981, #059669); border: none; text-decoration: none;"
+            @click="closeDetailModal"
+          >
+            <i class="ri-whatsapp-line"></i>
+            <span>Daftar via WhatsApp Koordinator</span>
+          </a>
           <Link 
-            v-if="!getCompStatusInfo(selectedComp).isClosed"
+            v-else-if="!getCompStatusInfo(selectedComp).isClosed"
             :href="getCompRegisterUrl(selectedComp.id)" 
             class="btn-modal-primary"
             @click="closeDetailModal"

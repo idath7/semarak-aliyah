@@ -4,9 +4,12 @@
    MA Unggulan Wahid Hasyim Balung, Jember
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Oswald:wght@600;700&family=Montserrat:wght@700;800;900&display=swap');
+@import url('fonts.css');
+@import url('../vendor/remixicon/remixicon.css');
+@import url('../vendor/boxicons/css/boxicons.min.css');
 
 :root {
+  color-scheme: light dark;
   /* ==========================================================================
      THEME PALETTE: Pink, Oren, Hijau, Ungu
      ========================================================================== */
@@ -143,6 +146,10 @@
   --shadow-lg: 0 16px 40px -8px rgba(0, 0, 0, 0.7);
 }
 
+[data-bs-theme="light"] {
+  color-scheme: light !important;
+}
+
 /* ==========================================================================
    BASE & RESET
    ========================================================================== */
@@ -156,6 +163,9 @@ html {
   scroll-behavior: smooth;
   font-size: 16px;
   background-color: var(--bg-darker);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -167,6 +177,8 @@ body {
   position: relative;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 .public-website-root {
@@ -5449,7 +5461,6 @@ section[id] {
   color: #ffffff !important;
   font-weight: 700;
   background: transparent !important;
-  text-shadow: 0 0 10px rgba(167, 139, 250, 0.4);
 }
 
 [data-bs-theme="dark"] .nav-link.active:not(.nav-link-live)::after {
@@ -5739,7 +5750,6 @@ section[id] {
   border: 1px solid rgba(244, 114, 182, 0.45) !important;
   color: #fbcfe8 !important;
   box-shadow: 0 2px 14px rgba(236, 72, 153, 0.25) !important;
-  font-weight: 700 !important;
 }
 
 [data-bs-theme="dark"] .pulse-dot {
@@ -5806,14 +5816,11 @@ section[id] {
 [data-bs-theme="dark"] .comp-card-meta .meta-label,
 [data-bs-theme="dark"] .meta-label {
   color: #f1f5f9 !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.2px;
 }
 
 [data-bs-theme="dark"] .comp-card-meta .meta-val,
 [data-bs-theme="dark"] .meta-val {
   color: #ffffff !important;
-  font-weight: 700 !important;
 }
 
 [data-bs-theme="dark"] .btn-card-detail {

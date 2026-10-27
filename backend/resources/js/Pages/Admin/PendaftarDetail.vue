@@ -577,11 +577,22 @@ function sendOfficialNotification(templateKey) {
             <i class="ri-arrow-right-s-line"></i>
           </button>
 
+          <!-- Cetak Nota / Kwitansi Resmi -->
+          <a 
+            :href="'/admin/invoice/' + registration.id" 
+            target="_blank" 
+            class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 rounded-pill shadow-sm"
+            title="Cetak Nota Tagihan / Kwitansi Pembayaran Resmi"
+          >
+            <i class="ri-file-paper-2-line"></i>
+            <span>Nota / Kwitansi</span>
+          </a>
+
           <!-- Cetak Ringkasan -->
           <button 
             type="button" 
             onclick="window.print()" 
-            class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 rounded-pill"
+            class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-pill"
             title="Cetak Berkas Ringkasan Verifikasi Pendaftaran"
           >
             <i class="ri-printer-line"></i>

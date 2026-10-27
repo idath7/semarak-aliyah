@@ -434,14 +434,14 @@ const allJemberKecamatan = [
           </div>
         </div>
         <div class="col-auto d-flex flex-wrap gap-2">
-          <!-- Button Export CSV -->
+          <!-- Button Export Excel -->
           <a 
             href="/admin/sekolah/export-csv" 
             class="btn btn-sm btn-outline-success d-flex align-items-center gap-1.5"
-            title="Download seluruh database sekolah dalam format spreadsheet CSV/Excel"
+            title="Download seluruh database sekolah dalam format Microsoft Excel (.xlsx)"
           >
             <i class="ri-file-excel-2-line"></i>
-            <span class="d-none d-md-inline">Export CSV</span>
+            <span class="d-none d-md-inline">Export Excel (.xlsx)</span>
           </a>
 
           <!-- Button Import CSV -->

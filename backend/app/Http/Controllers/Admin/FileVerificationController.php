@@ -78,6 +78,19 @@ class FileVerificationController extends Controller
         }
         $reg->save();
 
+        $authUser = auth()->user();
+        \App\Models\ActivityLog::record(
+            'verification',
+            'Keputusan Verifikasi Berkas',
+            "Panitia " . ($authUser ? $authUser->name : 'Sistem') . " memperbarui verifikasi berkas {$reg->school_name} ({$reg->competition_title}): {$reg->payment_status}.",
+            [
+                'user' => $authUser,
+                'highlight' => $reg->school_name,
+                'activity_type' => 'verification',
+                'properties' => ['reg_code' => $reg->reg_code, 'status' => $reg->payment_status],
+            ]
+        );
+
         return redirect()->back()->with('success', "Keputusan verifikasi pendaftaran & pembayaran {$reg->reg_code} berhasil disimpan!");
     }
 }

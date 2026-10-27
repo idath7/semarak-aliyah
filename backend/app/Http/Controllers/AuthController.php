@@ -99,6 +99,8 @@ class AuthController extends Controller
         Auth::guard('web')->login($user, $remember);
         $request->session()->regenerate();
 
+        \App\Models\ActivityLog::logLogin($user, 'Password / NIP');
+
         if ($user->must_change_password) {
             return redirect()->route('admin.password.first');
         }
@@ -181,6 +183,8 @@ class AuthController extends Controller
 
             Auth::guard('web')->login($semarakUser, $remember);
             $request->session()->regenerate();
+
+            \App\Models\ActivityLog::logLogin($semarakUser, 'SSO Sipresensi');
 
             // Jika akun belum memiliki password Semarak atau flag must_change_password aktif
             if ($semarakUser->must_change_password || empty($semarakUser->password)) {
@@ -330,6 +334,8 @@ class AuthController extends Controller
         Auth::guard('web')->login($user, true);
         $request->session()->regenerate();
 
+        \App\Models\ActivityLog::logLogin($user, 'OTP WhatsApp');
+
         $redirectUrl = ($user->must_change_password || empty($user->password))
             ? route('admin.password.first')
             : route('admin.dashboard');
@@ -373,6 +379,8 @@ class AuthController extends Controller
                 Auth::guard('web')->login($existingUser, true);
                 $request->session()->regenerate();
 
+                \App\Models\ActivityLog::logLogin($existingUser, 'Akun Google (Cepat)');
+
                 if ($existingUser->must_change_password || empty($existingUser->password)) {
                     return redirect()->route('admin.password.first')->with('info', "Selamat datang, {$existingUser->name}! Anda berhasil masuk cepat akun Google (mode lokal). Silakan buat kata sandi baru.");
                 }
@@ -412,6 +420,8 @@ class AuthController extends Controller
 
         Auth::guard('web')->login($user, true);
         $request->session()->regenerate();
+
+        \App\Models\ActivityLog::logLogin($user, 'Akun Google (Direct)');
 
         if ($user->must_change_password || empty($user->password)) {
             return redirect()->route('admin.password.first')->with('info', "Selamat datang, {$user->name}! Silakan buat kata sandi baru untuk akun Anda.");
@@ -486,6 +496,8 @@ class AuthController extends Controller
             Auth::guard('web')->login($user, true);
             $request->session()->regenerate();
 
+            \App\Models\ActivityLog::logLogin($user, 'Akun Google (OAuth)');
+
             if ($user->must_change_password || empty($user->password)) {
                 return redirect()->route('admin.password.first');
             }
@@ -544,6 +556,13 @@ class AuthController extends Controller
         $user->must_change_password = false;
         $user->save();
 
+        \App\Models\ActivityLog::record(
+            'password_change',
+            'Aktivasi Sandi Baru Panitia',
+            "Panitia {$user->name} berhasil membuat dan mengaktivasi kata sandi baru.",
+            ['user' => $user, 'highlight' => $user->name, 'activity_type' => 'auth']
+        );
+
         return redirect()->route('admin.dashboard')->with('success', 'Kata sandi baru berhasil disimpan! Selamat bertugas di Semarak Aliyah XIV.');
     }
 
@@ -552,6 +571,11 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
+        $user = Auth::guard('web')->user();
+        if ($user) {
+            \App\Models\ActivityLog::logLogout($user);
+        }
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

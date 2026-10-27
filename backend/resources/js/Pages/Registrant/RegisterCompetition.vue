@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import CustomSelect from '@/Components/CustomSelect.vue';
 import IndoDatePicker from '@/Components/IndoDatePicker.vue';
@@ -20,7 +20,11 @@ const props = defineProps({
 });
 
 const toast = useToast();
-const { isDark, toggleTheme } = useTheme();
+const { isDark, toggleTheme, initTheme } = useTheme();
+
+onMounted(() => {
+  initTheme();
+});
 
 // Package Type: 'Paket Satuan' | 'Paket All-In'
 const selectedPackageType = ref('Paket Satuan');
@@ -232,12 +236,15 @@ function onAllInCodeInput() {
 const competitionOptions = computed(() => {
   return (props.competitions || []).map(c => {
     const isRegistered = (props.existingCompIds || []).includes(c.id);
+    const isDirect = c.registration_type === 'direct_contact' || c.is_direct_registration;
     const quotaLeft = Math.max(0, (c.max_quota || 0) - (c.current_quota || 0));
     let statusSuffix = '';
     if (isRegistered) {
       statusSuffix = ' [Sudah Terdaftar]';
     } else if (c.is_closed) {
       statusSuffix = ' [Pendaftaran Ditutup]';
+    } else if (isDirect) {
+      statusSuffix = ` [📲 Daftar via Kontak Koordinator • Rp ${Number(c.fee).toLocaleString('id-ID')}]`;
     } else {
       statusSuffix = ` [Sisa ${quotaLeft} Kuota • Rp ${Number(c.fee).toLocaleString('id-ID')}]`;
     }
@@ -250,6 +257,7 @@ const competitionOptions = computed(() => {
       fee: c.fee,
       isRegistered,
       isClosed: c.is_closed,
+      isDirect,
       deadline: c.registration_deadline,
       description: c.description,
     };
@@ -568,6 +576,14 @@ function submitRegistration() {
     return;
   }
 
+  if (currentCompetition.value && (currentCompetition.value.is_direct_registration || currentCompetition.value.registration_type === 'direct_contact')) {
+    toast.info('Pendaftaran cabang lomba ini dilakukan melalui kontak langsung ke Koordinator Lomba.');
+    if (currentCompetition.value.direct_contact_wa_url) {
+      window.open(currentCompetition.value.direct_contact_wa_url, '_blank');
+    }
+    return;
+  }
+
   // Compile participants names from repeater if present
   if (repeaterField.value) {
     const list = participantsList.value.slice(0, participantCount.value);
@@ -668,7 +684,7 @@ function handleUnifiedSubmit() {
 <template>
   <Head title="Pendaftaran Cabang Lomba Baru - Akun Pendaftar" />
 
-  <div class="reg-page-wrapper min-h-screen d-flex flex-column justify-content-between">
+  <div class="reg-page-wrapper min-h-screen d-flex flex-column justify-content-between" :class="{ 'dark-theme': isDark }">
     
     <!-- Topbar Navigation (Konsisten dengan Dashboard Pendaftar) -->
     <header class="registrant-topbar sticky-top shadow-sm w-100">
@@ -878,6 +894,41 @@ function handleUnifiedSubmit() {
                     </div>
                     <div v-if="currentCompetition.description" class="reg-desc mt-1">
                       {{ currentCompetition.description }}
+                    </div>
+                  </div>
+
+                  <!-- Alert Khusus Pendaftaran Langsung via Koordinator -->
+                  <div 
+                    v-if="currentCompetition && (currentCompetition.is_direct_registration || currentCompetition.registration_type === 'direct_contact')"
+                    class="mt-3 p-3.5 rounded-3 border border-success-subtle bg-success-subtle"
+                  >
+                    <div class="d-flex align-items-start gap-2.5">
+                      <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center fs-16 flex-shrink-0" style="width: 36px; height: 36px;">
+                        <i class="ri-whatsapp-line"></i>
+                      </div>
+                      <div class="flex-grow-1">
+                        <h6 class="fs-13 fw-bold text-success mb-1">
+                          Pendaftaran Khusus: Kontak Langsung ke Koordinator Lomba
+                        </h6>
+                        <p class="fs-12 text-dark mb-2" style="line-height: 1.5;">
+                          {{ currentCompetition.direct_registration_note || 'Pendaftaran cabang lomba ini tidak menggunakan formulir pendaftaran mandiri di sistem web. Silakan hubungi Koordinator Lomba langsung via WhatsApp di bawah ini untuk pendaftaran delegasi dan koordinasi kuota.' }}
+                        </p>
+                        <div class="d-flex flex-wrap gap-2">
+                          <a 
+                            v-if="currentCompetition.direct_contact_wa_url"
+                            :href="currentCompetition.direct_contact_wa_url"
+                            target="_blank"
+                            rel="noopener"
+                            class="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 fw-semibold shadow-xs"
+                          >
+                            <i class="ri-whatsapp-line fs-14"></i>
+                            <span>Chat WhatsApp Koordinator ({{ currentCompetition.primary_coordinator?.name || 'Koordinator Lomba' }})</span>
+                          </a>
+                          <span v-if="currentCompetition.primary_coordinator?.contact" class="badge bg-white text-dark border d-inline-flex align-items-center px-2 py-1 fs-11">
+                            <i class="ri-phone-line text-success me-1"></i> {{ currentCompetition.primary_coordinator.contact }}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1787,7 +1838,19 @@ function handleUnifiedSubmit() {
                   </div>
 
                   <!-- Submit Button Paket Satuan -->
+                  <template v-if="currentCompetition && (currentCompetition.is_direct_registration || currentCompetition.registration_type === 'direct_contact')">
+                    <a
+                      :href="currentCompetition.direct_contact_wa_url"
+                      target="_blank"
+                      rel="noopener"
+                      class="btn btn-success w-100 py-2.5 fs-14 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center gap-2 mt-2"
+                    >
+                      <i class="ri-whatsapp-line fs-18"></i>
+                      <span>Hubungi Koordinator via WhatsApp untuk Mendaftar</span>
+                    </a>
+                  </template>
                   <button
+                    v-else
                     type="submit"
                     class="btn btn-primary w-100 py-2.5 fs-14 fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center gap-2 mt-2"
                     :disabled="form.processing"
@@ -1895,7 +1958,7 @@ function handleUnifiedSubmit() {
   </div>
 </template>
 
-<style scoped>
+<style>
 .cursor-pointer {
   cursor: pointer;
 }
@@ -1909,8 +1972,9 @@ function handleUnifiedSubmit() {
   background: radial-gradient(circle at 50% 10%, #e0e7ff 0%, #f8fafc 60%, #f1f5f9 100%);
   transition: background 0.3s ease;
 }
-[data-bs-theme="dark"] .reg-page-wrapper {
-  background: radial-gradient(circle at 50% 15%, #1e1b4b 0%, #0b0f19 70%, #05070e 100%);
+[data-bs-theme="dark"] .reg-page-wrapper,
+.reg-page-wrapper.dark-theme {
+  background: radial-gradient(circle at 50% 15%, #1e1b4b 0%, #0b0f19 70%, #05070e 100%) !important;
 }
 
 /* Topbar Header */

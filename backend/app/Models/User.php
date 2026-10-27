@@ -53,6 +53,35 @@ class User extends Authenticatable
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var list<string>
+     */
+    protected $appends = [
+        'avatar_url',
+    ];
+
+    /**
+     * Get the full URL to the user avatar.
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (empty($this->avatar)) {
+            return null;
+        }
+        if (str_starts_with($this->avatar, 'http://') || str_starts_with($this->avatar, 'https://') || str_starts_with($this->avatar, 'data:')) {
+            return $this->avatar;
+        }
+        if (str_starts_with($this->avatar, '/storage/')) {
+            return asset(ltrim($this->avatar, '/'));
+        }
+        if (str_starts_with($this->avatar, 'storage/')) {
+            return asset($this->avatar);
+        }
+        return asset('storage/' . ltrim($this->avatar, '/'));
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -115,7 +144,10 @@ class User extends Authenticatable
      */
     public function hasAdminAccess(): bool
     {
-        return in_array($this->role, ['super_admin', 'admin', 'bendahara', 'kesekretariatan']);
+        return in_array($this->role, [
+            'super_admin', 'admin', 'bendahara', 'kesekretariatan',
+            'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'koordinator_lomba'
+        ]);
     }
 
     /**

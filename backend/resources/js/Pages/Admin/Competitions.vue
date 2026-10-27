@@ -13,6 +13,7 @@ const props = defineProps({
   categories: { type: Array, default: () => [] },
   stats: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
+  committeeStructure: { type: Object, default: () => ({}) },
 });
 
 const toast = useToast();
@@ -37,6 +38,7 @@ const showCreateModal = ref(false);
 const createForm = useForm({
   title: '',
   id: '',
+  coordinator_id: null,
   category: 'seni',
   fee: 50000,
   max_quota: 30,
@@ -50,10 +52,12 @@ const createForm = useForm({
   tm_date_time: '08:00',
   contact_person: '',
   coordinators: [
-    { name: '', contact: '', role: 'Koordinator Lomba' }
+    { user_id: '', name: '', contact: '', role: 'Koordinator Lomba' }
   ],
   description: '',
   status: 'open',
+  registration_type: 'online',
+  direct_registration_note: '',
 });
 
 // Edit Modal State
@@ -61,6 +65,7 @@ const showEditModal = ref(false);
 const editForm = useForm({
   id: '',
   title: '',
+  coordinator_id: null,
   category: 'seni',
   fee: 50000,
   max_quota: 30,
@@ -76,6 +81,8 @@ const editForm = useForm({
   coordinators: [],
   description: '',
   status: 'open',
+  registration_type: 'online',
+  direct_registration_note: '',
 });
 
 // Delete Modal State
@@ -201,17 +208,197 @@ async function deleteCategoryItem(cat) {
   });
 }
 
-// Coordinator Dynamic List Helpers
+// Committee Leadership & Coordinator Role Helpers
+function getRoleLabel(role) {
+  const map = {
+    'koordinator_lomba': 'Koordinator Lomba',
+    'panitia': 'Panitia Pelaksana',
+    'kesekretariatan': 'Kesekretariatan',
+    'sekretaris': 'Sekretaris',
+    'ketua_panitia': 'Ketua Panitia',
+    'wakil_ketua_panitia': 'Wakil Ketua Panitia',
+    'admin': 'Administrator',
+    'super_admin': 'Super Admin'
+  };
+  return map[role] || role || 'Panitia';
+}
+
+const isCoordinatorRole = computed(() => props.committeeStructure?.is_coordinator === true);
+const currentUserId = computed(() => props.committeeStructure?.current_user_id || null);
+const currentUserCompId = computed(() => props.committeeStructure?.current_user_comp || null);
+
+function isUserCoordinating(comp) {
+  if (!comp) return false;
+  return (comp.coordinator_id && comp.coordinator_id === currentUserId.value) ||
+         (comp.id && comp.id === currentUserCompId.value);
+}
+
+function canUserEditCompetition(comp) {
+  if (!isCoordinatorRole.value) return true;
+  return isUserCoordinating(comp);
+}
+
+const coordinatorDropdownOptions = computed(() => {
+  const list = props.committeeStructure?.committee_users || [];
+  return [
+    { value: '', label: '-- Pilih Koordinator dari Database --' },
+    ...list.map(u => ({
+      value: String(u.id),
+      label: `${u.name} (${getRoleLabel(u.role)})${u.phone ? ' • ' + u.phone : ''}`
+    })),
+    { value: 'custom', label: '✍️ Input Manual Nama Lain (Luar Database)...' }
+  ];
+});
+
+function getCoordinatorUser(userId) {
+  if (!userId) return null;
+  return (props.committeeStructure?.committee_users || []).find(u => String(u.id) === String(userId)) || null;
+}
+
+function syncFormCoordinatorId(form) {
+  if (!form.coordinators || form.coordinators.length === 0) {
+    form.coordinator_id = null;
+    return;
+  }
+  const primaryCoord = form.coordinators.find(c => c.user_id && c.user_id !== 'custom');
+  form.coordinator_id = primaryCoord ? Number(primaryCoord.user_id) : null;
+}
+
+function onCoordinatorChange(form, cIdx, selectedVal) {
+  const coord = form.coordinators[cIdx];
+  if (!coord) return;
+
+  const valStr = selectedVal ? String(selectedVal) : '';
+  coord.user_id = valStr;
+
+  if (valStr && valStr !== 'custom') {
+    const user = getCoordinatorUser(valStr);
+    if (user) {
+      coord.name = user.name;
+      coord.contact = user.phone || '';
+      if (!coord.role || coord.role === 'Koordinator Lomba') {
+        coord.role = user.role === 'koordinator_lomba' ? 'Koordinator Lomba' : (getRoleLabel(user.role) || 'Koordinator Lomba');
+      }
+    }
+  } else if (valStr === 'custom') {
+    if (coord.name && getCoordinatorUser(coord.user_id)) {
+      coord.name = '';
+      coord.contact = '';
+    }
+  } else {
+    coord.user_id = '';
+    coord.name = '';
+    coord.contact = '';
+  }
+
+  syncFormCoordinatorId(form);
+}
+
 function addCoordinator(form) {
-  form.coordinators.push({ name: '', contact: '', role: '' });
+  form.coordinators.push({
+    user_id: '',
+    name: '',
+    contact: '',
+    role: 'Koordinator Lomba'
+  });
 }
 
 function removeCoordinator(form, index) {
   if (form.coordinators.length > 1) {
     form.coordinators.splice(index, 1);
   } else {
-    form.coordinators[0] = { name: '', contact: '', role: '' };
+    form.coordinators[0] = {
+      user_id: '',
+      name: '',
+      contact: '',
+      role: 'Koordinator Lomba'
+    };
   }
+  syncFormCoordinatorId(form);
+}
+
+function initializeCoordinators(coordinatorsList, coordinatorId, contactPerson) {
+  const users = props.committeeStructure?.committee_users || [];
+  let result = [];
+
+  if (coordinatorsList && Array.isArray(coordinatorsList) && coordinatorsList.length > 0) {
+    result = coordinatorsList.map((c, idx) => {
+      let uid = c.user_id ? String(c.user_id) : '';
+      if (!uid) {
+        if (idx === 0 && coordinatorId) {
+          uid = String(coordinatorId);
+        } else if (c.name) {
+          const matched = users.find(u => 
+            u.name.toLowerCase().trim() === c.name.toLowerCase().trim() ||
+            (c.contact && u.phone && u.phone.replace(/\D/g, '') === c.contact.replace(/\D/g, ''))
+          );
+          if (matched) {
+            uid = String(matched.id);
+          }
+        }
+      }
+
+      if (!uid && c.name && c.name.trim()) {
+        const found = users.find(u => String(u.id) === String(uid));
+        if (!found) {
+          uid = 'custom';
+        }
+      }
+
+      let phone = c.contact || '';
+      let cName = c.name || '';
+      if (uid && uid !== 'custom') {
+        const u = users.find(usr => String(usr.id) === String(uid));
+        if (u) {
+          if (!phone && u.phone) phone = u.phone;
+          if (!cName) cName = u.name;
+        }
+      }
+
+      return {
+        user_id: uid,
+        name: cName,
+        contact: phone,
+        role: c.role || 'Koordinator Lomba'
+      };
+    });
+  } else if (coordinatorId) {
+    const u = users.find(usr => usr.id == coordinatorId);
+    if (u) {
+      result = [
+        {
+          user_id: String(u.id),
+          name: u.name,
+          contact: u.phone || '',
+          role: u.role === 'koordinator_lomba' ? 'Koordinator Lomba' : (getRoleLabel(u.role) || 'Koordinator Lomba')
+        }
+      ];
+    }
+  }
+
+  if (result.length === 0) {
+    if (contactPerson) {
+      result = [
+        {
+          user_id: 'custom',
+          name: contactPerson,
+          contact: '',
+          role: 'Koordinator Lomba'
+        }
+      ];
+    } else {
+      result = [
+        {
+          user_id: '',
+          name: '',
+          contact: '',
+          role: 'Koordinator Lomba'
+        }
+      ];
+    }
+  }
+
+  return result;
 }
 
 // Filtered competitions
@@ -411,6 +598,7 @@ function setEditTmTime(timeStr) {
 function openCreateModal() {
   createForm.reset();
   createForm.clearErrors();
+  createForm.coordinator_id = null;
   createForm.participant_type = 'individu';
   createForm.max_teams = 1;
   createForm.max_participants = 1;
@@ -420,8 +608,10 @@ function openCreateModal() {
   createForm.tm_date = '26/10/2026 • 08:00 WIB';
   createForm.category = categoryList.value[0]?.id || 'seni';
   createForm.coordinators = [
-    { name: '', contact: '', role: 'Koordinator Lomba' }
+    { user_id: '', name: '', contact: '', role: 'Koordinator Lomba' }
   ];
+  createForm.registration_type = 'online';
+  createForm.direct_registration_note = '';
   showCreateModal.value = true;
 }
 
@@ -465,6 +655,18 @@ function submitCreate() {
     return;
   }
 
+  // Sinkronisasi hak akses dan pastikan nama & kontak terisi jika bersumber dari database
+  syncFormCoordinatorId(createForm);
+  createForm.coordinators.forEach(coord => {
+    if (coord.user_id && coord.user_id !== 'custom') {
+      const u = getCoordinatorUser(coord.user_id);
+      if (u) {
+        if (!coord.name) coord.name = u.name;
+        if (!coord.contact && u.phone) coord.contact = u.phone;
+      }
+    }
+  });
+
   createForm.tm_date = formatTmString(createForm.tm_date_date, createForm.tm_date_time);
 
   createForm.post('/admin/lomba', {
@@ -484,6 +686,7 @@ function submitCreate() {
 function openEditModal(comp) {
   editForm.clearErrors();
   editForm.id = comp.id;
+  editForm.coordinator_id = comp.coordinator_id || null;
   editForm.title = comp.title;
   editForm.category = comp.category;
   editForm.fee = comp.fee;
@@ -502,19 +705,12 @@ function openEditModal(comp) {
   editForm.tm_date = formatTmString(editForm.tm_date_date, editForm.tm_date_time) || (comp.tm_date || '26/10/2026 • 08:00 WIB');
   
   editForm.status = comp.status;
+  editForm.registration_type = comp.registration_type || 'online';
+  editForm.direct_registration_note = comp.direct_registration_note || '';
   editForm.description = comp.description || '';
 
-  if (comp.coordinators && Array.isArray(comp.coordinators) && comp.coordinators.length > 0) {
-    editForm.coordinators = JSON.parse(JSON.stringify(comp.coordinators));
-  } else if (comp.contact_person) {
-    editForm.coordinators = [
-      { name: comp.contact_person, contact: '', role: 'Koordinator Lomba' }
-    ];
-  } else {
-    editForm.coordinators = [
-      { name: '', contact: '', role: 'Koordinator Lomba' }
-    ];
-  }
+  editForm.coordinators = initializeCoordinators(comp.coordinators, comp.coordinator_id, comp.contact_person);
+  syncFormCoordinatorId(editForm);
 
   showEditModal.value = true;
 }
@@ -536,6 +732,18 @@ function submitEdit() {
     return;
   }
 
+  // Sinkronisasi hak akses dan pastikan nama & kontak terisi jika bersumber dari database
+  syncFormCoordinatorId(editForm);
+  editForm.coordinators.forEach(coord => {
+    if (coord.user_id && coord.user_id !== 'custom') {
+      const u = getCoordinatorUser(coord.user_id);
+      if (u) {
+        if (!coord.name) coord.name = u.name;
+        if (!coord.contact && u.phone) coord.contact = u.phone;
+      }
+    }
+  });
+
   editForm.tm_date = formatTmString(editForm.tm_date_date, editForm.tm_date_time);
 
   editForm.put(`/admin/lomba/${editForm.id}`, {
@@ -547,6 +755,8 @@ function submitEdit() {
       if (idx !== -1) {
         competitionsList.value[idx] = {
           ...competitionsList.value[idx],
+          coordinator_id: editForm.coordinator_id,
+          coordinator: editForm.coordinator_id ? getCoordinatorUser(editForm.coordinator_id) : competitionsList.value[idx].coordinator,
           title: editForm.title,
           category: editForm.category,
           fee: Number(editForm.fee),
@@ -712,12 +922,126 @@ function confirmDelete() {
           <i class="ri-team-line"></i> Data Pendaftar
         </Link>
         <button 
+          v-if="!isCoordinatorRole"
           type="button" 
           class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm"
           @click="openCreateModal"
         >
           <i class="ri-add-line fs-14"></i> Tambah Cabang Lomba
         </button>
+        <span 
+          v-else 
+          class="badge bg-light text-muted border py-1.5 px-2 fs-11 d-inline-flex align-items-center gap-1"
+          title="Pembuatan cabang lomba baru merupakan wewenang Ketua Panitia, Wakil Ketua, atau Sekretaris"
+        >
+          <i class="ri-lock-line text-warning"></i> Tambah Lomba (Wewenang Pimpinan)
+        </span>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- STRUKTUR KEPANITIAAN & PENGAWASAN LOMBA                       -->
+    <!-- ============================================================== -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card border-0 shadow-sm" style="border-left: 4px solid #6366f1 !important;">
+          <div class="card-body p-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+              <div>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-primary-subtle text-primary fs-11 px-2 py-0.5 fw-semibold">
+                    <i class="ri-shield-user-line me-1"></i> Pengawasan & Manajemen Panitia
+                  </span>
+                  <span v-if="isCoordinatorRole" class="badge bg-warning text-dark fs-11 px-2 py-0.5 fw-semibold">
+                    <i class="ri-user-star-line me-1"></i> Peran: Koordinator Cabang Lomba
+                  </span>
+                </div>
+                <h5 class="fs-15 fw-bold text-dark mt-1 mb-0">
+                  Struktur Pimpinan Panitia & Penanggung Jawab Lomba
+                </h5>
+                <p class="text-muted fs-12 mb-0">
+                  Pengelolaan regulasi, juknis, kuota, serta Technical Meeting berada di bawah koordinasi Ketua Panitia, Wakil Ketua, Sekretaris, dan Koordinator Lomba terkait.
+                </p>
+              </div>
+              <div v-if="isCoordinatorRole" class="alert alert-warning py-1.5 px-3 mb-0 fs-12 border-warning-subtle d-flex align-items-center gap-2">
+                <i class="ri-information-line fs-16 text-warning"></i>
+                <span>Anda memiliki kewenangan mengelola cabang lomba yang Anda koordinasi. Penambahan cabang lomba baru diatur oleh Pimpinan Panitia.</span>
+              </div>
+            </div>
+
+            <!-- Leadership Mini-Cards Grid -->
+            <div class="row g-2 mt-1">
+              <!-- Ketua Panitia -->
+              <div class="col-md-4">
+                <div class="p-2.5 rounded border bg-light d-flex align-items-center gap-2.5 h-100">
+                  <div class="avatar-xs flex-shrink-0">
+                    <span class="avatar-title rounded-circle bg-danger-subtle text-danger fw-bold fs-13">
+                      <i class="ri-vip-crown-line"></i>
+                    </span>
+                  </div>
+                  <div class="flex-grow-1 overflow-hidden">
+                    <div class="text-muted fs-10 text-uppercase fw-semibold" style="letter-spacing: 0.5px;">Ketua Panitia</div>
+                    <div class="fw-bold text-dark fs-12 text-truncate">
+                      {{ committeeStructure?.ketua_panitia?.[0]?.name || 'Belum Ditugaskan' }}
+                    </div>
+                    <div v-if="committeeStructure?.ketua_panitia?.[0]?.phone" class="fs-11">
+                      <a :href="getWaChatUrl(committeeStructure.ketua_panitia[0].phone, 'Halo Ketua Panitia Semarak Aliyah XIV: ')" target="_blank" class="text-success text-decoration-none">
+                        <i class="ri-whatsapp-line me-0.5"></i>{{ committeeStructure.ketua_panitia[0].phone }}
+                      </a>
+                    </div>
+                  </div>
+                  <span class="badge bg-danger-subtle text-danger fs-10">Pimpinan</span>
+                </div>
+              </div>
+
+              <!-- Wakil Ketua Panitia -->
+              <div class="col-md-4">
+                <div class="p-2.5 rounded border bg-light d-flex align-items-center gap-2.5 h-100">
+                  <div class="avatar-xs flex-shrink-0">
+                    <span class="avatar-title rounded-circle bg-primary-subtle text-primary fw-bold fs-13">
+                      <i class="ri-shield-star-line"></i>
+                    </span>
+                  </div>
+                  <div class="flex-grow-1 overflow-hidden">
+                    <div class="text-muted fs-10 text-uppercase fw-semibold" style="letter-spacing: 0.5px;">Wakil Ketua Panitia</div>
+                    <div class="fw-bold text-dark fs-12 text-truncate">
+                      {{ committeeStructure?.wakil_ketua_panitia?.[0]?.name || 'Belum Ditugaskan' }}
+                    </div>
+                    <div v-if="committeeStructure?.wakil_ketua_panitia?.[0]?.phone" class="fs-11">
+                      <a :href="getWaChatUrl(committeeStructure.wakil_ketua_panitia[0].phone, 'Halo Wakil Ketua Panitia Semarak Aliyah XIV: ')" target="_blank" class="text-success text-decoration-none">
+                        <i class="ri-whatsapp-line me-0.5"></i>{{ committeeStructure.wakil_ketua_panitia[0].phone }}
+                      </a>
+                    </div>
+                  </div>
+                  <span class="badge bg-primary-subtle text-primary fs-10">Wakil</span>
+                </div>
+              </div>
+
+              <!-- Sekretaris Panitia -->
+              <div class="col-md-4">
+                <div class="p-2.5 rounded border bg-light d-flex align-items-center gap-2.5 h-100">
+                  <div class="avatar-xs flex-shrink-0">
+                    <span class="avatar-title rounded-circle bg-info-subtle text-info fw-bold fs-13">
+                      <i class="ri-file-list-3-line"></i>
+                    </span>
+                  </div>
+                  <div class="flex-grow-1 overflow-hidden">
+                    <div class="text-muted fs-10 text-uppercase fw-semibold" style="letter-spacing: 0.5px;">Sekretaris Panitia</div>
+                    <div class="fw-bold text-dark fs-12 text-truncate">
+                      {{ committeeStructure?.sekretaris?.[0]?.name || 'Belum Ditugaskan' }}
+                    </div>
+                    <div v-if="committeeStructure?.sekretaris?.[0]?.phone" class="fs-11">
+                      <a :href="getWaChatUrl(committeeStructure.sekretaris[0].phone, 'Halo Sekretaris Panitia Semarak Aliyah XIV: ')" target="_blank" class="text-success text-decoration-none">
+                        <i class="ri-whatsapp-line me-0.5"></i>{{ committeeStructure.sekretaris[0].phone }}
+                      </a>
+                    </div>
+                  </div>
+                  <span class="badge bg-info-subtle text-info fs-10">Administrasi</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -880,16 +1204,16 @@ function confirmDelete() {
           <div class="card-body p-0">
             <div class="table-responsive">
               <table class="table table-hover align-middle table-nowrap mb-0">
-                <thead class="table-light text-dark">
-                  <tr class="text-uppercase fs-11" style="letter-spacing: 0.5px; color: #212529;">
-                    <th scope="col" style="width: 40px; font-weight: 600;" class="text-center py-2.5 text-dark">#</th>
-                    <th scope="col" style="font-weight: 600;" class="py-2.5 text-dark">Cabang Lomba</th>
-                    <th scope="col" style="font-weight: 600;" class="py-2.5 text-dark">Format Delegasi</th>
-                    <th scope="col" style="font-weight: 600;" class="py-2.5 text-dark">Batas Pendaftaran</th>
-                    <th scope="col" style="font-weight: 600;" class="py-2.5 text-dark">Biaya & Kuota</th>
-                    <th scope="col" style="font-weight: 600;" class="py-2.5 text-dark">Koordinator / PJ</th>
-                    <th scope="col" style="font-weight: 600;" class="text-center py-2.5 text-dark">Status Pendaftaran</th>
-                    <th scope="col" style="width: 130px; font-weight: 600;" class="text-center py-2.5 text-dark">Aksi</th>
+                <thead class="table-light">
+                  <tr class="text-uppercase fs-11" style="letter-spacing: 0.5px;">
+                    <th scope="col" style="width: 40px;" class="text-center py-2.5">#</th>
+                    <th scope="col" class="py-2.5">Cabang Lomba</th>
+                    <th scope="col" class="py-2.5">Format Delegasi</th>
+                    <th scope="col" class="py-2.5">Batas Pendaftaran</th>
+                    <th scope="col" class="py-2.5">Biaya & Kuota</th>
+                    <th scope="col" class="py-2.5">Koordinator / PJ</th>
+                    <th scope="col" class="text-center py-2.5">Status Pendaftaran</th>
+                    <th scope="col" style="width: 130px;" class="text-center py-2.5">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -924,6 +1248,13 @@ function confirmDelete() {
                         >
                           <i class="ri-survey-line fs-10"></i> {{ comp.custom_fields && comp.custom_fields.length > 0 ? `${comp.custom_fields.length} Field Khusus` : 'Form Standar' }}
                         </Link>
+                        <span 
+                          v-if="comp.registration_type === 'direct_contact'"
+                          class="badge bg-warning-subtle text-warning border border-warning-subtle fs-10 d-inline-flex align-items-center gap-1"
+                          :title="comp.direct_registration_note || 'Pendaftaran khusus kontak langsung ke koordinator'"
+                        >
+                          <i class="ri-whatsapp-line"></i> Kontak Langsung
+                        </span>
                       </div>
                     </td>
 
@@ -1011,25 +1342,54 @@ function confirmDelete() {
                         <div 
                           v-for="(cd, cIdx) in comp.coordinators.slice(0, 2)" 
                           :key="cIdx"
-                          class="mb-1 d-flex align-items-center gap-1"
+                          class="mb-1 d-flex align-items-center gap-1 flex-wrap"
                         >
-                          <span class="fw-semibold fs-11 text-dark truncate" style="max-width: 130px;">
-                            {{ cd.name }}
+                          <span 
+                            class="badge border fs-11 py-0.5 px-1.5 d-inline-flex align-items-center gap-1 truncate" 
+                            :class="cIdx === 0 ? 'bg-primary-subtle text-primary border-primary-subtle fw-semibold' : 'bg-light text-dark border-light-subtle'"
+                            style="max-width: 155px;"
+                            :title="cd.name + (cd.role ? ' (' + cd.role + ')' : '')"
+                          >
+                            <i :class="cIdx === 0 ? 'ri-user-star-line' : 'ri-user-line'"></i> {{ cd.name }}
+                          </span>
+                          <span v-if="cIdx === 0 && isUserCoordinating(comp)" class="badge bg-warning text-dark fs-9 fw-bold">
+                            ⭐ Lomba Anda
                           </span>
                           <a 
                             v-if="cd.contact" 
-                            :href="getWaChatUrl(cd.contact, `Halo ${cd.name}, saya ingin berkoordinasi seputar lomba ${comp.title}: `)" 
+                            :href="getWaChatUrl(cd.contact, `Halo ${cd.name}, koordinasi cabang ${comp.title}: `)" 
                             target="_blank" 
-                            class="badge bg-success-subtle text-success fs-9 text-decoration-none"
-                            title="Chat WhatsApp"
+                            class="badge bg-success-subtle text-success fs-9 text-decoration-none d-inline-flex align-items-center gap-0.5"
+                            title="Chat WhatsApp Koordinator"
                           >
                             <i class="ri-whatsapp-line"></i> {{ cd.contact }}
                           </a>
                         </div>
-                        <small v-if="comp.coordinators.length > 2" class="text-muted fs-10">
+                        <small v-if="comp.coordinators.length > 2" class="text-muted fs-10 d-block">
                           +{{ comp.coordinators.length - 2 }} koordinator lainnya
                         </small>
                       </div>
+
+                      <div v-else-if="comp.coordinator || getCoordinatorUser(comp.coordinator_id)">
+                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                          <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-11 py-0.5 px-1.5 d-inline-flex align-items-center gap-1">
+                            <i class="ri-user-star-line"></i> {{ comp.coordinator?.name || getCoordinatorUser(comp.coordinator_id)?.name }}
+                          </span>
+                          <span v-if="isUserCoordinating(comp)" class="badge bg-warning text-dark fs-9 fw-bold">
+                            ⭐ Lomba Anda
+                          </span>
+                        </div>
+                        <div v-if="comp.coordinator?.phone || getCoordinatorUser(comp.coordinator_id)?.phone" class="mt-0.5">
+                          <a 
+                            :href="getWaChatUrl(comp.coordinator?.phone || getCoordinatorUser(comp.coordinator_id)?.phone, `Halo ${comp.coordinator?.name || getCoordinatorUser(comp.coordinator_id)?.name}, koordinasi cabang ${comp.title}: `)"
+                            target="_blank"
+                            class="text-success text-decoration-none fs-11"
+                          >
+                            <i class="ri-whatsapp-line"></i> {{ comp.coordinator?.phone || getCoordinatorUser(comp.coordinator_id)?.phone }}
+                          </a>
+                        </div>
+                      </div>
+
                       <div v-else>
                         <span class="text-muted fs-11">{{ comp.contact_person || 'Panitia Semarak' }}</span>
                       </div>
@@ -1119,14 +1479,16 @@ function confirmDelete() {
                         <button 
                           type="button" 
                           class="btn btn-sm btn-outline-primary"
+                          :disabled="!canUserEditCompetition(comp)"
                           @click="openEditModal(comp)"
-                          title="Ubah Rincian Cabang Lomba"
+                          :title="canUserEditCompetition(comp) ? 'Ubah Rincian Cabang Lomba' : 'Anda hanya berwenang mengubah cabang lomba yang Anda koordinasi'"
                         >
                           <i class="ri-edit-line"></i>
                         </button>
 
-                        <!-- Delete Button -->
+                        <!-- Delete Button (Hanya untuk Pimpinan & Admin, bukan Koordinator) -->
                         <button 
+                          v-if="!isCoordinatorRole"
                           type="button" 
                           class="btn btn-sm btn-outline-danger"
                           @click="openDeleteModal(comp)"
@@ -1451,12 +1813,13 @@ function confirmDelete() {
                     </div>
                   </div>
 
-                  <!-- Section: Koordinator & Nomor Kontak (Bisa > 1 Orang) -->
+                  <!-- Section: Koordinator & Nomor Kontak (Tersinkron Database Akun Panitia) -->
                   <div class="col-12 mt-2">
                     <div class="p-3 bg-light rounded border">
                       <div class="d-flex align-items-center justify-content-between mb-2">
-                        <label class="form-label fs-12 fw-bold text-dark mb-0">
-                          <i class="ri-contacts-book-2-line text-primary me-1"></i> Nama Koordinator & Nomor Kontak (Bisa Lebih Dari 1 Orang)
+                        <label class="form-label fs-12 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5 flex-wrap">
+                          <i class="ri-contacts-book-2-line text-primary"></i> Nama Koordinator & Nomor Kontak (Bisa Lebih Dari 1 Orang)
+                          <span class="badge bg-primary-subtle text-primary fs-10">Tersinkron Otomatis Database</span>
                         </label>
                         <button 
                           type="button" 
@@ -1466,54 +1829,192 @@ function confirmDelete() {
                           <i class="ri-user-add-line"></i> + Tambah Koordinator
                         </button>
                       </div>
+                      <p class="text-muted fs-11 mb-2.5">
+                        Pilih akun koordinator dari database panitia. Nomor kontak WhatsApp akan terisi otomatis dan akun koordinator utama (baris #1) otomatis memperoleh hak akses penuh pengelolaan Technical Meeting serta undian cabang ini.
+                      </p>
 
                       <div 
                         v-for="(coord, cIdx) in createForm.coordinators" 
                         :key="cIdx"
-                        class="row g-2 align-items-center mb-2"
+                        class="p-2 mb-2 rounded border bg-white shadow-sm"
                       >
-                        <div class="col-md-5">
-                          <input 
-                            v-model="coord.name" 
-                            type="text" 
-                            class="form-control form-control-sm fs-12" 
-                            placeholder="Nama Koordinator (cth: Ust. Fajar)" 
-                            required
-                          />
-                        </div>
-                        <div class="col-md-4">
-                          <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white text-success"><i class="ri-whatsapp-line"></i></span>
+                        <div class="row g-2 align-items-center">
+                          <!-- Kolom 1: Akun / Nama Koordinator (Dropdown) -->
+                          <div class="col-md-5">
+                            <label class="form-label fs-11 fw-semibold text-dark mb-1 d-flex align-items-center justify-content-between">
+                              <span>Koordinator #{{ cIdx + 1 }} {{ cIdx === 0 ? '(PJ Utama)' : '' }}</span>
+                              <span v-if="cIdx === 0 && coord.user_id && coord.user_id !== 'custom'" class="badge bg-success-subtle text-success fs-9 py-0">
+                                Hak Akses TM Aktif
+                              </span>
+                            </label>
+                            <CustomSelect 
+                              v-model="coord.user_id" 
+                              :options="coordinatorDropdownOptions"
+                              placeholder="-- Pilih Koordinator dari Database --"
+                              searchable
+                              size="sm"
+                              @update:modelValue="onCoordinatorChange(createForm, cIdx, $event)"
+                            />
+                            <!-- Input manual jika opsi custom dipilih -->
                             <input 
-                              v-model="coord.contact" 
-                              type="tel"
-                              inputmode="numeric"
-                              pattern="[0-9]*"
-                              class="form-control fs-12" 
-                              placeholder="08123456789" 
-                              @input="coord.contact = coord.contact.replace(/\D/g, '')"
+                              v-if="coord.user_id === 'custom'" 
+                              v-model="coord.name" 
+                              type="text" 
+                              class="form-control form-control-sm fs-12 mt-1" 
+                              placeholder="Ketik Nama Koordinator..." 
                               required
                             />
                           </div>
+
+                          <!-- Kolom 2: Nomor Kontak WhatsApp (Otomatis dari DB) -->
+                          <div class="col-md-4">
+                            <label class="form-label fs-11 fw-semibold text-dark mb-1">
+                              Nomor WhatsApp
+                            </label>
+                            <div class="input-group input-group-sm">
+                              <span class="input-group-text bg-white text-success border-end-0">
+                                <i class="ri-whatsapp-line"></i>
+                              </span>
+                              <input 
+                                v-model="coord.contact" 
+                                type="tel"
+                                inputmode="numeric"
+                                pattern="[0-9]*"
+                                class="form-control fs-12" 
+                                :class="{ 'bg-light text-dark fw-medium': coord.user_id && coord.user_id !== 'custom' && coord.contact }"
+                                placeholder="08123456789" 
+                                :readonly="coord.user_id && coord.user_id !== 'custom' && Boolean(coord.contact)"
+                                @input="coord.contact = coord.contact.replace(/\D/g, '')"
+                                required
+                              />
+                            </div>
+                            <div v-if="coord.user_id && coord.user_id !== 'custom'" class="fs-10 mt-0.5">
+                              <span v-if="coord.contact" class="text-success d-inline-flex align-items-center gap-0.5">
+                                <i class="ri-check-line"></i> Otomatis dari akun panitia
+                              </span>
+                              <span v-else class="text-warning d-inline-flex align-items-center gap-0.5">
+                                <i class="ri-information-line"></i> Belum ada no WA di akun, silakan isi
+                              </span>
+                            </div>
+                          </div>
+
+                          <!-- Kolom 3: Jabatan / Peran -->
+                          <div class="col-md-2">
+                            <label class="form-label fs-11 fw-semibold text-dark mb-1">Peran / Jabatan</label>
+                            <input 
+                              v-model="coord.role" 
+                              type="text" 
+                              class="form-control form-control-sm fs-12" 
+                              placeholder="Koordinator Lomba" 
+                            />
+                          </div>
+
+                          <!-- Kolom 4: Tombol Hapus -->
+                          <div class="col-md-1 text-end pt-3">
+                            <button 
+                              type="button" 
+                              class="btn btn-xs btn-outline-danger"
+                              :disabled="createForm.coordinators.length <= 1"
+                              @click="removeCoordinator(createForm, cIdx)"
+                              title="Hapus Baris Koordinator"
+                            >
+                              <i class="ri-delete-bin-line"></i>
+                            </button>
+                          </div>
                         </div>
-                        <div class="col-md-2">
-                          <input 
-                            v-model="coord.role" 
-                            type="text" 
-                            class="form-control form-control-sm fs-12" 
-                            placeholder="Jabatan/PJ" 
-                          />
-                        </div>
-                        <div class="col-md-1 text-end">
-                          <button 
-                            type="button" 
-                            class="btn btn-xs btn-outline-danger"
-                            @click="removeCoordinator(createForm, cIdx)"
-                            title="Hapus Baris Kontak"
+                      </div>
+
+                      <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top fs-11 text-muted">
+                        <span>
+                          <i class="ri-shield-check-line text-success me-1"></i>
+                          <strong class="text-dark">PJ Utama Cabang:</strong> 
+                          <span v-if="createForm.coordinators[0]?.name" class="text-primary fw-semibold ms-1">
+                            {{ createForm.coordinators[0].name }}
+                          </span>
+                          <span v-else class="text-secondary ms-1">
+                            Pilih akun koordinator pada baris pertama (#1)
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Section: Metode Pendaftaran Delegasi (Online vs Kontak Langsung) -->
+                  <div class="col-12 mt-2">
+                    <div class="p-3 bg-light rounded border">
+                      <label class="form-label fs-12 fw-bold text-dark d-block mb-1">
+                        <i class="ri-route-line text-primary me-1"></i> Metode Pendaftaran Delegasi *
+                      </label>
+                      <p class="text-muted fs-11 mb-2.5">
+                        Tentukan alur pendaftaran untuk cabang lomba ini: apakah pendaftaran mandiri secara online melalui sistem web, atau pendaftaran khusus yang hanya dilayani via kontak langsung ke Koordinator Lomba.
+                      </p>
+
+                      <div class="row g-2 mb-2">
+                        <!-- Opsi 1: Pendaftaran Mandiri Online (Sistem Web) -->
+                        <div class="col-md-6">
+                          <div 
+                            class="p-3 rounded border cursor-pointer h-100 transition-all bg-white"
+                            :class="createForm.registration_type !== 'direct_contact' ? 'border-primary shadow-xs' : 'border-light'"
+                            @click="createForm.registration_type = 'online'"
                           >
-                            <i class="ri-delete-bin-line"></i>
-                          </button>
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                              <div class="d-flex align-items-center gap-2">
+                                <span class="avatar-xs rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center">
+                                  <i class="ri-global-line fs-14"></i>
+                                </span>
+                                <span class="fw-bold fs-13 text-dark">Portal Online (Sistem Web)</span>
+                              </div>
+                              <input 
+                                type="radio" 
+                                value="online" 
+                                v-model="createForm.registration_type" 
+                                class="form-check-input" 
+                              />
+                            </div>
+                            <p class="fs-11 text-muted mb-0">Peserta mengisi formulir dan berkas secara mandiri melalui website pendaftaran.</p>
+                          </div>
                         </div>
+
+                        <!-- Opsi 2: Hanya Kontak Langsung ke Koordinator Lomba -->
+                        <div class="col-md-6">
+                          <div 
+                            class="p-3 rounded border cursor-pointer h-100 transition-all bg-white"
+                            :class="createForm.registration_type === 'direct_contact' ? 'border-success shadow-xs' : 'border-light'"
+                            @click="createForm.registration_type = 'direct_contact'"
+                          >
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                              <div class="d-flex align-items-center gap-2">
+                                <span class="avatar-xs rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center">
+                                  <i class="ri-whatsapp-line fs-14"></i>
+                                </span>
+                                <span class="fw-bold fs-13 text-dark">Hanya Kontak Langsung</span>
+                              </div>
+                              <input 
+                                type="radio" 
+                                value="direct_contact" 
+                                v-model="createForm.registration_type" 
+                                class="form-check-input" 
+                              />
+                            </div>
+                            <p class="fs-11 text-muted mb-0">Peserta wajib menghubungi Koordinator Lomba. Tombol pendaftaran mengarahkan langsung ke WhatsApp Koordinator.</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Catatan Khusus Pendaftaran Langsung jika opsi direct_contact dipilih -->
+                      <div v-if="createForm.registration_type === 'direct_contact'" class="mt-2.5 p-2.5 rounded bg-success-subtle border border-success-subtle">
+                        <label class="form-label fs-11 fw-bold text-success mb-1 d-flex align-items-center gap-1">
+                          <i class="ri-information-line"></i> Petunjuk / Catatan Pendaftaran Kontak Langsung (Opsional)
+                        </label>
+                        <input 
+                          v-model="createForm.direct_registration_note"
+                          type="text"
+                          class="form-control form-control-sm fs-12 bg-white"
+                          placeholder="Cth: Pendaftaran cabang ini wajib konfirmasi langsung ke Koordinator via WhatsApp untuk alokasi pool tim."
+                        />
+                        <small class="text-muted fs-11 d-block mt-1">
+                          <i class="ri-checkbox-circle-line text-success me-0.5"></i> Pastikan nomor WhatsApp koordinator lomba sudah terisi pada baris koordinator di atas agar tautan chat otomatis berfungsi.
+                        </small>
                       </div>
                     </div>
                   </div>
@@ -1852,12 +2353,13 @@ function confirmDelete() {
                     </div>
                   </div>
 
-                  <!-- Section: Koordinator & Nomor Kontak (Bisa > 1 Orang) -->
+                  <!-- Section: Koordinator & Nomor Kontak (Tersinkron Database Akun Panitia) -->
                   <div class="col-12 mt-2">
                     <div class="p-3 bg-light rounded border">
                       <div class="d-flex align-items-center justify-content-between mb-2">
-                        <label class="form-label fs-12 fw-bold text-dark mb-0">
-                          <i class="ri-contacts-book-2-line text-primary me-1"></i> Nama Koordinator & Nomor Kontak (Bisa Lebih Dari 1 Orang)
+                        <label class="form-label fs-12 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5 flex-wrap">
+                          <i class="ri-contacts-book-2-line text-primary"></i> Nama Koordinator & Nomor Kontak (Bisa Lebih Dari 1 Orang)
+                          <span class="badge bg-primary-subtle text-primary fs-10">Tersinkron Otomatis Database</span>
                         </label>
                         <button 
                           type="button" 
@@ -1867,54 +2369,192 @@ function confirmDelete() {
                           <i class="ri-user-add-line"></i> + Tambah Koordinator
                         </button>
                       </div>
+                      <p class="text-muted fs-11 mb-2.5">
+                        Pilih akun koordinator dari database panitia. Nomor kontak WhatsApp akan terisi otomatis dan akun koordinator utama (baris #1) otomatis memperoleh hak akses penuh pengelolaan Technical Meeting serta undian cabang ini.
+                      </p>
 
                       <div 
                         v-for="(coord, cIdx) in editForm.coordinators" 
                         :key="cIdx"
-                        class="row g-2 align-items-center mb-2"
+                        class="p-2 mb-2 rounded border bg-white shadow-sm"
                       >
-                        <div class="col-md-5">
-                          <input 
-                            v-model="coord.name" 
-                            type="text" 
-                            class="form-control form-control-sm fs-12" 
-                            placeholder="Nama Koordinator (cth: Ust. Fajar)" 
-                            required
-                          />
-                        </div>
-                        <div class="col-md-4">
-                          <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white text-success"><i class="ri-whatsapp-line"></i></span>
+                        <div class="row g-2 align-items-center">
+                          <!-- Kolom 1: Akun / Nama Koordinator (Dropdown) -->
+                          <div class="col-md-5">
+                            <label class="form-label fs-11 fw-semibold text-dark mb-1 d-flex align-items-center justify-content-between">
+                              <span>Koordinator #{{ cIdx + 1 }} {{ cIdx === 0 ? '(PJ Utama)' : '' }}</span>
+                              <span v-if="cIdx === 0 && coord.user_id && coord.user_id !== 'custom'" class="badge bg-success-subtle text-success fs-9 py-0">
+                                Hak Akses TM Aktif
+                              </span>
+                            </label>
+                            <CustomSelect 
+                              v-model="coord.user_id" 
+                              :options="coordinatorDropdownOptions"
+                              placeholder="-- Pilih Koordinator dari Database --"
+                              searchable
+                              size="sm"
+                              @update:modelValue="onCoordinatorChange(editForm, cIdx, $event)"
+                            />
+                            <!-- Input manual jika opsi custom dipilih -->
                             <input 
-                              v-model="coord.contact" 
-                              type="tel"
-                              inputmode="numeric"
-                              pattern="[0-9]*"
-                              class="form-control fs-12" 
-                              placeholder="08123456789" 
-                              @input="coord.contact = coord.contact.replace(/\D/g, '')"
+                              v-if="coord.user_id === 'custom'" 
+                              v-model="coord.name" 
+                              type="text" 
+                              class="form-control form-control-sm fs-12 mt-1" 
+                              placeholder="Ketik Nama Koordinator..." 
                               required
                             />
                           </div>
+
+                          <!-- Kolom 2: Nomor Kontak WhatsApp (Otomatis dari DB) -->
+                          <div class="col-md-4">
+                            <label class="form-label fs-11 fw-semibold text-dark mb-1">
+                              Nomor WhatsApp
+                            </label>
+                            <div class="input-group input-group-sm">
+                              <span class="input-group-text bg-white text-success border-end-0">
+                                <i class="ri-whatsapp-line"></i>
+                              </span>
+                              <input 
+                                v-model="coord.contact" 
+                                type="tel"
+                                inputmode="numeric"
+                                pattern="[0-9]*"
+                                class="form-control fs-12" 
+                                :class="{ 'bg-light text-dark fw-medium': coord.user_id && coord.user_id !== 'custom' && coord.contact }"
+                                placeholder="08123456789" 
+                                :readonly="coord.user_id && coord.user_id !== 'custom' && Boolean(coord.contact)"
+                                @input="coord.contact = coord.contact.replace(/\D/g, '')"
+                                required
+                              />
+                            </div>
+                            <div v-if="coord.user_id && coord.user_id !== 'custom'" class="fs-10 mt-0.5">
+                              <span v-if="coord.contact" class="text-success d-inline-flex align-items-center gap-0.5">
+                                <i class="ri-check-line"></i> Otomatis dari akun panitia
+                              </span>
+                              <span v-else class="text-warning d-inline-flex align-items-center gap-0.5">
+                                <i class="ri-information-line"></i> Belum ada no WA di akun, silakan isi
+                              </span>
+                            </div>
+                          </div>
+
+                          <!-- Kolom 3: Jabatan / Peran -->
+                          <div class="col-md-2">
+                            <label class="form-label fs-11 fw-semibold text-dark mb-1">Peran / Jabatan</label>
+                            <input 
+                              v-model="coord.role" 
+                              type="text" 
+                              class="form-control form-control-sm fs-12" 
+                              placeholder="Koordinator Lomba" 
+                            />
+                          </div>
+
+                          <!-- Kolom 4: Tombol Hapus -->
+                          <div class="col-md-1 text-end pt-3">
+                            <button 
+                              type="button" 
+                              class="btn btn-xs btn-outline-danger"
+                              :disabled="editForm.coordinators.length <= 1"
+                              @click="removeCoordinator(editForm, cIdx)"
+                              title="Hapus Baris Koordinator"
+                            >
+                              <i class="ri-delete-bin-line"></i>
+                            </button>
+                          </div>
                         </div>
-                        <div class="col-md-2">
-                          <input 
-                            v-model="coord.role" 
-                            type="text" 
-                            class="form-control form-control-sm fs-12" 
-                            placeholder="Jabatan/PJ" 
-                          />
-                        </div>
-                        <div class="col-md-1 text-end">
-                          <button 
-                            type="button" 
-                            class="btn btn-xs btn-outline-danger"
-                            @click="removeCoordinator(editForm, cIdx)"
-                            title="Hapus Baris Kontak"
+                      </div>
+
+                      <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top fs-11 text-muted">
+                        <span>
+                          <i class="ri-shield-check-line text-success me-1"></i>
+                          <strong class="text-dark">PJ Utama Cabang:</strong> 
+                          <span v-if="editForm.coordinators[0]?.name" class="text-primary fw-semibold ms-1">
+                            {{ editForm.coordinators[0].name }}
+                          </span>
+                          <span v-else class="text-secondary ms-1">
+                            Pilih akun koordinator pada baris pertama (#1)
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Section: Metode Pendaftaran Delegasi (Online vs Kontak Langsung) -->
+                  <div class="col-12 mt-2">
+                    <div class="p-3 bg-light rounded border">
+                      <label class="form-label fs-12 fw-bold text-dark d-block mb-1">
+                        <i class="ri-route-line text-primary me-1"></i> Metode Pendaftaran Delegasi *
+                      </label>
+                      <p class="text-muted fs-11 mb-2.5">
+                        Tentukan alur pendaftaran untuk cabang lomba ini: apakah pendaftaran mandiri secara online melalui sistem web, atau pendaftaran khusus yang hanya dilayani via kontak langsung ke Koordinator Lomba.
+                      </p>
+
+                      <div class="row g-2 mb-2">
+                        <!-- Opsi 1: Pendaftaran Mandiri Online (Sistem Web) -->
+                        <div class="col-md-6">
+                          <div 
+                            class="p-3 rounded border cursor-pointer h-100 transition-all bg-white"
+                            :class="editForm.registration_type !== 'direct_contact' ? 'border-primary shadow-xs' : 'border-light'"
+                            @click="editForm.registration_type = 'online'"
                           >
-                            <i class="ri-delete-bin-line"></i>
-                          </button>
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                              <div class="d-flex align-items-center gap-2">
+                                <span class="avatar-xs rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center">
+                                  <i class="ri-global-line fs-14"></i>
+                                </span>
+                                <span class="fw-bold fs-13 text-dark">Portal Online (Sistem Web)</span>
+                              </div>
+                              <input 
+                                type="radio" 
+                                value="online" 
+                                v-model="editForm.registration_type" 
+                                class="form-check-input" 
+                              />
+                            </div>
+                            <p class="fs-11 text-muted mb-0">Peserta mengisi formulir dan berkas secara mandiri melalui website pendaftaran.</p>
+                          </div>
                         </div>
+
+                        <!-- Opsi 2: Hanya Kontak Langsung ke Koordinator Lomba -->
+                        <div class="col-md-6">
+                          <div 
+                            class="p-3 rounded border cursor-pointer h-100 transition-all bg-white"
+                            :class="editForm.registration_type === 'direct_contact' ? 'border-success shadow-xs' : 'border-light'"
+                            @click="editForm.registration_type = 'direct_contact'"
+                          >
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                              <div class="d-flex align-items-center gap-2">
+                                <span class="avatar-xs rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center">
+                                  <i class="ri-whatsapp-line fs-14"></i>
+                                </span>
+                                <span class="fw-bold fs-13 text-dark">Hanya Kontak Langsung</span>
+                              </div>
+                              <input 
+                                type="radio" 
+                                value="direct_contact" 
+                                v-model="editForm.registration_type" 
+                                class="form-check-input" 
+                              />
+                            </div>
+                            <p class="fs-11 text-muted mb-0">Peserta wajib menghubungi Koordinator Lomba. Tombol pendaftaran mengarahkan langsung ke WhatsApp Koordinator.</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Catatan Khusus Pendaftaran Langsung jika opsi direct_contact dipilih -->
+                      <div v-if="editForm.registration_type === 'direct_contact'" class="mt-2.5 p-2.5 rounded bg-success-subtle border border-success-subtle">
+                        <label class="form-label fs-11 fw-bold text-success mb-1 d-flex align-items-center gap-1">
+                          <i class="ri-information-line"></i> Petunjuk / Catatan Pendaftaran Kontak Langsung (Opsional)
+                        </label>
+                        <input 
+                          v-model="editForm.direct_registration_note"
+                          type="text"
+                          class="form-control form-control-sm fs-12 bg-white"
+                          placeholder="Cth: Pendaftaran cabang ini wajib konfirmasi langsung ke Koordinator via WhatsApp untuk alokasi pool tim."
+                        />
+                        <small class="text-muted fs-11 d-block mt-1">
+                          <i class="ri-checkbox-circle-line text-success me-0.5"></i> Pastikan nomor WhatsApp koordinator lomba sudah terisi pada baris koordinator di atas agar tautan chat otomatis berfungsi.
+                        </small>
                       </div>
                     </div>
                   </div>
@@ -2102,13 +2742,13 @@ function confirmDelete() {
               </h6>
               <div class="table-responsive border rounded bg-white">
                 <table class="table table-hover align-middle table-nowrap mb-0">
-                  <thead class="table-light text-dark">
+                  <thead class="table-light">
                     <tr class="text-uppercase fs-11" style="letter-spacing: 0.5px;">
-                      <th style="font-weight: 600;" class="py-2 ps-3">Kode Slug</th>
-                      <th style="font-weight: 600;" class="py-2">Nama Kategori</th>
-                      <th style="font-weight: 600;" class="py-2">Badge Tampilan</th>
-                      <th style="font-weight: 600;" class="text-center py-2">Jumlah Lomba</th>
-                      <th class="text-center py-2 pe-3" style="font-weight: 600; width: 100px;">Aksi</th>
+                      <th class="py-2 ps-3">Kode Slug</th>
+                      <th class="py-2">Nama Kategori</th>
+                      <th class="py-2">Badge Tampilan</th>
+                      <th class="text-center py-2">Jumlah Lomba</th>
+                      <th class="text-center py-2 pe-3" style="width: 100px;">Aksi</th>
                     </tr>
                   </thead>
                   <tbody>

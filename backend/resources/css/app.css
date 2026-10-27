@@ -1,5 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+/* Local Offline Fonts from @fontsource */
+@import '@fontsource/poppins/300.css';
+@import '@fontsource/poppins/400.css';
+@import '@fontsource/poppins/500.css';
+@import '@fontsource/poppins/600.css';
+@import '@fontsource/poppins/700.css';
+@import '@fontsource/poppins/800.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/plus-jakarta-sans/400.css';
+@import '@fontsource/plus-jakarta-sans/500.css';
+@import '@fontsource/plus-jakarta-sans/600.css';
+@import '@fontsource/plus-jakarta-sans/700.css';
+@import '@fontsource/outfit/400.css';
+@import '@fontsource/outfit/500.css';
+@import '@fontsource/outfit/600.css';
+@import '@fontsource/outfit/700.css';
+@import '@fontsource/orbitron/400.css';
+@import '@fontsource/orbitron/600.css';
+@import '@fontsource/orbitron/700.css';
+@import '@fontsource/cinzel/400.css';
+@import '@fontsource/cinzel/700.css';
+@import '@fontsource/playfair-display/400.css';
+@import '@fontsource/playfair-display/700.css';
+@import '@fontsource/syne/700.css';
+@import '@fontsource/syne/800.css';
+@import '@fontsource/oswald/600.css';
+@import '@fontsource/oswald/700.css';
+@import '@fontsource/montserrat/700.css';
+@import '@fontsource/montserrat/800.css';
+@import '@fontsource/libre-barcode-39/400.css';
 @import "tailwindcss";
 
 /* ==========================================================================
@@ -114,6 +145,9 @@
 }
 
 [data-bs-theme="dark"] {
+    color-scheme: dark;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     --vz-body-bg: #0b0f19;
     --vz-card-bg: #111827;
     --vz-card-cap-bg: #162032;
@@ -135,19 +169,19 @@
 /* High-Contrast Readability Overrides for Dark Mode & Dark Sidebar */
 [data-bs-theme="dark"] .text-dark,
 .navbar-menu .text-dark,
-[data-sidebar="dark"] .text-dark {
+#app-sidebar .text-dark {
     color: #f8fafc !important;
 }
 
 [data-bs-theme="dark"] .text-muted,
 .navbar-menu .text-muted,
-[data-sidebar="dark"] .text-muted {
+#app-sidebar .text-muted {
     color: #cbd5e1 !important;
 }
 
 [data-bs-theme="dark"] .text-secondary,
 .navbar-menu .text-secondary,
-[data-sidebar="dark"] .text-secondary {
+#app-sidebar .text-secondary {
     color: #cbd5e1 !important;
 }
 
@@ -174,7 +208,6 @@
 [data-bs-theme="dark"] label,
 [data-bs-theme="dark"] .form-label {
     color: #f1f5f9 !important;
-    font-weight: 600;
 }
 
 [data-bs-theme="dark"] p {
@@ -202,7 +235,7 @@
 [data-bs-theme="dark"] #page-topbar {
     background-color: #111827 !important;
     background: #111827 !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
     color: #f8fafc !important;
 }
 
@@ -211,24 +244,78 @@
 [data-bs-theme="dark"] .app-menu {
     background-color: #111827 !important;
     background: #111827 !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-right-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 [data-bs-theme="dark"] .navbar-brand-box {
     background-color: #0f172a !important;
     background: #0f172a !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 [data-bs-theme="dark"] .card {
     background-color: #111827 !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
     color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] .card.border-0 {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Direct vibrant accent border colors for dark mode (no var fallback failure) */
+[data-bs-theme="dark"] .border-warning,
+[data-bs-theme="dark"] .border-start.border-warning,
+[data-bs-theme="dark"] .card.border-warning,
+[data-bs-theme="dark"] .card.border-start.border-warning {
+    border-color: #f59e0b !important;
+}
+
+[data-bs-theme="dark"] .border-info,
+[data-bs-theme="dark"] .border-start.border-info,
+[data-bs-theme="dark"] .card.border-info,
+[data-bs-theme="dark"] .card.border-start.border-info {
+    border-color: #0ea5e9 !important;
+}
+
+[data-bs-theme="dark"] .border-success,
+[data-bs-theme="dark"] .border-start.border-success,
+[data-bs-theme="dark"] .card.border-success,
+[data-bs-theme="dark"] .card.border-start.border-success {
+    border-color: #10b981 !important;
+}
+
+[data-bs-theme="dark"] .border-primary,
+[data-bs-theme="dark"] .border-start.border-primary,
+[data-bs-theme="dark"] .card.border-primary,
+[data-bs-theme="dark"] .card.border-start.border-primary {
+    border-color: #3b82f6 !important;
+}
+
+[data-bs-theme="dark"] .border-danger,
+[data-bs-theme="dark"] .border-start.border-danger,
+[data-bs-theme="dark"] .card.border-danger,
+[data-bs-theme="dark"] .card.border-start.border-danger {
+    border-color: #ef4444 !important;
+}
+
+/* Highlighted subtle cards in Dark Mode (e.g. Estimasi Kas Registrasi) */
+[data-bs-theme="dark"] .card.bg-primary-subtle {
+    background-color: rgba(59, 130, 246, 0.14) !important;
+    border-color: rgba(59, 130, 246, 0.4) !important;
+    color: #93c5fd !important;
+}
+[data-bs-theme="dark"] .card.bg-primary-subtle .text-primary {
+    color: #93c5fd !important;
 }
 
 [data-bs-theme="dark"] .card-body {
     background-color: #111827 !important;
     color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] .card.bg-primary-subtle .card-body {
+    background-color: transparent !important;
 }
 
 [data-bs-theme="dark"] .bg-white:not(img):not(.avatar-xs):not(.avatar-sm):not(.rounded-circle):not(.keep-white) {
@@ -253,26 +340,39 @@
 [data-bs-theme="dark"] .card-header.bg-white,
 [data-bs-theme="dark"] .card-header.bg-light {
     background-color: #162032 !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.12) !important;
     color: #ffffff !important;
+}
+
+/* When card-header has bg-transparent, respect transparency so card stays seamless and elegant like in light mode */
+[data-bs-theme="dark"] .card-header.bg-transparent {
+    background-color: transparent !important;
+}
+
+[data-bs-theme="dark"] .card-header.border-0 {
+    border: 0 !important;
 }
 
 [data-bs-theme="dark"] .card-footer,
 [data-bs-theme="dark"] .card-footer.bg-white,
 [data-bs-theme="dark"] .card-footer.bg-light {
     background-color: #162032 !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-top-color: rgba(255, 255, 255, 0.12) !important;
     color: #cbd5e1 !important;
 }
 
+[data-bs-theme="dark"] .card-footer.border-0 {
+    border: 0 !important;
+}
+
 [data-bs-theme="dark"] .page-title-box {
-    background-color: #111827 !important;
-    border-color: rgba(255, 255, 255, 0.12) !important;
+    background-color: transparent !important;
+    border-color: transparent !important;
 }
 
 [data-bs-theme="dark"] .footer {
     background-color: #111827 !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-top-color: rgba(255, 255, 255, 0.1) !important;
     color: #94a3b8 !important;
 }
 
@@ -317,29 +417,29 @@
 /* Modals in Dark Mode */
 [data-bs-theme="dark"] .modal-content {
     background-color: #111827 !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
     color: #f1f5f9 !important;
 }
 
 [data-bs-theme="dark"] .modal-header {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 [data-bs-theme="dark"] .modal-header.bg-light,
 [data-bs-theme="dark"] .modal-header.bg-white {
     background-color: #162032 !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.12) !important;
     color: #ffffff !important;
 }
 
 [data-bs-theme="dark"] .modal-footer {
-    border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-top-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 [data-bs-theme="dark"] .modal-footer.bg-light,
 [data-bs-theme="dark"] .modal-footer.bg-white {
     background-color: #162032 !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-top-color: rgba(255, 255, 255, 0.12) !important;
     color: #cbd5e1 !important;
 }
 
@@ -451,13 +551,12 @@
 [data-bs-theme="dark"] .table-light th {
     background-color: #162032 !important;
     color: #f1f5f9 !important;
-    font-weight: 700;
-    border-bottom: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.18) !important;
 }
 
 [data-bs-theme="dark"] .table td {
     color: #f8fafc !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 [data-bs-theme="dark"] .table tr:hover td {
@@ -466,7 +565,7 @@
 
 [data-bs-theme="dark"] .dropdown-menu {
     background-color: #162032 !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.15) !important;
     color: #f1f5f9 !important;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
 }
@@ -1774,6 +1873,35 @@ html:not([data-bs-theme="dark"]) .text-warning-emphasis * {
 [data-bs-theme="dark"] .badge.text-warning,
 [data-bs-theme="dark"] .badge.text-amber-300 {
     color: #fde047 !important;
+}
+
+/* Elegant Participant Counter Pill inside Competition Chips */
+.comp-participant-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    color: inherit;
+    background-color: rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    margin-left: 2px;
+}
+
+[data-bs-theme="dark"] .comp-participant-count {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: inherit;
+}
+
+/* Secondary subtle badges stay visible on dark cards */
+[data-bs-theme="dark"] .bg-secondary-subtle {
+    background-color: rgba(148, 163, 184, 0.18) !important;
 }
 
 /* ==========================================================================

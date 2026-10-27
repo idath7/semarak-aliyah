@@ -73,6 +73,20 @@ class GateCheckinController extends Controller
             broadcast(new GateCheckinLogged($reg, 'checkin'));
         } catch (\Throwable $e) {}
 
+        // Catat Log Aktivitas Panitia Gate Check-in
+        $authUser = auth()->user();
+        \App\Models\ActivityLog::record(
+            'checkin',
+            'Gate Check-in Kontingen',
+            "Kontingen {$reg->school_name} ({$reg->competition_title}) scan masuk gate arena.",
+            [
+                'user' => $authUser,
+                'highlight' => $reg->school_name,
+                'activity_type' => 'checkin',
+                'properties' => ['reg_code' => $reg->reg_code, 'barcode' => $reg->barcode],
+            ]
+        );
+
         $msg = $isAlreadyCheckedIn 
             ? "Peserta {$reg->mentor_name} ({$reg->school_name}) telah check-in sebelumnya pada {$reg->checkin_at->format('H:i:s')} WIB."
             : "Check-in BERHASIL! {$reg->school_name} terdaftar hadir di gerbang.";

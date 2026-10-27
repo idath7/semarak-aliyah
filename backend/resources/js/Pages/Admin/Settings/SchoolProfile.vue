@@ -166,6 +166,15 @@ function submitForm() {
                     <span>API Sipresensi</span>
                   </Link>
                 </li>
+                <li class="nav-item">
+                  <Link
+                    href="/admin/pengaturan/kop-invoice"
+                    class="nav-link px-3 py-2 d-flex align-items-center gap-2 rounded-pill text-muted fw-semibold fs-13 hover:text-white"
+                  >
+                    <i class="ri-file-paper-2-line text-info"></i>
+                    <span>KOP &amp; Stempel Invoice</span>
+                  </Link>
+                </li>
               </ul>
 
               <div class="d-flex align-items-center gap-2">

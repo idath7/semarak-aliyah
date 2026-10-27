@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import CustomSelect from '@/Components/CustomSelect.vue';
 import { useToast } from '@/Composables/useToast';
 import { useTheme } from '@/Composables/useTheme';
+import AvatarCropperModal from '@/Components/AvatarCropperModal.vue';
 
 const props = defineProps({
   user: { type: Object, required: true },
@@ -18,7 +19,11 @@ const props = defineProps({
 });
 
 const toast = useToast();
-const { isDark, toggleTheme } = useTheme();
+const { isDark, toggleTheme, initTheme } = useTheme();
+
+onMounted(() => {
+  initTheme();
+});
 
 const packageDetails = computed(() => {
   const p = props.allInPricing || {};
@@ -285,6 +290,48 @@ function submitProfileUpdate() {
   });
 }
 
+// Avatar Cropper Modal State
+const isPendaftarAvatarModalOpen = ref(false);
+const isSavingPendaftarAvatar = ref(false);
+
+function openPendaftarAvatarCropper() {
+  isPendaftarAvatarModalOpen.value = true;
+}
+
+function handleSavePendaftarAvatar(payload) {
+  isSavingPendaftarAvatar.value = true;
+  router.post('/pendaftar/profile/avatar', {
+    avatar_data: payload.dataUrl,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSavingPendaftarAvatar.value = false;
+      isPendaftarAvatarModalOpen.value = false;
+      toast.success('Foto profil Anda berhasil disesuaikan dan diperbarui!');
+    },
+    onError: (errs) => {
+      isSavingPendaftarAvatar.value = false;
+      toast.error(Object.values(errs)[0] || 'Gagal memperbarui foto profil.');
+    }
+  });
+}
+
+function handleDeletePendaftarAvatar() {
+  isSavingPendaftarAvatar.value = true;
+  router.delete('/pendaftar/profile/avatar', {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSavingPendaftarAvatar.value = false;
+      isPendaftarAvatarModalOpen.value = false;
+      toast.success('Foto profil berhasil dihapus.');
+    },
+    onError: (errs) => {
+      isSavingPendaftarAvatar.value = false;
+      toast.error(Object.values(errs)[0] || 'Gagal menghapus foto profil.');
+    }
+  });
+}
+
 // ========================================================
 // Modal 5: Penentuan Skema Pendaftaran / Paket
 // ========================================================
@@ -432,7 +479,7 @@ function submitPackageProof() {
 <template>
   <Head title="Dashboard Pendaftar - SEMARAK ALIYAH XIV 2026" />
 
-  <div class="registrant-dashboard-container min-h-screen">
+  <div class="registrant-dashboard-container min-h-screen" :class="{ 'dark-theme': isDark }">
     
     <!-- Top Header Navigation -->
     <header class="registrant-topbar sticky-top shadow-sm">
@@ -484,7 +531,18 @@ function submitPackageProof() {
               @click="openProfileModal"
               title="Pengaturan Profil Akun"
             >
-              <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold fs-11" style="width: 22px; height: 22px;">
+              <img 
+                v-if="user.avatar" 
+                :src="user.avatar" 
+                :alt="user.name" 
+                class="rounded-circle object-fit-cover shadow-xs border" 
+                style="width: 24px; height: 24px;"
+              />
+              <div 
+                v-else 
+                class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold fs-11" 
+                style="width: 24px; height: 24px;"
+              >
                 {{ user.name ? user.name.charAt(0).toUpperCase() : 'P' }}
               </div>
               <span class="fs-12 fw-bold d-none d-md-inline text-truncate" style="max-width: 140px;">
@@ -1076,6 +1134,17 @@ function submitPackageProof() {
                         <span class="d-none d-xl-inline">{{ reg.assigned_name ? 'PIC' : 'Tunjuk PIC' }}</span>
                       </button>
 
+                      <!-- Cetak Nota / Kwitansi Resmi Button -->
+                      <a
+                        :href="'/pendaftar/invoice/' + reg.id"
+                        target="_blank"
+                        class="btn btn-sm rounded-3 px-2 py-1 fs-12 fw-bold d-inline-flex align-items-center gap-1 table-action-invoice-btn text-decoration-none"
+                        title="Cetak Nota Invoice / Kwitansi Pembayaran Resmi (A4)"
+                      >
+                        <i class="ri-file-paper-2-line"></i>
+                        <span class="d-none d-xl-inline">Nota</span>
+                      </a>
+
                       <!-- Cetak Bukti Resmi Button -->
                       <button
                         type="button"
@@ -1560,6 +1629,16 @@ function submitPackageProof() {
               <span>Perbarui Berkas</span>
             </button>
 
+            <a
+              :href="'/pendaftar/invoice/' + detailReg.id"
+              target="_blank"
+              class="btn btn-outline-info btn-sm px-3 py-2 fs-12 fw-bold d-flex align-items-center gap-1.5 text-decoration-none"
+              title="Cetak Nota Invoice / Kwitansi Pembayaran Resmi (A4)"
+            >
+              <i class="ri-file-paper-2-line"></i>
+              <span>Cetak Nota / Kwitansi</span>
+            </a>
+
             <button
               type="button"
               class="btn btn-primary btn-sm px-3 py-2 fs-12 fw-bold shadow-sm d-flex align-items-center gap-1.5"
@@ -1602,6 +1681,17 @@ function submitPackageProof() {
               <i :class="printPreviewTheme === 'dark' ? 'ri-sun-fill text-warning' : 'ri-moon-clear-fill text-primary'"></i>
               <span>{{ printPreviewTheme === 'dark' ? 'Mode Kertas Putih' : 'Mode Layar Gelap' }}</span>
             </button>
+
+            <!-- Link Cetak Invoice / Kwitansi Resmi -->
+            <a
+              :href="'/pendaftar/invoice/' + printReg.id"
+              target="_blank"
+              class="btn btn-outline-info btn-sm px-2.5 py-1 rounded-pill fs-11.5 fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm text-decoration-none"
+              title="Cetak Nota Invoice / Kwitansi Pembayaran Resmi (A4)"
+            >
+              <i class="ri-file-paper-2-line"></i>
+              <span>Nota / Kwitansi</span>
+            </a>
 
             <!-- Quick Print Button -->
             <button
@@ -1885,6 +1975,49 @@ function submitPackageProof() {
         <div class="p-3 px-md-4 modal-body-box">
           <form @submit.prevent="submitProfileUpdate" class="d-flex flex-column gap-3">
             
+            <!-- Avatar Profil Foto Pendaftar -->
+            <div class="p-3 rounded-3 d-flex align-items-center gap-3" :style="{ backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f8fafc', border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0' }">
+              <div class="position-relative flex-shrink-0">
+                <img 
+                  v-if="user.avatar" 
+                  :src="user.avatar" 
+                  alt="Avatar" 
+                  class="rounded-circle object-fit-cover shadow-sm border" 
+                  style="width: 58px; height: 58px;"
+                />
+                <div 
+                  v-else 
+                  class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold fs-18 shadow-sm" 
+                  style="width: 58px; height: 58px;"
+                >
+                  {{ user.name ? user.name.charAt(0).toUpperCase() : 'P' }}
+                </div>
+              </div>
+              <div class="flex-grow-1">
+                <div class="fw-bold fs-13 mb-0.5" :style="{ color: isDark ? '#f8fafc' : '#0f172a' }">Foto Profil Akun</div>
+                <p class="fs-11 text-muted mb-2">Sesuaikan perbesaran & geser posisi foto Anda secara mandiri.</p>
+                <div class="d-flex flex-wrap gap-1.5">
+                  <button 
+                    type="button" 
+                    class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 py-1 px-2.5 fs-12"
+                    @click="openPendaftarAvatarCropper"
+                  >
+                    <i class="ri-crop-2-line"></i>
+                    <span>{{ user.avatar ? 'Sesuaikan / Ganti' : 'Unggah & Sesuaikan' }}</span>
+                  </button>
+                  <button 
+                    v-if="user.avatar" 
+                    type="button" 
+                    class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 py-1 px-2.5 fs-12"
+                    @click="handleDeletePendaftarAvatar"
+                  >
+                    <i class="ri-delete-bin-line"></i>
+                    <span>Hapus</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div>
               <label class="form-label fs-13 fw-bold modal-label-text mb-1">Nama Lengkap</label>
               <input v-model="profileForm.name" type="text" class="form-control modal-input fs-13 py-2" required />
@@ -2367,10 +2500,22 @@ function submitPackageProof() {
       </div>
     </div>
 
+    <!-- Modal Sesuaikan Foto Profil Pendaftar -->
+    <AvatarCropperModal
+      :show="isPendaftarAvatarModalOpen"
+      title="Sesuaikan & Potong Foto Profil Akun"
+      :current-avatar="user.avatar"
+      :user-name="user.name"
+      :is-processing="isSavingPendaftarAvatar"
+      @close="isPendaftarAvatarModalOpen = false"
+      @save="handleSavePendaftarAvatar"
+      @delete="handleDeletePendaftarAvatar"
+    />
+
   </div>
 </template>
 
-<style scoped>
+<style>
 /* Container (Rule 2: High Contrast Light & Dark) */
 .registrant-dashboard-container {
   background-color: #f8fafc;
@@ -2378,9 +2523,10 @@ function submitPackageProof() {
   color: #0f172a;
   transition: background-color 0.25s ease, color 0.25s ease;
 }
-[data-bs-theme="dark"] .registrant-dashboard-container {
-  background-color: #0b0f19;
-  color: #f8fafc;
+[data-bs-theme="dark"] .registrant-dashboard-container,
+.registrant-dashboard-container.dark-theme {
+  background-color: #0b0f19 !important;
+  color: #f8fafc !important;
 }
 
 /* Topbar */
@@ -2389,9 +2535,10 @@ function submitPackageProof() {
   border-bottom: 1.5px solid #e2e8f0;
   z-index: 1020;
 }
-[data-bs-theme="dark"] .registrant-topbar {
-  background: rgba(15, 23, 42, 0.96);
-  border-bottom: 1.5px solid rgba(255, 255, 255, 0.12);
+[data-bs-theme="dark"] .registrant-topbar,
+.dark-theme .registrant-topbar {
+  background: rgba(15, 23, 42, 0.96) !important;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.12) !important;
   backdrop-filter: blur(12px);
 }
 .topbar-brand {
@@ -2472,15 +2619,21 @@ function submitPackageProof() {
 }
 
 /* Hero Welcome Banner */
-.welcome-hero-card {
+.welcome-hero-card,
+.welcome-hero-card > .card-body {
   background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
   box-shadow: 0 4px 20px rgba(30, 58, 138, 0.25) !important;
+  color: #ffffff !important;
 }
-[data-bs-theme="dark"] .welcome-hero-card {
+[data-bs-theme="dark"] .welcome-hero-card,
+[data-bs-theme="dark"] .welcome-hero-card > .card-body,
+.dark-theme .welcome-hero-card,
+.dark-theme .welcome-hero-card > .card-body {
   background: linear-gradient(135deg, #1e1b4b 0%, #1e293b 50%, #0f172a 100%) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+  color: #ffffff !important;
 }
 .hero-subtitle {
   color: #f1f5f9;
@@ -2522,7 +2675,8 @@ function submitPackageProof() {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
 }
-[data-bs-theme="dark"] .stat-mini-card {
+[data-bs-theme="dark"] .stat-mini-card,
+.dark-theme .stat-mini-card {
   background: #111827 !important;
   border: 1.5px solid #1f2937 !important;
   box-shadow: none;
@@ -2610,18 +2764,20 @@ function submitPackageProof() {
   background: #ffffff;
   border: 1.5px solid #e2e8f0;
 }
-[data-bs-theme="dark"] .dashboard-card {
-  background: #111827;
-  border: 1.5px solid #1f2937;
+[data-bs-theme="dark"] .dashboard-card,
+.dark-theme .dashboard-card {
+  background: #111827 !important;
+  border: 1.5px solid #1f2937 !important;
 }
 
 .dashboard-card-header {
   background: #f8fafc;
   border-bottom: 1.5px solid #e2e8f0;
 }
-[data-bs-theme="dark"] .dashboard-card-header {
-  background: #162033;
-  border-bottom: 1.5px solid #1f2937;
+[data-bs-theme="dark"] .dashboard-card-header,
+.dark-theme .dashboard-card-header {
+  background: #162033 !important;
+  border-bottom: 1.5px solid #1f2937 !important;
 }
 
 .dashboard-section-title {
@@ -2653,7 +2809,7 @@ function submitPackageProof() {
 .filter-btn-active-pending {
   background: #f59e0b !important;
   color: #0f172a !important;
-  font-weight: 800 !important;
+  font-weight: 600 !important;
 }
 .filter-btn-active-verified {
   background: #16a34a !important;
@@ -2705,7 +2861,7 @@ function submitPackageProof() {
 }
 .dashboard-table thead th {
   color: #334155;
-  font-weight: 800;
+  font-weight: 600;
   font-size: 11px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -2722,12 +2878,16 @@ function submitPackageProof() {
 .dashboard-table tbody tr:hover {
   background: #f8fafc;
 }
-[data-bs-theme="dark"] .dashboard-table tbody tr {
-  background: #111827;
-  border-bottom: 1px solid #1f2937;
+[data-bs-theme="dark"] .dashboard-table tbody tr,
+.dark-theme .dashboard-table tbody tr {
+  --bs-table-bg: #111827 !important;
+  background-color: #111827 !important;
+  border-bottom: 1px solid #1f2937 !important;
 }
-[data-bs-theme="dark"] .dashboard-table tbody tr:hover {
-  background: #1e293b;
+[data-bs-theme="dark"] .dashboard-table tbody tr:hover,
+.dark-theme .dashboard-table tbody tr:hover {
+  --bs-table-bg: #1e293b !important;
+  background-color: #1e293b !important;
 }
 
 .table-title-text {
@@ -2760,7 +2920,7 @@ function submitPackageProof() {
   background: #f1f5f9;
   border: 1px solid #cbd5e1;
   color: #0f172a;
-  font-weight: 800;
+  font-weight: 600;
 }
 [data-bs-theme="dark"] .badge-reg-code {
   background: #1e293b;
@@ -2771,7 +2931,7 @@ function submitPackageProof() {
   background: #fef3c7;
   border: 1px solid #f59e0b;
   color: #92400e;
-  font-weight: 800;
+  font-weight: 600;
 }
 [data-bs-theme="dark"] .badge-all-in {
   background: rgba(245, 158, 11, 0.25);
@@ -2878,6 +3038,25 @@ function submitPackageProof() {
 }
 [data-bs-theme="dark"] .table-action-edit-btn:hover:not(.disabled) {
   background: #2563eb;
+  color: #ffffff;
+}
+
+.table-action-invoice-btn {
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  color: #166534;
+}
+.table-action-invoice-btn:hover {
+  background: #16a34a;
+  color: #ffffff;
+}
+[data-bs-theme="dark"] .table-action-invoice-btn {
+  background: rgba(22, 101, 52, 0.25);
+  border: 1.5px solid #4ade80;
+  color: #86efac;
+}
+[data-bs-theme="dark"] .table-action-invoice-btn:hover {
+  background: #16a34a;
   color: #ffffff;
 }
 
@@ -3710,7 +3889,8 @@ function submitPackageProof() {
   border: 1.5px solid #cbd5e1 !important;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
 }
-[data-bs-theme="dark"] .package-banner-card {
+[data-bs-theme="dark"] .package-banner-card,
+.dark-theme .package-banner-card {
   background: #111827 !important;
   border: 1.5px solid #1f2937 !important;
   box-shadow: none;
@@ -3842,7 +4022,7 @@ function submitPackageProof() {
   background: #f59e0b;
   color: #ffffff;
   font-size: 9.5px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0.5px;
   padding: 3px 28px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);

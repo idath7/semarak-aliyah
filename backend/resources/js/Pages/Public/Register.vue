@@ -804,6 +804,11 @@ const selectedCompFee = computed(() => {
 });
 
 function handleSubmit() {
+  if (isSelectedCompDirect.value) {
+    window.open(getDirectRegistrationWaUrl(activeComp.value), '_blank');
+    return;
+  }
+
   if (isAllInFree.value) {
     form.package_type = 'Paket All-In';
   }
@@ -946,7 +951,24 @@ function getCompWaLink(comp) {
   return getWaChatUrl(school.value.contact_wa || '083850070767', msg);
 }
 
+const isSelectedCompDirect = computed(() => {
+  return activeComp.value?.registration_type === 'direct_contact' || activeComp.value?.is_direct_registration;
+});
+
+function getDirectRegistrationWaUrl(comp) {
+  if (!comp) return '#';
+  if (comp.direct_contact_wa_url) return comp.direct_contact_wa_url;
+  const phone = comp.primary_coordinator?.phone || comp.contact_person || school.value?.phone || school.value?.contact_phone || '6281234567890';
+  const title = comp.title || 'Lomba';
+  const schoolName = form.school_name ? ` dari ${form.school_name}` : '';
+  const text = `Halo Koordinator/PJ Lomba ${title} Semarak Aliyah XIV, saya${schoolName} ingin mendaftar untuk cabang lomba ${title}. Mohon informasi dan prosedur pendaftarannya. Terima kasih.`;
+  return getWaChatUrl(phone, text);
+}
+
 function getCompDropdownSuffix(c) {
+  if (c.registration_type === 'direct_contact' || c.is_direct_registration) {
+    return ' — [📲 DAFTAR VIA WA KOORDINATOR]';
+  }
   const status = getCompStatusInfo(c);
   if (!status.isClosed) return '';
   if (status.isManuallyClosed) return ' — [DITUTUP PANITIA]';
@@ -1336,8 +1358,18 @@ function getCompDropdownSuffix(c) {
                         </div>
 
                         <div class="mt-2 pt-2 branch-item-footer">
+                          <a 
+                            v-if="comp.registration_type === 'direct_contact' || comp.is_direct_registration"
+                            :href="getDirectRegistrationWaUrl(comp)"
+                            target="_blank"
+                            rel="noopener"
+                            class="btn-fill-delegate text-decoration-none d-inline-flex align-items-center justify-content-center gap-1"
+                            style="background: rgba(16, 185, 129, 0.15); color: #059669; border: 1px solid rgba(16, 185, 129, 0.4);"
+                          >
+                            <i class="ri-whatsapp-line"></i> Daftar via Koordinator
+                          </a>
                           <button 
-                            v-if="!schoolStatusData.registered_competition_ids.includes(comp.id) && !getCompStatusInfo(comp).isClosed"
+                            v-else-if="!schoolStatusData.registered_competition_ids.includes(comp.id) && !getCompStatusInfo(comp).isClosed"
                             type="button" 
                             class="btn-fill-delegate"
                             @click="openRegisterModal(comp.id)"
@@ -1530,6 +1562,13 @@ function getCompDropdownSuffix(c) {
                 <div>
                   <h3 class="reg-card-title">{{ comp.title }}</h3>
                   <span 
+                    v-if="comp.registration_type === 'direct_contact' || comp.is_direct_registration"
+                    class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 fw-bold fs-12 mb-1 d-inline-flex align-items-center gap-1"
+                  >
+                    <i class="ri-whatsapp-line"></i> Kontak Koordinator
+                  </span>
+                  <span 
+                    v-else
                     :class="[
                       'comp-status-badge',
                       getCompStatusInfo(comp).badgeClass
@@ -1562,7 +1601,20 @@ function getCompDropdownSuffix(c) {
               </div>
 
               <!-- Button Action -->
-              <div v-if="!getCompStatusInfo(comp).isClosed">
+              <div v-if="comp.registration_type === 'direct_contact' || comp.is_direct_registration">
+                <a 
+                  :href="getDirectRegistrationWaUrl(comp)" 
+                  target="_blank" 
+                  rel="noopener" 
+                  class="btn-card-register" 
+                  style="width: 100%; background: #10b981; border-color: #059669; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;"
+                  title="Daftar langsung via WhatsApp ke Koordinator Lomba"
+                >
+                  <i class="ri-whatsapp-line"></i>
+                  <span>Daftar via Koordinator (WA)</span>
+                </a>
+              </div>
+              <div v-else-if="!getCompStatusInfo(comp).isClosed">
                 <button 
                   type="button" 
                   class="btn-card-register" 
@@ -1740,11 +1792,43 @@ function getCompDropdownSuffix(c) {
                       v-for="c in competitions" 
                       :key="c.id" 
                       :value="c.id"
-                      :disabled="getCompStatusInfo(c).isClosed"
+                      :disabled="getCompStatusInfo(c).isClosed && !(c.registration_type === 'direct_contact' || c.is_direct_registration)"
                     >
                       {{ c.title }} (Rp {{ Number(c.fee || 50000).toLocaleString('id-ID') }}){{ getCompDropdownSuffix(c) }}
                     </option>
                   </CustomSelect>
+
+                  <!-- Direct Registration Callout Banner in Modal -->
+                  <div v-if="isSelectedCompDirect" class="alert p-3 rounded-3 mt-3 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3" style="background: rgba(16, 185, 129, 0.12); border: 1.5px solid rgba(16, 185, 129, 0.4);">
+                    <div class="d-flex align-items-start gap-2.5">
+                      <div style="width: 38px; height: 38px; border-radius: 10px; background: #10b981; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.25rem;">
+                        <i class="ri-whatsapp-line"></i>
+                      </div>
+                      <div>
+                        <div class="fw-bold" style="color: #059669; font-size: 0.95rem;">
+                          Pendaftaran Khusus Kontak Langsung
+                        </div>
+                        <p class="mb-0 small text-muted">
+                          {{ activeComp?.direct_registration_note || 'Pendaftaran cabang lomba ini tidak melalui form online, melainkan langsung menghubungi koordinator / penanggung jawab lomba via WhatsApp.' }}
+                        </p>
+                        <div v-if="activeComp?.primary_coordinator" class="mt-1 small">
+                          <strong style="color: var(--text-main);">Koordinator:</strong> 
+                          <span class="text-primary fw-medium">{{ activeComp.primary_coordinator.name }}</span> 
+                          <span class="text-muted">({{ activeComp.primary_coordinator.phone }})</span>
+                        </div>
+                      </div>
+                    </div>
+                    <a 
+                      :href="getDirectRegistrationWaUrl(activeComp)" 
+                      target="_blank" 
+                      rel="noopener" 
+                      class="btn btn-success d-inline-flex align-items-center justify-content-center gap-2 px-3 py-2 text-nowrap fw-bold"
+                      style="background: #10b981; border-color: #10b981; border-radius: 8px;"
+                    >
+                      <i class="ri-whatsapp-line fs-5"></i>
+                      <span>Chat WhatsApp Koordinator</span>
+                    </a>
+                  </div>
                 </div>
               </div>
 
@@ -2590,7 +2674,19 @@ function getCompDropdownSuffix(c) {
               >
                 Batal
               </button>
+              <a 
+                v-if="isSelectedCompDirect"
+                :href="getDirectRegistrationWaUrl(activeComp)" 
+                target="_blank" 
+                rel="noopener" 
+                class="btn-submit"
+                style="background: #10b981; border-color: #059669; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px;"
+              >
+                <i class="ri-whatsapp-line fs-5"></i>
+                <span>Hubungi Koordinator via WhatsApp</span>
+              </a>
               <button 
+                v-else
                 type="submit" 
                 form="registration-form"
                 class="btn-submit"
@@ -6283,7 +6379,6 @@ html[data-bs-theme="dark"] .price-sub {
 [data-bs-theme="dark"] .reg-modal-card .form-label,
 html[data-bs-theme="dark"] .reg-modal-card .form-label {
   color: #f1f5f9 !important;
-  font-weight: 700 !important;
 }
 
 [data-bs-theme="dark"] .reg-modal-card .form-control,

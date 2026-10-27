@@ -463,7 +463,7 @@ class SettingsController extends Controller
         return response()->json($result);
     }
 
-    public function resendWaLog(Request $request, $id)
+    public function resendWaLog(Request $request, int|string $id)
     {
         $log = WaLog::findOrFail($id);
 
@@ -496,7 +496,7 @@ class SettingsController extends Controller
         return redirect()->back()->with('success', 'Seluruh riwayat log pengiriman WhatsApp berhasil dibersihkan.');
     }
 
-    public function deleteWaLog(Request $request, $id)
+    public function deleteWaLog(Request $request, int|string $id)
     {
         $log = WaLog::find($id);
         if ($log) {
@@ -1087,5 +1087,158 @@ class SettingsController extends Controller
         } catch (\Throwable $e) {
             return redirect()->back()->with('error', 'Gagal membersihkan cache: ' . $e->getMessage());
         }
+    }
+
+    // =========================================================================
+    // 11. SUBMENU: PENYESUAIAN KOP SURAT, LOGO, & STEMPEL INVOICE RESMI
+    // =========================================================================
+    public function invoiceKopCustomization(Request $request)
+    {
+        $config = Setting::getInvoiceConfig();
+        $sampleRegistration = Registration::latest()->first();
+        $sampleId = $sampleRegistration ? $sampleRegistration->id : 1;
+
+        return Inertia::render('Admin/Settings/InvoiceCustomization', [
+            'config' => $config,
+            'sampleId' => $sampleId,
+        ]);
+    }
+
+    public function updateInvoiceKopCustomization(Request $request)
+    {
+        $validated = $request->validate([
+            'logo_left' => 'nullable|string',
+            'logo_right' => 'nullable|string',
+            'show_logo_right' => 'nullable|boolean',
+            'logo_size' => 'nullable|integer|min:40|max:120',
+            'logo_left_file' => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:2048',
+            'logo_right_file' => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:2048',
+            'stamp_image_file' => 'nullable|image|mimes:png,webp|max:2048',
+            'signature_image_file' => 'nullable|image|mimes:png,webp|max:2048',
+            'kop_foundation' => 'nullable|string|max:255',
+            'kop_committee' => 'nullable|string|max:255',
+            'kop_school' => 'nullable|string|max:255',
+            'kop_accreditation' => 'nullable|string|max:255',
+            'kop_address' => 'nullable|string|max:500',
+            'kop_contact' => 'nullable|string|max:500',
+            'stamp_mode' => 'required|string|in:digital,image',
+            'stamp_top_text' => 'nullable|string|max:100',
+            'stamp_bottom_text' => 'nullable|string|max:100',
+            'stamp_center_text' => 'nullable|string|max:50',
+            'stamp_color' => 'nullable|string|max:20',
+            'stamp_rotation' => 'nullable|integer|min:-30|max:30',
+            'sig_city' => 'required|string|max:100',
+            'treasurer_name' => 'required|string|max:150',
+            'treasurer_role' => 'required|string|max:150',
+            'treasurer_subrole' => 'nullable|string|max:150',
+            'footer_note' => 'nullable|string|max:500',
+        ]);
+
+        // Upload Logo Kiri
+        if ($request->hasFile('logo_left_file')) {
+            $file = $request->file('logo_left_file');
+            if ($file->isValid()) {
+                $ext = $file->getClientOriginalExtension();
+                $path = $file->storeAs('uploads/invoice', 'invoice_logo_left_' . time() . '.' . $ext, 'public');
+                Setting::set('invoice_logo_left', '/storage/' . $path);
+            }
+        } elseif ($request->filled('logo_left')) {
+            Setting::set('invoice_logo_left', $request->input('logo_left'));
+        }
+
+        // Upload Logo Kanan
+        if ($request->hasFile('logo_right_file')) {
+            $file = $request->file('logo_right_file');
+            if ($file->isValid()) {
+                $ext = $file->getClientOriginalExtension();
+                $path = $file->storeAs('uploads/invoice', 'invoice_logo_right_' . time() . '.' . $ext, 'public');
+                Setting::set('invoice_logo_right', '/storage/' . $path);
+            }
+        } elseif ($request->filled('logo_right')) {
+            Setting::set('invoice_logo_right', $request->input('logo_right'));
+        }
+
+        // Upload Stempel Gambar Basah (PNG Transparan)
+        if ($request->hasFile('stamp_image_file')) {
+            $file = $request->file('stamp_image_file');
+            if ($file->isValid()) {
+                $ext = $file->getClientOriginalExtension();
+                $path = $file->storeAs('uploads/invoice', 'invoice_stamp_' . time() . '.' . $ext, 'public');
+                Setting::set('invoice_stamp_image', '/storage/' . $path);
+            }
+        } elseif ($request->has('remove_stamp_image') && $request->boolean('remove_stamp_image')) {
+            Setting::set('invoice_stamp_image', '');
+        }
+
+        // Upload Tanda Tangan Gambar (PNG Transparan)
+        if ($request->hasFile('signature_image_file')) {
+            $file = $request->file('signature_image_file');
+            if ($file->isValid()) {
+                $ext = $file->getClientOriginalExtension();
+                $path = $file->storeAs('uploads/invoice', 'invoice_signature_' . time() . '.' . $ext, 'public');
+                Setting::set('treasurer_signature_image', '/storage/' . $path);
+            }
+        } elseif ($request->has('remove_signature_image') && $request->boolean('remove_signature_image')) {
+            Setting::set('treasurer_signature_image', '');
+        }
+
+        Setting::set('invoice_show_logo_right', $request->boolean('show_logo_right') ? '1' : '0');
+        Setting::set('invoice_logo_size', (string)($validated['logo_size'] ?? 68));
+        Setting::set('invoice_kop_foundation', $validated['kop_foundation'] ?? '');
+        Setting::set('invoice_kop_committee', $validated['kop_committee'] ?? '');
+        Setting::set('invoice_kop_school', $validated['kop_school'] ?? '');
+        Setting::set('invoice_kop_accreditation', $validated['kop_accreditation'] ?? '');
+        Setting::set('invoice_kop_address', $validated['kop_address'] ?? '');
+        Setting::set('invoice_kop_contact', $validated['kop_contact'] ?? '');
+
+        Setting::set('invoice_stamp_mode', $validated['stamp_mode']);
+        Setting::set('invoice_stamp_top_text', $validated['stamp_top_text'] ?? 'SEMARAK ALIYAH XIV');
+        Setting::set('invoice_stamp_bottom_text', $validated['stamp_bottom_text'] ?? 'MA WAHID HASYIM');
+        Setting::set('invoice_stamp_center_text', $validated['stamp_center_text'] ?? '★');
+        Setting::set('invoice_stamp_color', $validated['stamp_color'] ?? '#2563eb');
+        Setting::set('invoice_stamp_rotation', (string)($validated['stamp_rotation'] ?? -8));
+
+        Setting::set('invoice_sig_city', $validated['sig_city']);
+        Setting::set('treasurer_name', $validated['treasurer_name']);
+        Setting::set('treasurer_role', $validated['treasurer_role']);
+        Setting::set('treasurer_subrole', $validated['treasurer_subrole'] ?? '');
+        Setting::set('invoice_footer_note', $validated['footer_note'] ?? '');
+
+        return redirect()->back()->with('success', 'Konfigurasi KOP Surat, Logo, dan Stempel Invoice resmi berhasil diperbarui!');
+    }
+
+    public function resetInvoiceKopCustomization(Request $request)
+    {
+        $keys = [
+            'invoice_logo_left' => '/assets/img/logo.png',
+            'invoice_logo_right' => '/assets/img/logo.png',
+            'invoice_show_logo_right' => '1',
+            'invoice_logo_size' => '68',
+            'invoice_kop_foundation' => 'YAYASAN PONDOK PESANTREN WAHID HASYIM',
+            'invoice_kop_committee' => 'PANITIA PELAKSANA SEMARAK ALIYAH XIV TAHUN 2026',
+            'invoice_kop_school' => 'MADRASAH ALIYAH UNGGULAN WAHID HASYIM BALUNG',
+            'invoice_kop_accreditation' => 'STATUS TERAKREDITASI "A" • NSM: 131235090014 • NPSN: 69941846',
+            'invoice_kop_address' => 'Jl. Balung - Tutul No. 09 Balung Kidul, Kec. Balung, Kab. Jember, Jawa Timur 68161',
+            'invoice_kop_contact' => 'Website: semarak.ma-wh.sch.id • Email: semarak@ma-wh.sch.id • Hotline WA: 0838 5007 0767',
+            'invoice_stamp_mode' => 'digital',
+            'invoice_stamp_top_text' => 'SEMARAK ALIYAH XIV',
+            'invoice_stamp_bottom_text' => 'MA WAHID HASYIM',
+            'invoice_stamp_center_text' => '★',
+            'invoice_stamp_color' => '#2563eb',
+            'invoice_stamp_image' => '',
+            'invoice_stamp_rotation' => '-8',
+            'invoice_sig_city' => 'Balung - Jember',
+            'treasurer_name' => 'M. Irfan Zidni, S.Pd.',
+            'treasurer_role' => 'Bendahara Pelaksana',
+            'treasurer_subrole' => 'Semarak Aliyah XIV Tahun 2026',
+            'treasurer_signature_image' => '',
+            'invoice_footer_note' => 'Dokumen ini diterbitkan secara sah dan otomatis oleh Sistem Informasi Semarak Aliyah XIV MA Unggulan Wahid Hasyim Balung.',
+        ];
+
+        foreach ($keys as $k => $v) {
+            Setting::set($k, $v);
+        }
+
+        return redirect()->back()->with('success', 'Konfigurasi KOP, Logo, dan Stempel berhasil dikembalikan ke standar awal.');
     }
 }

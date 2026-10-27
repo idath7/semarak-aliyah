@@ -225,8 +225,8 @@ onMounted(() => {
         <Link href="/admin/lomba" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
           <i class="ri-medal-line"></i> Kelola Lomba
         </Link>
-        <a href="/admin/export" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 shadow-sm">
-          <i class="ri-file-excel-2-line"></i> Export CSV
+        <a href="/admin/export" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 shadow-sm" title="Download rekapitulasi data pendaftar dalam format Microsoft Excel (.xlsx)">
+          <i class="ri-file-excel-2-line"></i> Export Excel (.xlsx)
         </a>
       </div>
     </div>
@@ -574,6 +574,16 @@ onMounted(() => {
                           <i class="ri-eye-line"></i>
                         </button>
 
+                        <!-- Cetak Nota Invoice / Kwitansi Resmi -->
+                        <a 
+                          :href="'/admin/invoice/' + reg.id" 
+                          target="_blank" 
+                          class="btn btn-sm btn-outline-secondary"
+                          title="Cetak Nota Tagihan / Kwitansi Resmi (A4)"
+                        >
+                          <i class="ri-file-paper-2-line"></i>
+                        </a>
+
                         <!-- Halaman Penuh: Verifikasi Detail & Formulir Cabang -->
                         <Link 
                           :href="'/admin/pendaftar/' + reg.id" 
@@ -896,13 +906,24 @@ onMounted(() => {
           </div>
 
           <div class="modal-footer bg-light border-top py-2.5 d-flex align-items-center justify-content-between">
-            <Link 
-              :href="'/admin/pendaftar/' + activeDetailItem.id" 
-              class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
-            >
-              <i class="ri-survey-line"></i>
-              <span>Buka Halaman Verifikasi Detail & Formulir Cabang &rarr;</span>
-            </Link>
+            <div class="d-flex align-items-center gap-2">
+              <a 
+                :href="'/admin/invoice/' + activeDetailItem.id" 
+                target="_blank" 
+                class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5"
+                title="Cetak Nota Tagihan / Kwitansi Resmi"
+              >
+                <i class="ri-file-paper-2-line"></i>
+                <span>Cetak Nota / Kwitansi</span>
+              </a>
+              <Link 
+                :href="'/admin/pendaftar/' + activeDetailItem.id" 
+                class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+              >
+                <i class="ri-survey-line"></i>
+                <span>Buka Verifikasi Detail &rarr;</span>
+              </Link>
+            </div>
             <button type="button" class="btn btn-sm btn-secondary" @click="showDetailModal = false">Tutup Modal</button>
           </div>
         </div>

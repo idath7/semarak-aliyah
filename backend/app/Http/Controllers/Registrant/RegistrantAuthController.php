@@ -466,7 +466,7 @@ class RegistrantAuthController extends Controller
             'success' => true,
             'message' => "Kode OTP 6-digit telah dikirimkan ke WhatsApp nomor " . substr($cleanPhone, 0, 5) . '****' . substr($cleanPhone, -3) . ". Silakan cek pesan masuk Anda.",
             'expires_in' => 300,
-            'debug_otp' => config('app.debug') ? $otp : null,
+            'debug_otp' => (app()->environment('local') && config('app.debug')) ? $otp : null,
         ]);
     }
 
@@ -790,7 +790,7 @@ class RegistrantAuthController extends Controller
             'success' => true,
             'message' => "Kode verifikasi 6-digit telah dikirimkan ke WhatsApp nomor " . substr($cleanPhone, 0, 5) . '****' . substr($cleanPhone, -3) . ". Silakan cek pesan WhatsApp Anda.",
             'expires_in' => 300,
-            'debug_otp' => config('app.debug') ? $otp : null,
+            'debug_otp' => (app()->environment('local') && config('app.debug')) ? $otp : null,
         ]);
     }
 

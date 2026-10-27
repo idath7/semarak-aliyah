@@ -801,7 +801,7 @@ function printReport() {
                   >
                     <i class="ri-medal-fill text-warning fs-12"></i>
                     <span class="fw-semibold fs-11">{{ comp.competition_title }}</span>
-                    <span class="badge bg-dark text-white rounded-circle fs-9 px-1">
+                    <span class="comp-participant-count" :title="`${comp.participants_count} Siswa`">
                       {{ comp.participants_count }}
                     </span>
                   </div>
@@ -963,24 +963,22 @@ function printReport() {
       <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content shadow-lg border-0">
           <!-- Modal Header -->
-          <div class="modal-header bg-primary text-white py-3 px-4">
-            <div>
-              <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="badge bg-white text-primary fw-bold fs-11">{{ activeSchool.jenjang || 'Sekolah' }}</span>
-                <span v-if="activeSchool.has_all_in" class="badge bg-warning text-dark fw-bold fs-11">
-                  <i class="ri-vip-crown-fill"></i> Paket Komplit (All-In)
-                </span>
-                <span class="badge bg-white-50 text-white fs-11">
-                  {{ activeSchool.total_competitions }} Cabang Lomba Terdata
-                </span>
-              </div>
-              <h4 class="modal-title fw-bold mb-0 text-white">{{ activeSchool.school_name }}</h4>
+          <div class="modal-header py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <h6 class="modal-title fw-bold mb-0 fs-15">{{ activeSchool.school_name }}</h6>
+              <span class="badge bg-primary-subtle text-primary fw-bold fs-10">{{ activeSchool.jenjang || 'Sekolah' }}</span>
+              <span v-if="activeSchool.has_all_in" class="badge bg-warning-subtle text-warning fw-bold fs-10">
+                <i class="ri-vip-crown-fill"></i> Paket Komplit (All-In)
+              </span>
+              <span class="badge bg-secondary-subtle text-secondary fs-10">
+                {{ activeSchool.total_competitions }} Lomba
+              </span>
             </div>
-            <button type="button" class="btn-close btn-close-white" @click="showDetailModal = false"></button>
+            <button type="button" class="btn-close" @click="showDetailModal = false"></button>
           </div>
 
           <!-- Modal Body -->
-          <div class="modal-body p-4 bg-light">
+          <div class="modal-body p-3 bg-light">
             <!-- Profil Singkat Kontingen -->
             <div class="card shadow-sm border-0 mb-3">
               <div class="card-body p-3">
@@ -1136,21 +1134,16 @@ function printReport() {
       <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content shadow-lg border-0">
           <!-- Modal Header -->
-          <div class="modal-header bg-dark text-white py-3 px-4">
-            <div class="d-flex align-items-center gap-2">
-              <span class="avatar-title bg-primary text-white rounded-circle fs-18 p-1.5">
-                <i class="ri-user-add-line"></i>
-              </span>
-              <div>
-                <h5 class="modal-title fw-bold mb-0 text-white">Input Manual Pendaftaran & Delegasi (Meja Panitia)</h5>
-                <p class="fs-11 text-white-50 mb-0">Formulir pendaftaran langsung di tempat (on-the-spot) untuk peserta & delegasi sekolah.</p>
-              </div>
-            </div>
-            <button type="button" class="btn-close btn-close-white" @click="showManualModal = false"></button>
+          <div class="modal-header py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
+            <h6 class="modal-title fw-bold mb-0 d-flex align-items-center gap-2 fs-14">
+              <i class="ri-user-add-line text-primary fs-18"></i>
+              <span>Input Manual Pendaftaran &amp; Delegasi (Meja Panitia)</span>
+            </h6>
+            <button type="button" class="btn-close" @click="showManualModal = false"></button>
           </div>
 
           <!-- Modal Body -->
-          <div class="modal-body p-4 bg-light">
+          <div class="modal-body p-3 bg-light">
             <div class="row g-3">
               <!-- 1. DATA SEKOLAH / KONTINGEN -->
               <div class="col-12 col-lg-6">
@@ -1542,21 +1535,16 @@ function printReport() {
       <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content shadow-lg border-0">
           <!-- Modal Header -->
-          <div class="modal-header bg-warning text-dark py-3 px-4">
-            <div class="d-flex align-items-center gap-2">
-              <span class="avatar-title bg-white text-warning rounded-circle fs-18 p-1.5 shadow-sm">
-                <i class="ri-git-merge-line"></i>
-              </span>
-              <div>
-                <h5 class="modal-title fw-bold mb-0 text-dark">Merge / Gabungkan Variasi Sekolah yang Sama</h5>
-                <p class="fs-11 text-dark-50 mb-0">Satukan entitas sekolah akibat variasi ketikan pendaftar mandiri (e.g. MTSN 1 vs MTs Negeri 1).</p>
-              </div>
-            </div>
+          <div class="modal-header py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
+            <h6 class="modal-title fw-bold mb-0 d-flex align-items-center gap-2 fs-14">
+              <i class="ri-git-merge-line text-warning fs-18"></i>
+              <span>Merge / Gabungkan Variasi Sekolah yang Sama</span>
+            </h6>
             <button type="button" class="btn-close" @click="showMergeModal = false"></button>
           </div>
 
           <!-- Modal Body -->
-          <div class="modal-body p-4 bg-light">
+          <div class="modal-body p-3 bg-light">
             <!-- Penjelasan Informasi -->
             <div class="alert alert-warning border-warning-subtle d-flex align-items-start gap-2.5 fs-12 mb-3">
               <i class="ri-information-line fs-18 text-warning flex-shrink-0 mt-0.5"></i>
@@ -1728,6 +1716,30 @@ function printReport() {
 
 .whitespace-pre-wrap {
   white-space: pre-wrap;
+}
+
+/* Elegant Participant Counter Pill (Subtle & Blends with Chip Color) */
+.comp-participant-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  margin-left: 2px;
+}
+
+:deep([data-bs-theme="dark"]) .comp-participant-count {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: inherit;
 }
 
 /* Print Styling */

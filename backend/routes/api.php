@@ -21,8 +21,8 @@ Route::prefix('schools')->group(function () {
     Route::get('/{id}', [SchoolController::class, 'show']);
 });
 
-// Admin Panel Endpoints (Protected with web auth)
-Route::middleware(['web', 'auth'])->prefix('admin')->group(function () {
+// Admin Panel Endpoints (Protected with web auth & admin role)
+Route::middleware(['web', 'auth:web', 'admin'])->prefix('admin')->group(function () {
     Route::get('/overview', [AdminController::class, 'overview']);
     Route::post('/verify', [AdminController::class, 'verify']);
     Route::post('/toggle-quota', [AdminController::class, 'toggleQuota']);
@@ -35,8 +35,8 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () {
     Route::post('/schools/sync-defaults', [SchoolController::class, 'syncDefaults']);
 });
 
-// Operational Command Center APIs (Protected with web auth)
-Route::middleware(['web', 'auth'])->prefix('operasional')->group(function () {
+// Operational Command Center APIs (Protected with web auth & admin role)
+Route::middleware(['web', 'auth:web', 'admin'])->prefix('operasional')->group(function () {
     Route::get('/overview', [\App\Http\Controllers\OperasionalHubController::class, 'overview']);
     Route::get('/delegates', [\App\Http\Controllers\OperasionalHubController::class, 'delegates']);
     Route::post('/gate/scan', [\App\Http\Controllers\OperasionalHubController::class, 'gateScan']);

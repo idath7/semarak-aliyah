@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -29,6 +30,26 @@ class UserController extends Controller
             'label' => 'Administrator',
             'badge' => 'primary',
             'description' => 'Akses pengelolaan pendaftaran, lomba, dan kustomisasi'
+        ],
+        'ketua_panitia' => [
+            'label' => 'Ketua Panitia',
+            'badge' => 'dark',
+            'description' => 'Pimpinan umum, pengawasan seluruh cabang lomba & TM'
+        ],
+        'wakil_ketua_panitia' => [
+            'label' => 'Wakil Ketua Panitia',
+            'badge' => 'primary',
+            'description' => 'Pendamping teknis & operasional seluruh lomba & TM'
+        ],
+        'sekretaris' => [
+            'label' => 'Sekretaris Pelaksana',
+            'badge' => 'secondary',
+            'description' => 'Administrasi lomba, formulir builder, juknis, dan TM'
+        ],
+        'koordinator_lomba' => [
+            'label' => 'Koordinator Lomba',
+            'badge' => 'warning',
+            'description' => 'Penanggung jawab teknis cabang lomba spesifik & TM'
         ],
         'panitia' => [
             'label' => 'Panitia Pelaksana',
@@ -79,7 +100,7 @@ class UserController extends Controller
     {
         $query = User::with('competition:id,title,category_label')
             ->select(
-                'id', 'name', 'email', 'nip', 'role', 'division', 'phone', 'competition_id', 'is_active', 'must_change_password', 'created_at',
+                'id', 'name', 'email', 'nip', 'role', 'division', 'phone', 'competition_id', 'is_active', 'must_change_password', 'avatar', 'created_at',
                 DB::raw("(CASE WHEN password IS NOT NULL AND password != '' THEN 1 ELSE 0 END) as has_password")
             );
 
@@ -178,6 +199,11 @@ class UserController extends Controller
 
         $roleObj = Role::where('name', $validated['role'])->first();
 
+        $avatarPath = null;
+        if ($request->filled('avatar_data')) {
+            $avatarPath = $this->saveAvatarData($request->input('avatar_data'), null, 'user');
+        }
+
         $user = User::create([
             'name'           => $validated['name'],
             'email'          => strtolower(trim($validated['email'])),
@@ -190,6 +216,7 @@ class UserController extends Controller
             'phone'          => $validated['phone'] ?? null,
             'competition_id' => $validated['competition_id'] ?? null,
             'is_active'      => $validated['is_active'] ?? true,
+            'avatar'         => $avatarPath,
         ]);
 
         return redirect()->back()->with('success', "Pengguna baru {$user->name} ({$user->role}) berhasil ditambahkan.");
@@ -250,6 +277,16 @@ class UserController extends Controller
         if (!empty($validated['password'])) {
             $updateData['password'] = Hash::make($validated['password']);
             $updateData['must_change_password'] = false;
+        }
+
+        if ($request->boolean('remove_avatar')) {
+            $this->deleteAvatarFile($user->avatar);
+            $updateData['avatar'] = null;
+        } elseif ($request->filled('avatar_data')) {
+            $newAvatar = $this->saveAvatarData($request->input('avatar_data'), $user->avatar, 'user_' . $user->id);
+            if ($newAvatar) {
+                $updateData['avatar'] = $newAvatar;
+            }
         }
 
         $user->update($updateData);
@@ -608,5 +645,128 @@ class UserController extends Controller
             return 'Konsumsi';
         }
         return 'Acara & Lomba';
+    }
+
+    /**
+     * Simpan gambar avatar dari data URL base64 ke storage public.
+     */
+    protected function saveAvatarData(string $base64OrFile, ?string $oldAvatar = null, string $prefix = 'user'): ?string
+    {
+        if (preg_match('/^data:image\/(\w+);base64,/', $base64OrFile, $matches)) {
+            $imageType = strtolower($matches[1]);
+            if (!in_array($imageType, ['jpeg', 'jpg', 'png', 'webp'])) {
+                $imageType = 'jpg';
+            }
+            $base64Data = substr($base64OrFile, strpos($base64OrFile, ',') + 1);
+            $decodedData = base64_decode($base64Data);
+
+            if ($decodedData === false) {
+                return null;
+            }
+
+            // Hapus avatar lama jika ada di storage public
+            $this->deleteAvatarFile($oldAvatar);
+
+            $filename = 'avatars/' . $prefix . '_' . uniqid() . '_' . time() . '.' . ($imageType === 'jpeg' ? 'jpg' : $imageType);
+            Storage::disk('public')->put($filename, $decodedData);
+            return $filename;
+        }
+
+        return null;
+    }
+
+    /**
+     * Hapus berkas avatar fisik dari disk storage.
+     */
+    protected function deleteAvatarFile(?string $avatarPath): void
+    {
+        if (empty($avatarPath)) {
+            return;
+        }
+
+        $cleanPath = ltrim(str_replace(['/storage/', 'storage/'], '', $avatarPath), '/');
+        if (Storage::disk('public')->exists($cleanPath)) {
+            Storage::disk('public')->delete($cleanPath);
+        }
+    }
+
+    /**
+     * Ubah foto profil akun pengguna yang sedang login.
+     */
+    public function updateMyAvatar(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user) {
+            return redirect()->back()->with('error', 'Sesi login telah kedaluwarsa.');
+        }
+
+        $request->validate([
+            'avatar_data' => ['required', 'string'],
+        ], [
+            'avatar_data.required' => 'Data gambar foto profil wajib disertakan.',
+        ]);
+
+        $newPath = $this->saveAvatarData($request->input('avatar_data'), $user->avatar, 'my_avatar_' . $user->id);
+        if (!$newPath) {
+            return redirect()->back()->with('error', 'Gagal memproses data gambar foto profil.');
+        }
+
+        $user->update(['avatar' => $newPath]);
+
+        return redirect()->back()->with('success', 'Foto profil Anda berhasil disesuaikan dan diperbarui!');
+    }
+
+    /**
+     * Hapus foto profil akun pengguna yang sedang login.
+     */
+    public function removeMyAvatar()
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user) {
+            return redirect()->back()->with('error', 'Sesi login telah kedaluwarsa.');
+        }
+
+        $this->deleteAvatarFile($user->avatar);
+        $user->update(['avatar' => null]);
+
+        return redirect()->back()->with('success', 'Foto profil berhasil dihapus dan dikembalikan ke inisial nama.');
+    }
+
+    /**
+     * Ubah foto pengguna lain (oleh Admin / Super Admin)
+     */
+    public function updateUserAvatar(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        $request->validate([
+            'avatar_data' => ['required', 'string'],
+        ], [
+            'avatar_data.required' => 'Data gambar foto profil wajib disertakan.',
+        ]);
+
+        $newPath = $this->saveAvatarData($request->input('avatar_data'), $user->avatar, 'user_' . $user->id);
+        if (!$newPath) {
+            return redirect()->back()->with('error', 'Gagal memproses data gambar foto.');
+        }
+
+        $user->update(['avatar' => $newPath]);
+
+        return redirect()->back()->with('success', "Foto profil pengguna {$user->name} berhasil diperbarui!");
+    }
+
+    /**
+     * Hapus foto pengguna lain (oleh Admin / Super Admin)
+     */
+    public function removeUserAvatar($id)
+    {
+        $user = User::findOrFail($id);
+
+        $this->deleteAvatarFile($user->avatar);
+        $user->update(['avatar' => null]);
+
+        return redirect()->back()->with('success', "Foto profil pengguna {$user->name} berhasil dihapus.");
     }
 }

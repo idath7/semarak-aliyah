@@ -39,11 +39,11 @@ const kustomisasi = computed(() => page.props.kustomisasiWeb || {});
                   <i class="ri-palette-line me-1"></i> Kelola Web Publik
                 </span>
                 <span class="text-muted fs-12">/</span>
-                <Link href="/admin/kustomisasi" class="badge bg-light text-secondary fs-11 px-2.5 py-1 rounded-pill fw-semibold text-decoration-none">
+                <Link href="/admin/kustomisasi" class="badge sub-nav-badge fs-11 px-2.5 py-1 rounded-pill fw-semibold text-decoration-none">
                   Kustomisasi Lanjutan
                 </Link>
                 <span class="text-muted fs-12">/</span>
-                <span class="badge bg-light text-dark fs-11 px-2.5 py-1 rounded-pill fw-semibold">
+                <span class="badge sub-nav-badge fs-11 px-2.5 py-1 rounded-pill fw-semibold">
                   {{ pageBadge }}
                 </span>
               </div>
@@ -68,7 +68,7 @@ const kustomisasi = computed(() => page.props.kustomisasiWeb || {});
       </div>
 
       <!-- Kustomisasi Lanjutan Navigation Bar (Sub-Layout Hub) -->
-      <div class="card border-0 shadow-sm mb-4 bg-white rounded-3">
+      <div class="card border-0 shadow-sm mb-4 rounded-3 kustomisasi-hub-card">
         <div class="card-body p-2 p-md-3">
           <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
             <!-- Left: Sub-Menu Navigation Items -->
@@ -77,27 +77,27 @@ const kustomisasi = computed(() => page.props.kustomisasiWeb || {});
               <Link 
                 href="/admin/kustomisasi" 
                 class="kustomisasi-nav-btn d-flex align-items-center gap-2 px-3 py-2 rounded-3 text-decoration-none"
-                :class="activeMenu === 'umum' ? 'active-kustomisasi-nav' : 'text-muted'"
+                :class="activeMenu === 'umum' ? 'active-kustomisasi-nav' : ''"
               >
                 <div 
                   class="kustomisasi-icon-box rounded-2 d-flex align-items-center justify-content-center"
-                  :class="activeMenu === 'umum' ? 'bg-primary text-white shadow-sm' : 'bg-light text-primary'"
+                  :class="activeMenu === 'umum' ? 'bg-primary text-white shadow-sm' : 'kustomisasi-icon-inactive text-primary'"
                 >
                   <i class="ri-magic-line fs-16"></i>
                 </div>
                 <div>
-                  <div class="fw-bold fs-13 lh-sm" :class="activeMenu === 'umum' ? 'text-primary' : 'text-dark'">
+                  <div class="fw-bold fs-13 lh-sm" :class="activeMenu === 'umum' ? 'text-primary' : 'kustomisasi-nav-title'">
                     Efek & Interaksi Web
                   </div>
                   <div class="fs-11 text-muted">
-                    Banner, Pop-up, WA, Countdown, CSS/JS
+                    Hero, Stats, Tentang, Banner, WA, Countdown
                   </div>
                 </div>
                 <span 
                   class="badge rounded-pill ms-1 fs-10" 
-                  :class="activeMenu === 'umum' ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-light text-muted'"
+                  :class="activeMenu === 'umum' ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'badge-subtle-inactive'"
                 >
-                  6 Modul
+                  9 Modul
                 </span>
               </Link>
 
@@ -105,16 +105,16 @@ const kustomisasi = computed(() => page.props.kustomisasiWeb || {});
               <Link 
                 href="/admin/kustomisasi/teks-berjalan" 
                 class="kustomisasi-nav-btn d-flex align-items-center gap-2 px-3 py-2 rounded-3 text-decoration-none"
-                :class="activeMenu === 'ticker' ? 'active-kustomisasi-nav' : 'text-muted'"
+                :class="activeMenu === 'ticker' ? 'active-kustomisasi-nav' : ''"
               >
                 <div 
                   class="kustomisasi-icon-box rounded-2 d-flex align-items-center justify-content-center"
-                  :class="activeMenu === 'ticker' ? 'bg-success text-white shadow-sm' : 'bg-light text-success'"
+                  :class="activeMenu === 'ticker' ? 'bg-success text-white shadow-sm' : 'kustomisasi-icon-inactive text-success'"
                 >
                   <i class="ri-text-wrap fs-16"></i>
                 </div>
                 <div>
-                  <div class="fw-bold fs-13 lh-sm" :class="activeMenu === 'ticker' ? 'text-success' : 'text-dark'">
+                  <div class="fw-bold fs-13 lh-sm" :class="activeMenu === 'ticker' ? 'text-success' : 'kustomisasi-nav-title'">
                     Teks Berjalan (Marquee)
                   </div>
                   <div class="fs-11 text-muted">
@@ -123,7 +123,7 @@ const kustomisasi = computed(() => page.props.kustomisasiWeb || {});
                 </div>
                 <span 
                   class="badge rounded-pill ms-1 fs-10" 
-                  :class="activeMenu === 'ticker' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-light text-muted'"
+                  :class="activeMenu === 'ticker' ? 'bg-success-subtle text-success border border-success-subtle' : 'badge-subtle-inactive'"
                 >
                   Tipografi
                 </span>
@@ -133,16 +133,16 @@ const kustomisasi = computed(() => page.props.kustomisasiWeb || {});
               <Link 
                 href="/admin/tm?modal=panduan" 
                 class="kustomisasi-nav-btn d-flex align-items-center gap-2 px-3 py-2 rounded-3 text-decoration-none"
-                :class="activeMenu === 'tm' ? 'active-kustomisasi-nav' : 'text-muted'"
+                :class="activeMenu === 'tm' ? 'active-kustomisasi-nav' : ''"
               >
                 <div 
                   class="kustomisasi-icon-box rounded-2 d-flex align-items-center justify-content-center"
-                  :class="activeMenu === 'tm' ? 'bg-info text-white shadow-sm' : 'bg-light text-info'"
+                  :class="activeMenu === 'tm' ? 'bg-info text-white shadow-sm' : 'kustomisasi-icon-inactive text-info'"
                 >
                   <i class="ri-calendar-todo-line fs-16"></i>
                 </div>
                 <div>
-                  <div class="fw-bold fs-13 lh-sm" :class="activeMenu === 'tm' ? 'text-info' : 'text-dark'">
+                  <div class="fw-bold fs-13 lh-sm" :class="activeMenu === 'tm' ? 'text-info' : 'kustomisasi-nav-title'">
                     Seksi & Panduan TM
                   </div>
                   <div class="fs-11 text-muted">
@@ -151,7 +151,7 @@ const kustomisasi = computed(() => page.props.kustomisasiWeb || {});
                 </div>
                 <span 
                   class="badge rounded-pill ms-1 fs-10" 
-                  :class="activeMenu === 'tm' ? 'bg-info-subtle text-info border border-info-subtle' : 'bg-light text-muted'"
+                  :class="activeMenu === 'tm' ? 'bg-info-subtle text-info border border-info-subtle' : 'badge-subtle-inactive'"
                 >
                   Landing
                 </span>
@@ -177,9 +177,21 @@ const kustomisasi = computed(() => page.props.kustomisasiWeb || {});
 </template>
 
 <style scoped>
+.sub-nav-badge {
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+.kustomisasi-hub-card {
+  background-color: #ffffff;
+  border: 1px solid #e9ebec;
+}
+
 .kustomisasi-nav-btn {
   border: 1px solid #e9ebec;
   background: #ffffff;
+  color: #1e293b;
   transition: all 0.2s ease-in-out;
 }
 
@@ -193,6 +205,20 @@ const kustomisasi = computed(() => page.props.kustomisasiWeb || {});
   background: #f0f7ff !important;
   border-color: #93c5fd !important;
   box-shadow: 0 2px 4px rgba(59, 130, 246, 0.08);
+}
+
+.kustomisasi-nav-title {
+  color: #0f172a;
+}
+
+.kustomisasi-icon-inactive {
+  background: #f1f5f9;
+}
+
+.badge-subtle-inactive {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
 }
 
 .kustomisasi-icon-box {
@@ -211,5 +237,50 @@ const kustomisasi = computed(() => page.props.kustomisasiWeb || {});
 
 .border-purple-subtle {
   border-color: rgba(124, 58, 237, 0.25) !important;
+}
+
+/* ==========================================================================
+   DARK MODE ADAPTATIONS
+   ========================================================================== */
+[data-bs-theme="dark"] .sub-nav-badge {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-bs-theme="dark"] .kustomisasi-hub-card {
+  background-color: #1e293b;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .kustomisasi-nav-btn {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+}
+
+[data-bs-theme="dark"] .kustomisasi-nav-btn:hover {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+[data-bs-theme="dark"] .active-kustomisasi-nav {
+  background: rgba(59, 130, 246, 0.2) !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+}
+
+[data-bs-theme="dark"] .kustomisasi-nav-title {
+  color: #f8fafc !important;
+}
+
+[data-bs-theme="dark"] .kustomisasi-icon-inactive {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-bs-theme="dark"] .badge-subtle-inactive {
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 </style>

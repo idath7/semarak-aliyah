@@ -46,12 +46,12 @@ class Setting extends Model
     /**
      * Set/update a setting value.
      */
-    public static function set(string $key, $value)
+    public static function set(string $key, mixed $value = '')
     {
         static::$allSettingsCache = null; // Invalidate cache
         return static::updateOrCreate(
             ['key' => $key],
-            ['value' => $value]
+            ['value' => (string)($value ?? '')]
         );
     }
 
@@ -207,5 +207,72 @@ class Setting extends Model
         }
         static::set('general_juknis_updated_at', now()->toIso8601String());
         static::set('announcement_popup_btn_url', $url);
+    }
+
+    /**
+     * Konversi angka nominal rupiah ke format kata terbilang Bahasa Indonesia.
+     */
+    public static function terbilang(int $number): string
+    {
+        if ($number === 0) {
+            return 'Nol';
+        }
+
+        $number = abs($number);
+        $words = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"];
+
+        if ($number < 12) {
+            return $words[$number];
+        } elseif ($number < 20) {
+            return self::terbilang($number - 10) . " Belas";
+        } elseif ($number < 100) {
+            return self::terbilang((int)($number / 10)) . " Puluh" . ($number % 10 ? " " . self::terbilang($number % 10) : "");
+        } elseif ($number < 200) {
+            return "Seratus" . ($number - 100 ? " " . self::terbilang($number - 100) : "");
+        } elseif ($number < 1000) {
+            return self::terbilang((int)($number / 100)) . " Ratus" . ($number % 100 ? " " . self::terbilang($number % 100) : "");
+        } elseif ($number < 2000) {
+            return "Seribu" . ($number - 1000 ? " " . self::terbilang($number - 1000) : "");
+        } elseif ($number < 1000000) {
+            return self::terbilang((int)($number / 1000)) . " Ribu" . ($number % 1000 ? " " . self::terbilang($number % 1000) : "");
+        } elseif ($number < 1000000000) {
+            return self::terbilang((int)($number / 1000000)) . " Juta" . ($number % 1000000 ? " " . self::terbilang($number % 1000000) : "");
+        } elseif ($number < 1000000000000) {
+            return self::terbilang((int)($number / 1000000000)) . " Miliar" . ($number % 1000000000 ? " " . self::terbilang($number % 1000000000) : "");
+        }
+
+        return (string)$number;
+    }
+
+    /**
+     * Dapatkan konfigurasi lengkap KOP Surat, Logo, Stempel, dan Penandatangan Invoice / Kwitansi.
+     */
+    public static function getInvoiceConfig(): array
+    {
+        return [
+            'logo_left' => static::get('invoice_logo_left', '/assets/img/logo.png'),
+            'logo_right' => static::get('invoice_logo_right', '/assets/img/logo.png'),
+            'show_logo_right' => static::get('invoice_show_logo_right', '1') === '1',
+            'logo_size' => (int)static::get('invoice_logo_size', 68),
+            'kop_foundation' => static::get('invoice_kop_foundation', 'YAYASAN PONDOK PESANTREN WAHID HASYIM'),
+            'kop_committee' => static::get('invoice_kop_committee', 'PANITIA PELAKSANA SEMARAK ALIYAH XIV TAHUN 2026'),
+            'kop_school' => static::get('invoice_kop_school', 'MADRASAH ALIYAH UNGGULAN WAHID HASYIM BALUNG'),
+            'kop_accreditation' => static::get('invoice_kop_accreditation', 'STATUS TERAKREDITASI "A" • NSM: 131235090014 • NPSN: 69941846'),
+            'kop_address' => static::get('invoice_kop_address', 'Jl. Balung - Tutul No. 09 Balung Kidul, Kec. Balung, Kab. Jember, Jawa Timur 68161'),
+            'kop_contact' => static::get('invoice_kop_contact', 'Website: semarak.ma-wh.sch.id • Email: semarak@ma-wh.sch.id • Hotline WA: 0838 5007 0767'),
+            'stamp_mode' => static::get('invoice_stamp_mode', 'digital'),
+            'stamp_top_text' => static::get('invoice_stamp_top_text', 'SEMARAK ALIYAH XIV'),
+            'stamp_bottom_text' => static::get('invoice_stamp_bottom_text', 'MA WAHID HASYIM'),
+            'stamp_center_text' => static::get('invoice_stamp_center_text', '★'),
+            'stamp_color' => static::get('invoice_stamp_color', '#2563eb'),
+            'stamp_image' => static::get('invoice_stamp_image', ''),
+            'stamp_rotation' => (int)static::get('invoice_stamp_rotation', -8),
+            'sig_city' => static::get('invoice_sig_city', 'Balung - Jember'),
+            'treasurer_name' => static::get('treasurer_name', 'M. Irfan Zidni, S.Pd.'),
+            'treasurer_role' => static::get('treasurer_role', 'Bendahara Pelaksana'),
+            'treasurer_subrole' => static::get('treasurer_subrole', 'Semarak Aliyah XIV Tahun 2026'),
+            'signature_image' => static::get('treasurer_signature_image', ''),
+            'footer_note' => static::get('invoice_footer_note', 'Dokumen ini diterbitkan secara sah dan otomatis oleh Sistem Informasi Semarak Aliyah XIV MA Unggulan Wahid Hasyim Balung.'),
+        ];
     }
 }

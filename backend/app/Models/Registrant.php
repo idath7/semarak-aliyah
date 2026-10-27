@@ -51,6 +51,35 @@ class Registrant extends Authenticatable
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var list<string>
+     */
+    protected $appends = [
+        'avatar_url',
+    ];
+
+    /**
+     * Get the full URL to the registrant avatar.
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (empty($this->avatar)) {
+            return null;
+        }
+        if (str_starts_with($this->avatar, 'http://') || str_starts_with($this->avatar, 'https://') || str_starts_with($this->avatar, 'data:')) {
+            return $this->avatar;
+        }
+        if (str_starts_with($this->avatar, '/storage/')) {
+            return asset(ltrim($this->avatar, '/'));
+        }
+        if (str_starts_with($this->avatar, 'storage/')) {
+            return asset($this->avatar);
+        }
+        return asset('storage/' . ltrim($this->avatar, '/'));
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

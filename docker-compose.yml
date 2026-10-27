@@ -220,6 +220,43 @@ services:
     networks:
       - semarak_net
 
+  # ----------------------------------------------------------------------------
+  # 6. LARAVEL SCHEDULER & BACKUP CRON WORKER (CADANGAN TERJADWAL OTOMATIS)
+  # ----------------------------------------------------------------------------
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: semarak_scheduler
+    restart: unless-stopped
+    command: ["php", "artisan", "schedule:work"]
+    env_file:
+      - ./backend/.env
+    environment:
+      - APP_NAME="SEMARAK ALIYAH XIV 2026"
+      - APP_ENV=${APP_ENV:-production}
+      - APP_KEY=${APP_KEY:-base64:lceKHIY36eCrRMMiQ9wGICH4PJlaBt7/3VXDVPE5/vw=}
+      - DB_CONNECTION=pgsql
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-semarak_db}
+      - DB_USERNAME=${DB_USERNAME:-semarak_user}
+      - DB_PASSWORD=${DB_PASSWORD:-semarak_secure_password}
+      - CACHE_STORE=redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./backend:/var/www/html
+      - ./docker/php/custom-optimasi.ini:/usr/local/etc/php/conf.d/custom-optimasi.ini:ro
+      - app_storage:/var/www/html/storage
+    networks:
+      - semarak_net
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 # ------------------------------------------------------------------------------
 # PERSISTENT VOLUMES DEFINITION
 # ------------------------------------------------------------------------------

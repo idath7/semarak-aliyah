@@ -28,6 +28,7 @@ const eventInfo = computed(() => {
 });
 
 const kustomisasi = computed(() => page.props.kustomisasiWeb || {});
+const footerCompetitions = computed(() => page.props.footerCompetitions || []);
 const isBannerDismissed = ref(false);
 const isPopupOpen = ref(false);
 
@@ -562,14 +563,16 @@ onUnmounted(() => {
 
             <div class="footer-col-lomba">
               <h4 class="footer-heading">Cabang Lomba</h4>
-              <ul class="footer-links">
-                <li><Link :href="getCompRegisterUrl('mipa')"><i class="ri-arrow-right-s-line"></i> Olimpiade MIPA</Link></li>
-                <li><Link :href="getCompRegisterUrl('ips')"><i class="ri-arrow-right-s-line"></i> Olimpiade IPS</Link></li>
-                <li><Link :href="getCompRegisterUrl('storytelling')"><i class="ri-arrow-right-s-line"></i> Storytelling</Link></li>
-                <li><Link :href="getCompRegisterUrl('albanjari')"><i class="ri-arrow-right-s-line"></i> Festival Albanjari</Link></li>
-                <li><Link :href="getCompRegisterUrl('singer')"><i class="ri-arrow-right-s-line"></i> Singer Lagu Islami</Link></li>
-                <li><Link :href="getCompRegisterUrl('mobile-legends')"><i class="ri-arrow-right-s-line"></i> Mobile Legends</Link></li>
+              <ul v-if="footerCompetitions.length > 0" class="footer-links">
+                <li v-for="comp in footerCompetitions" :key="comp.id">
+                  <Link :href="getCompRegisterUrl(comp.slug || comp.id)">
+                    <i class="ri-arrow-right-s-line"></i> {{ comp.name }}
+                  </Link>
+                </li>
               </ul>
+              <p v-else class="text-xs text-muted mb-0 py-1" style="font-size: 13px; opacity: 0.7;">
+                <i class="ri-information-line me-1"></i>Belum ada cabang lomba aktif
+              </p>
             </div>
           </div>
 

@@ -7,11 +7,10 @@
     <meta content="Cetak Massal ID Card Peserta Berbarcode dan Sertifikat Penghargaan" name="description" />
     <meta content="MA Wahid Hasyim" name="author" />
     <link rel="shortcut icon" href="/assets/img/logo.png">
-
-    <!-- Google Fonts (Poppins - Velzon Official Typography) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Local Offline Fonts & Icons -->
+    <link rel="stylesheet" href="/assets/css/fonts.css">
+    <link rel="stylesheet" href="/assets/vendor/remixicon/remixicon.css">
+    <link rel="stylesheet" href="/assets/vendor/boxicons/css/boxicons.min.css">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -96,7 +95,7 @@
 
                 <!-- Showcase Highlights -->
                 <div class="row g-3 mb-4">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="card border-0 shadow-sm h-100">
                             <div class="card-body p-4 d-flex align-items-center gap-3">
                                 <div class="card-preview-thumb">
@@ -105,17 +104,36 @@
                                     <small class="fs-9 text-white-50">REG-XXXXXX</small>
                                 </div>
                                 <div>
-                                    <h5 class="fs-15 fw-bold mb-1 text-dark">ID Card Peserta & Barcode Check-in</h5>
-                                    <p class="text-muted fs-12 mb-3">Format standar lanyard ukuran 8.5 x 13 cm, dilengkapi logo sekolah, nama peserta, asal pangkalan dan barcode yang kompatibel dengan scanner meja gate check-in.</p>
+                                    <h5 class="fs-15 fw-bold mb-1 text-dark">ID Card & Barcode Check-in</h5>
+                                    <p class="text-muted fs-12 mb-3">Format standar lanyard ukuran 8.5 x 13 cm, barcode scanner, logo pangkalan, & nomor peserta.</p>
                                     <a href="{{ route('admin.print.idcards') }}" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3">
-                                        <i class="ri-printer-line me-1"></i> Buka Antrian Cetak ID Card
+                                        <i class="ri-printer-line me-1"></i> Buka Antrian Cetak
                                     </a>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="col-md-6">
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body p-4 d-flex align-items-center gap-3">
+                                <div class="card-preview-thumb" style="background: linear-gradient(135deg, #1e3a8a 0%, #0369a1 100%);">
+                                    <i class="ri-file-paper-2-line fs-32 text-info mb-1"></i>
+                                    <span class="fs-11 fw-bold text-uppercase">INVOICE</span>
+                                    <small class="fs-9 text-white-50">A4 Portrait</small>
+                                </div>
+                                <div>
+                                    <h5 class="fs-15 fw-bold mb-1 text-dark">Nota Invoice & Kwitansi Resmi</h5>
+                                    <p class="text-muted fs-12 mb-3">Format KOP resmi madrasah, nomor kwitansi, rincian biaya, terbilang rupiah, & stempel panitia.</p>
+                                    <span class="badge bg-primary-subtle text-primary fs-12 px-3 py-1">
+                                        <i class="ri-printer-line me-1"></i> Cetak dari Tabel di Bawah
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
                         <div class="card border-0 shadow-sm h-100">
                             <div class="card-body p-4 d-flex align-items-center gap-3">
                                 <div class="card-preview-thumb" style="background: linear-gradient(135deg, #14532d 0%, #064e3b 100%);">
@@ -124,8 +142,8 @@
                                     <small class="fs-9 text-white-50">A4 Landscape</small>
                                 </div>
                                 <div>
-                                    <h5 class="fs-15 fw-bold mb-1 text-dark">Sertifikat Penghargaan & Partisipasi</h5>
-                                    <p class="text-muted fs-12 mb-3">Format resmi A4 Landscape dengan ornamen emas, tanda tangan Kepala Madrasah, verifikasi digital, dan kustomisasi predikat juara per kontingen.</p>
+                                    <h5 class="fs-15 fw-bold mb-1 text-dark">Sertifikat Penghargaan</h5>
+                                    <p class="text-muted fs-12 mb-3">Format resmi A4 Landscape dengan ornamen emas, tanda tangan Kepala Madrasah, & predikat juara.</p>
                                     <span class="badge bg-success-subtle text-success fs-12 px-3 py-1">
                                         <i class="ri-check-line me-1"></i> Siap Cetak dari Tabel di Bawah
                                     </span>
@@ -193,6 +211,9 @@
                                             </td>
                                             <td class="text-end">
                                                 <div class="btn-group btn-group-sm">
+                                                    <a href="{{ route('admin.invoice.print', ['id' => $r->id]) }}" target="_blank" class="btn btn-outline-info" title="Cetak Nota Invoice / Kwitansi">
+                                                        <i class="ri-file-paper-2-line me-1"></i> Nota / Kwitansi
+                                                    </a>
                                                     <a href="{{ route('admin.print.idcards', ['id' => $r->id]) }}" target="_blank" class="btn btn-outline-primary" title="Cetak ID Card">
                                                         <i class="ri-id-card-line me-1"></i> ID Card
                                                     </a>

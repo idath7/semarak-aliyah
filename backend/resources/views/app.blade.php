@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="id" data-bs-theme="{{ (request()->is('admin*') || request()->is('operasional*') || request()->is('login*') || request()->is('pendaftar*')) ? 'dark' : 'light' }}">
+<html lang="id" data-layout="vertical" data-topbar="{{ (request()->is('admin*') || request()->is('operasional*') || request()->is('login*') || request()->is('pendaftar*')) ? 'dark' : 'light' }}" data-sidebar="dark" data-sidebar-size="lg" data-bs-theme="{{ (request()->is('admin*') || request()->is('operasional*') || request()->is('login*') || request()->is('pendaftar*')) ? 'dark' : 'light' }}">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/png" href="/assets/img/logo.png" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
 
@@ -92,6 +93,11 @@
     <meta name="twitter:description" content="{{ $ogDesc }}" />
     <meta name="twitter:image" content="{{ $ogImage . $ogImageVersion }}" />
 
+    <!-- Local Offline Fonts & Icons (Available Offline-First) -->
+    <link rel="stylesheet" href="/assets/css/fonts.css">
+    <link rel="stylesheet" href="/assets/vendor/remixicon/remixicon.css">
+    <link rel="stylesheet" href="/assets/vendor/boxicons/css/boxicons.min.css">
+
     @if(request()->is('admin*') || request()->is('operasional*') || request()->is('login*') || request()->is('pendaftar*'))
         <!-- Admin, Operasional & Pendaftar Portal Fonts & Assets (Synchronous Theme Restorer) -->
         <script>
@@ -100,20 +106,22 @@
                     var isPendaftar = window.location.pathname.startsWith('/pendaftar');
                     var t = isPendaftar 
                         ? (localStorage.getItem('semarak_theme') || localStorage.getItem('velzon_theme_v2') || 'dark')
-                        : (localStorage.getItem('velzon_theme_v2') || 'dark');
+                        : (localStorage.getItem('velzon_theme_v2') || localStorage.getItem('semarak_theme') || 'dark');
+                    if (t !== 'dark' && t !== 'light') {
+                        t = 'dark';
+                    }
                     document.documentElement.setAttribute('data-bs-theme', t);
+                    document.documentElement.setAttribute('data-topbar', t === 'dark' ? 'dark' : 'light');
+                    document.documentElement.setAttribute('data-sidebar', 'dark');
                     document.documentElement.style.colorScheme = t;
                     if (t === 'dark') {
                         document.documentElement.style.backgroundColor = '#0b0f19';
                     } else {
-                        document.documentElement.style.backgroundColor = '#f8fafc';
+                        document.documentElement.style.backgroundColor = '#f3f3f9';
                     }
                 } catch(e) {}
             })();
         </script>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Hanken+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=Orbitron:wght@600;700;800;900&family=Syne:wght@700;800;900&family=Oswald:wght@600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <style>
             [data-bs-theme="dark"] body {
@@ -124,25 +132,31 @@
             [data-bs-theme="dark"] body::after {
                 display: none !important;
             }
+            [data-bs-theme="light"] body {
+                background-color: #f3f3f9 !important;
+                color: #212529 !important;
+            }
         </style>
     @else
         <!-- Public Portal Fonts & Stylesheets (Synchronous in head to eliminate FOUC and page transition flash) -->
         <script>
             (function() {
                 try {
-                    var t = localStorage.getItem('semarak_theme');
+                    var t = localStorage.getItem('semarak_theme') || 'light';
+                    if (t !== 'dark' && t !== 'light') {
+                        t = 'light';
+                    }
+                    document.documentElement.setAttribute('data-bs-theme', t);
+                    document.documentElement.setAttribute('data-topbar', t === 'dark' ? 'dark' : 'light');
+                    document.documentElement.style.colorScheme = t;
                     if (t === 'dark') {
-                        document.documentElement.setAttribute('data-bs-theme', 'dark');
-                        document.documentElement.style.colorScheme = 'dark';
                         document.documentElement.style.backgroundColor = '#0b0f19';
+                    } else {
+                        document.documentElement.style.backgroundColor = '#ffffff';
                     }
                 } catch(e) {}
             })();
         </script>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Oswald:wght@600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
-        <link href="https://cdn.jsdelivr.net/npm/remixicon@4.6.0/fonts/remixicon.css" rel="stylesheet" />
         <link rel="stylesheet" href="/assets/css/style.css?v=3.26" />
         @vite(['resources/js/app.js'])
 

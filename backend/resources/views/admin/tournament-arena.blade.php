@@ -7,11 +7,10 @@
     <meta content="Panel Pertandingan & Bagan Turnamen Sistem Gugur (Knockout Bracket) Resmi" name="description" />
     <meta content="MA Wahid Hasyim Balung" name="author" />
     <link rel="shortcut icon" href="/assets/img/logo.png">
-
-    <!-- Google Fonts (Poppins & Orbitron for Electronic Scoreboard) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Local Offline Fonts & Icons -->
+    <link rel="stylesheet" href="/assets/css/fonts.css">
+    <link rel="stylesheet" href="/assets/vendor/remixicon/remixicon.css">
+    <link rel="stylesheet" href="/assets/vendor/boxicons/css/boxicons.min.css">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 

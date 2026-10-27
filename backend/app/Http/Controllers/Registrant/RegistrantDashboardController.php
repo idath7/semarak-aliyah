@@ -22,10 +22,14 @@ class RegistrantDashboardController extends Controller
 {
     /**
      * Dapatkan instance akun pendaftar yang sedang login via guard 'pendaftar'.
+     *
+     * @return \App\Models\Registrant|\App\Models\User|null
      */
-    protected function getRegistrant()
+    protected function getRegistrant(): Registrant|User|null
     {
-        return Auth::guard('pendaftar')->user() ?? Auth::user();
+        /** @var Registrant|User|null $user */
+        $user = Auth::guard('pendaftar')->user() ?? Auth::user();
+        return $user;
     }
 
     /**
@@ -272,8 +276,9 @@ class RegistrantDashboardController extends Controller
     /**
      * Perbarui data peserta dan berkas pendaftaran (selagi belum ditutup).
      */
-    public function updateRegistration(Request $request, $id)
+    public function updateRegistration(Request $request, int|string $id)
     {
+        /** @var \App\Models\Registrant|\App\Models\User $user */
         $user = $this->getRegistrant();
         $cleanPhone = Setting::formatWaNumber($user->phone);
 
@@ -301,6 +306,13 @@ class RegistrantDashboardController extends Controller
             'mentor_wa' => 'nullable|string|max:30',
             'notes' => 'nullable|string',
             'payment_method' => 'nullable|string',
+            'payment_proof' => 'nullable|file|mimes:jpeg,png,jpg,webp,pdf|max:5120',
+            'custom_files.*' => 'nullable|file|mimes:jpeg,png,jpg,webp,pdf,doc,docx,xls,xlsx,zip,rar|max:10240',
+        ], [
+            'payment_proof.mimes' => 'Bukti pembayaran harus berformat JPEG, PNG, JPG, WEBP, atau PDF.',
+            'payment_proof.max' => 'Ukuran berkas bukti pembayaran maksimal 5MB.',
+            'custom_files.*.mimes' => 'Format berkas lampiran tidak didukung.',
+            'custom_files.*.max' => 'Ukuran berkas lampiran maksimal 10MB.',
         ]);
 
         $isOwner = ($registration->registrant_id === $user->id || $registration->user_id === $user->id || Setting::formatWaNumber($registration->mentor_wa) === $cleanPhone);
@@ -339,21 +351,26 @@ class RegistrantDashboardController extends Controller
         $regCode = $registration->reg_code;
 
         // 1. Bukti Pembayaran Baru (jika diupload ulang)
+        $proofUrl = null;
+        $proofExt = null;
+        $proofOriginalName = null;
+
         if ($request->hasFile('payment_proof')) {
             $proof = $request->file('payment_proof');
             if ($proof && $proof->isValid()) {
-                $ext = strtolower($proof->getClientOriginalExtension());
-                $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $proof->getClientOriginalName());
+                $proofExt = strtolower($proof->getClientOriginalExtension());
+                $proofOriginalName = $proof->getClientOriginalName();
+                $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $proofOriginalName);
                 $path = $proof->storeAs("uploads/registrations/{$regCode}", time() . "_bukti_{$safeName}", 'public');
-                $fileUrl = '/storage/' . $path;
+                $proofUrl = '/storage/' . $path;
 
                 // Update / Replace existing payment proof in file_documents
                 $newFiles = array_filter($existingFiles, fn($f) => ($f['title'] ?? '') !== 'Bukti Transfer Pembayaran Bank');
                 $newFiles[] = [
                     'title' => 'Bukti Transfer Pembayaran Bank',
-                    'url' => $fileUrl,
-                    'filename' => $proof->getClientOriginalName(),
-                    'type' => $ext,
+                    'url' => $proofUrl,
+                    'filename' => $proofOriginalName,
+                    'type' => $proofExt,
                     'uploaded_at' => now()->toIso8601String(),
                 ];
                 $existingFiles = array_values($newFiles);
@@ -361,8 +378,8 @@ class RegistrantDashboardController extends Controller
                 $existingCustom['payment_proof'] = [
                     'type' => 'file',
                     'label' => 'Bukti Transfer Pembayaran Bank',
-                    'name' => $proof->getClientOriginalName(),
-                    'url' => $fileUrl,
+                    'name' => $proofOriginalName,
+                    'url' => $proofUrl,
                 ];
                 $registration->custom_fields = $existingCustom;
             }
@@ -374,7 +391,7 @@ class RegistrantDashboardController extends Controller
             if (is_array($uploadedFiles)) {
                 foreach ($uploadedFiles as $fieldKey => $file) {
                     if ($file && $file->isValid()) {
-                        $ext = strtolower($file->getClientOriginalExtension());
+                        $customExt = strtolower($file->getClientOriginalExtension());
                         $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $file->getClientOriginalName());
                         $path = $file->storeAs("uploads/registrations/{$regCode}", time() . "_{$fieldKey}_{$safeName}", 'public');
                         $fileUrl = '/storage/' . $path;
@@ -387,7 +404,7 @@ class RegistrantDashboardController extends Controller
                             'title' => $fieldLabel,
                             'url' => $fileUrl,
                             'filename' => $file->getClientOriginalName(),
-                            'type' => $ext,
+                            'type' => $customExt,
                             'uploaded_at' => now()->toIso8601String(),
                         ];
 
@@ -396,7 +413,7 @@ class RegistrantDashboardController extends Controller
                             'label' => $fieldLabel,
                             'name' => $file->getClientOriginalName(),
                             'url' => $fileUrl,
-                            'extension' => $ext,
+                            'extension' => $customExt,
                         ];
                     }
                 }
@@ -421,14 +438,14 @@ class RegistrantDashboardController extends Controller
                 ->get();
 
             foreach ($siblingAllIns as $sib) {
-                if ($request->hasFile('payment_proof') && isset($fileUrl) && isset($proof)) {
+                if ($proofUrl && $proofOriginalName) {
                     $sibFiles = $sib->file_documents ?: [];
                     $sibFiles = array_filter($sibFiles, fn($f) => ($f['title'] ?? '') !== 'Bukti Transfer Pembayaran Bank');
                     $sibFiles[] = [
                         'title' => 'Bukti Transfer Pembayaran Bank',
-                        'url' => $fileUrl,
-                        'filename' => $proof->getClientOriginalName(),
-                        'type' => $ext,
+                        'url' => $proofUrl,
+                        'filename' => $proofOriginalName,
+                        'type' => $proofExt ?? 'jpg',
                         'uploaded_at' => now()->toIso8601String(),
                     ];
                     $sib->file_documents = array_values($sibFiles);
@@ -437,15 +454,15 @@ class RegistrantDashboardController extends Controller
                     $sibCustom['payment_proof'] = [
                         'type' => 'file',
                         'label' => 'Bukti Transfer Pembayaran Bank',
-                        'name' => $proof->getClientOriginalName(),
-                        'url' => $fileUrl,
+                        'name' => $proofOriginalName,
+                        'url' => $proofUrl,
                     ];
                     $sib->custom_fields = $sibCustom;
                 }
                 if (!empty($validated['payment_method'])) {
                     $sib->payment_method = $validated['payment_method'];
                 }
-                if ($request->hasFile('payment_proof') && $sib->payment_status === 'Ditolak') {
+                if ($proofUrl && $sib->payment_status === 'Ditolak') {
                     $sib->payment_status = 'Menunggu Verifikasi';
                 }
                 $sib->save();
@@ -460,7 +477,11 @@ class RegistrantDashboardController extends Controller
      */
     public function updateProfile(Request $request)
     {
+        /** @var \App\Models\Registrant|\App\Models\User|null $user */
         $user = $this->getRegistrant();
+        if (!$user) {
+            return redirect()->route('pendaftar.login');
+        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -490,8 +511,9 @@ class RegistrantDashboardController extends Controller
     /**
      * Tunjuk anggota / koordinator cabang lomba (PIC) oleh pemilik akun.
      */
-    public function assignPic(Request $request, $id)
+    public function assignPic(Request $request, int|string $id)
     {
+        /** @var \App\Models\Registrant|\App\Models\User|null $user */
         $user = $this->getRegistrant();
         if (!$user) {
             return redirect()->route('pendaftar.login');
@@ -565,7 +587,7 @@ class RegistrantDashboardController extends Controller
     /**
      * Hapus penunjukan anggota/PIC pada cabang lomba.
      */
-    public function removePic(Request $request, $id)
+    public function removePic(Request $request, int|string $id)
     {
         $user = $this->getRegistrant();
         if (!$user) {
@@ -804,6 +826,12 @@ class RegistrantDashboardController extends Controller
                 'participants_rule' => $c->participants_rule,
                 'max_participants' => (int)($c->max_participants ?: 1),
                 'custom_fields' => $c->custom_fields ?: [],
+                'registration_type' => $c->registration_type ?: 'online',
+                'is_direct_registration' => $c->isDirectRegistration(),
+                'direct_registration_note' => $c->direct_registration_note,
+                'direct_contact_wa_url' => $c->direct_contact_wa_url,
+                'primary_coordinator' => $c->primary_coordinator,
+                'coordinators' => $c->coordinators ?: [],
             ];
         });
 
@@ -883,6 +911,7 @@ class RegistrantDashboardController extends Controller
      */
     public function storeRegistration(Request $request)
     {
+        /** @var \App\Models\Registrant|\App\Models\User|null $user */
         $user = $this->getRegistrant();
         if (!$user) {
             return redirect()->route('pendaftar.login');
@@ -906,6 +935,7 @@ class RegistrantDashboardController extends Controller
                 'coordinator_email' => 'required|email|max:100',
                 'payment_method' => 'nullable|string',
                 'notes' => 'nullable|string',
+                'payment_proof' => 'nullable|file|mimes:jpeg,png,jpg,webp,pdf|max:5120',
             ], [
                 'school_name.required' => 'Nama sekolah / madrasah wajib diisi.',
                 'school_district.required' => 'Kecamatan sekolah / madrasah wajib diisi.',
@@ -914,6 +944,8 @@ class RegistrantDashboardController extends Controller
                 'coordinator_phone.required' => 'Nomor WhatsApp / kontak koordinator wajib diisi.',
                 'coordinator_email.required' => 'Email koordinator / pendamping wajib diisi.',
                 'coordinator_email.email' => 'Format email koordinator tidak valid.',
+                'payment_proof.mimes' => 'Bukti pembayaran harus berformat JPEG, PNG, JPG, WEBP, atau PDF.',
+                'payment_proof.max' => 'Ukuran berkas bukti pembayaran maksimal 5MB.',
             ]);
 
             // Terbitkan Kode Paket Komplit Otomatis
@@ -1026,14 +1058,31 @@ class RegistrantDashboardController extends Controller
             'payment_method' => 'nullable|string',
             'custom_fields' => 'nullable|array',
             'allin_code' => 'nullable|string',
+            'payment_proof' => 'nullable|file|mimes:jpeg,png,jpg,webp,pdf|max:5120',
+            'file_documents.*' => 'nullable|file|mimes:jpeg,png,jpg,webp,pdf,doc,docx,xls,xlsx,zip,rar|max:10240',
+            'custom_files.*' => 'nullable|file|mimes:jpeg,png,jpg,webp,pdf,doc,docx,xls,xlsx,zip,rar|max:10240',
         ], [
             'competition_id.required' => 'Pilih cabang lomba yang ingin didaftarkan.',
             'participants_names.required' => 'Daftar nama peserta / delegasi wajib diisi.',
+            'payment_proof.mimes' => 'Bukti pembayaran harus berformat JPEG, PNG, JPG, WEBP, atau PDF.',
+            'payment_proof.max' => 'Ukuran berkas bukti pembayaran maksimal 5MB.',
+            'file_documents.*.mimes' => 'Format berkas dokumen tidak didukung.',
+            'file_documents.*.max' => 'Ukuran berkas dokumen maksimal 10MB.',
+            'custom_files.*.mimes' => 'Format berkas lampiran tidak didukung.',
+            'custom_files.*.max' => 'Ukuran berkas lampiran maksimal 10MB.',
         ]);
 
         $competition = Competition::find($validated['competition_id']);
 
         if ($competition) {
+            if ($competition->isDirectRegistration()) {
+                $coordName = $competition->primary_coordinator['name'] ?? 'Koordinator Lomba';
+                $coordPhone = $competition->primary_coordinator['contact'] ?? '';
+                $contactInfo = $coordPhone ? "{$coordName} ({$coordPhone})" : $coordName;
+                return redirect()->back()->withErrors([
+                    'competition_id' => "Pendaftaran cabang lomba {$competition->title} hanya dapat dilakukan melalui kontak langsung ke Koordinator Lomba: {$contactInfo}."
+                ]);
+            }
             if ($competition->isDeadlinePassed()) {
                 return redirect()->back()->withErrors([
                     'competition_id' => "Pendaftaran untuk cabang {$competition->title} telah ditutup karena melewati batas tanggal pendaftaran."
@@ -1231,5 +1280,132 @@ class RegistrantDashboardController extends Controller
         }
 
         return redirect()->route('pendaftar.dashboard')->with('success', "Pendaftaran delegasi cabang [{$compTitle}] berhasil dikirim dan terhubung ke akun Anda!");
+    }
+
+    /**
+     * Simpan gambar avatar pendaftar dari data URL base64.
+     */
+    protected function saveAvatarData(string $base64Data, ?string $oldAvatar = null): ?string
+    {
+        if (preg_match('/^data:image\/(\w+);base64,/', $base64Data, $matches)) {
+            $imageType = strtolower($matches[1]);
+            if (!in_array($imageType, ['jpeg', 'jpg', 'png', 'webp'])) {
+                $imageType = 'jpg';
+            }
+            $cleanBase64 = substr($base64Data, strpos($base64Data, ',') + 1);
+            $decoded = base64_decode($cleanBase64);
+            if ($decoded === false) {
+                return null;
+            }
+
+            if (!empty($oldAvatar)) {
+                $cleanOld = ltrim(str_replace(['/storage/', 'storage/'], '', $oldAvatar), '/');
+                if (Storage::disk('public')->exists($cleanOld)) {
+                    Storage::disk('public')->delete($cleanOld);
+                }
+            }
+
+            $filename = 'avatars/pendaftar_' . uniqid() . '_' . time() . '.' . ($imageType === 'jpeg' ? 'jpg' : $imageType);
+            Storage::disk('public')->put($filename, $decoded);
+            return $filename;
+        }
+
+        return null;
+    }
+
+    /**
+     * Update avatar foto pendaftar.
+     */
+    public function updateAvatar(Request $request)
+    {
+        /** @var \App\Models\Registrant|\App\Models\User|null $user */
+        $user = $this->getRegistrant();
+        if (!$user) {
+            return redirect()->route('pendaftar.login');
+        }
+
+        $request->validate([
+            'avatar_data' => ['required', 'string'],
+        ]);
+
+        $newPath = $this->saveAvatarData($request->input('avatar_data'), $user->avatar);
+        if (!$newPath) {
+            return redirect()->back()->with('error', 'Gagal memproses data gambar foto.');
+        }
+
+        $user->update(['avatar' => $newPath]);
+
+        return redirect()->back()->with('success', 'Foto profil Anda berhasil disesuaikan dan diperbarui!');
+    }
+
+    /**
+     * Hapus avatar foto pendaftar.
+     */
+    public function removeAvatar()
+    {
+        /** @var \App\Models\Registrant|\App\Models\User|null $user */
+        $user = $this->getRegistrant();
+        if (!$user) {
+            return redirect()->route('pendaftar.login');
+        }
+
+        if (!empty($user->avatar)) {
+            $cleanOld = ltrim(str_replace(['/storage/', 'storage/'], '', $user->avatar), '/');
+            if (Storage::disk('public')->exists($cleanOld)) {
+                Storage::disk('public')->delete($cleanOld);
+            }
+            $user->update(['avatar' => null]);
+        }
+
+        return redirect()->back()->with('success', 'Foto profil berhasil dihapus.');
+    }
+
+    /**
+     * Cetak Nota Invoice / Kwitansi Pembayaran Resmi untuk Pendaftar.
+     */
+    public function printInvoice(int|string $id, Request $request)
+    {
+        $user = $this->getRegistrant();
+        if (!$user) {
+            return redirect()->route('pendaftar.login');
+        }
+
+        $cleanPhone = Setting::formatWaNumber($user->phone);
+
+        $reg = Registration::with('competition')->where(function ($q) use ($id) {
+            $q->where('id', $id)
+              ->orWhere('reg_code', $id);
+        })->firstOrFail();
+
+        // Check ownership or assigned PIC
+        $isOwner = ($reg->registrant_id === $user->id || $reg->user_id === $user->id || Setting::formatWaNumber($reg->mentor_wa) === $cleanPhone);
+        $isPic = (!empty($reg->assigned_phone) && Setting::formatWaNumber($reg->assigned_phone) === $cleanPhone);
+
+        if (!$isOwner && !$isPic && ($user->role ?? '') !== 'admin') {
+            abort(403, 'Anda tidak memiliki hak akses untuk mencetak nota invoice pendaftaran ini.');
+        }
+
+        $isPaid = in_array(strtolower($reg->payment_status ?? ''), ['lunas', 'paid', 'verified', 'terverifikasi', 'diterima']);
+        $mode = $request->input('mode');
+        if (!$mode) {
+            $mode = $isPaid ? 'receipt' : 'invoice';
+        }
+
+        $totalFee = (int) ($reg->total_fee ?? 0);
+        $terbilang = Setting::terbilang($totalFee);
+        $bankAccounts = Setting::getBankAccounts();
+
+        $invoiceConfig = Setting::getInvoiceConfig();
+
+        return view('admin.print-invoice', [
+            'reg' => $reg,
+            'defaultMode' => $mode,
+            'isPaid' => $isPaid,
+            'terbilang' => $terbilang,
+            'bankAccounts' => $bankAccounts,
+            'treasurerName' => $invoiceConfig['treasurer_name'],
+            'treasurerRole' => $invoiceConfig['treasurer_role'],
+            'invoiceConfig' => $invoiceConfig,
+        ]);
     }
 }

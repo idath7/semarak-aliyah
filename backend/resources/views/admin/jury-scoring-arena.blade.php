@@ -7,11 +7,10 @@
     <meta content="Panel Penilaian Juri Arena, Rubrik Penilaian dan Stopwatch Panggung" name="description" />
     <meta content="MA Wahid Hasyim" name="author" />
     <link rel="shortcut icon" href="/assets/img/logo.png">
-
-    <!-- Google Fonts (Poppins - Velzon Official Typography) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Local Offline Fonts & Icons -->
+    <link rel="stylesheet" href="/assets/css/fonts.css">
+    <link rel="stylesheet" href="/assets/vendor/remixicon/remixicon.css">
+    <link rel="stylesheet" href="/assets/vendor/boxicons/css/boxicons.min.css">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -650,6 +649,6 @@
     @include('admin.partials.rubric-customizer-modal')
     @include('admin.partials.velzon-confirm-modal')
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/assets/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

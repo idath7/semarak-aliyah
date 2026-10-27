@@ -273,6 +273,7 @@ class Setting extends Model
             'treasurer_subrole' => static::get('treasurer_subrole', 'Semarak Aliyah XIV Tahun 2026'),
             'signature_image' => static::get('treasurer_signature_image', ''),
             'footer_note' => static::get('invoice_footer_note', 'Dokumen ini diterbitkan secara sah dan otomatis oleh Sistem Informasi Semarak Aliyah XIV MA Unggulan Wahid Hasyim Balung.'),
+            'theme' => static::get('invoice_theme', 'formal'),
         ];
     }
 }

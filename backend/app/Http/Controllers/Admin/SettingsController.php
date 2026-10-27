@@ -1132,6 +1132,7 @@ class SettingsController extends Controller
             'treasurer_role' => 'required|string|max:150',
             'treasurer_subrole' => 'nullable|string|max:150',
             'footer_note' => 'nullable|string|max:500',
+            'theme' => 'nullable|string|in:formal,professional',
         ]);
 
         // Upload Logo Kiri
@@ -1203,13 +1204,15 @@ class SettingsController extends Controller
         Setting::set('treasurer_role', $validated['treasurer_role']);
         Setting::set('treasurer_subrole', $validated['treasurer_subrole'] ?? '');
         Setting::set('invoice_footer_note', $validated['footer_note'] ?? '');
+        Setting::set('invoice_theme', $validated['theme'] ?? 'formal');
 
-        return redirect()->back()->with('success', 'Konfigurasi KOP Surat, Logo, dan Stempel Invoice resmi berhasil diperbarui!');
+        return redirect()->back()->with('success', 'Konfigurasi KOP Surat, Logo, Tema, dan Stempel Invoice resmi berhasil diperbarui!');
     }
 
     public function resetInvoiceKopCustomization(Request $request)
     {
         $keys = [
+            'invoice_theme' => 'formal',
             'invoice_logo_left' => '/assets/img/logo.png',
             'invoice_logo_right' => '/assets/img/logo.png',
             'invoice_show_logo_right' => '1',
@@ -1239,6 +1242,6 @@ class SettingsController extends Controller
             Setting::set($k, $v);
         }
 
-        return redirect()->back()->with('success', 'Konfigurasi KOP, Logo, dan Stempel berhasil dikembalikan ke standar awal.');
+        return redirect()->back()->with('success', 'Konfigurasi KOP, Logo, Tema, dan Stempel berhasil dikembalikan ke standar awal.');
     }
 }

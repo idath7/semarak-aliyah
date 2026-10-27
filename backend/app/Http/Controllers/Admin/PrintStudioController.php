@@ -73,10 +73,15 @@ class PrintStudioController extends Controller
         $bankAccounts = \App\Models\Setting::getBankAccounts();
 
         $invoiceConfig = \App\Models\Setting::getInvoiceConfig();
+        $theme = $request->input('theme', $invoiceConfig['theme'] ?? 'formal');
+        if (!in_array($theme, ['formal', 'professional'])) {
+            $theme = $invoiceConfig['theme'] ?? 'formal';
+        }
 
         return view('admin.print-invoice', [
             'reg' => $reg,
             'defaultMode' => $mode,
+            'defaultTheme' => $theme,
             'isPaid' => $isPaid,
             'terbilang' => $terbilang,
             'bankAccounts' => $bankAccounts,

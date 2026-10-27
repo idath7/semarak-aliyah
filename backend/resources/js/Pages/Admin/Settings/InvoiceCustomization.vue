@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { useToast } from '@/Composables/useToast';
 import VelzonConfirmModal from '@/Components/VelzonConfirmModal.vue';
+import CustomSelect from '@/Components/CustomSelect.vue';
 
 const props = defineProps({
   config: {
@@ -29,6 +30,8 @@ const previewStampImage = ref(props.config.stamp_image || '');
 const previewSignatureImage = ref(props.config.signature_image || '');
 
 const form = useForm({
+  theme: props.config.theme || 'formal',
+
   logo_left: props.config.logo_left || '/assets/img/logo.png',
   logo_right: props.config.logo_right || '/assets/img/logo.png',
   show_logo_right: props.config.show_logo_right !== undefined ? Boolean(props.config.show_logo_right) : true,
@@ -60,6 +63,18 @@ const form = useForm({
   remove_signature_image: false,
 
   footer_note: props.config.footer_note || 'Dokumen ini diterbitkan secara sah dan otomatis oleh Sistem Informasi Semarak Aliyah XIV MA Unggulan Wahid Hasyim Balung.',
+});
+
+// Theme options for CustomSelect (Rule 1)
+const themeOptions = [
+  { value: 'formal', label: 'Tema Formal (Klasik KOP Surat Kedinasan & Garis Ganda)' },
+  { value: 'professional', label: 'Tema Profesional (Modern Corporate & Fintech Sleek)' },
+];
+
+// Interactive Preview Theme state
+const previewTheme = ref(props.config.theme || 'formal');
+watch(() => form.theme, (newVal) => {
+  if (newVal) previewTheme.value = newVal;
 });
 
 // Color Presets for Vector Digital Stamp
@@ -132,7 +147,7 @@ function removeSignatureImage() {
 }
 
 // Active Tab in configuration card
-const activeConfigTab = ref('kop');
+const activeConfigTab = ref('theme');
 
 // Submit Form
 function submitCustomization() {
@@ -142,7 +157,7 @@ function submitCustomization() {
     forceFormData: true,
     onSuccess: () => {
       isSaving.value = false;
-      success('Kustomisasi KOP Surat, Logo, dan Stempel Invoice resmi berhasil disimpan!', 'Tersimpan');
+      success('Konfigurasi Tema, KOP Surat, Logo, dan Stempel Invoice resmi berhasil disimpan!', 'Tersimpan');
     },
     onError: (errs) => {
       isSaving.value = false;
@@ -163,7 +178,7 @@ function executeReset() {
     onSuccess: () => {
       isResetting.value = false;
       isResetModalOpen.value = false;
-      success('Konfigurasi KOP Surat, Logo, dan Stempel berhasil dikembalikan ke standar awal!', 'Direset');
+      success('Konfigurasi KOP Surat, Logo, Tema, dan Stempel berhasil dikembalikan ke standar awal!', 'Direset');
       window.location.reload();
     },
     onError: () => {
@@ -173,7 +188,7 @@ function executeReset() {
   });
 }
 
-// Today formatted in Indonesian dd/mm/yyyy
+// Today formatted in Indonesian dd/mm/yyyy (Rule 4)
 const todayFormatted = computed(() => {
   const d = new Date();
   const day = String(d.getDate()).padStart(2, '0');
@@ -184,7 +199,7 @@ const todayFormatted = computed(() => {
 </script>
 
 <template>
-  <Head title="Kustomisasi KOP & Stempel Invoice | Pengaturan Sistem" />
+  <Head title="Kustomisasi Tema, KOP & Stempel Invoice | Pengaturan Sistem" />
 
   <VelzonLayout>
     <div class="container-fluid">
@@ -195,15 +210,15 @@ const todayFormatted = computed(() => {
             <div>
               <h4 class="mb-1 fw-bold text-dark-emphasis d-flex align-items-center gap-2">
                 <i class="ri-file-paper-2-line text-primary fs-22"></i>
-                Kustomisasi KOP Surat, Logo, &amp; Stempel Invoice
+                Kustomisasi Tema &amp; KOP Invoice Resmi
               </h4>
               <p class="text-muted fs-12 mb-0">
-                Atur identitas lembaga, logo resmi ganda, stempel panitia (digital vektor / cap basah PNG), dan tanda tangan bendahara yang dicetak pada Nota Tagihan &amp; Kwitansi.
+                Pilih tema desain (Formal atau Profesional), atur identitas lembaga, logo resmi ganda, stempel panitia, dan tanda tangan bendahara pada cetakan Nota &amp; Kwitansi.
               </p>
             </div>
             <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0">
               <a 
-                :href="`/admin/invoice/${sampleId}`" 
+                :href="`/admin/invoice/${sampleId}?theme=${previewTheme}`" 
                 target="_blank" 
                 class="btn btn-sm btn-outline-info d-flex align-items-center gap-1 shadow-sm px-3"
                 title="Buka contoh cetak invoice di tab baru"
@@ -340,6 +355,16 @@ const todayFormatted = computed(() => {
                   <button 
                     type="button" 
                     class="nav-link py-2 px-3 fw-semibold fs-13 d-flex align-items-center gap-1.5"
+                    :class="{ 'active text-primary': activeConfigTab === 'theme' }"
+                    @click="activeConfigTab = 'theme'"
+                  >
+                    <i class="ri-palette-line"></i> Tema Desain
+                  </button>
+                </li>
+                <li class="nav-item">
+                  <button 
+                    type="button" 
+                    class="nav-link py-2 px-3 fw-semibold fs-13 d-flex align-items-center gap-1.5"
                     :class="{ 'active text-primary': activeConfigTab === 'kop' }"
                     @click="activeConfigTab = 'kop'"
                   >
@@ -363,13 +388,91 @@ const todayFormatted = computed(() => {
                     :class="{ 'active text-primary': activeConfigTab === 'signature' }"
                     @click="activeConfigTab = 'signature'"
                   >
-                    <i class="ri-quill-pen-line"></i> Tanda Tangan &amp; Catatan
+                    <i class="ri-quill-pen-line"></i> Tanda Tangan
                   </button>
                 </li>
               </ul>
             </div>
 
             <div class="card-body p-3 p-md-4">
+              <!-- TAB 0: TEMA DESAIN UI INVOICE -->
+              <div v-show="activeConfigTab === 'theme'">
+                <div class="mb-3">
+                  <h6 class="fw-bold mb-1 text-dark-emphasis d-flex align-items-center gap-2">
+                    <i class="ri-palette-line text-primary fs-18"></i>
+                    Pilih Tema Tata Letak UI Dokumen
+                  </h6>
+                  <p class="text-muted fs-12 mb-3">
+                    Pilih gaya visual standar yang digunakan saat mencetak Nota Tagihan dan Kwitansi Pembayaran Resmi.
+                  </p>
+
+                  <!-- Visual Selection Cards -->
+                  <div class="row g-3 mb-4">
+                    <!-- Tema Formal -->
+                    <div class="col-sm-6">
+                      <div 
+                        class="p-3 rounded-3 border cursor-pointer transition-all position-relative h-100"
+                        :class="form.theme === 'formal' ? 'border-primary bg-primary-subtle shadow-sm' : 'border-secondary-subtle bg-body hover:border-primary'"
+                        @click="form.theme = 'formal'"
+                      >
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <span class="badge bg-primary text-white px-2 py-1 fs-11">
+                            <i class="ri-government-line me-1"></i> Standar Dinas
+                          </span>
+                          <i v-if="form.theme === 'formal'" class="ri-checkbox-circle-fill text-primary fs-18"></i>
+                        </div>
+                        <h6 class="fw-bold mb-1 text-dark-emphasis">Tema Formal</h6>
+                        <p class="text-muted fs-11 mb-2">
+                          Format resmi instansi madrasah/sekolah. Dilengkapi KOP lembaga terpusat, garis ganda resmi, dan tabel berbingkai tradisional.
+                        </p>
+                        <div class="p-2 rounded-2 bg-body border text-center fs-11 text-muted">
+                          <i class="ri-file-text-line me-1 text-primary"></i> Cocok untuk Arsip Surat Lembaga
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Tema Profesional -->
+                    <div class="col-sm-6">
+                      <div 
+                        class="p-3 rounded-3 border cursor-pointer transition-all position-relative h-100"
+                        :class="form.theme === 'professional' ? 'border-primary bg-primary-subtle shadow-sm' : 'border-secondary-subtle bg-body hover:border-primary'"
+                        @click="form.theme = 'professional'"
+                      >
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <span class="badge bg-success text-white px-2 py-1 fs-11">
+                            <i class="ri-briefcase-4-line me-1"></i> Modern Sleek
+                          </span>
+                          <i v-if="form.theme === 'professional'" class="ri-checkbox-circle-fill text-primary fs-18"></i>
+                        </div>
+                        <h6 class="fw-bold mb-1 text-dark-emphasis">Tema Profesional</h6>
+                        <p class="text-muted fs-11 mb-2">
+                          Format modern corporate berstandar fintech. Dilengkapi aksen garis warna, kartu data modular, tabel clean tanpa garis vertikal, dan ringkasan pembayaran tegas.
+                        </p>
+                        <div class="p-2 rounded-2 bg-body border text-center fs-11 text-muted">
+                          <i class="ri-sparkling-line me-1 text-warning"></i> Tampilan Kontemporer &amp; Elegan
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Dropdown Pengatur Tema Sesuai Rule 1 (CustomSelect) -->
+                  <div class="p-3 rounded-3 border bg-body-tertiary">
+                    <label class="form-label fw-semibold fs-12 mb-1.5 text-dark-emphasis">
+                      Opsi Pilihan Tema Utama:
+                    </label>
+                    <CustomSelect 
+                      v-model="form.theme" 
+                      :options="themeOptions"
+                      prefix-icon="ri-layout-grid-line"
+                      size="md"
+                    />
+                    <small class="text-muted fs-11 mt-1.5 d-block">
+                      Pengguna di halaman cetak tetap dapat mengganti tema secara instan melalui tombol switcher di toolbar atas.
+                    </small>
+                  </div>
+                </div>
+              </div>
+
               <!-- TAB 1: KOP SURAT & LOGO RESMI -->
               <div v-show="activeConfigTab === 'kop'">
                 <!-- Logo Configuration Section -->
@@ -444,248 +547,198 @@ const todayFormatted = computed(() => {
                 <!-- Teks KOP Surat -->
                 <div class="alert alert-info py-2 px-3 fs-12 mb-3 border-0 bg-info-subtle text-info-emphasis rounded-3 d-flex align-items-center gap-2">
                   <i class="ri-information-line fs-16"></i>
-                  <span>Seluruh baris teks KOP di bawah ini bersifat opsional. Jika dikosongkan, baris tersebut otomatis tidak akan ditampilkan pada KOP dokumen.</span>
+                  <span>Seluruh baris teks KOP di bawah ini bersifat opsional. Jika dikosongkan, baris tersebut otomatis tidak akan ditampilkan.</span>
                 </div>
 
                 <div class="mb-3">
-                  <div class="d-flex align-items-center justify-content-between mb-1">
-                    <label class="form-label fw-semibold fs-12 text-dark-emphasis mb-0">Nama Yayasan / Badan Penyelenggara</label>
-                    <span class="badge bg-secondary-subtle text-muted fs-10">Opsional</span>
-                  </div>
-                  <input type="text" class="form-control" v-model="form.kop_foundation" placeholder="Kosongkan jika tidak ditampilkan" />
+                  <label class="form-label fw-semibold fs-12 text-dark-emphasis">Baris 1: Nama Yayasan / Instansi Pembina</label>
+                  <input type="text" class="form-control" v-model="form.kop_foundation" placeholder="Contoh: YAYASAN PONDOK PESANTREN WAHID HASYIM" />
                 </div>
 
                 <div class="mb-3">
-                  <div class="d-flex align-items-center justify-content-between mb-1">
-                    <label class="form-label fw-semibold fs-12 text-dark-emphasis mb-0">Nama Kepanitiaan / Event</label>
-                    <span class="badge bg-secondary-subtle text-muted fs-10">Opsional</span>
-                  </div>
-                  <input type="text" class="form-control" v-model="form.kop_committee" placeholder="Kosongkan jika tidak ditampilkan" />
+                  <label class="form-label fw-semibold fs-12 text-dark-emphasis">Baris 2: Nama Panitia Pelaksana</label>
+                  <input type="text" class="form-control" v-model="form.kop_committee" placeholder="Contoh: PANITIA PELAKSANA SEMARAK ALIYAH XIV TAHUN 2026" />
                 </div>
 
                 <div class="mb-3">
-                  <div class="d-flex align-items-center justify-content-between mb-1">
-                    <label class="form-label fw-semibold fs-12 text-dark-emphasis mb-0">Nama Madrasah / Satuan Pendidikan</label>
-                    <span class="badge bg-secondary-subtle text-muted fs-10">Opsional</span>
-                  </div>
-                  <input type="text" class="form-control" v-model="form.kop_school" placeholder="Kosongkan jika tidak ditampilkan" />
+                  <label class="form-label fw-semibold fs-12 text-dark-emphasis">Baris 3: Nama Madrasah / Sekolah (Utama)</label>
+                  <input type="text" class="form-control fw-bold" v-model="form.kop_school" placeholder="Contoh: MADRASAH ALIYAH UNGGULAN WAHID HASYIM BALUNG" />
                 </div>
 
                 <div class="mb-3">
-                  <div class="d-flex align-items-center justify-content-between mb-1">
-                    <label class="form-label fw-semibold fs-12 text-dark-emphasis mb-0">Legalitas / Akreditasi / NSM / NPSN</label>
-                    <span class="badge bg-secondary-subtle text-muted fs-10">Opsional</span>
-                  </div>
-                  <input type="text" class="form-control" v-model="form.kop_accreditation" placeholder="Kosongkan jika tidak ditampilkan" />
+                  <label class="form-label fw-semibold fs-12 text-dark-emphasis">Baris 4: Status Akreditasi, NSM, &amp; NPSN</label>
+                  <input type="text" class="form-control" v-model="form.kop_accreditation" placeholder="Contoh: STATUS TERAKREDITASI 'A' • NSM: 131235090014 • NPSN: 69941846" />
                 </div>
 
                 <div class="mb-3">
-                  <div class="d-flex align-items-center justify-content-between mb-1">
-                    <label class="form-label fw-semibold fs-12 text-dark-emphasis mb-0">Alamat Lengkap Kantor</label>
-                    <span class="badge bg-secondary-subtle text-muted fs-10">Opsional</span>
-                  </div>
-                  <textarea class="form-control" rows="2" v-model="form.kop_address" placeholder="Kosongkan jika tidak ditampilkan"></textarea>
+                  <label class="form-label fw-semibold fs-12 text-dark-emphasis">Baris 5: Alamat Lembaga</label>
+                  <input type="text" class="form-control" v-model="form.kop_address" placeholder="Contoh: Jl. Balung - Tutul No. 09 Balung Kidul, Kec. Balung, Jember" />
                 </div>
 
                 <div class="mb-3">
-                  <div class="d-flex align-items-center justify-content-between mb-1">
-                    <label class="form-label fw-semibold fs-12 text-dark-emphasis mb-0">Informasi Kontak &amp; Website</label>
-                    <span class="badge bg-secondary-subtle text-muted fs-10">Opsional</span>
-                  </div>
-                  <input type="text" class="form-control" v-model="form.kop_contact" placeholder="Kosongkan jika tidak ditampilkan" />
+                  <label class="form-label fw-semibold fs-12 text-dark-emphasis">Baris 6: Kontak, Website, &amp; Email</label>
+                  <input type="text" class="form-control" v-model="form.kop_contact" placeholder="Contoh: Website: semarak.ma-wh.sch.id • Hotline WA: 0838 5007 0767" />
                 </div>
               </div>
 
-              <!-- TAB 2: STEMPEL PANITIA -->
+              <!-- TAB 2: STEMPEL RESMI PANITIA -->
               <div v-show="activeConfigTab === 'stamp'">
-                <!-- Mode Switcher: Digital vs Gambar -->
                 <div class="mb-4 p-3 rounded-3 border bg-body-tertiary">
-                  <label class="form-label fw-semibold fs-12 mb-2 d-block text-dark-emphasis">Model / Jenis Stempel Panitia</label>
-                  <div class="row g-2">
-                    <div class="col-sm-6">
-                      <div 
-                        class="p-3 rounded-3 border cursor-pointer transition-all d-flex align-items-center gap-3"
-                        :class="form.stamp_mode === 'digital' ? 'border-primary bg-primary-subtle text-primary shadow-sm' : 'bg-body text-body'"
-                        @click="form.stamp_mode = 'digital'"
-                      >
-                        <i class="ri-donut-chart-fill fs-24"></i>
-                        <div>
-                          <div class="fw-bold fs-13">Stempel Vektor Digital</div>
-                          <div class="fs-11 text-muted">Bentuk bulat standar otomatis</div>
-                        </div>
-                      </div>
-                    </div>
+                  <h6 class="fw-bold mb-3 d-flex align-items-center gap-2 text-dark-emphasis">
+                    <i class="ri-shield-check-line text-primary fs-16"></i>
+                    Mode Stempel Resmi Panitia
+                  </h6>
 
-                    <div class="col-sm-6">
-                      <div 
-                        class="p-3 rounded-3 border cursor-pointer transition-all d-flex align-items-center gap-3"
-                        :class="form.stamp_mode === 'image' ? 'border-primary bg-primary-subtle text-primary shadow-sm' : 'bg-body text-body'"
-                        @click="form.stamp_mode = 'image'"
-                      >
-                        <i class="ri-image-fill fs-24"></i>
-                        <div>
-                          <div class="fw-bold fs-13">Stempel Gambar Asli</div>
-                          <div class="fs-11 text-muted">Upload scan cap basah (PNG)</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Opsi Mode Stempel Vektor Digital -->
-                <div v-if="form.stamp_mode === 'digital'">
-                  <div class="mb-3">
-                    <label class="form-label fw-semibold fs-12 text-dark-emphasis">Teks Lingkar Atas</label>
-                    <input type="text" class="form-control" v-model="form.stamp_top_text" placeholder="Contoh: SEMARAK ALIYAH XIV" />
-                    <small class="text-muted fs-11">Ditampilkan melingkar di sisi atas stempel.</small>
-                  </div>
-
-                  <div class="mb-3">
-                    <label class="form-label fw-semibold fs-12 text-dark-emphasis">Teks Lingkar Bawah</label>
-                    <input type="text" class="form-control" v-model="form.stamp_bottom_text" placeholder="Contoh: MA WAHID HASYIM" />
-                    <small class="text-muted fs-11">Ditampilkan melingkar di sisi bawah stempel.</small>
-                  </div>
-
-                  <div class="mb-3">
-                    <label class="form-label fw-semibold fs-12 text-dark-emphasis">Simbol / Teks Tengah</label>
-                    <input type="text" class="form-control" v-model="form.stamp_center_text" placeholder="Contoh: ★ atau PANITIA" />
-                  </div>
-
-                  <!-- Pilihan Warna Stempel -->
-                  <div class="mb-3">
-                    <label class="form-label fw-semibold fs-12 text-dark-emphasis">Pilihan Warna Tinta Stempel</label>
-                    <div class="d-flex flex-wrap gap-2 mb-2">
-                      <button 
-                        type="button" 
-                        v-for="preset in stampColorPresets" 
-                        :key="preset.hex"
-                        class="btn btn-sm d-flex align-items-center gap-1.5 rounded-pill px-2.5 py-1 border"
-                        :class="{ 'border-2 border-dark shadow-sm fw-bold': form.stamp_color === preset.hex }"
-                        @click="form.stamp_color = preset.hex"
-                      >
-                        <span class="rounded-circle d-inline-block" :style="{ width: '14px', height: '14px', backgroundColor: preset.hex }"></span>
-                        <span class="fs-12">{{ preset.name }}</span>
-                      </button>
-                    </div>
-                    <div class="d-flex align-items-center gap-2 mt-2">
-                      <input type="color" class="form-control form-control-color" v-model="form.stamp_color" title="Pilih warna tinta kustom" />
-                      <span class="fs-12 font-monospace text-muted">{{ form.stamp_color }}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Opsi Mode Stempel Gambar PNG Basah -->
-                <div v-else>
-                  <div class="p-3 bg-body rounded-3 border text-center mb-3">
-                    <label class="form-label fw-semibold fs-12 mb-2 d-block text-dark-emphasis">Unggah Berkas Stempel Cap Basah (PNG Transparan)</label>
-                    
-                    <div class="d-flex justify-content-center align-items-center mb-2" style="height: 100px;">
-                      <img 
-                        v-if="previewStampImage" 
-                        :src="previewStampImage" 
-                        alt="Preview Stempel" 
-                        style="max-height: 90px; max-width: 90px; object-fit: contain;" 
-                      />
-                      <div v-else class="text-muted fs-12 d-flex flex-column align-items-center">
-                        <i class="ri-file-upload-line fs-28 text-muted mb-1"></i>
-                        <span>Belum ada gambar stempel diunggah</span>
-                      </div>
-                    </div>
-
-                    <div class="d-flex gap-2 justify-content-center">
-                      <label class="btn btn-sm btn-outline-primary mb-0 cursor-pointer">
-                        <i class="ri-upload-2-line me-1"></i> Pilih Berkas PNG
-                        <input type="file" accept="image/png,image/webp" class="d-none" @change="onStampImageSelect" />
+                  <div class="d-flex gap-3 mb-3">
+                    <div class="form-check">
+                      <input class="form-check-input cursor-pointer" type="radio" id="stampModeDigital" value="digital" v-model="form.stamp_mode" />
+                      <label class="form-check-label cursor-pointer fw-semibold text-dark-emphasis" for="stampModeDigital">
+                        Stempel Vektor Digital (Otomatis &amp; Rapi)
                       </label>
-                      <button 
-                        v-if="previewStampImage" 
-                        type="button" 
-                        class="btn btn-sm btn-outline-danger" 
-                        @click="removeStampImage"
-                      >
-                        <i class="ri-delete-bin-line me-1"></i> Hapus
-                      </button>
                     </div>
-                    <small class="text-muted fs-11 mt-2 d-block">Disarankan format PNG transparan dengan resolusi tajam minimal 300x300 pixel.</small>
+                    <div class="form-check">
+                      <input class="form-check-input cursor-pointer" type="radio" id="stampModeImage" value="image" v-model="form.stamp_mode" />
+                      <label class="form-check-label cursor-pointer fw-semibold text-dark-emphasis" for="stampModeImage">
+                        Unggah Gambar Cap Basah (PNG Transparan)
+                      </label>
+                    </div>
                   </div>
-                </div>
 
-                <!-- Kemiringan / Rotasi Stempel -->
-                <div class="mt-4 pt-3 border-top">
-                  <div class="d-flex justify-content-between align-items-center mb-1">
-                    <label class="form-label fs-12 fw-semibold mb-0 text-dark-emphasis">Kemiringan Alami Stempel (Rotasi Derajat)</label>
-                    <span class="badge bg-secondary-subtle text-secondary fw-bold font-monospace">{{ form.stamp_rotation }}°</span>
+                  <!-- MODE 1: DIGITAL VECTOR STAMP -->
+                  <div v-if="form.stamp_mode === 'digital'" class="p-3 bg-body rounded-3 border">
+                    <div class="row g-3">
+                      <div class="col-sm-6">
+                        <label class="form-label fw-semibold fs-12 text-dark-emphasis">Teks Lingkar Atas</label>
+                        <input type="text" class="form-control" v-model="form.stamp_top_text" placeholder="SEMARAK ALIYAH XIV" />
+                      </div>
+                      <div class="col-sm-6">
+                        <label class="form-label fw-semibold fs-12 text-dark-emphasis">Teks Lingkar Bawah</label>
+                        <input type="text" class="form-control" v-model="form.stamp_bottom_text" placeholder="MA WAHID HASYIM" />
+                      </div>
+                      <div class="col-sm-6">
+                        <label class="form-label fw-semibold fs-12 text-dark-emphasis">Simbol / Ikon Tengah</label>
+                        <input type="text" class="form-control" v-model="form.stamp_center_text" placeholder="★" />
+                      </div>
+                      <div class="col-sm-6">
+                        <label class="form-label fw-semibold fs-12 text-dark-emphasis">Warna Tinta Stempel</label>
+                        <div class="d-flex align-items-center gap-2">
+                          <input type="color" class="form-control form-control-color p-1" v-model="form.stamp_color" style="width: 44px; height: 38px;" />
+                          <input type="text" class="form-control font-monospace" v-model="form.stamp_color" style="max-width: 120px;" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Preset Warna -->
+                    <div class="mt-3 pt-3 border-top">
+                      <label class="form-label fw-semibold fs-11 text-dark-emphasis mb-2 d-block">Pilihan Preset Warna Resmi:</label>
+                      <div class="d-flex flex-wrap gap-2">
+                        <button 
+                          v-for="color in stampColorPresets" 
+                          :key="color.hex"
+                          type="button" 
+                          class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1.5 py-1 px-2.5 fs-11"
+                          :class="{ 'border-primary bg-primary-subtle text-primary fw-bold': form.stamp_color === color.hex }"
+                          @click="form.stamp_color = color.hex"
+                        >
+                          <span class="rounded-circle d-inline-block" :style="{ width: '12px', height: '12px', backgroundColor: color.hex }"></span>
+                          <span>{{ color.name }}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Sudut Kemiringan / Rotasi Stempel -->
+                    <div class="mt-3 pt-3 border-top">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label fs-12 fw-semibold mb-0 text-dark-emphasis">Sudut Kemiringan Stempel (Rotasi Alami)</label>
+                        <span class="badge bg-secondary-subtle text-secondary font-monospace">{{ form.stamp_rotation }}°</span>
+                      </div>
+                      <input type="range" class="form-range" min="-25" max="25" step="1" v-model.number="form.stamp_rotation" />
+                    </div>
                   </div>
-                  <input 
-                    type="range" 
-                    class="form-range" 
-                    min="-25" 
-                    max="25" 
-                    step="1" 
-                    v-model.number="form.stamp_rotation" 
-                  />
-                  <div class="d-flex justify-content-between text-muted fs-11">
-                    <span>-25° (Miring Kiri)</span>
-                    <span>0° (Tegak Lurus)</span>
-                    <span>+25° (Miring Kanan)</span>
+
+                  <!-- MODE 2: UPLOAD IMAGE STAMP -->
+                  <div v-else class="p-3 bg-body rounded-3 border">
+                    <label class="form-label fw-semibold fs-12 mb-2 d-block text-dark-emphasis">Unggah Berkas Stempel Asli (Format PNG Transparan)</label>
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                      <div v-if="previewStampImage" class="p-2 border rounded-3 bg-body-tertiary text-center" style="width: 90px; height: 90px;">
+                        <img :src="previewStampImage" alt="Stempel" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+                      </div>
+                      <div v-else class="p-2 border rounded-3 bg-body-tertiary d-flex align-items-center justify-content-center text-muted" style="width: 90px; height: 90px; font-size: 11px;">
+                        Belum Ada
+                      </div>
+                      <div>
+                        <label class="btn btn-sm btn-outline-primary mb-1 cursor-pointer">
+                          <i class="ri-upload-2-line me-1"></i> Pilih Berkas PNG Stempel
+                          <input type="file" accept="image/png,image/webp" class="d-none" @change="onStampImageSelect" />
+                        </label>
+                        <small class="text-muted fs-11 d-block">Gunakan PNG berlatar transparan dengan resolusi tajam (Maks. 2MB)</small>
+                      </div>
+                    </div>
+                    <button 
+                      v-if="previewStampImage" 
+                      type="button" 
+                      class="btn btn-sm btn-outline-danger" 
+                      @click="removeStampImage"
+                    >
+                      <i class="ri-delete-bin-line me-1"></i> Hapus Stempel Gambar
+                    </button>
                   </div>
                 </div>
               </div>
 
               <!-- TAB 3: TANDA TANGAN & CATATAN KAKI -->
               <div v-show="activeConfigTab === 'signature'">
-                <div class="mb-3">
-                  <label class="form-label fw-semibold fs-12 text-dark-emphasis">Kota Titimangsa Penerbitan</label>
-                  <input type="text" class="form-control" v-model="form.sig_city" placeholder="Contoh: Balung - Jember" />
-                  <small class="text-muted fs-11">Ditampilkan pada baris titimangsa, contoh: "{{ form.sig_city }}, {{ todayFormatted }}"</small>
-                </div>
-
                 <div class="row g-3 mb-3">
                   <div class="col-sm-6">
-                    <label class="form-label fw-semibold fs-12 text-dark-emphasis">Nama Bendahara Pelaksana</label>
-                    <input type="text" class="form-control" v-model="form.treasurer_name" placeholder="Contoh: M. Irfan Zidni, S.Pd." />
+                    <label class="form-label fw-semibold fs-12 text-dark-emphasis">Kota Penerbitan</label>
+                    <input type="text" class="form-control" v-model="form.sig_city" placeholder="Balung - Jember" />
+                  </div>
+                  <div class="col-sm-6">
+                    <label class="form-label fw-semibold fs-12 text-dark-emphasis">Nama Lengkap Penandatangan (Bendahara)</label>
+                    <input type="text" class="form-control" v-model="form.treasurer_name" placeholder="M. Irfan Zidni, S.Pd." />
                   </div>
                   <div class="col-sm-6">
                     <label class="form-label fw-semibold fs-12 text-dark-emphasis">Jabatan Resmi</label>
-                    <input type="text" class="form-control" v-model="form.treasurer_role" placeholder="Contoh: Bendahara Pelaksana" />
+                    <input type="text" class="form-control" v-model="form.treasurer_role" placeholder="Bendahara Pelaksana" />
+                  </div>
+                  <div class="col-sm-6">
+                    <label class="form-label fw-semibold fs-12 text-dark-emphasis">Sub-Jabatan / Lembaga Pelaksana</label>
+                    <input type="text" class="form-control" v-model="form.treasurer_subrole" placeholder="Semarak Aliyah XIV Tahun 2026" />
                   </div>
                 </div>
 
-                <div class="mb-3">
-                  <label class="form-label fw-semibold fs-12 text-dark-emphasis">Sub-Jabatan / Kepanitiaan</label>
-                  <input type="text" class="form-control" v-model="form.treasurer_subrole" placeholder="Contoh: Semarak Aliyah XIV Tahun 2026" />
-                </div>
-
-                <!-- Tanda Tangan Gambar (Opsional) -->
-                <div class="mb-3 p-3 bg-body-tertiary rounded-3 border">
-                  <label class="form-label fw-semibold fs-12 mb-2 d-block text-dark-emphasis">Scan Tanda Tangan Asli (Opsional)</label>
-                  
-                  <div class="d-flex justify-content-center align-items-center mb-2" style="height: 70px;">
-                    <img 
-                      v-if="previewSignatureImage" 
-                      :src="previewSignatureImage" 
-                      alt="Preview Tanda Tangan" 
-                      style="max-height: 60px; max-width: 140px; object-fit: contain;" 
-                    />
-                    <div v-else class="text-muted fs-11">
-                      <em>Tanpa gambar (tanda tangan manual basah setelah dicetak)</em>
+                <!-- Tanda Tangan Basah Scan (Opsional) -->
+                <div class="mb-4 p-3 rounded-3 border bg-body-tertiary">
+                  <h6 class="fw-bold mb-2 d-flex align-items-center gap-2 text-dark-emphasis">
+                    <i class="ri-quill-pen-line text-primary fs-16"></i>
+                    Unggah Scan Tanda Tangan Digital (Opsional)
+                  </h6>
+                  <p class="text-muted fs-11 mb-3">
+                    Jika diunggah, tanda tangan ini akan ditampilkan secara otomatis di atas nama bendahara pada nota invoice dan kwitansi.
+                  </p>
+                  <div class="d-flex align-items-center gap-3 mb-2">
+                    <div v-if="previewSignatureImage" class="p-2 border rounded-3 bg-body text-center" style="width: 120px; height: 60px;">
+                      <img :src="previewSignatureImage" alt="Signature" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+                    </div>
+                    <div v-else class="p-2 border rounded-3 bg-body d-flex align-items-center justify-content-center text-muted" style="width: 120px; height: 60px; font-size: 11px;">
+                      Tanpa TTD
+                    </div>
+                    <div>
+                      <label class="btn btn-sm btn-outline-primary mb-1 cursor-pointer">
+                        <i class="ri-upload-2-line me-1"></i> Unggah Gambar Tanda Tangan
+                        <input type="file" accept="image/png,image/webp" class="d-none" @change="onSignatureImageSelect" />
+                      </label>
+                      <small class="text-muted fs-11 d-block">Format PNG transparan (Maks. 2MB)</small>
                     </div>
                   </div>
-
-                  <div class="d-flex gap-2 justify-content-center">
-                    <label class="btn btn-sm btn-outline-primary mb-0 cursor-pointer">
-                      <i class="ri-upload-2-line me-1"></i> Unggah Tanda Tangan (PNG)
-                      <input type="file" accept="image/png,image/webp" class="d-none" @change="onSignatureImageSelect" />
-                    </label>
-                    <button 
-                      v-if="previewSignatureImage" 
-                      type="button" 
-                      class="btn btn-sm btn-outline-danger" 
-                      @click="removeSignatureImage"
-                    >
-                      <i class="ri-delete-bin-line me-1"></i> Hapus
-                    </button>
-                  </div>
+                  <button 
+                    v-if="previewSignatureImage" 
+                    type="button" 
+                    class="btn btn-sm btn-outline-danger" 
+                    @click="removeSignatureImage"
+                  >
+                    <i class="ri-delete-bin-line me-1"></i> Hapus
+                  </button>
                 </div>
 
                 <!-- Catatan Kaki Dokumen -->
@@ -725,12 +778,33 @@ const todayFormatted = computed(() => {
                 </div>
                 <div>
                   <h6 class="mb-0 fw-bold fs-13 text-dark-emphasis">Pratinjau Langsung (WYSIWYG)</h6>
-                  <small class="text-muted fs-11">Tampilan dokumen A4 cetak formal berstandar ISO</small>
+                  <small class="text-muted fs-11">
+                    Pratinjau: <strong>{{ previewTheme === 'formal' ? 'Tema Formal (Klasik)' : 'Tema Profesional (Modern)' }}</strong>
+                  </small>
                 </div>
               </div>
-              <span class="badge bg-success-subtle text-success fs-11 fw-semibold">
-                <i class="ri-pulse-line me-1"></i> Interaktif Real-time
-              </span>
+
+              <!-- Preview Theme Toggle Switcher -->
+              <div class="d-flex align-items-center gap-2">
+                <div class="btn-group btn-group-sm" role="group">
+                  <button 
+                    type="button" 
+                    class="btn btn-sm px-2.5 py-1 fs-11 fw-semibold"
+                    :class="previewTheme === 'formal' ? 'btn-primary' : 'btn-outline-secondary'"
+                    @click="previewTheme = 'formal'"
+                  >
+                    <i class="ri-government-line me-1"></i> Formal
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-sm px-2.5 py-1 fs-11 fw-semibold"
+                    :class="previewTheme === 'professional' ? 'btn-primary' : 'btn-outline-secondary'"
+                    @click="previewTheme = 'professional'"
+                  >
+                    <i class="ri-briefcase-4-line me-1"></i> Profesional
+                  </button>
+                </div>
+              </div>
             </div>
 
             <!-- Paper Container (A4 Mini Preview with Realistic Shadows) -->
@@ -739,8 +813,10 @@ const todayFormatted = computed(() => {
                 class="preview-paper-sheet p-4 rounded-1 shadow-lg position-relative d-flex flex-column justify-content-between"
                 style="width: 100%; max-width: 540px; min-height: 680px; font-family: 'Poppins', sans-serif; font-size: 8pt; background-color: #ffffff !important; color: #0f172a !important; border: 1px solid #94a3b8;"
               >
-                <!-- TOP PORTION -->
-                <div>
+                <!-- ==========================================
+                     PREVIEW 1: TEMA FORMAL
+                     ========================================== -->
+                <div v-if="previewTheme === 'formal'">
                   <!-- 1. KOP SURAT FORMAL -->
                   <div class="d-flex align-items-center justify-content-between gap-2 pb-1">
                     <img 
@@ -835,7 +911,105 @@ const todayFormatted = computed(() => {
                   </div>
                 </div>
 
-                <!-- BOTTOM PORTION: SIGNATURE & OFFICIAL STEMPEL -->
+                <!-- ==========================================
+                     PREVIEW 2: TEMA PROFESIONAL (MODERN)
+                     ========================================== -->
+                <div v-else>
+                  <!-- Top Gradient Accent Bar -->
+                  <div style="height: 4px; background: linear-gradient(90deg, #1e3a8a 0%, #2563eb 50%, #059669 100%); border-radius: 2px 2px 0 0; margin-bottom: 10px;"></div>
+
+                  <!-- Modern Header Split -->
+                  <div class="d-flex justify-content-between align-items-start pb-2 mb-2 border-bottom">
+                    <div class="d-flex align-items-center gap-2">
+                      <img 
+                        :src="previewLogoLeft" 
+                        alt="Logo" 
+                        :style="{ height: `${Math.round(form.logo_size * 0.65)}px`, width: 'auto', objectFit: 'contain' }"
+                        class="flex-shrink-0"
+                      />
+                      <div>
+                        <div class="fw-bold text-dark" style="font-size: 8.5pt; letter-spacing: -0.2px; line-height: 1.15;">SEMARAK ALIYAH XIV</div>
+                        <div class="fw-semibold text-primary" style="font-size: 7pt;">{{ form.kop_school || 'MA Unggulan Wahid Hasyim' }}</div>
+                        <div class="text-muted" style="font-size: 5.5pt; line-height: 1.2;">
+                          {{ form.kop_address || 'Balung Kidul, Jember' }}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="text-end">
+                      <div class="fw-bold text-uppercase" style="font-size: 14pt; color: #0f172a; letter-spacing: 1px; line-height: 1;">
+                        KWITANSI
+                      </div>
+                      <div class="badge bg-light text-dark border font-monospace mt-1" style="font-size: 5.8pt;">
+                        KW/SA-XIV/2026/SA26-DEMO
+                      </div>
+                      <div class="text-muted mt-1" style="font-size: 5.8pt;">
+                        Tgl: {{ todayFormatted }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Modular Info Cards Grid -->
+                  <div class="row g-2 mb-2">
+                    <div class="col-7">
+                      <div class="p-2 rounded-2 bg-light border" style="font-size: 6.5pt; line-height: 1.35;">
+                        <div class="text-muted fw-bold text-uppercase" style="font-size: 5.8pt;">TELAH DITERIMA DARI:</div>
+                        <div class="fw-bold text-dark" style="font-size: 7.8pt;">MTs Negeri 1 Jember</div>
+                        <div>PIC: <strong>Ahmad Fauzi, S.Pd.</strong></div>
+                        <div>WA: <strong>0812-7777-8888</strong></div>
+                      </div>
+                    </div>
+                    <div class="col-5">
+                      <div class="p-2 rounded-2 bg-light border text-end" style="font-size: 6.5pt; line-height: 1.35;">
+                        <div class="text-muted fw-bold text-uppercase" style="font-size: 5.8pt;">STATUS PEMBAYARAN:</div>
+                        <div class="badge bg-success text-white my-1" style="font-size: 6.2pt;">LUNAS / VERIFIED</div>
+                        <div class="text-muted">Metode: Transfer BSI</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Modern Sleek Table -->
+                  <table class="w-100 mb-2" style="border-collapse: collapse; font-size: 6.8pt;">
+                    <thead>
+                      <tr style="background-color: #f1f5f9; color: #334155; border-top: 1.5px solid #cbd5e1; border-bottom: 1.5px solid #cbd5e1;">
+                        <th style="padding: 4px 6px; font-weight: 700; text-align: left;">Layanan / Lomba</th>
+                        <th style="padding: 4px 6px; font-weight: 700; text-align: center; width: 70px;">Skema</th>
+                        <th style="padding: 4px 6px; font-weight: 700; text-align: right; width: 85px;">Jumlah</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 5px 6px;">
+                          <strong style="color: #0f172a;">Olimpiade Matematika Terpadu</strong>
+                          <div class="text-muted" style="font-size: 5.5pt;">Delegasi: Rian Hidayat</div>
+                        </td>
+                        <td style="padding: 5px 6px; text-align: center;">
+                          <span class="badge bg-light text-dark border">Reguler</span>
+                        </td>
+                        <td style="padding: 5px 6px; text-align: right; font-weight: 700;">Rp 60.000</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <!-- Modern Calculation Card -->
+                  <div class="p-2 rounded-2 bg-light border mb-2" style="font-size: 6.8pt;">
+                    <div class="d-flex justify-content-between text-muted pb-1">
+                      <span>Subtotal Biaya</span>
+                      <span>Rp 60.000</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center p-1.5 rounded-1 bg-dark text-white fw-bold">
+                      <span style="font-size: 6.5pt; text-transform: uppercase;">Total Akhir</span>
+                      <span style="color: #34d399; font-size: 8.5pt;">Rp 60.000</span>
+                    </div>
+                  </div>
+
+                  <!-- Modern Terbilang Quote -->
+                  <div class="p-1.5 px-2 mb-2 rounded-1 bg-primary-subtle border border-primary-subtle" style="font-size: 6.2pt; color: #1e40af;">
+                    <span class="fw-bold">Terbilang:</span> <em>"# Enam Puluh Ribu Rupiah #"</em>
+                  </div>
+                </div>
+
+                <!-- BOTTOM PORTION: SIGNATURE & OFFICIAL STEMPEL (SHARED LIVE PREVIEW) -->
                 <div>
                   <div class="d-flex justify-content-between align-items-start mt-2 px-2 position-relative">
                     <!-- Sisi Kiri: Penyetor -->
@@ -950,7 +1124,7 @@ const todayFormatted = computed(() => {
       <VelzonConfirmModal
         :show="isResetModalOpen"
         title="Kembalikan ke Standar Awal?"
-        message="Apakah Anda yakin ingin mengembalikan seluruh konfigurasi KOP Surat, Logo, dan Stempel Invoice resmi ke standar bawaan sistem Semarak Aliyah XIV?"
+        message="Apakah Anda yakin ingin mengembalikan seluruh konfigurasi KOP Surat, Logo, Tema Desain, dan Stempel Invoice resmi ke standar bawaan sistem Semarak Aliyah XIV?"
         confirmText="Ya, Reset Sekarang"
         cancelText="Batal"
         variant="danger"

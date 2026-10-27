@@ -1396,10 +1396,15 @@ class RegistrantDashboardController extends Controller
         $bankAccounts = Setting::getBankAccounts();
 
         $invoiceConfig = Setting::getInvoiceConfig();
+        $theme = $request->input('theme', $invoiceConfig['theme'] ?? 'formal');
+        if (!in_array($theme, ['formal', 'professional'])) {
+            $theme = $invoiceConfig['theme'] ?? 'formal';
+        }
 
         return view('admin.print-invoice', [
             'reg' => $reg,
             'defaultMode' => $mode,
+            'defaultTheme' => $theme,
             'isPaid' => $isPaid,
             'terbilang' => $terbilang,
             'bankAccounts' => $bankAccounts,

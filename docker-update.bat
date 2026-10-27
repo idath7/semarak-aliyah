@@ -68,7 +68,7 @@ echo.
 echo ==============================================================================
 echo [2/4] MENGOMPILASI ASET FRONTEND TERBARU (NODE.JS + VITE)...
 echo ==============================================================================
-docker compose run --rm node npm run build
+docker compose run --rm node sh -c "npm install && npm run build"
 
 echo.
 echo ==============================================================================
@@ -103,7 +103,7 @@ echo.
 echo ==============================================================================
 echo [2/3] MENGOMPILASI ASET FRONTEND PRODUKSI...
 echo ==============================================================================
-docker compose run --rm node npm run build
+docker compose run --rm node sh -c "npm install && npm run build"
 
 echo.
 echo ==============================================================================
@@ -126,7 +126,7 @@ cls
 echo ==============================================================================
 echo MENGOMPILASI ASET FRONTEND DENGAN NODE.JS VITE...
 echo ==============================================================================
-docker compose run --rm node npm run build
+docker compose run --rm node sh -c "npm install && npm run build"
 echo.
 echo [✓] Kompilasi aset frontend selesai!
 pause

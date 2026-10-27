@@ -12,6 +12,8 @@ pull_latest_code() {
     echo "======================================================================"
     CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
     echo "• Branch Git: $CURRENT_BRANCH"
+    # Batalkan otomatis perubahan lokal pada package-lock.json akibat proses npm container
+    git checkout -- backend/package-lock.json 2>/dev/null || true
     if git pull origin "$CURRENT_BRANCH"; then
         echo "✓ Berhasil memperbarui berkas dari GitHub."
     else
@@ -36,7 +38,7 @@ build_frontend() {
     echo "======================================================================"
     echo " [3/5] Mengompilasi Aset Frontend (Node.js 22 + Vite - Cepat)..."
     echo "======================================================================"
-    docker compose run --rm node npm run build
+    docker compose run --rm node sh -c "npm install && npm run build"
 }
 
 update_dependencies() {

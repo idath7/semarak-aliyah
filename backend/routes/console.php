@@ -21,7 +21,11 @@ Artisan::command('app:update {--no-cache : Jangan optimasi cache produksi}', fun
 
     // 1. Storage Symlink
     $this->comment('[1/5] Memastikan link penyimpanan publik (storage link)...');
-    $this->call('storage:link');
+    if (! file_exists(public_path('storage'))) {
+        $this->call('storage:link');
+    } else {
+        $this->info('✓ Link penyimpanan publik (public/storage) sudah aktif.');
+    }
 
     // 2. Database Migrations
     $this->comment('[2/5] Menjalankan migrasi database terbaru...');

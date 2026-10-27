@@ -10,8 +10,9 @@ yarn-debug.log*
 yarn-error.log*
 
 # Composer dependencies
-vendor/
-*/vendor/
+/vendor/
+/backend/vendor/
+!backend/public/assets/vendor/
 
 # Environment files and credentials
 .env

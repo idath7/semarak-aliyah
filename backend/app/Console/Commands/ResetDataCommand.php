@@ -176,9 +176,10 @@ class ResetDataCommand extends Command
 
         $catCount = Category::count();
         Category::truncate();
-        $this->line("  - {$catCount} kategori bidang lomba dikosongkan.");
+        Category::ensureDefaultsExist();
+        $this->line("  - {$catCount} kategori bidang lomba di-reset ke kategori default.");
 
-        $this->info('✓ Data Cabang Lomba berhasil dikosongkan.');
+        $this->info('✓ Data Cabang Lomba berhasil dikosongkan & kategori default dipulihkan.');
     }
 
     /**

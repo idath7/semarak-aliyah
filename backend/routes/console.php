@@ -27,9 +27,11 @@ Artisan::command('app:update {--no-cache : Jangan optimasi cache produksi}', fun
         $this->info('✓ Link penyimpanan publik (public/storage) sudah aktif.');
     }
 
-    // 2. Database Migrations
-    $this->comment('[2/5] Menjalankan migrasi database terbaru...');
+    // 2. Database Migrations & Master Categories
+    $this->comment('[2/5] Menjalankan migrasi database & sinkronisasi kategori master...');
     $this->call('migrate', ['--force' => true]);
+    \App\Models\Category::ensureDefaultsExist();
+    $this->info('✓ Kategori master lomba berhasil disinkronkan.');
 
     // 3. Clear Cache
     $this->comment('[3/5] Membersihkan cache lama aplikasi...');

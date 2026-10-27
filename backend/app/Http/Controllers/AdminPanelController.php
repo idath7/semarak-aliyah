@@ -345,6 +345,7 @@ class AdminPanelController extends Controller
         }
 
         $competitions = $query->get();
+        Category::ensureDefaultsExist();
         $categories = Category::withCount('competitions')->orderBy('id', 'asc')->get();
         $allComps = Competition::all();
 
@@ -778,6 +779,8 @@ class AdminPanelController extends Controller
 
     public function storeCategory(Request $request)
     {
+        Category::ensureDefaultsExist();
+
         $isUpdate = $request->filled('old_id');
         $oldId = $request->input('old_id');
 

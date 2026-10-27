@@ -102,18 +102,29 @@ const categoryForm = useForm({
   description: '',
 });
 
-// Dynamic category list from backend or fallbacks
+// Master default categories
+const defaultMasterCategories = [
+  { id: 'seni', name: 'Seni & Budaya', label: 'Bidang Seni & Budaya', color: 'primary', icon: 'ri-palette-line' },
+  { id: 'olahraga', name: 'Olahraga', label: 'Bidang Olahraga', color: 'success', icon: 'ri-football-line' },
+  { id: 'akademik', name: 'Sains & Akademik', label: 'Bidang Sains & Akademik', color: 'warning', icon: 'ri-book-open-line' },
+  { id: 'keagamaan', name: 'Keagamaan & Da\'wah', label: 'Bidang Keagamaan & Da\'wah', color: 'info', icon: 'ri-compass-3-line' },
+  { id: 'teknologi', name: 'Teknologi & E-Sport', label: 'Bidang Teknologi & E-Sport', color: 'secondary', icon: 'ri-gamepad-line' },
+];
+
+// Dynamic category list merging database categories and default masters
 const categoryList = computed(() => {
-  if (props.categories && props.categories.length > 0) {
-    return props.categories;
+  const map = new Map();
+  // 1. Daftarkan kategori master bawaan
+  defaultMasterCategories.forEach(d => {
+    map.set(d.id, { ...d, competitions_count: 0 });
+  });
+  // 2. Gabungkan dengan data dari database (termasuk count cabang lomba & kategori kustom baru)
+  if (Array.isArray(props.categories)) {
+    props.categories.forEach(c => {
+      map.set(c.id, c);
+    });
   }
-  return [
-    { id: 'seni', name: 'Seni & Budaya', label: 'Bidang Seni & Budaya', color: 'primary', icon: 'ri-palette-line' },
-    { id: 'olahraga', name: 'Olahraga', label: 'Bidang Olahraga', color: 'success', icon: 'ri-football-line' },
-    { id: 'akademik', name: 'Sains & Akademik', label: 'Bidang Sains & Akademik', color: 'warning', icon: 'ri-book-open-line' },
-    { id: 'keagamaan', name: 'Keagamaan', label: 'Bidang Keagamaan', color: 'info', icon: 'ri-compass-3-line' },
-    { id: 'teknologi', name: 'Teknologi & E-Sport', label: 'Bidang Teknologi & E-Sport', color: 'secondary', icon: 'ri-gamepad-line' },
-  ];
+  return Array.from(map.values());
 });
 
 // Category pills filter

@@ -39,6 +39,7 @@ const registerModalOpen = ref(false);
 const isFormView = ref(!!props.preselectedLomba);
 const activeMemberTab = ref(0);
 const memberViewMode = ref('tabs'); // 'tabs' | 'all'
+const showPromoInput = ref(false);
 const modalBodyRef = ref(null);
 
 const form = useForm({
@@ -783,6 +784,7 @@ async function verifyPackageCodeManual() {
       isManualCodeVerified.value = true;
       manualCodeSuccessData.value = json.data;
       codeVerificationError.value = '';
+      showPromoInput.value = true;
       if (!form.custom_fields) form.custom_fields = {};
       form.custom_fields['allin_code'] = json.data.reg_code;
 
@@ -822,6 +824,7 @@ function clearManualPackageCode() {
   isManualCodeVerified.value = false;
   manualCodeSuccessData.value = null;
   codeVerificationError.value = '';
+  showPromoInput.value = false;
   if (form.package_type === 'Paket All-In') {
     form.package_type = 'Paket Satuan';
   }
@@ -2136,14 +2139,14 @@ function getCompDropdownSuffix(c) {
         <!-- 1. TOP HEADER & BREADCRUMBS STRIP -->
         <section class="reg-page-top-bar">
           <div class="container">
-            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 py-3 border-bottom">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 py-2.5 border-bottom">
               <button 
                 type="button" 
                 class="btn-back-catalog" 
                 @click="backToCatalog"
               >
                 <i class="ri-arrow-left-line"></i>
-                <span>Kembali ke Katalog Lomba</span>
+                <span>Kembali ke Katalog</span>
               </button>
 
               <div class="reg-page-breadcrumb">
@@ -2157,33 +2160,35 @@ function getCompDropdownSuffix(c) {
 
             <!-- COMPACT HERO STRIP -->
             <div class="reg-hero-strip">
-              <div class="reg-hero-icon-box">
-                <i :class="getCompIconClass(activeComp)"></i>
-              </div>
-              <div class="reg-hero-meta">
-                <div class="reg-hero-tags">
-                  <span class="reg-badge-tag tag-pkg">
-                    <i class="ri-price-tag-3-fill"></i> {{ form.package_type }}
-                  </span>
-                  <span v-if="activeComp?.category" class="reg-badge-tag tag-cat">
-                    {{ activeComp.category }}
-                  </span>
-                  <span v-if="teamInfo.isTeam" class="reg-badge-tag tag-team">
-                    <i class="ri-team-line"></i> Tim Delegasi (Maks. {{ teamInfo.max }} Siswa)
-                  </span>
-                  <span v-else class="reg-badge-tag tag-team">
-                    <i class="ri-user-line"></i> Individu
-                  </span>
-                  <span class="reg-badge-tag tag-quota">
-                    <i class="ri-pie-chart-line"></i> Terisi: {{ activeComp?.current_quota || 0 }} / {{ activeComp?.max_quota || 50 }}
-                  </span>
+              <div class="d-flex align-items-center gap-3 w-100">
+                <div class="reg-hero-icon-box">
+                  <i :class="getCompIconClass(activeComp)"></i>
                 </div>
-                <h1 class="reg-hero-heading">
-                  {{ activeComp?.form_settings?.form_title || activeComp?.title || ('Formulir Pendaftaran ' + (school.event_name || 'Semarak Aliyah')) }}
-                </h1>
-                <p class="reg-hero-subheading">
-                  {{ activeComp?.form_settings?.form_subtitle || 'Lengkapi data pendaftaran delegasi di bawah ini untuk diverifikasi oleh panitia lomba.' }}
-                </p>
+                <div class="reg-hero-meta min-w-0">
+                  <div class="reg-hero-tags">
+                    <span class="reg-badge-tag tag-pkg">
+                      <i class="ri-price-tag-3-fill"></i> {{ form.package_type }}
+                    </span>
+                    <span v-if="activeComp?.category" class="reg-badge-tag tag-cat">
+                      {{ activeComp.category }}
+                    </span>
+                    <span v-if="teamInfo.isTeam" class="reg-badge-tag tag-team">
+                      <i class="ri-team-line"></i> Tim Delegasi (Maks. {{ teamInfo.max }} Siswa)
+                    </span>
+                    <span v-else class="reg-badge-tag tag-team">
+                      <i class="ri-user-line"></i> Individu
+                    </span>
+                    <span class="reg-badge-tag tag-quota">
+                      <i class="ri-pie-chart-line"></i> Terisi: {{ activeComp?.current_quota || 0 }} / {{ activeComp?.max_quota || 50 }}
+                    </span>
+                  </div>
+                  <h1 class="reg-hero-heading text-truncate">
+                    {{ activeComp?.form_settings?.form_title || activeComp?.title || ('Formulir Pendaftaran ' + (school.event_name || 'Semarak Aliyah')) }}
+                  </h1>
+                  <p class="reg-hero-subheading text-truncate">
+                    {{ activeComp?.form_settings?.form_subtitle || 'Lengkapi data pendaftaran delegasi di bawah ini untuk diverifikasi oleh panitia lomba.' }}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -2223,10 +2228,10 @@ function getCompDropdownSuffix(c) {
               </div>
 
               <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-                <button type="button" class="btn btn-outline-secondary px-4 py-2.5 fw-semibold" @click="backToCatalog">
+                <button type="button" class="btn-success-back" @click="backToCatalog">
                   <i class="ri-arrow-left-line me-1"></i> Kembali ke Katalog Lomba
                 </button>
-                <button type="button" class="btn btn-primary px-4 py-2.5 fw-bold" @click="isSuccess = false; form.reset()">
+                <button type="button" class="btn-success-new" @click="isSuccess = false; form.reset()">
                   <i class="ri-add-line me-1"></i> Daftarkan Cabang Lain
                 </button>
               </div>
@@ -2285,46 +2290,56 @@ function getCompDropdownSuffix(c) {
                       </div>
                     </div>
 
-                    <div class="reg-package-grid">
-                      <!-- Paket Satuan -->
-                      <label 
-                        class="reg-package-item" 
-                        :class="{ 'is-selected': form.package_type === 'Paket Satuan' }"
+                    <!-- MODERN SLEEK SEGMENTED CONTROL FOR PACKAGE SELECTION -->
+                    <div class="reg-package-segmented mb-3">
+                      <button 
+                        type="button" 
+                        class="package-seg-btn"
+                        :class="{ 'is-active': form.package_type === 'Paket Satuan' }"
+                        @click="form.package_type = 'Paket Satuan'"
                       >
-                        <div class="reg-pkg-radio">
-                          <input type="radio" value="Paket Satuan" v-model="form.package_type" class="d-none" />
-                          <div class="custom-radio-circle" :class="{ 'is-checked': form.package_type === 'Paket Satuan' }">
+                        <div class="seg-btn-left">
+                          <div class="custom-radio-circle sm" :class="{ 'is-checked': form.package_type === 'Paket Satuan' }">
                             <div class="radio-inner-dot"></div>
                           </div>
+                          <div class="text-start">
+                            <div class="seg-btn-title">{{ pricingSettings?.satuan_name || 'Paket Fleksibel Satuan' }}</div>
+                            <div class="seg-btn-sub">Pendaftaran per 1 cabang lomba pilihan</div>
+                          </div>
                         </div>
-                        <div class="reg-pkg-content">
-                          <div class="reg-pkg-name">{{ pricingSettings?.satuan_name || 'Paket Satuan' }}</div>
-                          <div class="reg-pkg-price satuan-price">Rp {{ selectedCompFee.toLocaleString('id-ID') }} <span class="price-sub">/ Cabang</span></div>
-                          <div class="reg-pkg-note">Pendaftaran untuk 1 cabang lomba pilihan</div>
+                        <div class="seg-btn-price satuan">
+                          Rp {{ selectedCompFee.toLocaleString('id-ID') }}
+                          <span class="price-unit">/ lomba</span>
                         </div>
-                      </label>
+                      </button>
 
-                      <!-- Paket All-In -->
-                      <label 
-                        class="reg-package-item" 
-                        :class="{ 'is-selected': form.package_type === 'Paket All-In' }"
+                      <button 
+                        type="button" 
+                        class="package-seg-btn"
+                        :class="{ 'is-active': form.package_type === 'Paket All-In' }"
+                        @click="form.package_type = 'Paket All-In'"
                       >
-                        <div class="reg-pkg-radio">
-                          <input type="radio" value="Paket All-In" v-model="form.package_type" class="d-none" />
-                          <div class="custom-radio-circle" :class="{ 'is-checked': form.package_type === 'Paket All-In' }">
+                        <div class="seg-btn-left">
+                          <div class="custom-radio-circle sm" :class="{ 'is-checked': form.package_type === 'Paket All-In' }">
                             <div class="radio-inner-dot"></div>
                           </div>
+                          <div class="text-start">
+                            <div class="seg-btn-title d-flex align-items-center gap-1.5">
+                              <span>{{ pricingSettings?.allin_name || 'Paket All-In Komplit' }}</span>
+                              <span class="badge-best-value">Hemat 50%</span>
+                            </div>
+                            <div class="seg-btn-sub">Bebas ikuti seluruh 8 cabang lomba resmi</div>
+                          </div>
                         </div>
-                        <div class="reg-pkg-content">
-                          <div class="reg-pkg-name">{{ pricingSettings?.allin_name || 'Paket All-In Komplit' }}</div>
-                          <div class="reg-pkg-price allin-price">Rp {{ Number(pricingSettings?.allin_price || 200000).toLocaleString('id-ID') }} <span class="price-sub">Semua Lomba</span></div>
-                          <div class="reg-pkg-note">Bebas ikuti seluruh cabang lomba resmi</div>
+                        <div class="seg-btn-price allin">
+                          Rp {{ Number(pricingSettings?.allin_price || 200000).toLocaleString('id-ID') }}
+                          <span class="price-unit">semua lomba</span>
                         </div>
-                      </label>
+                      </button>
                     </div>
 
                     <!-- Dropdown Cabang Lomba -->
-                    <div class="form-group" style="margin-top: 14px; margin-bottom: 0;">
+                    <div class="form-group mb-0">
                       <label class="form-label" for="reg-competition">
                         <span>{{ form.package_type === 'Paket Satuan' ? 'Pilih Cabang Lomba Utama' : 'Cabang Lomba yang Ingin Didahulukan' }}</span>
                         <span class="required-star">*</span>
@@ -2355,39 +2370,39 @@ function getCompDropdownSuffix(c) {
                         <span>{{ getFieldError('competition_id') }}</span>
                       </div>
 
-                  <!-- Direct Registration Callout Banner in Modal -->
-                  <div v-if="isSelectedCompDirect" class="alert p-3 rounded-3 mt-3 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3" style="background: rgba(16, 185, 129, 0.12); border: 1.5px solid rgba(16, 185, 129, 0.4);">
-                    <div class="d-flex align-items-start gap-2.5">
-                      <div style="width: 38px; height: 38px; border-radius: 10px; background: #10b981; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.25rem;">
-                        <i class="ri-whatsapp-line"></i>
-                      </div>
-                      <div>
-                        <div class="fw-bold" style="color: #059669; font-size: 0.95rem;">
-                          Pendaftaran Khusus Kontak Langsung
+                      <!-- Direct Registration Callout Banner in Modal -->
+                      <div v-if="isSelectedCompDirect" class="alert p-3 rounded-3 mt-3 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3" style="background: rgba(16, 185, 129, 0.12); border: 1.5px solid rgba(16, 185, 129, 0.4);">
+                        <div class="d-flex align-items-start gap-2.5">
+                          <div style="width: 38px; height: 38px; border-radius: 10px; background: #10b981; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.25rem;">
+                            <i class="ri-whatsapp-line"></i>
+                          </div>
+                          <div>
+                            <div class="fw-bold" style="color: #059669; font-size: 0.95rem;">
+                              Pendaftaran Khusus Kontak Langsung
+                            </div>
+                            <p class="mb-0 small text-muted">
+                              {{ activeComp?.direct_registration_note || 'Pendaftaran cabang lomba ini tidak melalui form online, melainkan langsung menghubungi koordinator / penanggung jawab lomba via WhatsApp.' }}
+                            </p>
+                            <div v-if="activeComp?.primary_coordinator" class="mt-1 small">
+                              <strong style="color: var(--text-main);">Koordinator:</strong> 
+                              <span class="text-primary fw-medium">{{ activeComp.primary_coordinator.name }}</span> 
+                              <span class="text-muted">({{ activeComp.primary_coordinator.phone }})</span>
+                            </div>
+                          </div>
                         </div>
-                        <p class="mb-0 small text-muted">
-                          {{ activeComp?.direct_registration_note || 'Pendaftaran cabang lomba ini tidak melalui form online, melainkan langsung menghubungi koordinator / penanggung jawab lomba via WhatsApp.' }}
-                        </p>
-                        <div v-if="activeComp?.primary_coordinator" class="mt-1 small">
-                          <strong style="color: var(--text-main);">Koordinator:</strong> 
-                          <span class="text-primary fw-medium">{{ activeComp.primary_coordinator.name }}</span> 
-                          <span class="text-muted">({{ activeComp.primary_coordinator.phone }})</span>
-                        </div>
+                        <a 
+                          :href="getDirectRegistrationWaUrl(activeComp)" 
+                          target="_blank" 
+                          rel="noopener" 
+                          class="btn-wa-coord-link"
+                          title="Daftar via WhatsApp Koordinator"
+                        >
+                          <i class="ri-whatsapp-line fs-5"></i>
+                          <span>Chat WhatsApp Koordinator</span>
+                        </a>
                       </div>
                     </div>
-                    <a 
-                      :href="getDirectRegistrationWaUrl(activeComp)" 
-                      target="_blank" 
-                      rel="noopener" 
-                      class="btn btn-success d-inline-flex align-items-center justify-content-center gap-2 px-3 py-2 text-nowrap fw-bold"
-                      style="background: #10b981; border-color: #10b981; border-radius: 8px;"
-                    >
-                      <i class="ri-whatsapp-line fs-5"></i>
-                      <span>Chat WhatsApp Koordinator</span>
-                    </a>
                   </div>
-                </div>
-              </div>
 
               <!-- CARD 2: ASAL SEKOLAH & KONTAK PEMBINA -->
               <div class="reg-section-card">
@@ -2399,28 +2414,40 @@ function getCompDropdownSuffix(c) {
                   </div>
                 </div>
 
-                <!-- 1. KODE PAKET KOMPLIT (ALL-IN) INTERACTIVE CARD (Diletakkan di atas agar pendaftar dapat mengecek kode paket lebih dulu) -->
-                <div class="package-code-card mb-3">
-                  <div class="package-code-header">
-                    <div class="package-code-title-wrap">
-                      <div class="package-code-icon">
-                        <i class="ri-vip-crown-line"></i>
+                <!-- 1. KODE PAKET KOMPLIT (ALL-IN) COLLAPSIBLE BAR -->
+                <div class="promo-trigger-container mb-3">
+                  <button 
+                    type="button" 
+                    class="btn-promo-toggle"
+                    :class="{ 'is-open': showPromoInput || isManualCodeVerified }"
+                    @click="showPromoInput = !showPromoInput"
+                  >
+                    <div class="d-flex align-items-center gap-2 min-w-0">
+                      <div class="promo-icon-badge">
+                        <i class="ri-coupon-3-fill"></i>
                       </div>
-                      <div>
-                        <div class="package-code-title">
-                          <span>Punya Kode Paket Komplit (All-In)?</span>
-                          <span class="package-code-badge">Bebas Biaya & Otomatis</span>
+                      <div class="text-start min-w-0">
+                        <div class="promo-toggle-title">
+                          Punya <strong>Kode Registrasi Paket Komplit (All-In)</strong>?
                         </div>
-                        <p class="package-code-desc">
-                          Jika sekolah mendaftar Paket Komplit, masukkan kodenya di sini. Data sekolah terisi otomatis dan pendaftaran cabang ini <strong>Bebas Biaya (Rp 0)</strong> tanpa perlu mengisi ulang data sekolah.
-                        </p>
+                        <div class="promo-toggle-sub text-truncate">Klaim pendaftaran bebas biaya otomatis dari sekolah</div>
                       </div>
                     </div>
-                  </div>
+                    <div class="promo-toggle-action flex-shrink-0">
+                      <template v-if="isManualCodeVerified">
+                        <span class="badge-promo-verified"><i class="ri-shield-check-fill"></i> Terverifikasi</span>
+                      </template>
+                      <template v-else>
+                        <span class="promo-action-label">{{ showPromoInput ? 'Tutup' : 'Klaim Kode Di Sini' }}</span>
+                        <i :class="showPromoInput ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'"></i>
+                      </template>
+                    </div>
+                  </button>
 
-                  <div class="package-code-body">
+                  <!-- Collapsible Body -->
+                  <div v-if="showPromoInput || isManualCodeVerified" class="promo-collapse-content mt-2.5">
                     <div class="package-code-input-row">
-                      <div class="input-with-icon" style="flex: 1;">
+                      <div class="input-with-icon flex-grow-1">
                         <i class="ri-qr-code-line input-icon"></i>
                         <input 
                           type="text" 
@@ -2454,17 +2481,15 @@ function getCompDropdownSuffix(c) {
                     </div>
 
                     <!-- Error State Alert -->
-                    <div v-if="codeVerificationError" class="code-error-alert">
-                      <i class="ri-error-warning-fill text-danger me-2"></i>
+                    <div v-if="codeVerificationError" class="code-error-alert mt-2">
+                      <i class="ri-error-warning-fill text-danger me-1.5"></i>
                       <span>{{ codeVerificationError }}</span>
                     </div>
 
                     <!-- Info Note bila belum diverifikasi -->
-                    <div v-else-if="!isManualCodeVerified" class="package-code-help">
-                      <i class="ri-information-line"></i>
-                      <span>
-                        Kode paket ini opsional. Jika sekolah mendaftar paket satuan per cabang lomba, silakan langsung mengisi data sekolah di bawah.
-                      </span>
+                    <div v-else-if="!isManualCodeVerified" class="package-code-help mt-2">
+                      <i class="ri-information-line me-1"></i>
+                      <span>Kode registrasi Paket Komplit diterbitkan oleh panitia untuk sekolah yang mendaftar paket All-In.</span>
                     </div>
                   </div>
                 </div>
@@ -2799,37 +2824,8 @@ function getCompDropdownSuffix(c) {
                   </div>
 
                   <!-- ROSTER TAB SWITCHER BAR (COMPACT & SPACE-EFFICIENT) -->
-                  <div v-if="participantCount > 1" class="roster-switcher-container">
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                      <div class="d-flex align-items-center gap-1.5 fs-12 fw-semibold text-muted">
-                        <i class="ri-user-settings-line text-primary"></i>
-                        <span>Pilih Data Peserta:</span>
-                      </div>
-                      <!-- Toggle View Mode: Tab per Siswa vs Tampilkan Semua -->
-                      <div class="roster-view-toggle">
-                        <button 
-                          type="button" 
-                          class="toggle-mode-btn"
-                          :class="{ 'is-active': memberViewMode === 'tabs' }"
-                          @click="memberViewMode = 'tabs'"
-                          title="Tampilan Tab per Siswa (Ramping & Ringkas)"
-                        >
-                          <i class="ri-table-line"></i> Tab Ramping
-                        </button>
-                        <button 
-                          type="button" 
-                          class="toggle-mode-btn"
-                          :class="{ 'is-active': memberViewMode === 'all' }"
-                          @click="memberViewMode = 'all'"
-                          title="Tampilkan Semua Siswa Sekaligus"
-                        >
-                          <i class="ri-list-check-2"></i> Semua Siswa
-                        </button>
-                      </div>
-                    </div>
-
-                    <!-- Horizontal Scrollable Tabs -->
-                    <div v-if="memberViewMode === 'tabs'" class="roster-tabs-scroll-bar">
+                  <div v-if="participantCount > 1" class="roster-switcher-container mb-3">
+                    <div class="roster-tabs-scroll-bar">
                       <button 
                         v-for="pIdx in participantCount" 
                         :key="`tab-${pIdx}`"
@@ -2847,7 +2843,7 @@ function getCompDropdownSuffix(c) {
                         <i v-else-if="participantsList[pIdx - 1]?.name" class="ri-checkbox-circle-fill text-success"></i>
                         <i v-else class="ri-user-line"></i>
                         <span class="tab-label">
-                          {{ participantsList[pIdx - 1]?.name ? participantsList[pIdx - 1].name.split(' ')[0] : `#${pIdx}` }}
+                          {{ participantsList[pIdx - 1]?.name ? participantsList[pIdx - 1].name.split(' ')[0] : `Siswa #${pIdx}` }}
                         </span>
                         <span class="tab-sub" v-if="pIdx <= teamInfo.main">(Inti)</span>
                         <span class="tab-sub text-muted" v-else>(Cadangan)</span>
@@ -2861,7 +2857,7 @@ function getCompDropdownSuffix(c) {
                     <div 
                       v-for="pIdx in participantCount" 
                       :key="pIdx"
-                      v-show="memberViewMode === 'all' || activeMemberTab === (pIdx - 1)"
+                      v-show="activeMemberTab === (pIdx - 1)"
                       class="reg-student-card"
                     >
                       <!-- Student Card Header -->
@@ -3183,29 +3179,6 @@ function getCompDropdownSuffix(c) {
                             </div>
                           </div>
                         </template>
-
-                        <!-- Mini Navigation between members in Tab Mode -->
-                        <div v-if="memberViewMode === 'tabs' && participantCount > 1" class="roster-tab-nav d-flex justify-content-between align-items-center pt-3 border-top mt-3">
-                          <button 
-                            type="button" 
-                            class="btn btn-sm btn-outline-secondary"
-                            :disabled="activeMemberTab === 0"
-                            @click="activeMemberTab = Math.max(0, activeMemberTab - 1)"
-                          >
-                            <i class="ri-arrow-left-line me-1"></i> Siswa Sebelumnya
-                          </button>
-                          <span class="fs-12 text-muted fw-medium">
-                            Siswa {{ activeMemberTab + 1 }} dari {{ participantCount }}
-                          </span>
-                          <button 
-                            type="button" 
-                            class="btn btn-sm btn-primary"
-                            :disabled="activeMemberTab >= participantCount - 1"
-                            @click="activeMemberTab = Math.min(participantCount - 1, activeMemberTab + 1)"
-                          >
-                            Berikutnya: Siswa #{{ activeMemberTab + 2 }} <i class="ri-arrow-right-line ms-1"></i>
-                          </button>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -3456,7 +3429,7 @@ function getCompDropdownSuffix(c) {
                               <label 
                                 v-if="getCustomFileList(field.name).length < Number(field.max_files || 1)"
                                 :for="'cf-' + field.name + '-more'" 
-                                class="btn btn-xs btn-outline-primary mb-0 cursor-pointer d-inline-flex align-items-center gap-1"
+                                class="btn-add-file-more mb-0 cursor-pointer"
                               >
                                 <i class="ri-add-line"></i> Tambah Berkas
                               </label>
@@ -3484,7 +3457,7 @@ function getCompDropdownSuffix(c) {
                               </div>
                               <button 
                                 type="button" 
-                                class="btn btn-xs btn-outline-danger py-0.5 px-2"
+                                class="btn-remove-file-item"
                                 @click="removeCustomFileIndex(field.name, fIdx)"
                                 title="Hapus berkas ini"
                               >
@@ -3545,7 +3518,7 @@ function getCompDropdownSuffix(c) {
                   <span>{{ getFieldError('payment_method') }}</span>
                 </div>
 
-                <div class="bank-accounts-container">
+                <div class="bank-accounts-grid">
                   <!-- Kartu Rekening Bank Aktif Dinamis dari Database -->
                   <div 
                     v-for="acc in activeBankAccounts" 
@@ -3574,13 +3547,7 @@ function getCompDropdownSuffix(c) {
                           <i class="ri-bank-card-line"></i> {{ acc.bank_name }}
                         </span>
                         <span v-if="acc.is_primary" class="bank-badge primary-tag">
-                          Rekening Utama
-                        </span>
-                        <span 
-                          v-if="form.payment_method === ('Transfer ' + acc.bank_name)" 
-                          class="badge bg-success-subtle text-success fs-10 px-2 py-0.5 d-inline-flex align-items-center gap-1"
-                        >
-                          <i class="ri-checkbox-circle-fill"></i> Terpilih
+                          Utama
                         </span>
                       </div>
                       <button 
@@ -3591,7 +3558,7 @@ function getCompDropdownSuffix(c) {
                         title="Salin nomor rekening ke papan klip"
                       >
                         <i :class="copiedAccId === (acc.id || acc.account_number) ? 'ri-check-line text-success' : 'ri-file-copy-line'"></i>
-                        <span>{{ copiedAccId === (acc.id || acc.account_number) ? 'Tersalin!' : 'Salin Rekening' }}</span>
+                        <span>{{ copiedAccId === (acc.id || acc.account_number) ? 'Tersalin' : 'Salin' }}</span>
                       </button>
                     </div>
                     <div class="bank-acc-body">
@@ -3599,8 +3566,8 @@ function getCompDropdownSuffix(c) {
                       <span class="bank-acc-holder">a.n. <strong>{{ acc.account_holder }}</strong></span>
                     </div>
                     <div class="bank-acc-footer">
-                      <span>Biaya registrasi: <strong style="color: #0f172a;">Rp {{ calculatedFee.toLocaleString('id-ID') }}</strong></span>
-                      <span v-if="acc.notes" class="fst-italic">• {{ acc.notes }}</span>
+                      <span>Biaya: <strong style="color: #0f172a;">Rp {{ calculatedFee.toLocaleString('id-ID') }}</strong></span>
+                      <span v-if="acc.notes" class="fst-italic text-truncate" style="max-width: 140px;" :title="acc.notes">• {{ acc.notes }}</span>
                     </div>
                   </div>
 
@@ -3627,24 +3594,18 @@ function getCompDropdownSuffix(c) {
                         <span class="bank-badge cash-badge">
                           <i class="ri-money-dollar-circle-line text-warning"></i> Tunai di Sekretariat
                         </span>
-                        <span 
-                          v-if="form.payment_method === 'Tunai di Sekretariat'" 
-                          class="badge bg-warning-subtle text-warning fs-10 px-2 py-0.5 d-inline-flex align-items-center gap-1"
-                        >
-                          <i class="ri-checkbox-circle-fill"></i> Terpilih
-                        </span>
                       </div>
-                      <span class="badge bg-light text-muted border fs-11">
-                        Sekretariat Panitia
+                      <span class="badge bg-light text-muted border fs-10 px-1.5 py-0.5">
+                        Langsung
                       </span>
                     </div>
                     <div class="bank-acc-body">
-                      <span class="fs-14 fw-bold text-dark">Bayar Tunai / Cash di Kantor Sekretariat</span>
-                      <span class="bank-acc-holder">MA Unggulan Wahid Hasyim Balung, Jember</span>
+                      <span class="fs-13 fw-bold text-dark">Bayar Tunai di Kantor Sekretariat</span>
+                      <span class="bank-acc-holder">MA Unggulan Wahid Hasyim Balung</span>
                     </div>
                     <div class="bank-acc-footer">
-                      <span>Biaya registrasi: <strong style="color: #0f172a;">Rp {{ calculatedFee.toLocaleString('id-ID') }}</strong></span>
-                      <span class="fst-italic">• Konfirmasi kepada bendahara panitia saat kedatangan</span>
+                      <span>Biaya: <strong style="color: #0f172a;">Rp {{ calculatedFee.toLocaleString('id-ID') }}</strong></span>
+                      <span class="fst-italic">• Konfirmasi bendahara panitia</span>
                     </div>
                   </div>
                 </div>
@@ -3676,28 +3637,22 @@ function getCompDropdownSuffix(c) {
                 <div v-if="errorSummaryList.length > 0" class="alert alert-danger py-2.5 px-3 mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2 rounded-3 fs-13">
                   <div class="d-flex align-items-center gap-2">
                     <i class="ri-error-warning-fill fs-5 text-danger"></i>
-                    <span>Formulir belum lengkap: Terdapat <strong>{{ errorSummaryList.length }} kolom wajib</strong> yang belum diisi.</span>
+                    <span>Terdapat <strong>{{ errorSummaryList.length }} kolom wajib</strong> yang belum lengkap.</span>
                   </div>
-                  <button type="button" class="btn btn-sm btn-outline-danger px-2.5 py-1 fw-bold fs-12" @click="scrollToField(errorSummaryList[0]?.key)">
-                    Periksa Kolom Pertama <i class="ri-arrow-up-line ms-1"></i>
+                  <button type="button" class="btn-check-errors-pill" @click="scrollToField(errorSummaryList[0]?.key)">
+                    Periksa Kolom <i class="ri-arrow-up-line ms-1"></i>
                   </button>
                 </div>
 
-                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-                  <button type="button" class="btn-back-catalog" @click="backToCatalog">
-                    <i class="ri-arrow-left-line"></i>
-                    <span>Batal & Kembali ke Katalog</span>
-                  </button>
-                  <button 
-                    type="submit" 
-                    class="btn-submit-page flex-grow-1"
-                    :disabled="form.processing"
-                  >
-                    <i v-if="form.processing" class="ri-loader-4-line ri-spin me-1 fs-5"></i>
-                    <i v-else class="ri-send-plane-2-fill me-1 fs-5"></i>
-                    <span>{{ form.processing ? 'Mengirim Pendaftaran...' : (activeComp?.form_settings?.submit_text || 'Kirim Pendaftaran Delegasi') }}</span>
-                  </button>
-                </div>
+                <button 
+                  type="submit" 
+                  class="btn-submit-page w-100"
+                  :disabled="form.processing"
+                >
+                  <i v-if="form.processing" class="ri-loader-4-line ri-spin me-1 fs-5"></i>
+                  <i v-else class="ri-send-plane-2-fill me-1 fs-5"></i>
+                  <span>{{ form.processing ? 'Mengirim Pendaftaran...' : (activeComp?.form_settings?.submit_text || 'Kirim Pendaftaran Delegasi') }}</span>
+                </button>
               </div>
             </form>
           </div>
@@ -3707,7 +3662,7 @@ function getCompDropdownSuffix(c) {
               <div class="reg-sticky-sidebar">
                 <div class="sidebar-summary-card">
                   <div class="sidebar-card-header">
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2.5 min-w-0">
                       <div class="sidebar-comp-icon">
                         <i :class="getCompIconClass(activeComp)"></i>
                       </div>
@@ -3773,18 +3728,18 @@ function getCompDropdownSuffix(c) {
                     <!-- Sticky Sidebar Error Indicator -->
                     <div 
                       v-if="errorSummaryList.length > 0" 
-                      class="alert alert-danger py-2 px-2.5 mb-3 rounded-3 fs-11 d-flex align-items-center justify-content-between gap-1.5"
+                      class="sidebar-error-notice mb-3"
                     >
                       <div class="d-flex align-items-center gap-1.5 min-w-0">
                         <i class="ri-error-warning-fill text-danger fs-14 flex-shrink-0"></i>
-                        <span class="text-truncate">Ada {{ errorSummaryList.length }} isian belum lengkap</span>
+                        <span class="text-truncate fs-11 fw-semibold text-danger">{{ errorSummaryList.length }} kolom belum lengkap</span>
                       </div>
                       <button 
                         type="button" 
-                        class="btn btn-xs btn-outline-danger py-0 px-1.5 fs-10 fw-bold"
+                        class="btn-sidebar-check-errors"
                         @click="scrollToField(errorSummaryList[0]?.key)"
                       >
-                        Periksa
+                        Periksa <i class="ri-arrow-up-line"></i>
                       </button>
                     </div>
 
@@ -3825,7 +3780,7 @@ function getCompDropdownSuffix(c) {
                     </div>
                   </div>
                   <p class="fs-11 text-muted mb-2">
-                    Hubungi koordinator panitia cabang {{ activeComp?.title }} via WhatsApp jika menemui kendala.
+                    Hubungi panitia cabang {{ activeComp?.title }} via WhatsApp jika menemui kendala.
                   </p>
                   <a 
                     :href="getWaChatUrl(activeComp?.primary_coordinator?.phone || school?.phone || '6281234567890', `Halo Panitia Semarak Aliyah, saya ingin bertanya terkait pendaftaran lomba ${activeComp?.title || ''}.`)" 
@@ -4893,6 +4848,513 @@ function getCompDropdownSuffix(c) {
 
 [data-bs-theme="dark"] .btn-back-link:hover {
   color: #f8fafc;
+}
+
+/* -----------------------------------------------------------------------------
+   MODERN FORM ENHANCEMENTS (PACKAGE SEGMENTED, PROMO ACCORDION, ROSTER & BUTTONS)
+   ----------------------------------------------------------------------------- */
+
+/* Package Segmented Control */
+.reg-package-segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .reg-package-segmented {
+    grid-template-columns: 1fr;
+  }
+}
+
+.package-seg-btn {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  width: 100%;
+}
+
+.package-seg-btn:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.package-seg-btn.is-active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  border-left: 4px solid #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15), 0 4px 14px rgba(37, 99, 235, 0.08);
+}
+
+.seg-btn-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.seg-btn-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.seg-btn-sub {
+  font-size: 0.76rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.seg-btn-price {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 800;
+  font-size: 1.05rem;
+  text-align: right;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.seg-btn-price.satuan {
+  color: #2563eb;
+}
+
+.seg-btn-price.allin {
+  color: #d97706;
+}
+
+.price-unit {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #64748b;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.badge-best-value {
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid #fde68a;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* WhatsApp Coordinator Direct Link */
+.btn-wa-coord-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #10b981;
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+  border: none;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-wa-coord-link:hover {
+  background: #059669;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+}
+
+/* Promo / All-In Code Collapsible Trigger */
+.promo-trigger-container {
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.promo-trigger-container:hover {
+  border-color: #94a3b8;
+}
+
+.btn-promo-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.btn-promo-toggle:hover {
+  background: #f1f5f9;
+}
+
+.promo-icon-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #ede9fe;
+  color: #7c3aed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.promo-toggle-title {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+.promo-toggle-title strong {
+  color: #7c3aed;
+}
+
+.promo-toggle-sub {
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+.promo-toggle-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #7c3aed;
+}
+
+.badge-promo-verified {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.promo-collapse-content {
+  padding: 0 14px 14px 14px;
+}
+
+/* Roster Tab Extras */
+.tab-icon-crown {
+  color: #f59e0b;
+  font-size: 1rem;
+}
+
+.tab-sub {
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.tab-error-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  margin-left: 4px;
+}
+
+.roster-tab-btn.has-error {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+}
+
+/* Bank Accounts Grid */
+.bank-accounts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+/* Error Indicators & Review Buttons */
+.btn-check-errors-pill {
+  display: inline-flex;
+  align-items: center;
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-check-errors-pill:hover {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+.sidebar-error-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.btn-sidebar-check-errors {
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: background 0.15s;
+}
+
+.btn-sidebar-check-errors:hover {
+  background: #dc2626;
+}
+
+/* Success Actions Buttons */
+.btn-success-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1.5px solid #cbd5e1;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-success-back:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+
+.btn-success-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+  transition: all 0.18s ease;
+}
+
+.btn-success-new:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
+}
+
+/* Multi-file Dropzone Action Buttons */
+.btn-add-file-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-add-file-more:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.btn-remove-file-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-remove-file-item:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Dark Mode Overrides for Modern Form Components */
+[data-bs-theme="dark"] .package-seg-btn {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+}
+
+[data-bs-theme="dark"] .package-seg-btn:hover {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+[data-bs-theme="dark"] .package-seg-btn.is-active {
+  background: rgba(37, 99, 235, 0.18);
+  border-color: #3b82f6;
+  border-left-color: #60a5fa;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+[data-bs-theme="dark"] .seg-btn-title {
+  color: #ffffff;
+}
+
+[data-bs-theme="dark"] .seg-btn-sub {
+  color: #94a3b8;
+}
+
+[data-bs-theme="dark"] .seg-btn-price.satuan {
+  color: #60a5fa;
+}
+
+[data-bs-theme="dark"] .seg-btn-price.allin {
+  color: #fbbf24;
+}
+
+[data-bs-theme="dark"] .price-unit {
+  color: #94a3b8;
+}
+
+[data-bs-theme="dark"] .badge-best-value {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fde047;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+[data-bs-theme="dark"] .promo-trigger-container {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-bs-theme="dark"] .btn-promo-toggle:hover {
+  background: #1e293b;
+}
+
+[data-bs-theme="dark"] .promo-icon-badge {
+  background: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+}
+
+[data-bs-theme="dark"] .promo-toggle-title {
+  color: #f8fafc;
+}
+
+[data-bs-theme="dark"] .promo-toggle-title strong {
+  color: #c4b5fd;
+}
+
+[data-bs-theme="dark"] .promo-toggle-sub {
+  color: #94a3b8;
+}
+
+[data-bs-theme="dark"] .promo-toggle-action {
+  color: #c4b5fd;
+}
+
+[data-bs-theme="dark"] .badge-promo-verified {
+  background: rgba(16, 185, 129, 0.2);
+  color: #86efac;
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+[data-bs-theme="dark"] .roster-tab-btn.has-error {
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #fca5a5 !important;
+}
+
+[data-bs-theme="dark"] .btn-check-errors-pill {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+[data-bs-theme="dark"] .sidebar-error-notice {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+[data-bs-theme="dark"] .btn-success-back {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+[data-bs-theme="dark"] .btn-success-back:hover {
+  background: #334155;
+  color: #ffffff;
+}
+
+[data-bs-theme="dark"] .btn-add-file-more {
+  background: rgba(37, 99, 235, 0.18);
+  color: #93c5fd;
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+[data-bs-theme="dark"] .btn-remove-file-item {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.35);
 }
 
 /* =============================================================================

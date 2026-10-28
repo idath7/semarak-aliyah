@@ -389,15 +389,21 @@ class RegistrantDashboardController extends Controller
         }
 
         // 2. Dynamic Custom Files
-        if ($request->hasFile('custom_files')) {
-            $uploadedFiles = $request->file('custom_files');
-            if (is_array($uploadedFiles)) {
-                $comp = $registration->competition;
-                $compCustomFields = ($comp && is_array($comp->custom_fields)) ? $comp->custom_fields : [];
-                $compFieldMap = [];
-                foreach ($compCustomFields as $cf) {
-                    if (!empty($cf['name'])) $compFieldMap[$cf['name']] = $cf;
-                }
+        $uploadedFiles = [];
+        if ($request->hasFile('custom_files') && is_array($request->file('custom_files'))) {
+            $uploadedFiles = array_merge($uploadedFiles, $request->file('custom_files'));
+        }
+        if ($request->hasFile('custom_fields') && is_array($request->file('custom_fields'))) {
+            $uploadedFiles = array_merge($uploadedFiles, $request->file('custom_fields'));
+        }
+
+        if (!empty($uploadedFiles)) {
+            $comp = $registration->competition;
+            $compCustomFields = ($comp && is_array($comp->custom_fields)) ? $comp->custom_fields : [];
+            $compFieldMap = [];
+            foreach ($compCustomFields as $cf) {
+                if (!empty($cf['name'])) $compFieldMap[$cf['name']] = $cf;
+            }
 
                 foreach ($uploadedFiles as $fieldKey => $fileOrFiles) {
                     $fieldDef = $compFieldMap[$fieldKey] ?? [];
@@ -449,7 +455,6 @@ class RegistrantDashboardController extends Controller
                 }
                 $registration->custom_fields = $existingCustom;
             }
-        }
 
         $registration->file_documents = array_values($existingFiles);
         $registration->save();

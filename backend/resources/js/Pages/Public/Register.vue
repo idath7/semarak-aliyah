@@ -36,6 +36,9 @@ const props = defineProps({
 const isSuccess = ref(false);
 const registeredData = ref(null);
 const registerModalOpen = ref(false);
+const isFormView = ref(!!props.preselectedLomba);
+const activeMemberTab = ref(0);
+const memberViewMode = ref('tabs'); // 'tabs' | 'all'
 const modalBodyRef = ref(null);
 
 const form = useForm({
@@ -129,7 +132,7 @@ watch(activeComp, (newComp) => {
       if (f.type === 'checkbox') {
         currentFields[f.name] = [];
       } else if (f.type === 'file') {
-        currentFields[f.name] = (f.max_files || 1) > 1 ? [] : null;
+        currentFields[f.name] = Number(f.max_files || 1) > 1 ? [] : null;
       } else {
         currentFields[f.name] = '';
       }
@@ -139,15 +142,16 @@ watch(activeComp, (newComp) => {
 }, { immediate: true });
 
 function handleCustomFileChange(fieldName, event, maxFiles = 1) {
-  const selectedFiles = Array.from(event.target.files || []);
+  const selectedFiles = Array.from(event.target?.files || []);
   if (!selectedFiles.length) return;
 
-  if (maxFiles > 1) {
+  const limit = Math.max(1, Number(maxFiles || 1));
+  if (limit > 1) {
     const existing = Array.isArray(form.custom_fields[fieldName]) ? [...form.custom_fields[fieldName]] : (form.custom_fields[fieldName] ? [form.custom_fields[fieldName]] : []);
     const combined = [...existing, ...selectedFiles];
-    if (combined.length > maxFiles) {
-      alert(`Maksimal hanya dapat mengunggah ${maxFiles} berkas untuk kolom ini.`);
-      form.custom_fields[fieldName] = combined.slice(0, maxFiles);
+    if (combined.length > limit) {
+      alert(`Maksimal hanya dapat mengunggah ${limit} berkas untuk kolom ini.`);
+      form.custom_fields[fieldName] = combined.slice(0, limit);
     } else {
       form.custom_fields[fieldName] = combined;
     }
@@ -156,6 +160,13 @@ function handleCustomFileChange(fieldName, event, maxFiles = 1) {
   }
 
   if (event.target) event.target.value = '';
+}
+
+function handleCustomFileDrop(fieldName, event, maxFiles = 1) {
+  const droppedFiles = Array.from(event.dataTransfer?.files || []);
+  if (!droppedFiles.length) return;
+  const fakeEvent = { target: { files: droppedFiles } };
+  handleCustomFileChange(fieldName, fakeEvent, maxFiles);
 }
 
 function removeCustomFileIndex(fieldName, idx) {
@@ -352,9 +363,24 @@ onMounted(async () => {
     const matched = props.competitions?.find(c => c.id === props.preselectedLomba);
     if (matched) {
       form.competition_id = matched.id;
-      registerModalOpen.value = true;
+      isFormView.value = true;
     }
   }
+
+  // Handle browser back and forward buttons between catalog and form page
+  window.addEventListener('popstate', () => {
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    if (pathParts[0] === 'layanan-registrasi' && pathParts[1]) {
+      const slug = pathParts[1];
+      const matched = props.competitions?.find(c => c.id === slug);
+      if (matched) {
+        form.competition_id = matched.id;
+        isFormView.value = true;
+      }
+    } else if (pathParts[0] === 'layanan-registrasi' && !pathParts[1]) {
+      isFormView.value = false;
+    }
+  });
 
   const defMethod = defaultPaymentMethod.value;
   if (!form.payment_method || form.payment_method === 'Transfer Bank BSI') {
@@ -792,24 +818,27 @@ function submitAllInRegistration() {
   });
 }
 
-function openRegisterModal(compId = null, isAllIn = false) {
+function goToForm(compId = null, isAllIn = false) {
   if (isAllIn) {
     openAllInModal();
     return;
   }
 
+  if (compId) {
+    form.competition_id = compId;
+  }
+
   if (selectedSchool.value) {
     form.school_name = selectedSchool.value.name;
+    if (selectedSchool.value.npsn) form.custom_fields['school_npsn'] = selectedSchool.value.npsn;
+    if (selectedSchool.value.kecamatan) form.custom_fields['school_district'] = selectedSchool.value.kecamatan;
+    if (selectedSchool.value.alamat) form.custom_fields['school_address'] = selectedSchool.value.alamat;
   }
   
   if (schoolStatusData.value?.can_register_all_competitions_free || isManualCodeVerified.value) {
     form.package_type = 'Paket All-In';
   } else {
     form.package_type = 'Paket Satuan';
-  }
-
-  if (compId) {
-    form.competition_id = compId;
   }
 
   if (schoolStatusData.value?.coordinator?.name && !form.mentor_name) {
@@ -827,17 +856,29 @@ function openRegisterModal(compId = null, isAllIn = false) {
   }
 
   isSuccess.value = false;
-  registerModalOpen.value = true;
-  nextTick(() => {
-    if (modalBodyRef.value) {
-      modalBodyRef.value.scrollTop = 0;
-    }
-  });
+  isFormView.value = true;
+  registerModalOpen.value = false;
+  activeMemberTab.value = 0;
+  if (form.competition_id) {
+    window.history.pushState(null, '', `/layanan-registrasi/${form.competition_id}`);
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function backToCatalog() {
+  isFormView.value = false;
+  isSuccess.value = false;
+  registerModalOpen.value = false;
+  window.history.pushState(null, '', '/layanan-registrasi');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function openRegisterModal(compId = null, isAllIn = false) {
+  goToForm(compId, isAllIn);
 }
 
 function closeRegisterModal() {
-  registerModalOpen.value = false;
-  showSchoolDropdown.value = false;
+  backToCatalog();
 }
 
 // -----------------------------------------------------------------------------
@@ -1132,12 +1173,13 @@ function getCompDropdownSuffix(c) {
 
 <template>
   <PublicLayout>
-    <Head :title="'Layanan Registrasi - ' + (school.event_name || 'SEMARAK ALIYAH XIV 2026')" />
+    <Head :title="isFormView ? ((activeComp ? activeComp.title + ' - ' : '') + 'Formulir Registrasi') : ('Layanan Registrasi - ' + (school.event_name || 'SEMARAK ALIYAH XIV 2026'))" />
 
     <!-- ==========================================================================
-         PAGE BANNER
+         VIEW 1: KATALOG PENDAFTARAN (JIKA !isFormView)
          ========================================================================== -->
-    <section class="page-banner">
+    <template v-if="!isFormView">
+      <section class="page-banner">
       <div class="container">
         <h1 class="page-title">
           Layanan Pendaftaran <span class="text-gradient-gold">{{ school.event_name || 'Semarak Aliyah XIV 2026' }}</span>
@@ -1524,7 +1566,7 @@ function getCompDropdownSuffix(c) {
                             v-else-if="!schoolStatusData.registered_competition_ids.includes(comp.id) && !getCompStatusInfo(comp).isClosed"
                             type="button" 
                             class="btn-fill-delegate"
-                            @click="openRegisterModal(comp.id)"
+                            @click="goToForm(comp.id)"
                           >
                             <i class="ri-add-line"></i> Isi Delegasi (Rp 0)
                           </button>
@@ -1771,7 +1813,7 @@ function getCompDropdownSuffix(c) {
                   type="button" 
                   class="btn-card-register" 
                   style="width: 100%;"
-                  @click="openRegisterModal(comp.id)"
+                  @click="goToForm(comp.id)"
                 >
                   <i :class="schoolStatusData?.can_register_all_competitions_free ? 'ri-gift-line' : 'ri-flashlight-line'"></i>
                   <span>{{ schoolStatusData?.can_register_all_competitions_free ? 'Isi Delegasi (Gratis All-In)' : (schoolStatusData?.registered_competition_ids?.includes(comp.id) ? 'Daftar Tim Tambahan' : 'Daftar Sekarang') }}</span>
@@ -1795,92 +1837,140 @@ function getCompDropdownSuffix(c) {
 
       </div>
     </main>
+  </template>
 
     <!-- ==========================================================================
-         REGISTRATION MODAL FORM (INTERACTIVE POPUP)
+         VIEW 2: DEDICATED FULL-PAGE REGISTRATION FORM (JIKA isFormView)
+         Formulir pendaftaran pada halaman khusus tanpa popup modal.
+         Tata letak 2 kolom ramping: Form di kiri & Sticky Sidebar di kanan.
          ========================================================================== -->
-    <div 
-      v-if="registerModalOpen" 
-      class="modal-overlay reg-modal-overlay" 
-      role="dialog" 
-      aria-modal="true" 
-      aria-labelledby="reg-modal-title"
-      @click.self="closeRegisterModal"
-    >
-      <div class="modal-card reg-modal-card">
-        <!-- SUCCESS STATE DIALOG -->
-        <div v-if="isSuccess" class="reg-success-view">
-          <div class="reg-success-icon-wrap">
-            <i class="ri-checkbox-circle-fill"></i>
-          </div>
-          <h3 class="reg-success-title">Pendaftaran Berhasil Dikirim!</h3>
-          <p class="reg-success-desc">
-            Terima kasih telah mendaftarkan delegasi sekolah di <strong>{{ school.event_name || 'Semarak Aliyah XIV 2026' }}</strong>. Data telah tersimpan di sistem panitia dan siap diverifikasi.
-          </p>
+    <template v-else>
+      <div class="reg-page-container">
+        <!-- 1. TOP HEADER & BREADCRUMBS STRIP -->
+        <section class="reg-page-top-bar">
+          <div class="container">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 py-3 border-bottom">
+              <button 
+                type="button" 
+                class="btn-back-catalog" 
+                @click="backToCatalog"
+              >
+                <i class="ri-arrow-left-line"></i>
+                <span>Kembali ke Katalog Lomba</span>
+              </button>
 
-          <div v-if="registeredData" class="reg-success-summary-box">
-            <div class="summary-row">
-              <span class="summary-label">Kode Registrasi</span>
-              <span class="summary-val code-val">{{ registeredData.reg_code }}</span>
-            </div>
-            <div class="summary-row">
-              <span class="summary-label">Asal Sekolah</span>
-              <span class="summary-val">{{ registeredData.school_name }}</span>
-            </div>
-            <div class="summary-row">
-              <span class="summary-label">Cabang & Paket</span>
-              <span class="summary-val highlight-val">{{ registeredData.competition_title }} ({{ registeredData.package_type }})</span>
-            </div>
-            <div class="summary-row total-row">
-              <span class="summary-label">Total Biaya Pendaftaran</span>
-              <span class="summary-val fee-val">Rp {{ Number(registeredData.total_fee).toLocaleString('id-ID') }}</span>
-            </div>
-          </div>
-
-          <div class="reg-success-actions">
-            <button type="button" class="btn-cancel" @click="closeRegisterModal">
-              <i class="ri-check-line"></i> Selesai & Tutup
-            </button>
-            <button type="button" class="btn-submit" @click="isSuccess = false; form.reset()">
-              <i class="ri-add-line"></i> Daftar Lomba Lain
-            </button>
-          </div>
-        </div>
-
-        <!-- FORM STATE (STICKY HEADER + SCROLLABLE BODY + STICKY FOOTER) -->
-        <template v-else>
-          <!-- 1. STICKY MODAL HEADER -->
-          <div class="reg-modal-header">
-            <div class="reg-modal-header-icon">
-              <i :class="getCompIconClass(activeComp)"></i>
-            </div>
-            <div class="reg-modal-header-info">
-              <div class="reg-modal-header-tags">
-                <span class="reg-badge-tag tag-pkg">
-                  <i class="ri-price-tag-3-fill"></i> {{ form.package_type }}
-                </span>
-                <span v-if="activeComp?.category" class="reg-badge-tag tag-cat">
-                  {{ activeComp.category }}
-                </span>
-                <span v-if="teamInfo.isTeam" class="reg-badge-tag tag-team">
-                  <i class="ri-team-line"></i> Tim Delegasi
-                </span>
+              <div class="reg-page-breadcrumb">
+                <Link href="/">Beranda</Link>
+                <span class="crumb-sep">/</span>
+                <a href="javascript:void(0)" @click="backToCatalog">Katalog Lomba</a>
+                <span class="crumb-sep">/</span>
+                <span class="crumb-active">{{ activeComp?.title || 'Formulir Delegasi' }}</span>
               </div>
-              <h3 id="reg-modal-title" class="reg-modal-title">
-                {{ activeComp?.form_settings?.form_title || activeComp?.title || ('Formulir Registrasi ' + (school.event_name || 'Semarak Aliyah 2026')) }}
-              </h3>
-              <p class="reg-modal-subtitle">
-                {{ activeComp?.form_settings?.form_subtitle || 'Lengkapi data pendaftaran delegasi di bawah ini untuk diverifikasi oleh panitia lomba.' }}
-              </p>
             </div>
-            <button type="button" class="reg-modal-close" @click="closeRegisterModal" aria-label="Tutup Formulir">
-              <i class="ri-close-line"></i>
-            </button>
-          </div>
 
-          <!-- 2. SCROLLABLE FORM BODY -->
-          <div class="reg-modal-body" ref="modalBodyRef">
-            <form id="registration-form" @submit.prevent="handleSubmit">
+            <!-- COMPACT HERO STRIP -->
+            <div class="reg-hero-strip">
+              <div class="reg-hero-icon-box">
+                <i :class="getCompIconClass(activeComp)"></i>
+              </div>
+              <div class="reg-hero-meta">
+                <div class="reg-hero-tags">
+                  <span class="reg-badge-tag tag-pkg">
+                    <i class="ri-price-tag-3-fill"></i> {{ form.package_type }}
+                  </span>
+                  <span v-if="activeComp?.category" class="reg-badge-tag tag-cat">
+                    {{ activeComp.category }}
+                  </span>
+                  <span v-if="teamInfo.isTeam" class="reg-badge-tag tag-team">
+                    <i class="ri-team-line"></i> Tim Delegasi (Maks. {{ teamInfo.max }} Siswa)
+                  </span>
+                  <span v-else class="reg-badge-tag tag-team">
+                    <i class="ri-user-line"></i> Individu
+                  </span>
+                  <span class="reg-badge-tag tag-quota">
+                    <i class="ri-pie-chart-line"></i> Terisi: {{ activeComp?.current_quota || 0 }} / {{ activeComp?.max_quota || 50 }}
+                  </span>
+                </div>
+                <h1 class="reg-hero-heading">
+                  {{ activeComp?.form_settings?.form_title || activeComp?.title || ('Formulir Pendaftaran ' + (school.event_name || 'Semarak Aliyah')) }}
+                </h1>
+                <p class="reg-hero-subheading">
+                  {{ activeComp?.form_settings?.form_subtitle || 'Lengkapi data pendaftaran delegasi di bawah ini untuk diverifikasi oleh panitia lomba.' }}
+                </p>
+              </div>
+
+              <!-- Quick Competition Selector -->
+              <div class="reg-hero-comp-switcher">
+                <label class="switcher-title">Ganti Cabang Lomba :</label>
+                <CustomSelect 
+                  v-model="form.competition_id"
+                  size="sm"
+                  placeholder="Pilih Cabang Lomba..."
+                  searchable
+                  search-placeholder="Ketik nama cabang lomba..."
+                >
+                  <option 
+                    v-for="c in competitions" 
+                    :key="c.id" 
+                    :value="c.id"
+                    :disabled="getCompStatusInfo(c).isClosed && !(c.registration_type === 'direct_contact' || c.is_direct_registration)"
+                  >
+                    {{ c.title }} (Rp {{ Number(c.fee || 50000).toLocaleString('id-ID') }}){{ getCompDropdownSuffix(c) }}
+                  </option>
+                </CustomSelect>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. MAIN FORM CONTENT -->
+        <section class="reg-page-main-section py-4">
+          <div class="container">
+
+            <!-- SUCCESS STATE FULL-PAGE RECEIPT -->
+            <div v-if="isSuccess" class="reg-success-page-card">
+              <div class="reg-success-icon-wrap">
+                <i class="ri-checkbox-circle-fill"></i>
+              </div>
+              <h2 class="reg-success-title">Pendaftaran Berhasil Dikirim!</h2>
+              <p class="reg-success-desc">
+                Terima kasih telah mendaftarkan delegasi sekolah di <strong>{{ school.event_name || 'Semarak Aliyah XIV 2026' }}</strong>. Data telah tercatat di sistem panitia dan siap diverifikasi.
+              </p>
+
+              <div v-if="registeredData" class="reg-success-summary-box mx-auto" style="max-width: 620px;">
+                <div class="summary-row">
+                  <span class="summary-label">Kode Registrasi</span>
+                  <span class="summary-val code-val">{{ registeredData.reg_code }}</span>
+                </div>
+                <div class="summary-row">
+                  <span class="summary-label">Asal Sekolah</span>
+                  <span class="summary-val">{{ registeredData.school_name }}</span>
+                </div>
+                <div class="summary-row">
+                  <span class="summary-label">Cabang & Paket</span>
+                  <span class="summary-val highlight-val">{{ registeredData.competition_title }} ({{ registeredData.package_type }})</span>
+                </div>
+                <div class="summary-row total-row">
+                  <span class="summary-label">Total Biaya Pendaftaran</span>
+                  <span class="summary-val fee-val">Rp {{ Number(registeredData.total_fee || 0).toLocaleString('id-ID') }}</span>
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                <button type="button" class="btn btn-outline-secondary px-4 py-2.5 fw-semibold" @click="backToCatalog">
+                  <i class="ri-arrow-left-line me-1"></i> Kembali ke Katalog Lomba
+                </button>
+                <button type="button" class="btn btn-primary px-4 py-2.5 fw-bold" @click="isSuccess = false; form.reset()">
+                  <i class="ri-add-line me-1"></i> Daftarkan Cabang Lain
+                </button>
+              </div>
+            </div>
+
+            <!-- ACTIVE FORM STATE (2-COLUMN GRID) -->
+            <div v-else class="row g-4 align-items-start">
+              <!-- LEFT COLUMN: FORM FIELDS (col-12 col-lg-8) -->
+              <div class="col-12 col-lg-8">
+                <form id="registration-form" @submit.prevent="handleSubmit">
               
               <!-- CARD 1: PILIHAN PAKET & CABANG LOMBA -->
               <div class="reg-section-card">
@@ -2350,11 +2440,68 @@ function getCompDropdownSuffix(c) {
                     </div>
                   </div>
 
+                  <!-- ROSTER TAB SWITCHER BAR (COMPACT & SPACE-EFFICIENT) -->
+                  <div v-if="participantCount > 1" class="roster-switcher-container">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                      <div class="d-flex align-items-center gap-1.5 fs-12 fw-semibold text-muted">
+                        <i class="ri-user-settings-line text-primary"></i>
+                        <span>Pilih Data Peserta:</span>
+                      </div>
+                      <!-- Toggle View Mode: Tab per Siswa vs Tampilkan Semua -->
+                      <div class="roster-view-toggle">
+                        <button 
+                          type="button" 
+                          class="toggle-mode-btn"
+                          :class="{ 'is-active': memberViewMode === 'tabs' }"
+                          @click="memberViewMode = 'tabs'"
+                          title="Tampilan Tab per Siswa (Ramping & Ringkas)"
+                        >
+                          <i class="ri-table-line"></i> Tab Ramping
+                        </button>
+                        <button 
+                          type="button" 
+                          class="toggle-mode-btn"
+                          :class="{ 'is-active': memberViewMode === 'all' }"
+                          @click="memberViewMode = 'all'"
+                          title="Tampilkan Semua Siswa Sekaligus"
+                        >
+                          <i class="ri-list-check-2"></i> Semua Siswa
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Horizontal Scrollable Tabs -->
+                    <div v-if="memberViewMode === 'tabs'" class="roster-tabs-scroll-bar">
+                      <button 
+                        v-for="pIdx in participantCount" 
+                        :key="`tab-${pIdx}`"
+                        type="button"
+                        class="roster-tab-btn"
+                        :class="{ 
+                          'is-active': activeMemberTab === (pIdx - 1),
+                          'is-captain': participantsList[pIdx - 1]?.is_captain,
+                          'is-filled': !!participantsList[pIdx - 1]?.name
+                        }"
+                        @click="activeMemberTab = (pIdx - 1)"
+                      >
+                        <i v-if="participantsList[pIdx - 1]?.is_captain" class="ri-vip-crown-fill tab-icon-crown"></i>
+                        <i v-else-if="participantsList[pIdx - 1]?.name" class="ri-checkbox-circle-fill text-success"></i>
+                        <i v-else class="ri-user-line"></i>
+                        <span class="tab-label">
+                          {{ participantsList[pIdx - 1]?.name ? participantsList[pIdx - 1].name.split(' ')[0] : `#${pIdx}` }}
+                        </span>
+                        <span class="tab-sub" v-if="pIdx <= teamInfo.main">(Inti)</span>
+                        <span class="tab-sub text-muted" v-else>(Cadangan)</span>
+                      </button>
+                    </div>
+                  </div>
+
                   <!-- Student Roster Cards List -->
                   <div class="reg-students-stack">
                     <div 
                       v-for="pIdx in participantCount" 
                       :key="pIdx"
+                      v-show="memberViewMode === 'all' || activeMemberTab === (pIdx - 1)"
                       class="reg-student-card"
                     >
                       <!-- Student Card Header -->
@@ -2607,6 +2754,29 @@ function getCompDropdownSuffix(c) {
                             />
                           </div>
                         </template>
+
+                        <!-- Mini Navigation between members in Tab Mode -->
+                        <div v-if="memberViewMode === 'tabs' && participantCount > 1" class="roster-tab-nav d-flex justify-content-between align-items-center pt-3 border-top mt-3">
+                          <button 
+                            type="button" 
+                            class="btn btn-sm btn-outline-secondary"
+                            :disabled="activeMemberTab === 0"
+                            @click="activeMemberTab = Math.max(0, activeMemberTab - 1)"
+                          >
+                            <i class="ri-arrow-left-line me-1"></i> Siswa Sebelumnya
+                          </button>
+                          <span class="fs-12 text-muted fw-medium">
+                            Siswa {{ activeMemberTab + 1 }} dari {{ participantCount }}
+                          </span>
+                          <button 
+                            type="button" 
+                            class="btn btn-sm btn-primary"
+                            :disabled="activeMemberTab >= participantCount - 1"
+                            @click="activeMemberTab = Math.min(participantCount - 1, activeMemberTab + 1)"
+                          >
+                            Berikutnya: Siswa #{{ activeMemberTab + 2 }} <i class="ri-arrow-right-line ms-1"></i>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2757,10 +2927,12 @@ function getCompDropdownSuffix(c) {
                       <div 
                         v-else-if="field.type === 'file'"
                         class="reg-file-dropzone-box"
-                        :class="{ 'has-file': (field.max_files || 1) > 1 ? getCustomFileList(field.name).length > 0 : !!form.custom_fields[field.name] }"
+                        :class="{ 'has-file': Number(field.max_files || 1) > 1 ? getCustomFileList(field.name).length > 0 : !!form.custom_fields[field.name] }"
+                        @dragover.prevent
+                        @drop.prevent="e => handleCustomFileDrop(field.name, e, field.max_files)"
                       >
                         <!-- Single File Mode (max_files <= 1) -->
-                        <template v-if="(field.max_files || 1) <= 1">
+                        <template v-if="Number(field.max_files || 1) <= 1">
                           <div v-if="!form.custom_fields[field.name]" class="dropzone-empty">
                             <i class="ri-upload-cloud-2-line dropzone-icon"></i>
                             <div class="dropzone-title">Pilih Berkas Dokumen untuk Diunggah</div>
@@ -2823,8 +2995,8 @@ function getCompDropdownSuffix(c) {
                                 <i class="ri-folders-fill text-success"></i> Berkas Terpilih ({{ getCustomFileList(field.name).length }} dari maks. {{ field.max_files }})
                               </span>
                               <label 
-                                v-if="getCustomFileList(field.name).length < field.max_files"
-                                :for="'cf-' + field.name" 
+                                v-if="getCustomFileList(field.name).length < Number(field.max_files || 1)"
+                                :for="'cf-' + field.name + '-more'" 
                                 class="btn btn-xs btn-outline-primary mb-0 cursor-pointer d-inline-flex align-items-center gap-1"
                               >
                                 <i class="ri-add-line"></i> Tambah Berkas
@@ -2832,7 +3004,7 @@ function getCompDropdownSuffix(c) {
                             </div>
                             <input 
                               type="file" 
-                              :id="'cf-' + field.name"
+                              :id="'cf-' + field.name + '-more'"
                               multiple
                               class="d-none"
                               :accept="field.allowed_extensions ? field.allowed_extensions.map(e => '.' + e).join(',') : undefined"
@@ -3017,82 +3189,157 @@ function getCompDropdownSuffix(c) {
                   />
                 </div>
               </div>
-            </form>
-          </div>
-
-          <!-- 3. STICKY MODAL FOOTER -->
-          <div class="reg-modal-footer">
-            <div class="footer-summary">
-              <div class="footer-fee-row">
-                <span class="fee-label">Total Biaya :</span>
-                <span v-if="isAllInFree" class="fee-amount text-success">
-                  <span class="text-decoration-line-through text-muted fs-11 me-1">Rp {{ selectedCompFee.toLocaleString('id-ID') }}</span>
-                  Gratis (Rp 0 - Paket Komplit)
-                </span>
-                <span v-else-if="calculatedFee === 0" class="fee-amount text-success">
-                  Gratis (Rp 0)
-                </span>
-                <span v-else class="fee-amount">Rp {{ calculatedFee.toLocaleString('id-ID') }}</span>
-              </div>
-              <div class="footer-bank-info">
-                <span v-if="calculatedFee === 0 || isAllInFree" class="text-success fw-bold d-inline-flex align-items-center gap-1">
-                  <i class="ri-checkbox-circle-fill"></i>
-                  <template v-if="isAllInFree">
-                    Tercover Bebas Biaya (Paket Komplit: {{ manualCodeSuccessData?.school_name || form.school_name }})
-                  </template>
-                  <template v-else>
-                    Pendaftaran Bebas Biaya (Gratis)
-                  </template>
-                </span>
-                <span v-else-if="form.payment_method === 'Tunai di Sekretariat'" class="text-warning fw-semibold d-inline-flex align-items-center gap-1">
-                  <i class="ri-money-dollar-circle-fill"></i> Pembayaran: Tunai di Sekretariat Panitia
-                </span>
-                <template v-else-if="selectedBankAccount">
-                  <span class="d-inline-flex align-items-center gap-1">
-                    <i class="ri-bank-card-line text-success"></i> Transfer {{ selectedBankAccount.bank_name }}
-                  </span>
-                  <span class="bank-dot">•</span>
-                  <span class="bank-acc">Rek. {{ selectedBankAccount.account_number }}</span>
-                  <span class="bank-name">a.n. {{ selectedBankAccount.account_holder }}</span>
-                </template>
-              </div>
+                <!-- SECONDARY SUBMIT BUTTON AT BOTTOM OF FORM -->
+                <div class="d-flex align-items-center justify-content-between pt-3 border-top flex-wrap gap-2 mt-4">
+                  <button type="button" class="btn btn-outline-secondary px-3 py-2 fw-medium" @click="backToCatalog">
+                    <i class="ri-arrow-left-line me-1"></i> Batal & Kembali ke Katalog
+                  </button>
+                  <button 
+                    type="submit" 
+                    class="btn btn-primary px-4 py-2.5 fw-bold d-inline-flex align-items-center gap-2"
+                    :disabled="form.processing"
+                  >
+                    <i v-if="form.processing" class="ri-loader-4-line ri-spin"></i>
+                    <i v-else class="ri-send-plane-2-fill"></i>
+                    <span>{{ form.processing ? 'Mengirim Pendaftaran...' : (activeComp?.form_settings?.submit_text || 'Kirim Pendaftaran Delegasi') }}</span>
+                  </button>
+                </div>
+              </form>
             </div>
 
-            <div class="footer-actions">
-              <button 
-                type="button" 
-                class="btn-cancel"
-                @click="closeRegisterModal"
-              >
-                Batal
-              </button>
-              <a 
-                v-if="isSelectedCompDirect"
-                :href="getDirectRegistrationWaUrl(activeComp)" 
-                target="_blank" 
-                rel="noopener" 
-                class="btn-submit"
-                style="background: #10b981; border-color: #059669; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px;"
-              >
-                <i class="ri-whatsapp-line fs-5"></i>
-                <span>Hubungi Koordinator via WhatsApp</span>
-              </a>
-              <button 
-                v-else
-                type="submit" 
-                form="registration-form"
-                class="btn-submit"
-                :disabled="form.processing"
-              >
-                <i v-if="form.processing" class="ri-loader-4-line ri-spin"></i>
-                <i v-else class="ri-send-plane-fill"></i>
-                <span>{{ form.processing ? 'Mengirim Pendaftaran...' : (activeComp?.form_settings?.submit_text || 'Kirim Pendaftaran Delegasi') }}</span>
-              </button>
+            <!-- RIGHT COLUMN: STICKY ORDER SUMMARY & PRIMARY SUBMIT (col-12 col-lg-4) -->
+            <div class="col-12 col-lg-4">
+              <div class="reg-sticky-sidebar">
+                <div class="sidebar-summary-card">
+                  <div class="sidebar-card-header">
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="sidebar-comp-icon">
+                        <i :class="getCompIconClass(activeComp)"></i>
+                      </div>
+                      <div class="min-w-0">
+                        <h5 class="sidebar-comp-title mb-0 text-truncate" :title="activeComp?.title">{{ activeComp?.title || 'Cabang Lomba' }}</h5>
+                        <span class="sidebar-comp-category">{{ activeComp?.category || 'Umum' }}</span>
+                      </div>
+                    </div>
+                    <span class="badge" :class="getCompStatusInfo(activeComp).isClosed ? 'bg-danger-subtle text-danger' : 'bg-success-subtle text-success'">
+                      {{ getCompStatusInfo(activeComp).isClosed ? 'Ditutup' : 'Buka' }}
+                    </span>
+                  </div>
+
+                  <div class="sidebar-breakdown-list">
+                    <div class="breakdown-item">
+                      <span class="item-label">Skema Paket</span>
+                      <span class="item-val fw-semibold">{{ form.package_type }}</span>
+                    </div>
+                    <div class="breakdown-item">
+                      <span class="item-label">Asal Lembaga</span>
+                      <span class="item-val text-truncate" style="max-width: 170px;" :title="form.school_name || '(Belum dipilih)'">
+                        {{ form.school_name || '(Belum dipilih)' }}
+                      </span>
+                    </div>
+                    <div class="breakdown-item">
+                      <span class="item-label">Guru Pendamping</span>
+                      <span class="item-val text-truncate" style="max-width: 170px;" :title="form.mentor_name || '-'">
+                        {{ form.mentor_name || '-' }}
+                      </span>
+                    </div>
+                    <div class="breakdown-item">
+                      <span class="item-label">Jumlah Delegasi</span>
+                      <span class="item-val fw-bold">{{ repeaterField ? (participantCount + ' Siswa') : '1 Delegasi' }}</span>
+                    </div>
+                    <div class="breakdown-item">
+                      <span class="item-label">Sisa Kuota</span>
+                      <span class="item-val">{{ activeComp?.current_quota || 0 }} / {{ activeComp?.max_quota || 50 }}</span>
+                    </div>
+                  </div>
+
+                  <div class="sidebar-total-fee-box">
+                    <span class="total-fee-label">Total Biaya Pendaftaran:</span>
+                    <div v-if="isAllInFree" class="total-fee-val text-success">
+                      <span class="text-decoration-line-through text-muted fs-13 me-1">Rp {{ selectedCompFee.toLocaleString('id-ID') }}</span>
+                      Gratis (Rp 0)
+                      <div class="fs-11 fw-normal text-success">Tercover Paket Komplit All-In</div>
+                    </div>
+                    <div v-else-if="calculatedFee === 0" class="total-fee-val text-success">
+                      Gratis (Rp 0)
+                    </div>
+                    <div v-else class="total-fee-val text-gradient-gold">
+                      Rp {{ calculatedFee.toLocaleString('id-ID') }}
+                    </div>
+
+                    <div v-if="selectedBankAccount && calculatedFee > 0 && !isAllInFree" class="sidebar-bank-hint mt-2">
+                      <i class="ri-bank-card-line text-primary me-1"></i>
+                      <span>Bayar via {{ selectedBankAccount.bank_name }}</span>
+                    </div>
+                  </div>
+
+                  <!-- PRIMARY SUBMIT BUTTON IN STICKY SIDEBAR -->
+                  <div class="sidebar-action-box">
+                    <a 
+                      v-if="isSelectedCompDirect"
+                      :href="getDirectRegistrationWaUrl(activeComp)" 
+                      target="_blank" 
+                      rel="noopener" 
+                      class="btn-submit-page w-100"
+                      style="background: #10b981; border-color: #059669; text-decoration: none;"
+                    >
+                      <i class="ri-whatsapp-line fs-5"></i>
+                      <span>Daftar via WhatsApp</span>
+                    </a>
+                    <button 
+                      v-else
+                      type="submit" 
+                      form="registration-form"
+                      class="btn-submit-page w-100"
+                      :disabled="form.processing"
+                    >
+                      <i v-if="form.processing" class="ri-loader-4-line ri-spin me-1 fs-5"></i>
+                      <i v-else class="ri-send-plane-2-fill me-1 fs-5"></i>
+                      <span>{{ form.processing ? 'Mengirim Pendaftaran...' : (activeComp?.form_settings?.submit_text || 'Kirim Pendaftaran Delegasi') }}</span>
+                    </button>
+
+                    <button 
+                      type="button" 
+                      class="btn-back-link w-100 mt-2"
+                      @click="backToCatalog"
+                    >
+                      <i class="ri-arrow-left-line me-1"></i> Batal & Kembali ke Katalog
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Hotline WhatsApp Card -->
+                <div class="sidebar-hotline-card mt-3">
+                  <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="hotline-icon">
+                      <i class="ri-customer-service-2-line"></i>
+                    </div>
+                    <div>
+                      <h6 class="mb-0 fw-bold fs-13">Pusat Bantuan Panitia</h6>
+                      <span class="text-muted fs-11">Butuh bantuan teknis / juknis?</span>
+                    </div>
+                  </div>
+                  <p class="fs-11 text-muted mb-2">
+                    Hubungi koordinator panitia cabang {{ activeComp?.title }} via WhatsApp jika menemui kendala.
+                  </p>
+                  <a 
+                    :href="getWaChatUrl(activeComp?.primary_coordinator?.phone || school?.phone || '6281234567890', `Halo Panitia Semarak Aliyah, saya ingin bertanya terkait pendaftaran lomba ${activeComp?.title || ''}.`)" 
+                    target="_blank" 
+                    rel="noopener" 
+                    class="btn-hotline-wa w-100"
+                  >
+                    <i class="ri-whatsapp-line"></i>
+                    <span>Chat WhatsApp Panitia</span>
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
-        </template>
-      </div>
+
+        </div>
+      </section>
     </div>
+  </template>
 
     <!-- ==========================================================================
          MODAL: DAFTAR SEKOLAH / MADRASAH BARU
@@ -3603,6 +3850,509 @@ function getCompDropdownSuffix(c) {
 </template>
 
 <style scoped>
+/* =============================================================================
+   DEDICATED FULL-PAGE FORM & ROSTER TAB SWITCHER STYLING
+   ============================================================================= */
+
+/* Page Container & Layout */
+.reg-page-container {
+  background: var(--bg-light, #f8fafc);
+  min-height: 100vh;
+  padding-bottom: 60px;
+}
+
+.reg-page-top-bar {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.btn-back-catalog {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-back-catalog:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  transform: translateX(-2px);
+}
+
+.reg-page-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.reg-page-breadcrumb a {
+  color: #64748b;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.reg-page-breadcrumb a:hover {
+  color: #0284c7;
+}
+
+.crumb-sep {
+  color: #cbd5e1;
+}
+
+.crumb-active {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+/* Compact Hero Strip */
+.reg-hero-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 0;
+  flex-wrap: wrap;
+}
+
+.reg-hero-icon-box {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.85rem;
+  flex-shrink: 0;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
+}
+
+.reg-hero-meta {
+  flex: 1;
+  min-width: 260px;
+}
+
+.reg-hero-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.reg-hero-heading {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 4px;
+  line-height: 1.25;
+}
+
+.reg-hero-subheading {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 0;
+  max-width: 680px;
+}
+
+.reg-hero-comp-switcher {
+  min-width: 240px;
+  max-width: 300px;
+}
+
+.switcher-title {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Tabbed Roster Switcher */
+.roster-switcher-container {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.roster-tabs-scroll-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.roster-tabs-scroll-bar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.roster-tabs-scroll-bar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.roster-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.roster-tab-btn:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.roster-tab-btn.is-active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.roster-tab-btn.is-active .tab-role-name strong {
+  color: #1d4ed8;
+}
+
+.tab-label-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.tab-role-name strong {
+  font-size: 0.78rem;
+  color: #0f172a;
+}
+
+.tab-name-preview {
+  font-size: 0.72rem;
+  color: #64748b;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.roster-tab-btn.has-name .tab-name-preview {
+  color: #059669;
+  font-weight: 600;
+}
+
+/* Sticky Action Sidebar */
+.reg-sticky-sidebar {
+  position: sticky;
+  top: 90px;
+  z-index: 20;
+}
+
+.sidebar-summary-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.sidebar-comp-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.sidebar-comp-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #0f172a;
+  max-width: 150px;
+}
+
+.sidebar-comp-category {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.sidebar-breakdown-list {
+  padding: 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.breakdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+
+.breakdown-item .item-label {
+  color: #64748b;
+}
+
+.breakdown-item .item-val {
+  color: #0f172a;
+  text-align: right;
+}
+
+.sidebar-total-fee-box {
+  padding: 16px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.total-fee-label {
+  display: block;
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.total-fee-val {
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.sidebar-bank-hint {
+  font-size: 0.76rem;
+  color: #64748b;
+}
+
+.sidebar-action-box {
+  padding-top: 16px;
+}
+
+.btn-submit-page {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 13px 20px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(217, 119, 6, 0.28);
+  transition: all 0.2s ease;
+}
+
+.btn-submit-page:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(217, 119, 6, 0.35);
+  color: #ffffff;
+}
+
+.btn-submit-page:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.btn-back-link {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  transition: color 0.15s;
+}
+
+.btn-back-link:hover {
+  color: #0f172a;
+}
+
+/* Hotline WhatsApp Card */
+.sidebar-hotline-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.hotline-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+}
+
+.btn-hotline-wa {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #10b981;
+  color: #ffffff;
+  border: 1px solid #059669;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.btn-hotline-wa:hover {
+  background: #059669;
+  color: #ffffff;
+}
+
+/* Success Receipt Card */
+.reg-success-page-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 40px 24px;
+  text-align: center;
+  max-width: 720px;
+  margin: 20px auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+/* Dark Mode Overrides for Dedicated Page */
+[data-bs-theme="dark"] .reg-page-container {
+  background: var(--bg-main, #0b1120);
+}
+
+[data-bs-theme="dark"] .reg-page-top-bar {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-bs-theme="dark"] .btn-back-catalog {
+  background: rgba(30, 41, 59, 0.8);
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+[data-bs-theme="dark"] .crumb-active {
+  color: #f8fafc;
+}
+
+[data-bs-theme="dark"] .reg-hero-heading {
+  color: #f8fafc;
+}
+
+[data-bs-theme="dark"] .reg-hero-subheading {
+  color: #94a3b8;
+}
+
+[data-bs-theme="dark"] .switcher-title {
+  color: #cbd5e1;
+}
+
+[data-bs-theme="dark"] .roster-switcher-container {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-bs-theme="dark"] .roster-tab-btn {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+}
+
+[data-bs-theme="dark"] .roster-tab-btn:hover {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+[data-bs-theme="dark"] .roster-tab-btn.is-active {
+  background: #1d4ed8;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+[data-bs-theme="dark"] .roster-tab-btn.is-active .tab-role-name strong {
+  color: #ffffff;
+}
+
+[data-bs-theme="dark"] .tab-role-name strong {
+  color: #f8fafc;
+}
+
+[data-bs-theme="dark"] .tab-name-preview {
+  color: #94a3b8;
+}
+
+[data-bs-theme="dark"] .sidebar-summary-card,
+[data-bs-theme="dark"] .sidebar-hotline-card,
+[data-bs-theme="dark"] .reg-success-page-card {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+}
+
+[data-bs-theme="dark"] .sidebar-comp-title {
+  color: #f8fafc;
+}
+
+[data-bs-theme="dark"] .breakdown-item .item-val {
+  color: #f8fafc;
+}
+
+[data-bs-theme="dark"] .btn-back-link {
+  color: #94a3b8;
+}
+
+[data-bs-theme="dark"] .btn-back-link:hover {
+  color: #f8fafc;
+}
+
 /* =============================================================================
    SEMARAK ALIYAH - REGISTRATION MODAL ENHANCED STYLING
    State-of-the-art Modern UI with High Contrast in Light & Dark Mode

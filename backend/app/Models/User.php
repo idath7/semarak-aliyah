@@ -214,4 +214,50 @@ class User extends Authenticatable
 
         return $this->hasPermission($permissions);
     }
+
+    /**
+     * Cek apakah pengguna merupakan koordinator untuk cabang lomba tertentu.
+     */
+    public function isCoordinatorFor(string|int|null $competitionId): bool
+    {
+        if (empty($competitionId)) {
+            return false;
+        }
+
+        if ((string)$this->competition_id === (string)$competitionId) {
+            return true;
+        }
+
+        $competition = Competition::find($competitionId);
+        if (!$competition) {
+            return false;
+        }
+
+        return $competition->isUserCoordinator($this->id);
+    }
+
+    /**
+     * Ambil seluruh ID cabang lomba yang dikoordinasikan oleh pengguna ini.
+     *
+     * @return array<string>
+     */
+    public function getCoordinatedCompetitionIds(): array
+    {
+        $ids = [];
+        if (!empty($this->competition_id)) {
+            $ids[] = (string)$this->competition_id;
+        }
+
+        $competitions = Competition::whereNotNull('coordinators')
+            ->orWhere('coordinator_id', $this->id)
+            ->get();
+
+        foreach ($competitions as $comp) {
+            if ($comp->isUserCoordinator($this->id)) {
+                $ids[] = (string)$comp->id;
+            }
+        }
+
+        return array_values(array_unique(array_filter($ids)));
+    }
 }

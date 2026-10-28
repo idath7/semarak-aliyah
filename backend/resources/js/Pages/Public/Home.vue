@@ -23,7 +23,7 @@ function getCompRegisterUrl(compId) {
   if (isRequired && !user) {
     return `/pendaftar/login?redirect_to=register&notice=required&lomba=${compId}`;
   }
-  return `/layanan-registrasi?lomba=${compId}`;
+  return `/layanan-registrasi/${compId}`;
 }
 
 const props = defineProps({

@@ -109,6 +109,30 @@ function createDefaultSubFields() {
   };
 }
 
+function normalizeSubFields(sub) {
+  const defs = createDefaultSubFields();
+  if (!sub || typeof sub !== 'object') {
+    return defs;
+  }
+  const result = { ...defs };
+  for (const k in defs) {
+    if (k === 'custom_columns') {
+      result.custom_columns = Array.isArray(sub.custom_columns) ? [...sub.custom_columns] : [];
+    } else if (sub[k] && typeof sub[k] === 'object') {
+      result[k] = {
+        ...defs[k],
+        ...sub[k],
+        active: sub[k].active !== undefined ? !!sub[k].active : defs[k].active,
+        required: sub[k].required !== undefined ? !!sub[k].required : defs[k].required,
+        label: sub[k].label || defs[k].label,
+      };
+    } else {
+      result[k] = { ...defs[k] };
+    }
+  }
+  return result;
+}
+
 function addCustomSubField(field) {
   if (!field.sub_fields) field.sub_fields = createDefaultSubFields();
   if (!Array.isArray(field.sub_fields.custom_columns)) {
@@ -352,8 +376,17 @@ function ensureMandatoryIdentityFields() {
       };
     }
   });
+  const normalizedRemaining = remaining.map(f => {
+    if (f.type === 'participant_repeater') {
+      return {
+        ...f,
+        sub_fields: normalizeSubFields(f.sub_fields),
+      };
+    }
+    return f;
+  });
 
-  fields.value = [...mandatoryOrdered, ...remaining];
+  fields.value = [...mandatoryOrdered, ...normalizedRemaining];
 }
 
 function restoreMandatoryFields() {
@@ -393,17 +426,7 @@ function initializeData() {
     }
     if (f.type === 'participant_repeater') {
       if (!f.min_items) f.min_items = 1;
-      const defs = createDefaultSubFields();
-      if (!f.sub_fields || typeof f.sub_fields !== 'object') {
-        f.sub_fields = defs;
-      } else {
-        // Merge any new sub_fields keys safely
-        for (const k in defs) {
-          if (!f.sub_fields[k]) {
-            f.sub_fields[k] = { ...defs[k] };
-          }
-        }
-      }
+      f.sub_fields = normalizeSubFields(f.sub_fields);
     }
   });
 
@@ -603,50 +626,18 @@ const copySourceCompetitionOptions = computed(() => {
     }));
 });
 
-// 3. Quick Preset Library (Preset Berbagai Cabang Lomba: Tim, Turnamen, Beregu, Musik/Banjari)
+// 3. Quick Preset Library (Preset Berdasarkan Jumlah Siswa: 1 Siswa, 2 Siswa, 3 Siswa, dsb)
 const quickPresets = [
   {
-    name: 'Grup Musik / Albanjari / Hadrah (Multi-Personil)',
+    name: 'Template 1 Siswa (Individu / Tunggal)',
     type: 'participant_repeater',
-    label: 'Biodata Personil Tim Hadrah / Albanjari',
-    help_text: 'Tentukan jumlah personil yang dikirimkan, lalu lengkapi biodata masing-masing siswa.',
+    label: 'Biodata Peserta (1 Siswa)',
+    help_text: 'Formulir biodata untuk 1 peserta individu delegasi sekolah.',
     required: true,
-    max_items: 10,
+    max_items: 1,
     min_items: 1,
-    sub_fields: {
-      name: { active: true, required: true, label: 'Nama Lengkap Personil' },
-      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
-      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
-      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
-      nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
-    },
-    category: 'Grup Seni / Musik',
-  },
-  {
-    name: 'Turnamen Tim Futsal / Olahraga (Line-up / Roster)',
-    type: 'participant_repeater',
-    label: 'Roster Tim Pemain (Inti & Cadangan)',
-    help_text: 'Masukkan jumlah pemain yang didaftarkan dalam skuad tim turnamen.',
-    required: true,
-    max_items: 12,
-    min_items: 5,
-    sub_fields: {
-      name: { active: true, required: true, label: 'Nama Lengkap Pemain' },
-      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
-      birth_date: { active: true, required: true, label: 'Tanggal Lahir' },
-      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
-      nisn: { active: true, required: true, label: 'NISN Pemain' },
-    },
-    category: 'Turnamen Olahraga',
-  },
-  {
-    name: 'Regu Cerdas Cermat / LCC / Debat (3 Siswa)',
-    type: 'participant_repeater',
-    label: 'Biodata Anggota Regu LCC / Debat',
-    help_text: 'Isi biodata untuk juru bicara dan anggota regu delegasi.',
-    required: true,
-    max_items: 3,
-    min_items: 3,
+    main_members: 1,
+    reserve_members: 0,
     sub_fields: {
       name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
       gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
@@ -654,33 +645,151 @@ const quickPresets = [
       grade: { active: true, required: true, label: 'Kelas / Tingkat' },
       nisn: { active: true, required: true, label: 'Nomor Induk Siswa (NISN)' },
     },
-    category: 'Lomba Beregu',
+    category: 'Preset Biodata Peserta',
   },
   {
-    name: 'Tim Riset / Robotik / Karya Ilmiah (2 Siswa)',
+    name: 'Template 2 Siswa (Tim / Duo)',
     type: 'participant_repeater',
-    label: 'Biodata Tim Peneliti Muda (Ketua & Anggota)',
-    help_text: 'Lengkapi biodata ketua tim dan anggota tim riset.',
+    label: 'Biodata Anggota Tim (2 Siswa)',
+    help_text: 'Lengkapi biodata 2 siswa anggota tim delegasi.',
     required: true,
     max_items: 2,
     min_items: 2,
+    main_members: 2,
+    reserve_members: 0,
     sub_fields: {
       name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
       gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
       birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
       grade: { active: true, required: true, label: 'Kelas / Tingkat' },
-      nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
+      nisn: { active: true, required: true, label: 'Nomor Induk Siswa (NISN)' },
     },
-    category: 'Lomba Beregu',
+    category: 'Preset Biodata Peserta',
   },
   {
-    name: 'Delegasi Kontingen Dinamis (Batas Fleksibel / Kustom)',
+    name: 'Template 3 Siswa (Regu / Trio)',
     type: 'participant_repeater',
-    label: 'Biodata Siswa Delegasi Sekolah',
+    label: 'Biodata Anggota Regu (3 Siswa)',
+    help_text: 'Lengkapi biodata 3 siswa anggota regu delegasi.',
+    required: true,
+    max_items: 3,
+    min_items: 3,
+    main_members: 3,
+    reserve_members: 0,
+    sub_fields: {
+      name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: true, label: 'Nomor Induk Siswa (NISN)' },
+    },
+    category: 'Preset Biodata Peserta',
+  },
+  {
+    name: 'Template 4 Siswa (Tim 4 Anggota)',
+    type: 'participant_repeater',
+    label: 'Biodata Anggota Tim (4 Siswa)',
+    help_text: 'Lengkapi biodata 4 siswa anggota tim delegasi.',
+    required: true,
+    max_items: 4,
+    min_items: 4,
+    main_members: 4,
+    reserve_members: 0,
+    sub_fields: {
+      name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: true, label: 'Nomor Induk Siswa (NISN)' },
+    },
+    category: 'Preset Biodata Peserta',
+  },
+  {
+    name: 'Template 5 Siswa (Tim 5 Anggota)',
+    type: 'participant_repeater',
+    label: 'Biodata Anggota Tim (5 Siswa)',
+    help_text: 'Lengkapi biodata 5 siswa anggota tim delegasi.',
+    required: true,
+    max_items: 5,
+    min_items: 5,
+    main_members: 5,
+    reserve_members: 0,
+    sub_fields: {
+      name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: true, label: 'Nomor Induk Siswa (NISN)' },
+    },
+    category: 'Preset Biodata Peserta',
+  },
+  {
+    name: 'Template 6 Siswa (5 Inti + 1 Cadangan)',
+    type: 'participant_repeater',
+    label: 'Biodata Skuad Tim (6 Siswa: 5 Inti + 1 Cadangan)',
+    help_text: 'Lengkapi biodata 6 pemain skuad tim (5 pemain inti + 1 cadangan).',
+    required: true,
+    max_items: 6,
+    min_items: 5,
+    main_members: 5,
+    reserve_members: 1,
+    sub_fields: {
+      name: { active: true, required: true, label: 'Nama Lengkap Pemain' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: true, label: 'NISN Pemain' },
+    },
+    category: 'Preset Biodata Peserta',
+  },
+  {
+    name: 'Template 10 Siswa (Grup / Tim 10 Siswa)',
+    type: 'participant_repeater',
+    label: 'Biodata Personil Tim (Hingga 10 Siswa)',
+    help_text: 'Tentukan jumlah personil yang dikirimkan, lalu lengkapi biodata masing-masing siswa.',
+    required: true,
+    max_items: 10,
+    min_items: 6,
+    main_members: 6,
+    reserve_members: 4,
+    sub_fields: {
+      name: { active: true, required: true, label: 'Nama Lengkap Personil' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
+    },
+    category: 'Preset Biodata Peserta',
+  },
+  {
+    name: 'Template 12 Siswa (Roster Skuad 12 Siswa)',
+    type: 'participant_repeater',
+    label: 'Roster Skuad Tim (Hingga 12 Siswa: Inti & Cadangan)',
+    help_text: 'Masukkan susunan pemain yang didaftarkan dalam skuad tim turnamen.',
+    required: true,
+    max_items: 12,
+    min_items: 5,
+    main_members: 5,
+    reserve_members: 7,
+    sub_fields: {
+      name: { active: true, required: true, label: 'Nama Lengkap Pemain' },
+      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
+      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+      nisn: { active: true, required: true, label: 'NISN Pemain' },
+    },
+    category: 'Preset Biodata Peserta',
+  },
+  {
+    name: 'Template Multi Siswa (Jumlah Bebas / Dinamis)',
+    type: 'participant_repeater',
+    label: 'Biodata Siswa Delegasi (Jumlah Fleksibel)',
     help_text: 'Jumlah formulir biodata otomatis muncul sesuai angka yang dipilih pendaftar.',
     required: true,
-    max_items: 15,
+    max_items: 20,
     min_items: 1,
+    main_members: 1,
+    reserve_members: 0,
     sub_fields: {
       name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
       gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
@@ -688,24 +797,7 @@ const quickPresets = [
       grade: { active: true, required: true, label: 'Kelas / Tingkat' },
       nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
     },
-    category: 'Kontingen Dinamis',
-  },
-  {
-    name: 'Peserta Utama & Cadangan (1-2 Siswa)',
-    type: 'participant_repeater',
-    label: 'Biodata Peserta Utama & Cadangan',
-    help_text: 'Pilih 1 siswa jika hanya peserta utama, atau 2 siswa jika menyertakan cadangan.',
-    required: true,
-    max_items: 2,
-    min_items: 1,
-    sub_fields: {
-      name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
-      gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
-      birth_date: { active: true, required: false, label: 'Tanggal Lahir' },
-      grade: { active: true, required: true, label: 'Kelas / Tingkat' },
-      nisn: { active: true, required: false, label: 'Nomor Induk Siswa (NISN)' },
-    },
-    category: 'Individu / Cadangan',
+    category: 'Preset Biodata Peserta',
   },
   {
     name: 'Jumlah Peserta yang Dikirimkan',
@@ -714,7 +806,7 @@ const quickPresets = [
     placeholder: 'Contoh: 3',
     help_text: 'Tuliskan angka jumlah siswa yang didelegasikan oleh sekolah',
     required: true,
-    category: 'Logika',
+    category: 'Logika & Kuota',
   },
   {
     name: 'Nomor Induk Siswa (NISN)',
@@ -736,22 +828,22 @@ const quickPresets = [
     category: 'Verifikasi',
   },
   {
-    name: 'Nama Tim / Squad',
+    name: 'Nama Tim / Regu',
     type: 'text',
-    label: 'Nama Tim / Squad Resmi',
+    label: 'Nama Tim / Regu Resmi',
     placeholder: 'Contoh: Garuda Muda MTs',
-    help_text: 'Nama resmi tim yang akan tercantum pada bagan turnamen',
+    help_text: 'Nama resmi tim atau regu yang mewakili sekolah',
     required: true,
-    category: 'Turnamen',
+    category: 'Tim & Delegasi',
   },
   {
-    name: 'ID Game & Server (E-Sport)',
+    name: 'Nomor / ID Peserta Khusus',
     type: 'text',
-    label: 'User ID & Zone Server Game',
-    placeholder: 'Contoh: 12345678 (2045)',
-    help_text: 'ID akun in-game beserta zona server dalam kurung',
-    required: true,
-    category: 'E-Sport',
+    label: 'Nomor / ID Registrasi Khusus',
+    placeholder: 'Contoh: ID-2045',
+    help_text: 'Nomor identifikasi unik peserta jika diperlukan',
+    required: false,
+    category: 'Identitas',
   },
   {
     name: 'Pilihan Golongan Juz',
@@ -915,7 +1007,7 @@ function addQuickPreset(preset) {
     max_files: preset.max_files || (preset.type === 'file' ? 1 : null),
     min_items: preset.min_items || (preset.type === 'participant_repeater' ? 1 : null),
     max_items: preset.max_items !== undefined ? preset.max_items : null,
-    sub_fields: preset.sub_fields ? JSON.parse(JSON.stringify(preset.sub_fields)) : (preset.type === 'participant_repeater' ? createDefaultSubFields() : null),
+    sub_fields: preset.type === 'participant_repeater' ? normalizeSubFields(preset.sub_fields) : null,
     conditional_logic: {
       enabled: false,
       depend_on_field: '',
@@ -1233,19 +1325,7 @@ function ensurePresetFieldDefaults(pf) {
   if (pf.type === 'participant_repeater') {
     if (!pf.min_items) pf.min_items = 1;
     if (pf.max_items === undefined || pf.max_items === null) pf.max_items = 10;
-    const defs = createDefaultSubFields();
-    if (!pf.sub_fields || typeof pf.sub_fields !== 'object') {
-      pf.sub_fields = defs;
-    } else {
-      for (const k in defs) {
-        if (!pf.sub_fields[k]) {
-          pf.sub_fields[k] = { ...defs[k] };
-        }
-      }
-      if (!Array.isArray(pf.sub_fields.custom_columns)) {
-        pf.sub_fields.custom_columns = [];
-      }
-    }
+    pf.sub_fields = normalizeSubFields(pf.sub_fields);
   }
 }
 
@@ -2431,12 +2511,15 @@ function setParticipantCountDirect(field, val) {
                               <!-- Quick preset chips -->
                               <div class="d-flex gap-1.5 mt-1.5 flex-wrap">
                                 <span class="text-muted fs-10 w-100 mb-0.5">Preset Batas Kuota Cepat:</span>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = 2; field.main_members = 2; field.reserve_members = 0;">2 (Duo/Riset)</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 3; field.max_items = 3; field.main_members = 3; field.reserve_members = 0;">3 (Regu LCC)</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 5; field.max_items = 6; field.main_members = 5; field.reserve_members = 1;">6 (5 Inti + 1 Cadangan MLBB)</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 6; field.max_items = 10; field.main_members = 6; field.reserve_members = 4;">10 (6 Inti + 4 Cadangan Voli)</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = 10; field.main_members = 10; field.reserve_members = 0;">10 (Hadrah/Banjari)</button>
-                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = null; field.main_members = null; field.reserve_members = null;">Bebas (Tanpa Batas)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = 1; field.main_members = 1; field.reserve_members = 0;">1 Siswa</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 2; field.max_items = 2; field.main_members = 2; field.reserve_members = 0;">2 Siswa</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 3; field.max_items = 3; field.main_members = 3; field.reserve_members = 0;">3 Siswa</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 4; field.max_items = 4; field.main_members = 4; field.reserve_members = 0;">4 Siswa</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 5; field.max_items = 5; field.main_members = 5; field.reserve_members = 0;">5 Siswa</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 5; field.max_items = 6; field.main_members = 5; field.reserve_members = 1;">6 Siswa (5 Inti + 1 Cadangan)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 6; field.max_items = 10; field.main_members = 6; field.reserve_members = 4;">10 Siswa (6 Inti + 4 Cadangan)</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 5; field.max_items = 12; field.main_members = 5; field.reserve_members = 7;">12 Siswa</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-1.5 fs-10" @click="field.min_items = 1; field.max_items = null; field.main_members = null; field.reserve_members = null;">Bebas (Fleksibel)</button>
                               </div>
                             </div>
 
@@ -2457,19 +2540,19 @@ function setParticipantCountDirect(field, val) {
                                       <span class="text-dark fw-semibold">Nama Lengkap Siswa</span>
                                       <span class="badge bg-danger-subtle text-danger fs-9 ms-auto">Wajib</span>
                                     </label>
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11" v-if="field.sub_fields?.gender">
                                       <input type="checkbox" class="form-check-input" v-model="field.sub_fields.gender.active" />
                                       <span class="text-dark">Jenis Kelamin (Laki-laki / Perempuan)</span>
                                     </label>
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11" v-if="field.sub_fields?.grade">
                                       <input type="checkbox" class="form-check-input" v-model="field.sub_fields.grade.active" />
                                       <span class="text-dark">Kelas / Tingkat (Kelas 7, 8, 9)</span>
                                     </label>
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11" v-if="field.sub_fields?.birth_date">
                                       <input type="checkbox" class="form-check-input" v-model="field.sub_fields.birth_date.active" />
                                       <span class="text-dark">Tanggal Lahir Siswa</span>
                                     </label>
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11" v-if="field.sub_fields?.nisn">
                                       <input type="checkbox" class="form-check-input" v-model="field.sub_fields.nisn.active" />
                                       <span class="text-dark">Nomor Induk Siswa Nasional (NISN)</span>
                                     </label>
@@ -2480,7 +2563,7 @@ function setParticipantCountDirect(field, val) {
                                 <div class="pt-2 border-top">
                                   <div class="text-muted fs-10 fw-bold text-uppercase tracking-wider mb-1">2. ID & Kontak Komunikasi</div>
                                   <div class="d-flex flex-column gap-1.5">
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11" v-if="field.sub_fields?.custom_id">
                                       <input type="checkbox" class="form-check-input" v-model="field.sub_fields.custom_id.active" />
                                       <div class="d-flex flex-column">
                                         <span class="text-dark fw-medium">Kolom Ketik ID Siswa / No. Peserta / Akun Game</span>
@@ -2488,7 +2571,7 @@ function setParticipantCountDirect(field, val) {
                                       </div>
                                       <span class="badge bg-secondary-subtle text-secondary fs-9 ms-auto">Field Text</span>
                                     </label>
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11" v-if="field.sub_fields?.wa_number">
                                       <input type="checkbox" class="form-check-input" v-model="field.sub_fields.wa_number.active" />
                                       <div class="d-flex flex-column">
                                         <span class="text-dark fw-medium">Kolom Nomor WhatsApp Siswa</span>
@@ -2496,7 +2579,7 @@ function setParticipantCountDirect(field, val) {
                                       </div>
                                       <span class="badge bg-success-subtle text-success fs-9 ms-auto">Field Angka</span>
                                     </label>
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-start gap-2 cursor-pointer fs-11 bg-warning-subtle/25 p-1.5 rounded border border-warning-subtle">
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-start gap-2 cursor-pointer fs-11 bg-warning-subtle/25 p-1.5 rounded border border-warning-subtle" v-if="field.sub_fields?.captain_option">
                                       <input type="checkbox" class="form-check-input text-warning mt-0.5" v-model="field.sub_fields.captain_option.active" />
                                       <div class="d-flex flex-column">
                                         <span class="text-dark fw-bold d-flex align-items-center gap-1">
@@ -2512,7 +2595,7 @@ function setParticipantCountDirect(field, val) {
                                 <div class="pt-2 border-top">
                                   <div class="text-muted fs-10 fw-bold text-uppercase tracking-wider mb-1">3. Upload Berkas & Foto Siswa</div>
                                   <div class="d-flex flex-column gap-1.5">
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11" v-if="field.sub_fields?.photo_formal">
                                       <input type="checkbox" class="form-check-input" v-model="field.sub_fields.photo_formal.active" />
                                       <div class="d-flex flex-column">
                                         <span class="text-dark fw-medium">Upload Pas Foto Siswa Formal</span>
@@ -2520,7 +2603,7 @@ function setParticipantCountDirect(field, val) {
                                       </div>
                                       <span class="badge bg-info-subtle text-info fs-9 ms-auto">Formal</span>
                                     </label>
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11" v-if="field.sub_fields?.photo_freestyle">
                                       <input type="checkbox" class="form-check-input" v-model="field.sub_fields.photo_freestyle.active" />
                                       <div class="d-flex flex-column">
                                         <span class="text-dark fw-medium">Upload Foto Siswa Pose Gaya Bebas</span>
@@ -2556,7 +2639,7 @@ function setParticipantCountDirect(field, val) {
                                   </div>
                                   <div v-else class="d-flex flex-column gap-2">
                                     <div 
-                                      v-for="(col, colIdx) in field.sub_fields.custom_columns" 
+                                      v-for="(col, colIdx) in (field.sub_fields?.custom_columns || [])" 
                                       :key="col.id || colIdx"
                                       class="p-2 rounded border bg-light-subtle d-flex align-items-center gap-2"
                                     >
@@ -3986,7 +4069,7 @@ function setParticipantCountDirect(field, val) {
           </div>
           <div class="modal-body p-4">
             <p class="text-muted fs-12 mb-3">
-              Pilih template yang sesuai dengan kategori lomba <strong>{{ selectedCompetition?.title }}</strong> atau sesuaikan isinya dengan tombol edit pada kartu.
+              Pilih template formulir yang sesuai dengan format jumlah peserta untuk cabang lomba <strong>{{ selectedCompetition?.title }}</strong> atau sesuaikan isinya dengan tombol edit pada kartu.
             </p>
             <div class="row g-3">
               <div v-for="p in presetList" :key="p.key" class="col-md-6">
@@ -4080,7 +4163,7 @@ function setParticipantCountDirect(field, val) {
                   type="text" 
                   v-model="editPresetForm.title" 
                   class="form-control form-control-sm preset-form-input fs-12"
-                  placeholder="Contoh: Format Khusus Futsal & E-Sport"
+                  placeholder="Contoh: Template 3 Siswa & Dokumen Tambahan"
                   required
                 />
               </div>
@@ -4090,7 +4173,7 @@ function setParticipantCountDirect(field, val) {
                   type="text" 
                   v-model="editPresetForm.category" 
                   class="form-control form-control-sm preset-form-input fs-12"
-                  placeholder="Olahraga / Seni / Sains"
+                  placeholder="Tim / Regu / Individu"
                 />
               </div>
               <div class="col-md-3">
@@ -4296,12 +4379,15 @@ function setParticipantCountDirect(field, val) {
                       <div class="col-12 pt-1">
                         <div class="d-flex align-items-center gap-1 flex-wrap">
                           <span class="preset-subtext fs-10 me-1">Preset Batas Kuota Cepat:</span>
-                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 1; pf.max_items = 2; pf.main_members = 2; pf.reserve_members = 0;">2 (Duo/Riset)</button>
-                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 3; pf.max_items = 3; pf.main_members = 3; pf.reserve_members = 0;">3 (Regu LCC)</button>
-                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 5; pf.max_items = 6; pf.main_members = 5; pf.reserve_members = 1;">6 (5 Inti + 1 Cadangan MLBB)</button>
-                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 6; pf.max_items = 10; pf.main_members = 6; pf.reserve_members = 4;">10 (6 Inti + 4 Cadangan Voli)</button>
-                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 1; pf.max_items = 10; pf.main_members = 10; pf.reserve_members = 0;">10 (Hadrah/Banjari)</button>
-                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 1; pf.max_items = null; pf.main_members = null; pf.reserve_members = null;">Bebas</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 1; pf.max_items = 1; pf.main_members = 1; pf.reserve_members = 0;">1 Siswa</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 2; pf.max_items = 2; pf.main_members = 2; pf.reserve_members = 0;">2 Siswa</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 3; pf.max_items = 3; pf.main_members = 3; pf.reserve_members = 0;">3 Siswa</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 4; pf.max_items = 4; pf.main_members = 4; pf.reserve_members = 0;">4 Siswa</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 5; pf.max_items = 5; pf.main_members = 5; pf.reserve_members = 0;">5 Siswa</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 5; pf.max_items = 6; pf.main_members = 5; pf.reserve_members = 1;">6 Siswa (5 Inti + 1 Cadangan)</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 6; pf.max_items = 10; pf.main_members = 6; pf.reserve_members = 4;">10 Siswa (6 Inti + 4 Cadangan)</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 5; pf.max_items = 12; pf.main_members = 5; pf.reserve_members = 7;">12 Siswa</button>
+                          <button type="button" class="btn btn-xs btn-preset-chip py-0.5 px-2 fs-10" @click="pf.min_items = 1; pf.max_items = null; pf.main_members = null; pf.reserve_members = null;">Bebas (Fleksibel)</button>
                         </div>
                       </div>
                     </div>
@@ -4322,19 +4408,19 @@ function setParticipantCountDirect(field, val) {
                               <span class="preset-check-label">Nama Lengkap Siswa</span>
                               <span class="badge bg-danger-subtle text-danger fs-9 ms-auto">Wajib</span>
                             </label>
-                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label" v-if="pf.sub_fields?.gender">
                               <input type="checkbox" class="form-check-input text-warning" v-model="pf.sub_fields.gender.active" />
                               <span>Jenis Kelamin (L/P)</span>
                             </label>
-                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label" v-if="pf.sub_fields?.grade">
                               <input type="checkbox" class="form-check-input text-warning" v-model="pf.sub_fields.grade.active" />
                               <span>Kelas / Tingkat</span>
                             </label>
-                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label" v-if="pf.sub_fields?.birth_date">
                               <input type="checkbox" class="form-check-input text-warning" v-model="pf.sub_fields.birth_date.active" />
                               <span>Tanggal Lahir Siswa</span>
                             </label>
-                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label" v-if="pf.sub_fields?.nisn">
                               <input type="checkbox" class="form-check-input text-warning" v-model="pf.sub_fields.nisn.active" />
                               <span>Nomor Induk Siswa (NISN)</span>
                             </label>
@@ -4347,21 +4433,21 @@ function setParticipantCountDirect(field, val) {
                             <div class="preset-group-title-info fs-10 fw-bold text-uppercase mb-1 d-flex align-items-center gap-1">
                               <i class="ri-smartphone-line"></i> ID &amp; Kontak Komunikasi
                             </div>
-                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label" v-if="pf.sub_fields?.custom_id">
                               <input type="checkbox" class="form-check-input text-info" v-model="pf.sub_fields.custom_id.active" />
                               <div>
                                 <span>ID Siswa / No. Game / Punggung</span>
                                 <div class="preset-subtext fs-10">Teks bebas</div>
                               </div>
                             </label>
-                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label" v-if="pf.sub_fields?.wa_number">
                               <input type="checkbox" class="form-check-input text-info" v-model="pf.sub_fields.wa_number.active" />
                               <div>
                                 <span>Nomor WhatsApp Siswa</span>
                                 <div class="preset-subtext fs-10">Khusus nomor WA tiap personil</div>
                               </div>
                             </label>
-                            <label class="form-check form-check-sm mb-0 d-flex align-items-start gap-2 cursor-pointer fs-11 preset-captain-highlight p-1.5 rounded border">
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-start gap-2 cursor-pointer fs-11 preset-captain-highlight p-1.5 rounded border" v-if="pf.sub_fields?.captain_option">
                               <input type="checkbox" class="form-check-input text-warning mt-0.5" v-model="pf.sub_fields.captain_option.active" />
                               <div>
                                 <span class="fw-bold d-flex align-items-center gap-1">
@@ -4379,14 +4465,14 @@ function setParticipantCountDirect(field, val) {
                             <div class="preset-group-title-rose fs-10 fw-bold text-uppercase mb-1 d-flex align-items-center gap-1">
                               <i class="ri-image-line"></i> Berkas &amp; Foto Siswa
                             </div>
-                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label" v-if="pf.sub_fields?.photo_formal">
                               <input type="checkbox" class="form-check-input text-danger" v-model="pf.sub_fields.photo_formal.active" />
                               <div>
                                 <span>Upload Pas Foto Formal Siswa</span>
                                 <div class="preset-subtext fs-10">Foto resmi 3x4 / berseragam (1 file)</div>
                               </div>
                             </label>
-                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label" v-if="pf.sub_fields?.photo_freestyle">
                               <input type="checkbox" class="form-check-input text-danger" v-model="pf.sub_fields.photo_freestyle.active" />
                               <div>
                                 <span>Upload Foto Pose Gaya Bebas</span>
@@ -4423,7 +4509,7 @@ function setParticipantCountDirect(field, val) {
                       </div>
                       <div v-else class="d-flex flex-column gap-2">
                         <div 
-                          v-for="(col, colIdx) in pf.sub_fields.custom_columns" 
+                          v-for="(col, colIdx) in (pf.sub_fields?.custom_columns || [])" 
                           :key="col.id || colIdx"
                           class="p-2 rounded preset-custom-col-row border d-flex align-items-center gap-2"
                         >

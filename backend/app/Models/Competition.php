@@ -405,4 +405,37 @@ class Competition extends Model
     {
         return $this->hasMany(User::class, 'competition_id');
     }
+
+    /**
+     * Ambil seluruh ID user yang ditugaskan sebagai koordinator untuk cabang lomba ini.
+     * Menggabungkan coordinator_id utama dan seluruh user_id dalam array coordinators.
+     *
+     * @return array<int>
+     */
+    public function getAllCoordinatorUserIds(): array
+    {
+        $ids = [];
+        if (!empty($this->coordinator_id)) {
+            $ids[] = (int)$this->coordinator_id;
+        }
+        if (!empty($this->coordinators) && is_array($this->coordinators)) {
+            foreach ($this->coordinators as $c) {
+                if (!empty($c['user_id'])) {
+                    $ids[] = (int)$c['user_id'];
+                }
+            }
+        }
+        return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * Cek apakah user ID tertentu merupakan koordinator cabang lomba ini.
+     */
+    public function isUserCoordinator(int|string|null $userId): bool
+    {
+        if (empty($userId)) {
+            return false;
+        }
+        return in_array((int)$userId, $this->getAllCoordinatorUserIds(), true);
+    }
 }

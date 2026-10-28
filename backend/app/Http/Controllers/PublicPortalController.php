@@ -248,10 +248,11 @@ class PublicPortalController extends Controller
         ));
     }
 
-    public function register(Request $request)
+    public function register(?string $competition = null, Request $request = null)
     {
+        $request = $request ?: request();
         $isLoginRequired = Setting::get('registration_login_required', '0') === '1';
-        $lomba = $request->query('lomba');
+        $lomba = $competition ?: $request->query('lomba');
         /** @var \App\Models\Registrant|\App\Models\User|null $user */
         $user = Auth::guard('pendaftar')->user() ?? Auth::user();
         $isRegistrantLoggedIn = Auth::guard('pendaftar')->check() || ($user instanceof \App\Models\Registrant) || ($user instanceof \App\Models\User && $user->isRegistrant());
@@ -270,7 +271,7 @@ class PublicPortalController extends Controller
         }
 
         $competitions = Competition::orderBy('id')->get();
-        $preselectedLomba = $request->query('lomba', null);
+        $preselectedLomba = $lomba;
 
         $sumCompFees = (int)Competition::sum('fee');
         $isAutoOriginalPrice = Setting::get('package_allin_auto_original_price', '1') === '1';

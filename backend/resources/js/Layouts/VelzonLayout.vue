@@ -597,7 +597,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item" v-if="can('competitions.manage')">
+          <li class="nav-item" v-if="can('competitions.view') || can('competitions.manage')">
             <Link 
               href="/admin/lomba" 
               class="nav-link menu-link"
@@ -608,7 +608,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item" v-if="can('tm.manage')">
+          <li class="nav-item" v-if="can('tm.view') || can('tm.manage')">
             <Link 
               href="/admin/tm" 
               class="nav-link menu-link"
@@ -619,7 +619,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item" v-if="can('form_builder.manage')">
+          <li class="nav-item" v-if="can('form_builder.view') || can('form_builder.manage')">
             <Link 
               href="/admin/form-builder" 
               class="nav-link menu-link"
@@ -648,7 +648,7 @@ onUnmounted(() => {
             </a>
           </li>
 
-          <li class="nav-item" v-if="can('juknis.manage')">
+          <li class="nav-item" v-if="can('juknis.view') || can('juknis.manage')">
             <Link 
               href="/admin/juknis" 
               class="nav-link menu-link"
@@ -660,9 +660,9 @@ onUnmounted(() => {
           </li>
 
           <!-- 3. Kelola Web Publik -->
-          <li class="menu-title" v-if="can('content.sponsor') || can('content.gallery') || can('content.faq') || can('content.customization')"><span>Kelola Web Publik</span></li>
+          <li class="menu-title" v-if="can('content.view') || can('content.sponsor') || can('content.gallery') || can('content.faq') || can('content.customization')"><span>Kelola Web Publik</span></li>
 
-          <li class="nav-item" v-if="can('content.sponsor')">
+          <li class="nav-item" v-if="can('content.view') || can('content.sponsor')">
             <Link 
               href="/admin/sponsor" 
               class="nav-link menu-link"
@@ -673,7 +673,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item" v-if="can('content.gallery')">
+          <li class="nav-item" v-if="can('content.view') || can('content.gallery')">
             <Link 
               href="/admin/galeri" 
               class="nav-link menu-link"
@@ -684,7 +684,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item" v-if="can('content.faq')">
+          <li class="nav-item" v-if="can('content.view') || can('content.faq')">
             <Link 
               href="/admin/faq" 
               class="nav-link menu-link"
@@ -695,7 +695,7 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item" v-if="can('content.customization')">
+          <li class="nav-item" v-if="can('content.view') || can('content.customization')">
             <Link 
               href="/admin/kustomisasi" 
               class="nav-link menu-link"
@@ -706,10 +706,10 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <!-- 4. Pengaturan Sistem -->
-          <li class="menu-title"><span>Pengaturan Sistem</span></li>
+          <!-- 4. Pengaturan Sistem (Protected strictly by permission) -->
+          <li class="menu-title" v-if="can('settings.system') || can('settings.integrations') || can('settings.view')"><span>Pengaturan Sistem</span></li>
 
-          <li class="nav-item">
+          <li class="nav-item" v-if="can('settings.system') || can('settings.integrations') || can('settings.view')">
             <a 
               href="#sidebarSettings" 
               class="nav-link menu-link d-flex align-items-center justify-content-between"
@@ -728,7 +728,7 @@ onUnmounted(() => {
             </a>
             <div v-show="isSettingsMenuOpen && !isSidebarCollapsed" class="menu-dropdown">
               <ul class="nav nav-sm flex-column">
-                <li class="nav-item">
+                <li class="nav-item" v-if="can('settings.system') || can('settings.view')">
                   <Link 
                     href="/admin/pengaturan/profil-sekolah" 
                     class="nav-link d-flex align-items-center gap-2"
@@ -738,7 +738,7 @@ onUnmounted(() => {
                     <span>Profil Sekolah</span>
                   </Link>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" v-if="can('settings.system')">
                   <Link 
                     href="/admin/pengaturan/kebijakan-pendaftaran" 
                     class="nav-link d-flex align-items-center gap-2"
@@ -748,7 +748,7 @@ onUnmounted(() => {
                     <span>Kebijakan Pendaftaran</span>
                   </Link>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" v-if="can('settings.system')">
                   <Link 
                     href="/admin/pengaturan/mode-perawatan" 
                     class="nav-link d-flex align-items-center gap-2"
@@ -758,7 +758,7 @@ onUnmounted(() => {
                     <span>Mode Perawatan</span>
                   </Link>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" v-if="can('settings.system')">
                   <Link 
                     href="/admin/pengaturan/seo-og" 
                     class="nav-link d-flex align-items-center gap-2"
@@ -768,7 +768,7 @@ onUnmounted(() => {
                     <span>SEO & Open Graph</span>
                   </Link>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" v-if="can('settings.integrations') || can('settings.system')">
                   <Link 
                     href="/admin/pengaturan/wa-gateway" 
                     class="nav-link d-flex align-items-center gap-2"
@@ -778,7 +778,7 @@ onUnmounted(() => {
                     <span>WA Gateway</span>
                   </Link>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" v-if="can('settings.system')">
                   <Link 
                     href="/admin/pengaturan/login-admin" 
                     class="nav-link d-flex align-items-center gap-2"
@@ -788,7 +788,7 @@ onUnmounted(() => {
                     <span>Login Panel Admin</span>
                   </Link>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" v-if="can('settings.integrations') || can('settings.system')">
                   <Link 
                     href="/admin/pengaturan/sipresensi" 
                     class="nav-link d-flex align-items-center gap-2"
@@ -798,7 +798,7 @@ onUnmounted(() => {
                     <span>API Sipresensi</span>
                   </Link>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" v-if="can('settings.system') || can('settings.view')">
                   <Link 
                     href="/admin/pengaturan/informasi-sistem" 
                     class="nav-link d-flex align-items-center gap-2"
@@ -808,7 +808,7 @@ onUnmounted(() => {
                     <span>Informasi Sistem</span>
                   </Link>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" v-if="can('settings.system')">
                   <Link 
                     href="/admin/pengaturan/backup" 
                     class="nav-link d-flex align-items-center gap-2"
@@ -818,7 +818,7 @@ onUnmounted(() => {
                     <span>Cadangan &amp; Pemulihan</span>
                   </Link>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" v-if="can('settings.system')">
                   <Link 
                     href="/admin/pengaturan/kop-invoice" 
                     class="nav-link d-flex align-items-center gap-2"

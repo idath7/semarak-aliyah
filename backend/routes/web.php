@@ -12,7 +12,7 @@ use App\Http\Controllers\PublicPortalController;
 
 // Public Landing Page & Registration Portal (Inertia Vue 3)
 Route::get('/', [PublicPortalController::class, 'home'])->name('public.home');
-Route::get('/layanan-registrasi', [PublicPortalController::class, 'register'])->name('public.register');
+Route::get('/layanan-registrasi/{competition?}', [PublicPortalController::class, 'register'])->name('public.register');
 Route::post('/layanan-registrasi', [PublicPortalController::class, 'storeRegistration'])->middleware('throttle:15,1')->name('public.register.store');
 
 // Public Stage Live Scoreboard (Accessible for stage projector)
@@ -93,9 +93,9 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
     Route::get('/sekolah-terdaftar', [AdminPanelController::class, 'registeredSchoolsIndex'])->name('sekolah-terdaftar.index');
     Route::get('/pendaftar/{id}', [AdminPanelController::class, 'pendaftarDetail'])->name('pendaftar.detail');
     Route::post('/pendaftar/{id}/verify', [AdminPanelController::class, 'verify'])->name('pendaftar.verify');
-    // Manajemen Cabang Lomba & Kuota Delegasi (Protected by permission:competitions.manage)
+    // Manajemen Cabang Lomba & Kuota Delegasi
+    Route::get('/lomba', [AdminPanelController::class, 'competitionsIndex'])->middleware(['permission:competitions.view,competitions.manage'])->name('competitions.index');
     Route::middleware(['permission:competitions.manage'])->group(function () {
-        Route::get('/lomba', [AdminPanelController::class, 'competitionsIndex'])->name('competitions.index');
         Route::post('/lomba', [AdminPanelController::class, 'storeCompetition'])->name('competitions.store');
         Route::put('/lomba/{id}', [AdminPanelController::class, 'updateCompetition'])->name('competitions.update');
         Route::delete('/lomba/{id}', [AdminPanelController::class, 'destroyCompetition'])->name('competitions.destroy');
@@ -108,29 +108,34 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
     Route::get('/export', [AdminPanelController::class, 'export'])->name('export');
 
     // Manajemen Pengguna & Panitia (Users & Committee Management)
-    Route::get('/pengguna', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
-    Route::post('/pengguna', [\App\Http\Controllers\Admin\UserController::class, 'store'])->name('users.store');
-    Route::get('/pengguna/sipresensi/preview', [\App\Http\Controllers\Admin\UserController::class, 'previewSipresensiTeachers'])->name('users.sipresensi.preview');
-    Route::post('/pengguna/sipresensi/sync', [\App\Http\Controllers\Admin\UserController::class, 'syncSipresensiTeachers'])->name('users.sipresensi.sync');
-    Route::put('/pengguna/{id}', [\App\Http\Controllers\Admin\UserController::class, 'update'])->name('users.update');
-    Route::post('/pengguna/{id}/toggle-status', [\App\Http\Controllers\Admin\UserController::class, 'toggleStatus'])->name('users.toggle-status');
-    Route::delete('/pengguna/{id}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
-    Route::post('/pengguna/{id}/avatar', [\App\Http\Controllers\Admin\UserController::class, 'updateUserAvatar'])->name('users.avatar.update');
-    Route::delete('/pengguna/{id}/avatar', [\App\Http\Controllers\Admin\UserController::class, 'removeUserAvatar'])->name('users.avatar.destroy');
+    Route::get('/pengguna', [\App\Http\Controllers\Admin\UserController::class, 'index'])->middleware(['permission:users.view,users.manage'])->name('users.index');
+    Route::middleware(['permission:users.manage'])->group(function () {
+        Route::post('/pengguna', [\App\Http\Controllers\Admin\UserController::class, 'store'])->name('users.store');
+        Route::get('/pengguna/sipresensi/preview', [\App\Http\Controllers\Admin\UserController::class, 'previewSipresensiTeachers'])->name('users.sipresensi.preview');
+        Route::post('/pengguna/sipresensi/sync', [\App\Http\Controllers\Admin\UserController::class, 'syncSipresensiTeachers'])->name('users.sipresensi.sync');
+        Route::put('/pengguna/{id}', [\App\Http\Controllers\Admin\UserController::class, 'update'])->name('users.update');
+        Route::post('/pengguna/{id}/toggle-status', [\App\Http\Controllers\Admin\UserController::class, 'toggleStatus'])->name('users.toggle-status');
+        Route::delete('/pengguna/{id}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
+        Route::post('/pengguna/{id}/avatar', [\App\Http\Controllers\Admin\UserController::class, 'updateUserAvatar'])->name('users.avatar.update');
+        Route::delete('/pengguna/{id}/avatar', [\App\Http\Controllers\Admin\UserController::class, 'removeUserAvatar'])->name('users.avatar.destroy');
+    });
 
     // Profil Admin Sendiri (My Profile Avatar)
     Route::post('/profile/avatar', [\App\Http\Controllers\Admin\UserController::class, 'updateMyAvatar'])->name('profile.avatar.update');
     Route::delete('/profile/avatar', [\App\Http\Controllers\Admin\UserController::class, 'removeMyAvatar'])->name('profile.avatar.destroy');
 
     // Manajemen Hak Akses & Matriks Peran Panitia (Role & Permission Management)
-    Route::prefix('pengguna/hak-akses')->name('roles.')->group(function () {
+    Route::prefix('pengguna/hak-akses')->name('roles.')->middleware(['permission:roles.manage'])->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\RolePermissionController::class, 'index'])->name('index');
         Route::post('/matrix', [\App\Http\Controllers\Admin\RolePermissionController::class, 'updateMatrix'])->name('matrix.update');
+        Route::post('/bulk-matrix', [\App\Http\Controllers\Admin\RolePermissionController::class, 'bulkUpdateRolePermissions'])->name('bulk-matrix');
+        Route::post('/copy-role-matrix', [\App\Http\Controllers\Admin\RolePermissionController::class, 'copyRolePermissions'])->name('copy-role-matrix');
         Route::post('/role', [\App\Http\Controllers\Admin\RolePermissionController::class, 'storeRole'])->name('store');
         Route::put('/role/{id}', [\App\Http\Controllers\Admin\RolePermissionController::class, 'updateRole'])->name('update');
         Route::delete('/role/{id}', [\App\Http\Controllers\Admin\RolePermissionController::class, 'destroyRole'])->name('destroy');
         Route::post('/reset-defaults', [\App\Http\Controllers\Admin\RolePermissionController::class, 'resetDefaults'])->name('reset-defaults');
         Route::post('/user/{userId}/custom-permissions', [\App\Http\Controllers\Admin\RolePermissionController::class, 'updateUserPermissions'])->name('user-permissions.update');
+        Route::post('/bulk-user-permissions', [\App\Http\Controllers\Admin\RolePermissionController::class, 'bulkUpdateUserOverrides'])->name('bulk-user-permissions');
     });
 
     // Pintasan Langsung /admin/hak-akses
@@ -160,9 +165,9 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
     Route::post('/biaya/package', [AdminPanelController::class, 'updatePackageSettings'])->name('biaya.package.update');
     Route::post('/biaya/payment', [AdminPanelController::class, 'updatePaymentSettings'])->name('biaya.payment.update');
 
-    // Manajemen Technical Meeting (TM) & Pengundian Nomor Urut (Protected by permission:tm.manage)
+    // Manajemen Technical Meeting (TM) & Pengundian Nomor Urut
+    Route::get('/tm', [AdminPanelController::class, 'tmIndex'])->middleware(['permission:tm.view,tm.manage'])->name('tm.index');
     Route::middleware(['permission:tm.manage'])->group(function () {
-        Route::get('/tm', [AdminPanelController::class, 'tmIndex'])->name('tm.index');
         Route::post('/tm-settings', [AdminPanelController::class, 'updateTmSectionSettings'])->name('tm.section-settings');
         Route::post('/tm/{competitionId}', [AdminPanelController::class, 'updateTmSettings'])->name('tm.update');
         Route::post('/tm/{competitionId}/draw', [AdminPanelController::class, 'randomizeDraw'])->name('tm.draw');
@@ -170,22 +175,22 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
         Route::post('/tm/{competitionId}/reset', [AdminPanelController::class, 'resetDraw'])->name('tm.reset');
     });
 
-    // Manajemen Buku Panduan Juknis (Protected by permission:juknis.manage)
+    // Manajemen Buku Panduan Juknis
+    Route::get('/juknis', [AdminPanelController::class, 'juknisIndex'])->middleware(['permission:juknis.view,juknis.manage'])->name('juknis.index');
     Route::middleware(['permission:juknis.manage'])->group(function () {
-        Route::get('/juknis', [AdminPanelController::class, 'juknisIndex'])->name('juknis.index');
         Route::post('/juknis/general', [AdminPanelController::class, 'updateGeneralJuknis'])->name('juknis.general.update');
         Route::post('/juknis/general/reset', [AdminPanelController::class, 'resetGeneralJuknis'])->name('juknis.general.reset');
         Route::post('/juknis/competition/{id}', [AdminPanelController::class, 'updateCompetitionJuknis'])->name('juknis.competition.update');
         Route::delete('/juknis/competition/{id}', [AdminPanelController::class, 'deleteCompetitionJuknis'])->name('juknis.competition.delete');
     });
 
-    // Form Builder untuk Pendaftaran Cabang Lomba (Protected by permission:form_builder.manage)
+    // Form Builder untuk Pendaftaran Cabang Lomba
+    Route::get('/form-builder', [AdminPanelController::class, 'formBuilderIndex'])->middleware(['permission:form_builder.view,form_builder.manage'])->name('form-builder.index');
+    Route::get('/form-builder/{competitionId}', [AdminPanelController::class, 'formBuilderShow'])->middleware(['permission:form_builder.view,form_builder.manage'])->name('form-builder.show');
     Route::middleware(['permission:form_builder.manage'])->group(function () {
-        Route::get('/form-builder', [AdminPanelController::class, 'formBuilderIndex'])->name('form-builder.index');
         Route::post('/form-builder/presets/save', [AdminPanelController::class, 'formBuilderSavePreset'])->name('form-builder.presets.save');
         Route::post('/form-builder/presets/delete', [AdminPanelController::class, 'formBuilderDeletePreset'])->name('form-builder.presets.delete');
         Route::post('/form-builder/presets/reset-default', [AdminPanelController::class, 'formBuilderResetPresets'])->name('form-builder.presets.reset');
-        Route::get('/form-builder/{competitionId}', [AdminPanelController::class, 'formBuilderShow'])->name('form-builder.show');
         Route::post('/form-builder/{competitionId}', [AdminPanelController::class, 'formBuilderSave'])->name('form-builder.save');
         Route::post('/form-builder/{competitionId}/preset', [AdminPanelController::class, 'formBuilderApplyPreset'])->name('form-builder.preset');
         Route::post('/form-builder/{competitionId}/copy', [AdminPanelController::class, 'formBuilderCopyFrom'])->name('form-builder.copy');
@@ -193,113 +198,125 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
     });
 
     // Manajemen Mitra & Sponsor Resmi Slider
-    Route::get('/sponsor', [AdminPanelController::class, 'sponsorIndex'])->name('sponsor.index');
-    Route::post('/sponsor', [AdminPanelController::class, 'storeSponsor'])->name('sponsor.store');
-    Route::post('/sponsor/{id}', [AdminPanelController::class, 'updateSponsor'])->name('sponsor.update');
-    Route::delete('/sponsor/{id}', [AdminPanelController::class, 'destroySponsor'])->name('sponsor.destroy');
-    Route::post('/sponsor-toggle/{id}', [AdminPanelController::class, 'toggleSponsorActive'])->name('sponsor.toggle');
-    Route::post('/sponsor-reorder', [AdminPanelController::class, 'reorderSponsors'])->name('sponsor.reorder');
-    Route::post('/sponsor-settings', [AdminPanelController::class, 'updateSponsorSettings'])->name('sponsor.settings');
+    Route::get('/sponsor', [AdminPanelController::class, 'sponsorIndex'])->middleware(['permission:content.view,content.sponsor'])->name('sponsor.index');
+    Route::middleware(['permission:content.sponsor'])->group(function () {
+        Route::post('/sponsor', [AdminPanelController::class, 'storeSponsor'])->name('sponsor.store');
+        Route::post('/sponsor/{id}', [AdminPanelController::class, 'updateSponsor'])->name('sponsor.update');
+        Route::delete('/sponsor/{id}', [AdminPanelController::class, 'destroySponsor'])->name('sponsor.destroy');
+        Route::post('/sponsor-toggle/{id}', [AdminPanelController::class, 'toggleSponsorActive'])->name('sponsor.toggle');
+        Route::post('/sponsor-reorder', [AdminPanelController::class, 'reorderSponsors'])->name('sponsor.reorder');
+        Route::post('/sponsor-settings', [AdminPanelController::class, 'updateSponsorSettings'])->name('sponsor.settings');
+    });
 
     // Manajemen Galeri Dokumentasi 2-Baris Counter-Slider
-    Route::get('/galeri', [AdminPanelController::class, 'galleryIndex'])->name('gallery.index');
-    Route::post('/galeri', [AdminPanelController::class, 'storeGallery'])->name('gallery.store');
-    Route::post('/galeri/{id}', [AdminPanelController::class, 'updateGallery'])->name('gallery.update');
-    Route::delete('/galeri/{id}', [AdminPanelController::class, 'destroyGallery'])->name('gallery.destroy');
-    Route::post('/galeri-toggle/{id}', [AdminPanelController::class, 'toggleGalleryActive'])->name('gallery.toggle');
-    Route::post('/galeri-reorder', [AdminPanelController::class, 'reorderGalleries'])->name('gallery.reorder');
-    Route::post('/galeri-settings', [AdminPanelController::class, 'updateGallerySettings'])->name('gallery.settings');
+    Route::get('/galeri', [AdminPanelController::class, 'galleryIndex'])->middleware(['permission:content.view,content.gallery'])->name('gallery.index');
+    Route::middleware(['permission:content.gallery'])->group(function () {
+        Route::post('/galeri', [AdminPanelController::class, 'storeGallery'])->name('gallery.store');
+        Route::post('/galeri/{id}', [AdminPanelController::class, 'updateGallery'])->name('gallery.update');
+        Route::delete('/galeri/{id}', [AdminPanelController::class, 'destroyGallery'])->name('gallery.destroy');
+        Route::post('/galeri-toggle/{id}', [AdminPanelController::class, 'toggleGalleryActive'])->name('gallery.toggle');
+        Route::post('/galeri-reorder', [AdminPanelController::class, 'reorderGalleries'])->name('gallery.reorder');
+        Route::post('/galeri-settings', [AdminPanelController::class, 'updateGallerySettings'])->name('gallery.settings');
+    });
 
     // Manajemen Tanya Jawab (FAQ)
-    Route::get('/faq', [AdminPanelController::class, 'faqIndex'])->name('faq.index');
-    Route::post('/faq', [AdminPanelController::class, 'storeFaq'])->name('faq.store');
-    Route::post('/faq/{id}', [AdminPanelController::class, 'updateFaq'])->name('faq.update');
-    Route::delete('/faq/{id}', [AdminPanelController::class, 'destroyFaq'])->name('faq.destroy');
-    Route::post('/faq-toggle/{id}', [AdminPanelController::class, 'toggleFaqActive'])->name('faq.toggle');
-    Route::post('/faq-reorder', [AdminPanelController::class, 'reorderFaqs'])->name('faq.reorder');
-    Route::post('/faq-settings', [AdminPanelController::class, 'updateFaqSettings'])->name('faq.settings');
+    Route::get('/faq', [AdminPanelController::class, 'faqIndex'])->middleware(['permission:content.view,content.faq'])->name('faq.index');
+    Route::middleware(['permission:content.faq'])->group(function () {
+        Route::post('/faq', [AdminPanelController::class, 'storeFaq'])->name('faq.store');
+        Route::post('/faq/{id}', [AdminPanelController::class, 'updateFaq'])->name('faq.update');
+        Route::delete('/faq/{id}', [AdminPanelController::class, 'destroyFaq'])->name('faq.destroy');
+        Route::post('/faq-toggle/{id}', [AdminPanelController::class, 'toggleFaqActive'])->name('faq.toggle');
+        Route::post('/faq-reorder', [AdminPanelController::class, 'reorderFaqs'])->name('faq.reorder');
+        Route::post('/faq-settings', [AdminPanelController::class, 'updateFaqSettings'])->name('faq.settings');
+    });
 
     // Manajemen Kustomisasi Lanjutan Web Publik (Suite Layout: Efek & Interaksi, Teks Berjalan, Ekstensibilitas)
     Route::prefix('kustomisasi')->name('kustomisasi.')->group(function () {
-        Route::get('/', [AdminPanelController::class, 'kustomisasiIndex'])->name('index');
-        Route::post('/', [AdminPanelController::class, 'updateKustomisasi'])->name('update');
-        Route::post('/reset', [AdminPanelController::class, 'resetKustomisasi'])->name('reset');
-        Route::get('/teks-berjalan', [AdminPanelController::class, 'tickerIndex'])->name('ticker');
+        Route::get('/', [AdminPanelController::class, 'kustomisasiIndex'])->middleware(['permission:content.view,content.customization'])->name('index');
+        Route::post('/', [AdminPanelController::class, 'updateKustomisasi'])->middleware(['permission:content.customization'])->name('update');
+        Route::post('/reset', [AdminPanelController::class, 'resetKustomisasi'])->middleware(['permission:content.customization'])->name('reset');
+        Route::get('/teks-berjalan', [AdminPanelController::class, 'tickerIndex'])->middleware(['permission:content.view,content.customization'])->name('ticker');
     });
 
     // Backward-compatible redirect & endpoint for Ticker
     Route::get('/ticker', function () {
         return redirect()->route('kustomisasi.ticker');
     })->name('ticker.index');
-    Route::post('/ticker-settings', [AdminPanelController::class, 'updateTickerSettings'])->name('ticker.settings');
+    Route::post('/ticker-settings', [AdminPanelController::class, 'updateTickerSettings'])->middleware(['permission:content.customization'])->name('ticker.settings');
 
     // =========================================================================
-    // FITUR PENGATURAN SISTEM & WEB (PROFIL SEKOLAH, MODE PERAWATAN, SEO OG)
+    // FITUR PENGATURAN SISTEM & WEB (PROTECTED STRICTLY BY PERMISSIONS)
     // =========================================================================
-    Route::prefix('pengaturan')->name('settings.')->group(function () {
+    Route::prefix('pengaturan')->name('settings.')->middleware(['permission:settings.system,settings.integrations,settings.view'])->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('index');
         
         // 1. Konfigurasi Profil Sekolah
         Route::get('/profil-sekolah', [\App\Http\Controllers\Admin\SettingsController::class, 'schoolProfile'])->name('school-profile');
-        Route::post('/profil-sekolah', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSchoolProfile'])->name('school-profile.update');
+        Route::post('/profil-sekolah', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSchoolProfile'])->middleware(['permission:settings.system'])->name('school-profile.update');
 
         // 2. Setting Mode Perawatan Web
-        Route::get('/mode-perawatan', [\App\Http\Controllers\Admin\SettingsController::class, 'maintenanceMode'])->name('maintenance');
-        Route::post('/mode-perawatan', [\App\Http\Controllers\Admin\SettingsController::class, 'updateMaintenanceMode'])->name('maintenance.update');
+        Route::get('/mode-perawatan', [\App\Http\Controllers\Admin\SettingsController::class, 'maintenanceMode'])->middleware(['permission:settings.system'])->name('maintenance');
+        Route::post('/mode-perawatan', [\App\Http\Controllers\Admin\SettingsController::class, 'updateMaintenanceMode'])->middleware(['permission:settings.system'])->name('maintenance.update');
 
         // 3. Setting SEO & Open Graph Web
-        Route::get('/seo-og', [\App\Http\Controllers\Admin\SettingsController::class, 'seoOg'])->name('seo-og');
-        Route::post('/seo-og', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSeoOg'])->name('seo-og.update');
+        Route::get('/seo-og', [\App\Http\Controllers\Admin\SettingsController::class, 'seoOg'])->middleware(['permission:settings.system'])->name('seo-og');
+        Route::post('/seo-og', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSeoOg'])->middleware(['permission:settings.system'])->name('seo-og.update');
 
         // 4. Quick Update Master Edisi & Tahun Event
-        Route::post('/update-edisi', [\App\Http\Controllers\Admin\SettingsController::class, 'updateEdition'])->name('edition.update');
+        Route::post('/update-edisi', [\App\Http\Controllers\Admin\SettingsController::class, 'updateEdition'])->middleware(['permission:settings.system'])->name('edition.update');
 
         // 5. Fitur WhatsApp Gateway (OpenWA Production)
-        Route::get('/wa-gateway', [\App\Http\Controllers\Admin\SettingsController::class, 'waGateway'])->name('wa-gateway');
-        Route::get('/wa-gateway/sessions', [\App\Http\Controllers\Admin\SettingsController::class, 'fetchWaSessions'])->name('wa-gateway.sessions');
-        Route::get('/wa-gateway/groups', [\App\Http\Controllers\Admin\SettingsController::class, 'fetchWaGroups'])->name('wa-gateway.groups');
-        Route::post('/wa-gateway', [\App\Http\Controllers\Admin\SettingsController::class, 'updateWaGateway'])->name('wa-gateway.update');
-        Route::post('/wa-gateway/test-connection', [\App\Http\Controllers\Admin\SettingsController::class, 'testWaConnection'])->name('wa-gateway.test-connection');
-        Route::post('/wa-gateway/send-test', [\App\Http\Controllers\Admin\SettingsController::class, 'sendTestWaMessage'])->name('wa-gateway.send-test');
-        Route::post('/wa-gateway/resend/{id}', [\App\Http\Controllers\Admin\SettingsController::class, 'resendWaLog'])->name('wa-gateway.resend');
-        Route::post('/wa-gateway/clear-logs', [\App\Http\Controllers\Admin\SettingsController::class, 'clearWaLogs'])->name('wa-gateway.clear-logs');
-        Route::post('/wa-gateway/logs/{id}/delete', [\App\Http\Controllers\Admin\SettingsController::class, 'deleteWaLog'])->name('wa-gateway.logs.delete');
-        Route::post('/wa-gateway/send-manual', [\App\Http\Controllers\Admin\SettingsController::class, 'sendManualRegistrantWa'])->name('wa-gateway.send-manual');
+        Route::middleware(['permission:settings.integrations,settings.system'])->group(function () {
+            Route::get('/wa-gateway', [\App\Http\Controllers\Admin\SettingsController::class, 'waGateway'])->name('wa-gateway');
+            Route::get('/wa-gateway/sessions', [\App\Http\Controllers\Admin\SettingsController::class, 'fetchWaSessions'])->name('wa-gateway.sessions');
+            Route::get('/wa-gateway/groups', [\App\Http\Controllers\Admin\SettingsController::class, 'fetchWaGroups'])->name('wa-gateway.groups');
+            Route::post('/wa-gateway', [\App\Http\Controllers\Admin\SettingsController::class, 'updateWaGateway'])->name('wa-gateway.update');
+            Route::post('/wa-gateway/test-connection', [\App\Http\Controllers\Admin\SettingsController::class, 'testWaConnection'])->name('wa-gateway.test-connection');
+            Route::post('/wa-gateway/send-test', [\App\Http\Controllers\Admin\SettingsController::class, 'sendTestWaMessage'])->name('wa-gateway.send-test');
+            Route::post('/wa-gateway/resend/{id}', [\App\Http\Controllers\Admin\SettingsController::class, 'resendWaLog'])->name('wa-gateway.resend');
+            Route::post('/wa-gateway/clear-logs', [\App\Http\Controllers\Admin\SettingsController::class, 'clearWaLogs'])->name('wa-gateway.clear-logs');
+            Route::post('/wa-gateway/logs/{id}/delete', [\App\Http\Controllers\Admin\SettingsController::class, 'deleteWaLog'])->name('wa-gateway.logs.delete');
+            Route::post('/wa-gateway/send-manual', [\App\Http\Controllers\Admin\SettingsController::class, 'sendManualRegistrantWa'])->name('wa-gateway.send-manual');
+        });
 
         // 6. Kebijakan Pendaftaran & Akun Pendaftar
-        Route::get('/kebijakan-pendaftaran', [\App\Http\Controllers\Admin\SettingsController::class, 'registrationPolicy'])->name('registration-policy');
-        Route::post('/kebijakan-pendaftaran', [\App\Http\Controllers\Admin\SettingsController::class, 'updateRegistrationPolicy'])->name('registration-policy.update');
-        Route::post('/kebijakan-pendaftaran/toggle-login', [\App\Http\Controllers\Admin\SettingsController::class, 'toggleRegistrationLoginRequired'])->name('registration-policy.toggle-login');
+        Route::get('/kebijakan-pendaftaran', [\App\Http\Controllers\Admin\SettingsController::class, 'registrationPolicy'])->middleware(['permission:settings.system'])->name('registration-policy');
+        Route::post('/kebijakan-pendaftaran', [\App\Http\Controllers\Admin\SettingsController::class, 'updateRegistrationPolicy'])->middleware(['permission:settings.system'])->name('registration-policy.update');
+        Route::post('/kebijakan-pendaftaran/toggle-login', [\App\Http\Controllers\Admin\SettingsController::class, 'toggleRegistrationLoginRequired'])->middleware(['permission:settings.system'])->name('registration-policy.toggle-login');
 
         // 7. Kustomisasi Gambar & Tampilan Login Admin
-        Route::get('/login-admin', [\App\Http\Controllers\Admin\SettingsController::class, 'adminLoginCustomization'])->name('login-admin');
-        Route::post('/login-admin', [\App\Http\Controllers\Admin\SettingsController::class, 'updateAdminLoginCustomization'])->name('login-admin.update');
-        Route::post('/login-admin/reset', [\App\Http\Controllers\Admin\SettingsController::class, 'resetAdminLoginCustomization'])->name('login-admin.reset');
+        Route::get('/login-admin', [\App\Http\Controllers\Admin\SettingsController::class, 'adminLoginCustomization'])->middleware(['permission:settings.system'])->name('login-admin');
+        Route::post('/login-admin', [\App\Http\Controllers\Admin\SettingsController::class, 'updateAdminLoginCustomization'])->middleware(['permission:settings.system'])->name('login-admin.update');
+        Route::post('/login-admin/reset', [\App\Http\Controllers\Admin\SettingsController::class, 'resetAdminLoginCustomization'])->middleware(['permission:settings.system'])->name('login-admin.reset');
 
         // 8. Konfigurasi API Sipresensi (SSO & Integrasi Guru)
-        Route::get('/sipresensi', [\App\Http\Controllers\Admin\SettingsController::class, 'sipresensiSettings'])->name('sipresensi');
-        Route::post('/sipresensi', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSipresensiSettings'])->name('sipresensi.update');
-        Route::post('/sipresensi/test-connection', [\App\Http\Controllers\Admin\SettingsController::class, 'testSipresensiConnection'])->name('sipresensi.test-connection');
-        Route::post('/sipresensi/test-sync', [\App\Http\Controllers\Admin\SettingsController::class, 'testSipresensiSync'])->name('sipresensi.test-sync');
+        Route::middleware(['permission:settings.integrations,settings.system'])->group(function () {
+            Route::get('/sipresensi', [\App\Http\Controllers\Admin\SettingsController::class, 'sipresensiSettings'])->name('sipresensi');
+            Route::post('/sipresensi', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSipresensiSettings'])->name('sipresensi.update');
+            Route::post('/sipresensi/test-connection', [\App\Http\Controllers\Admin\SettingsController::class, 'testSipresensiConnection'])->name('sipresensi.test-connection');
+            Route::post('/sipresensi/test-sync', [\App\Http\Controllers\Admin\SettingsController::class, 'testSipresensiSync'])->name('sipresensi.test-sync');
+        });
 
         // 9. Informasi Sistem & Kinerja Server
         Route::get('/informasi-sistem', [\App\Http\Controllers\Admin\SettingsController::class, 'systemInformation'])->name('system-info');
-        Route::post('/informasi-sistem/clear-cache', [\App\Http\Controllers\Admin\SettingsController::class, 'clearSystemCache'])->name('system-info.clear-cache');
+        Route::post('/informasi-sistem/clear-cache', [\App\Http\Controllers\Admin\SettingsController::class, 'clearSystemCache'])->middleware(['permission:settings.system'])->name('system-info.clear-cache');
 
         // 10. Fitur Manajemen Cadangan & Pemulihan (Backup & Restore ZIP/JSON + Google Drive)
-        Route::get('/backup', [\App\Http\Controllers\Admin\BackupController::class, 'index'])->name('backup');
-        Route::post('/backup/run', [\App\Http\Controllers\Admin\BackupController::class, 'createBackup'])->name('backup.create');
-        Route::get('/backup/download/{filename}', [\App\Http\Controllers\Admin\BackupController::class, 'downloadBackup'])->name('backup.download');
-        Route::delete('/backup/{filename}', [\App\Http\Controllers\Admin\BackupController::class, 'deleteBackup'])->name('backup.destroy');
-        Route::post('/backup/restore', [\App\Http\Controllers\Admin\BackupController::class, 'restoreBackup'])->name('backup.restore');
-        Route::post('/backup/settings', [\App\Http\Controllers\Admin\BackupController::class, 'updateScheduleSettings'])->name('backup.settings');
-        Route::post('/backup/test-gdrive', [\App\Http\Controllers\Admin\BackupController::class, 'testGoogleDriveConnection'])->name('backup.test-gdrive');
-        Route::post('/backup/sync-gdrive/{filename}', [\App\Http\Controllers\Admin\BackupController::class, 'syncToGoogleDrive'])->name('backup.sync-gdrive');
+        Route::middleware(['permission:settings.system'])->group(function () {
+            Route::get('/backup', [\App\Http\Controllers\Admin\BackupController::class, 'index'])->name('backup');
+            Route::post('/backup/run', [\App\Http\Controllers\Admin\BackupController::class, 'createBackup'])->name('backup.create');
+            Route::get('/backup/download/{filename}', [\App\Http\Controllers\Admin\BackupController::class, 'downloadBackup'])->name('backup.download');
+            Route::delete('/backup/{filename}', [\App\Http\Controllers\Admin\BackupController::class, 'deleteBackup'])->name('backup.destroy');
+            Route::post('/backup/restore', [\App\Http\Controllers\Admin\BackupController::class, 'restoreBackup'])->name('backup.restore');
+            Route::post('/backup/settings', [\App\Http\Controllers\Admin\BackupController::class, 'updateScheduleSettings'])->name('backup.settings');
+            Route::post('/backup/test-gdrive', [\App\Http\Controllers\Admin\BackupController::class, 'testGoogleDriveConnection'])->name('backup.test-gdrive');
+            Route::post('/backup/sync-gdrive/{filename}', [\App\Http\Controllers\Admin\BackupController::class, 'syncToGoogleDrive'])->name('backup.sync-gdrive');
+        });
 
         // 11. Penyesuaian KOP Surat, Logo, & Stempel Invoice Resmi
-        Route::get('/kop-invoice', [\App\Http\Controllers\Admin\SettingsController::class, 'invoiceKopCustomization'])->name('kop-invoice');
-        Route::post('/kop-invoice', [\App\Http\Controllers\Admin\SettingsController::class, 'updateInvoiceKopCustomization'])->name('kop-invoice.update');
-        Route::post('/kop-invoice/reset', [\App\Http\Controllers\Admin\SettingsController::class, 'resetInvoiceKopCustomization'])->name('kop-invoice.reset');
+        Route::get('/kop-invoice', [\App\Http\Controllers\Admin\SettingsController::class, 'invoiceKopCustomization'])->middleware(['permission:settings.system'])->name('kop-invoice');
+        Route::post('/kop-invoice', [\App\Http\Controllers\Admin\SettingsController::class, 'updateInvoiceKopCustomization'])->middleware(['permission:settings.system'])->name('kop-invoice.update');
+        Route::post('/kop-invoice/reset', [\App\Http\Controllers\Admin\SettingsController::class, 'resetInvoiceKopCustomization'])->middleware(['permission:settings.system'])->name('kop-invoice.reset');
     });
 
     // Pintasan Langsung /admin/backup

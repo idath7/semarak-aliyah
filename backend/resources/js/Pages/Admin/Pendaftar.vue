@@ -707,9 +707,25 @@ onMounted(() => {
                         </a>
                       </div>
 
-                      <!-- Array Checkboxes or Coordinators -->
+                      <!-- Array Checkboxes, Multi-Files or Coordinators -->
                       <div v-else-if="Array.isArray(val)" class="fw-semibold text-dark">
-                        <div v-if="key === 'coordinators'" class="d-flex flex-column gap-1">
+                        <!-- Multi-File List -->
+                        <div v-if="val.length > 0 && typeof val[0] === 'object' && val[0] !== null && val[0].url" class="d-flex flex-column gap-1.5">
+                          <div v-for="(fItem, fIdx) in val" :key="fIdx">
+                            <a 
+                              :href="fItem.url" 
+                              target="_blank" 
+                              class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1.5"
+                            >
+                              <i class="ri-download-cloud-2-line"></i>
+                              <span>{{ fItem.name || ('Berkas #' + (fIdx + 1)) }}</span>
+                              <span v-if="fItem.size" class="badge bg-secondary-subtle text-secondary fs-10 font-mono">
+                                {{ (fItem.size / 1024 / 1024).toFixed(2) }} MB
+                              </span>
+                            </a>
+                          </div>
+                        </div>
+                        <div v-else-if="key === 'coordinators'" class="d-flex flex-column gap-1">
                           <div v-for="(c, cI) in val" :key="cI" class="p-1.5 bg-white rounded border fs-11">
                             <strong>{{ c.name || c.nama || ('Pendamping ' + (cI + 1)) }}</strong> - {{ c.role || c.jabatan || 'Guru Pendamping' }}
                             <span v-if="c.wa || c.phone" class="text-muted"> (WA: {{ c.wa || c.phone }})</span>

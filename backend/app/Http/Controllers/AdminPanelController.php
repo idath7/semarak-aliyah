@@ -296,8 +296,13 @@ class AdminPanelController extends Controller
             return false;
         }
 
-        // Super Admin, Admin, Ketua Panitia, Wakil Ketua Panitia, dan Sekretaris memiliki akses ke seluruh lomba
+        // Super Admin, Admin, Ketua Panitia, Wakil Ketua Panitia, dan Sekretaris memiliki akses penuh ke seluruh lomba
         if ($user->isSuperAdmin() || in_array($user->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'])) {
+            return true;
+        }
+
+        // User dengan izin competitions.manage secara eksplisit
+        if ($user->hasPermission('competitions.manage')) {
             return true;
         }
 
@@ -305,16 +310,9 @@ class AdminPanelController extends Controller
             return false;
         }
 
-        // Koordinator Lomba: Berhak atas cabang lomba yang dikoordinasikannya
-        if ($user->role === 'koordinator_lomba') {
-            if ($user->competition_id === $competitionId) {
-                return true;
-            }
-            $comp = Competition::find($competitionId);
-            if ($comp && (int)$comp->coordinator_id === (int)$user->id) {
-                return true;
-            }
-            return false;
+        // Koordinator Lomba: Berhak atas cabang lomba yang dikoordinasikannya (baik koordinator utama maupun koordinator ke-2, ke-3, dst)
+        if ($user->role === 'koordinator_lomba' || $user->isCoordinatorFor($competitionId)) {
+            return $user->isCoordinatorFor($competitionId);
         }
 
         return false;
@@ -386,7 +384,7 @@ class AdminPanelController extends Controller
             'current_user_id'     => $authUser?->id,
             'current_user_role'   => $authUser?->role,
             'current_user_comp'   => $authUser?->competition_id,
-            'is_coordinator'      => $authUser?->role === 'koordinator_lomba',
+            'is_coordinator'      => $authUser?->role === 'koordinator_lomba' || !empty($authUser?->getCoordinatedCompetitionIds()),
         ];
 
         return \Inertia\Inertia::render('Admin/Competitions', [
@@ -570,8 +568,23 @@ class AdminPanelController extends Controller
             ]
         ]);
 
-        if ($coordinatorId) {
-            User::where('id', $coordinatorId)->update(['competition_id' => $comp->id]);
+        // Sinkronisasi seluruh koordinator lomba (koordinator ke-1, ke-2, ke-3, dst)
+        $allCoordUserIds = $comp->getAllCoordinatorUserIds();
+        $coordRole = \App\Models\Role::where('name', 'koordinator_lomba')->first();
+        if (!empty($allCoordUserIds)) {
+            foreach ($allCoordUserIds as $uId) {
+                $u = User::find($uId);
+                if ($u) {
+                    $updates = ['competition_id' => $comp->id];
+                    if (in_array($u->role, ['panitia', 'koordinator_lomba']) || empty($u->role)) {
+                        $updates['role'] = 'koordinator_lomba';
+                        if ($coordRole) {
+                            $updates['role_id'] = $coordRole->id;
+                        }
+                    }
+                    $u->update($updates);
+                }
+            }
         }
 
         return redirect()->back()->with('success', "Data Cabang Lomba \"{$comp->title}\" berhasil disimpan ke sistem!");
@@ -749,6 +762,48 @@ class AdminPanelController extends Controller
             'description' => $validated['description'] ?? $comp->description,
             'tm_settings' => $updatedTm,
         ]);
+
+        // Sinkronisasi seluruh koordinator lomba (koordinator ke-1, ke-2, ke-3, dst)
+        $newCoordUserIds = $comp->getAllCoordinatorUserIds();
+        $coordRole = \App\Models\Role::where('name', 'koordinator_lomba')->first();
+        $panitiaRole = \App\Models\Role::where('name', 'panitia')->first();
+
+        // 1. Lepas user yang sebelumnya ditugaskan ke lomba ini tapi sudah tidak lagi ada di daftar koordinator
+        $previousCoordinators = User::where('competition_id', $comp->id)
+            ->where('role', 'koordinator_lomba')
+            ->whereNotIn('id', $newCoordUserIds)
+            ->get();
+
+        foreach ($previousCoordinators as $prevUser) {
+            $otherComps = Competition::where('id', '!=', $comp->id)
+                ->where(function($q) use ($prevUser) {
+                    $q->where('coordinator_id', $prevUser->id)
+                      ->orWhereNotNull('coordinators');
+                })->get()->filter(fn($c) => $c->isUserCoordinator($prevUser->id));
+
+            if ($otherComps->isEmpty()) {
+                $prevUser->update([
+                    'competition_id' => null,
+                    'role' => 'panitia',
+                    'role_id' => $panitiaRole?->id,
+                ]);
+            }
+        }
+
+        // 2. Terapkan hak akses koordinator untuk seluruh koordinator aktif
+        foreach ($newCoordUserIds as $uId) {
+            $u = User::find($uId);
+            if ($u) {
+                $updates = ['competition_id' => $comp->id];
+                if (in_array($u->role, ['panitia', 'koordinator_lomba']) || empty($u->role)) {
+                    $updates['role'] = 'koordinator_lomba';
+                    if ($coordRole) {
+                        $updates['role_id'] = $coordRole->id;
+                    }
+                }
+                $u->update($updates);
+            }
+        }
 
         if (Setting::get('package_allin_auto_original_price', '1') === '1') {
             Setting::set('package_allin_original_price', (string)((int)Competition::sum('fee')));
@@ -995,66 +1050,89 @@ class AdminPanelController extends Controller
         $rawPresets = \Database\Seeders\FormFieldSeeder::getPresets();
         
         $meta = [
-            'akademik' => [
-                'title' => 'Olimpiade MIPA & IPS',
-                'category' => 'Akademik & Sains',
-                'badge' => 'Akademik & Sains',
-                'badge_class' => 'bg-warning-subtle text-warning',
-                'icon' => 'ri-microscope-line',
-                'description' => 'Sekolah, pembina, WhatsApp, nama peserta & kelas, NISN siswa, dan scan kartu pelajar (KTS).',
-            ],
-            'tahfidz' => [
-                'title' => "MHQ & Tahfidz Al-Qur'an",
-                'category' => 'Keagamaan',
-                'badge' => 'Keagamaan',
+            'template_1_siswa' => [
+                'title' => 'Template 1 Siswa (Individu / Tunggal)',
+                'category' => 'Individu',
+                'badge' => '1 Siswa',
                 'badge_class' => 'bg-info-subtle text-info',
-                'icon' => 'ri-book-read-line',
-                'description' => 'Lembaga pondok, pembina tahfidz, WhatsApp, nama santri, pilihan golongan juz, dan surat keterangan tashih.',
+                'icon' => 'ri-user-line',
+                'description' => 'Format untuk 1 peserta individu lengkap dengan identitas sekolah, pembina, biodata siswa, NISN, dan scan Kartu Pelajar (KTS).',
             ],
-            'seni' => [
-                'title' => 'Albanjari, Singer & Storytelling',
-                'category' => 'Seni & Bahasa',
-                'badge' => 'Seni & Bahasa',
+            'template_2_siswa' => [
+                'title' => 'Template 2 Siswa (Tim / Duo)',
+                'category' => 'Tim 2 Siswa',
+                'badge' => '2 Siswa',
                 'badge_class' => 'bg-primary-subtle text-primary',
-                'icon' => 'ri-music-2-line',
-                'description' => 'Sekolah/sanggar, nama panggung, pembina, WhatsApp, personil grup, judul lagu, dan upload minus one.',
+                'icon' => 'ri-team-line',
+                'description' => 'Format untuk tim 2 siswa (Ketua tim & Anggota tim) dengan biodata lengkap masing-masing peserta dan berkas persyaratan.',
             ],
-            'esport' => [
-                'title' => 'Mobile Legends (MSA S4)',
-                'category' => 'E-Sport',
-                'badge' => 'E-Sport',
-                'badge_class' => 'bg-danger-subtle text-danger',
-                'icon' => 'ri-gamepad-line',
-                'description' => 'Nama squad, User ID & Server kapten, nickname in-game, WhatsApp, roster 6 pemain, dan screenshot profil.',
-            ],
-            'olahraga' => [
-                'title' => 'Tournament Bola Voli',
-                'category' => 'Olahraga',
-                'badge' => 'Olahraga',
+            'template_3_siswa' => [
+                'title' => 'Template 3 Siswa (Regu / Trio)',
+                'category' => 'Regu 3 Siswa',
+                'badge' => '3 Siswa',
                 'badge_class' => 'bg-success-subtle text-success',
-                'icon' => 'ri-football-line',
-                'description' => 'Nama tim voli, nama & kontak pelatih, nomor punggung & posisi pemain, dan scan KTS kolektif PDF.',
+                'icon' => 'ri-group-line',
+                'description' => 'Format untuk regu 3 siswa delegasi (Ketua regu & 2 Anggota) dengan biodata lengkap masing-masing peserta.',
             ],
-            'umum' => [
-                'title' => 'Formulir Delegasi Umum',
-                'category' => 'Umum',
-                'badge' => 'Umum',
+            'template_4_siswa' => [
+                'title' => 'Template 4 Siswa (Tim 4 Anggota)',
+                'category' => 'Tim 4 Siswa',
+                'badge' => '4 Siswa',
+                'badge_class' => 'bg-warning-subtle text-warning',
+                'icon' => 'ri-team-line',
+                'description' => 'Format untuk tim 4 siswa delegasi dengan biodata lengkap masing-masing anggota tim.',
+            ],
+            'template_5_siswa' => [
+                'title' => 'Template 5 Siswa (Tim 5 Anggota)',
+                'category' => 'Tim 5 Siswa',
+                'badge' => '5 Siswa',
+                'badge_class' => 'bg-purple-subtle text-primary',
+                'icon' => 'ri-team-line',
+                'description' => 'Format untuk tim 5 siswa delegasi dengan biodata lengkap seluruh anggota tim.',
+            ],
+            'template_6_siswa' => [
+                'title' => 'Template 6 Siswa (5 Inti + 1 Cadangan)',
+                'category' => 'Tim 6 Siswa',
+                'badge' => '6 Siswa',
+                'badge_class' => 'bg-danger-subtle text-danger',
+                'icon' => 'ri-shield-user-line',
+                'description' => 'Format skuad tim 6 siswa (5 pemain inti + 1 cadangan) dengan biodata lengkap seluruh anggota tim.',
+            ],
+            'template_10_siswa' => [
+                'title' => 'Template 10 Siswa (Grup / Tim 10 Siswa)',
+                'category' => 'Grup 10 Siswa',
+                'badge' => '10 Siswa',
+                'badge_class' => 'bg-teal-subtle text-info',
+                'icon' => 'ri-group-2-line',
+                'description' => 'Format delegasi grup hingga 10 siswa (contoh: 6 personil inti + 4 cadangan) lengkap dengan berkas kolektif.',
+            ],
+            'template_12_siswa' => [
+                'title' => 'Template 12 Siswa (Roster Skuad 12 Siswa)',
+                'category' => 'Skuad 12 Siswa',
+                'badge' => '12 Siswa',
                 'badge_class' => 'bg-secondary-subtle text-secondary',
-                'icon' => 'ri-file-list-3-line',
-                'description' => 'Template dasar instansi, WhatsApp, dan daftar nama peserta.',
+                'icon' => 'ri-football-line',
+                'description' => 'Format susunan pemain tim hingga 12 siswa (pemain inti dan cadangan) lengkap dengan scan KTS kolektif PDF.',
+            ],
+            'template_dinamis' => [
+                'title' => 'Template Multi Siswa (Jumlah Bebas / Dinamis)',
+                'category' => 'Fleksibel',
+                'badge' => 'Bebas / Multi Siswa',
+                'badge_class' => 'bg-dark-subtle text-dark',
+                'icon' => 'ri-user-settings-line',
+                'description' => 'Format kontingen dengan jumlah siswa bebas/dinamis (1 s.d. 20 siswa) yang ditentukan langsung oleh pendaftar.',
             ],
         ];
 
         $presets = [];
-        foreach ($rawPresets as $key => $fields) {
-            $m = $meta[$key] ?? [
-                'title' => ucfirst($key),
-                'category' => 'Lomba',
-                'badge' => ucfirst($key),
-                'badge_class' => 'bg-secondary-subtle text-secondary',
-                'icon' => 'ri-file-list-3-line',
-                'description' => 'Template formulir preset ' . ucfirst($key),
-            ];
+        foreach ($meta as $key => $m) {
+            $fields = $rawPresets[$key] ?? [];
+            foreach ($fields as &$f) {
+                if (($f['type'] ?? '') === 'participant_repeater') {
+                    $f['sub_fields'] = self::normalizeRepeaterSubFields($f['sub_fields'] ?? null);
+                }
+            }
+            unset($f);
 
             $presets[$key] = [
                 'key' => $key,
@@ -1070,6 +1148,39 @@ class AdminPanelController extends Controller
         }
 
         return $presets;
+    }
+
+    public static function normalizeRepeaterSubFields(?array $subFields): array
+    {
+        $defaults = [
+            'name' => ['active' => true, 'required' => true, 'label' => 'Nama Lengkap Siswa'],
+            'gender' => ['active' => true, 'required' => true, 'label' => 'Jenis Kelamin (L/P)'],
+            'birth_date' => ['active' => true, 'required' => false, 'label' => 'Tanggal Lahir Siswa'],
+            'grade' => ['active' => true, 'required' => true, 'label' => 'Kelas / Tingkat'],
+            'nisn' => ['active' => true, 'required' => true, 'label' => 'Nomor Induk Siswa Nasional (NISN)'],
+            'custom_id' => ['active' => false, 'required' => false, 'label' => 'ID Siswa / No. Identitas (Teks)'],
+            'wa_number' => ['active' => false, 'required' => false, 'label' => 'Nomor WhatsApp Siswa (Angka)'],
+            'captain_option' => ['active' => false, 'required' => false, 'label' => 'Tandai Kapten Tim & Nomor WA Khusus Kapten'],
+            'photo_formal' => ['active' => true, 'required' => false, 'label' => 'Pas Foto Formal (3x4)'],
+            'photo_freestyle' => ['active' => false, 'required' => false, 'label' => 'Upload Foto Pose Gaya Bebas (Bisa >1 Foto)', 'multiple' => true],
+            'custom_columns' => [],
+        ];
+
+        if (empty($subFields) || !is_array($subFields)) {
+            return $defaults;
+        }
+
+        foreach ($defaults as $k => $defVal) {
+            if ($k === 'custom_columns') {
+                $subFields['custom_columns'] = isset($subFields['custom_columns']) && is_array($subFields['custom_columns']) ? $subFields['custom_columns'] : [];
+            } elseif (!isset($subFields[$k]) || !is_array($subFields[$k])) {
+                $subFields[$k] = $defVal;
+            } else {
+                $subFields[$k] = array_merge($defVal, $subFields[$k]);
+            }
+        }
+
+        return $subFields;
     }
 
     public static function getMandatoryIdentityFields(): array
@@ -1132,11 +1243,12 @@ class AdminPanelController extends Controller
                     'options' => $m['type'] === 'select' ? $m['options'] : ($f['options'] ?? []),
                     'allowed_extensions' => $f['allowed_extensions'] ?? [],
                     'max_size_mb' => $f['max_size_mb'] ?? null,
+                    'max_files' => isset($f['max_files']) && $f['max_files'] !== null && $f['max_files'] !== '' ? max(1, (int)$f['max_files']) : null,
                     'min_items' => $f['min_items'] ?? null,
                     'max_items' => $f['max_items'] ?? null,
                     'main_members' => $f['main_members'] ?? null,
                     'reserve_members' => $f['reserve_members'] ?? null,
-                    'sub_fields' => $f['sub_fields'] ?? null,
+                    'sub_fields' => ($f['type'] === 'participant_repeater') ? self::normalizeRepeaterSubFields($f['sub_fields'] ?? null) : ($f['sub_fields'] ?? null),
                     'conditional_logic' => $f['conditional_logic'] ?? null,
                     'is_mandatory_identity' => true,
                 ];
@@ -1148,6 +1260,9 @@ class AdminPanelController extends Controller
 
         // Append remaining custom fields
         foreach ($remainingFields as $rf) {
+            if (($rf['type'] ?? '') === 'participant_repeater') {
+                $rf['sub_fields'] = self::normalizeRepeaterSubFields($rf['sub_fields'] ?? null);
+            }
             $clean[] = $rf;
         }
 
@@ -1254,8 +1369,20 @@ class AdminPanelController extends Controller
     public function formBuilderApplyPreset(string|int $competitionId, Request $request)
     {
         $comp = Competition::findOrFail($competitionId);
-        $presetKey = $request->input('preset', 'akademik');
+        $presetKey = $request->input('preset', 'template_1_siswa');
         $presets = self::getAllFormPresets();
+
+        $legacyMap = [
+            'akademik' => 'template_1_siswa',
+            'tahfidz' => 'template_1_siswa',
+            'seni' => 'template_10_siswa',
+            'esport' => 'template_6_siswa',
+            'olahraga' => 'template_12_siswa',
+            'umum' => 'template_dinamis',
+        ];
+        if (!isset($presets[$presetKey]) && isset($legacyMap[$presetKey])) {
+            $presetKey = $legacyMap[$presetKey];
+        }
 
         if (!isset($presets[$presetKey])) {
             return redirect()->back()->with('error', "Preset \"{$presetKey}\" tidak ditemukan.");
@@ -1384,11 +1511,12 @@ class AdminPanelController extends Controller
                 'options' => is_array($f['options'] ?? null) ? array_values(array_filter($f['options'])) : [],
                 'allowed_extensions' => is_array($f['allowed_extensions'] ?? null) ? array_values(array_filter($f['allowed_extensions'])) : [],
                 'max_size_mb' => !empty($f['max_size_mb']) ? (int) $f['max_size_mb'] : 5,
+                'max_files' => isset($f['max_files']) && $f['max_files'] !== null && $f['max_files'] !== '' ? max(1, (int) $f['max_files']) : (($f['type'] ?? '') === 'file' ? 1 : null),
                 'min_items' => isset($f['min_items']) && $f['min_items'] !== null && $f['min_items'] !== '' ? (int) $f['min_items'] : null,
                 'max_items' => isset($f['max_items']) && $f['max_items'] !== null && $f['max_items'] !== '' ? (int) $f['max_items'] : null,
                 'main_members' => isset($f['main_members']) && $f['main_members'] !== null && $f['main_members'] !== '' ? (int) $f['main_members'] : null,
                 'reserve_members' => isset($f['reserve_members']) && $f['reserve_members'] !== null && $f['reserve_members'] !== '' ? (int) $f['reserve_members'] : null,
-                'sub_fields' => is_array($f['sub_fields'] ?? null) ? $f['sub_fields'] : null,
+                'sub_fields' => ($f['type'] ?? '') === 'participant_repeater' ? self::normalizeRepeaterSubFields($f['sub_fields'] ?? null) : (is_array($f['sub_fields'] ?? null) ? $f['sub_fields'] : null),
                 'min_date' => !empty($f['min_date']) ? (string)$f['min_date'] : null,
                 'max_date' => !empty($f['max_date']) ? (string)$f['max_date'] : null,
                 'date_default' => !empty($f['date_default']) ? (string)$f['date_default'] : null,
@@ -2335,7 +2463,7 @@ class AdminPanelController extends Controller
             'current_user_role'      => $authUser?->role,
             'current_user_comp'      => $authUser?->competition_id,
             'can_modify_active_comp' => $this->authorizeCompetitionAccess($activeCompId),
-            'is_coordinator'         => $authUser?->role === 'koordinator_lomba',
+            'is_coordinator'         => $authUser?->role === 'koordinator_lomba' || ($activeComp && $activeComp->isUserCoordinator($authUser?->id)) || !empty($authUser?->getCoordinatedCompetitionIds()),
         ];
 
         return \Inertia\Inertia::render('Admin/TechnicalMeeting', [

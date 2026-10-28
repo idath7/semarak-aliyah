@@ -213,16 +213,70 @@ function revokeAllPermissions() {
 }
 
 // -----------------------------------------------------------------------------
+// PERMISSION CLASSIFICATION & READ-ONLY HELPERS
+// -----------------------------------------------------------------------------
+function getPermissionKind(permName) {
+  if (permName.endsWith('.view')) {
+    return 'view'; // Read-only / Lihat Saja
+  }
+  if (permName.startsWith('settings.') || permName === 'roles.manage' || permName === 'users.manage') {
+    return 'system'; // Kritis / Sistem / Pengaturan
+  }
+  return 'manage'; // Kelola / Eksekusi / Operasional
+}
+
+function getPermissionKindBadge(permName) {
+  const kind = getPermissionKind(permName);
+  if (kind === 'view') {
+    return {
+      kind: 'view',
+      label: 'Lihat Saja',
+      icon: 'ri-eye-line',
+      class: 'bg-info-subtle text-info border border-info-subtle',
+      desc: 'Hanya dapat memantau / membaca data tanpa hak mengubah.'
+    };
+  }
+  if (kind === 'system') {
+    return {
+      kind: 'system',
+      label: 'Sistem / Kritis',
+      icon: 'ri-shield-keyhole-line',
+      class: 'bg-danger-subtle text-danger border border-danger-subtle',
+      desc: 'Konfigurasi mendalam, integrasi, dan wewenang pengguna.'
+    };
+  }
+  return {
+    kind: 'manage',
+    label: 'Kelola / Eksekusi',
+    icon: 'ri-settings-4-line',
+    class: 'bg-warning-subtle text-warning-emphasis border border-warning-subtle',
+    desc: 'Wewenang operasional, tambah, ubah, dan hapus data.'
+  };
+}
+
+function setReadOnlyMode() {
+  if (selectedRole.value?.name === 'super_admin') return;
+  // Ambil seluruh permission yang bertipe 'view' dan bukan pengaturan sistem
+  const viewPermIds = props.allPermissions
+    .filter(p => p.name.endsWith('.view') && !p.name.startsWith('settings.'))
+    .map(p => p.id);
+  matrixState.value[selectedRoleId.value] = viewPermIds;
+  info(`Mode Lihat Saja (Read-Only) diterapkan pada peran '${selectedRole.value.label}'. Seluruh wewenang kelola & konfigurasi sistem dinonaktifkan.`);
+}
+
+// -----------------------------------------------------------------------------
 // MATRIX LIVE SEARCH & FILTERING
 // -----------------------------------------------------------------------------
 const permSearch = ref('');
 const moduleFilter = ref('all');
 const statusPermFilter = ref('all'); // 'all' | 'active' | 'inactive'
+const permKindFilter = ref('all'); // 'all' | 'view' | 'manage' | 'system'
 
 const filteredPermissionsGrouped = computed(() => {
   const query = permSearch.value.trim().toLowerCase();
   const selectedMod = moduleFilter.value;
   const statusFilt = statusPermFilter.value;
+  const kindFilt = permKindFilter.value;
 
   const result = {};
 
@@ -232,7 +286,12 @@ const filteredPermissionsGrouped = computed(() => {
     }
 
     const filteredPerms = perms.filter(p => {
-      // 1. Text Search Filter
+      // 1. Kind Filter (Lihat Saja vs Kelola vs Sistem)
+      if (kindFilt !== 'all' && getPermissionKind(p.name) !== kindFilt) {
+        return false;
+      }
+
+      // 2. Text Search Filter
       const matchesSearch = !query || 
         p.label.toLowerCase().includes(query) || 
         p.name.toLowerCase().includes(query) || 
@@ -241,7 +300,7 @@ const filteredPermissionsGrouped = computed(() => {
 
       if (!matchesSearch) return false;
 
-      // 2. Status Filter
+      // 3. Status Filter
       if (statusFilt === 'active') {
         return isPermChecked(selectedRoleId.value, p.id);
       }
@@ -282,12 +341,19 @@ const statusFilterOptions = [
   { value: 'inactive', label: 'Hanya Izin Non-aktif' },
 ];
 
+const permKindFilterOptions = [
+  { value: 'all', label: 'Semua Tipe Izin' },
+  { value: 'view', label: '👁️ Hanya Izin Lihat Saja (Read-Only)' },
+  { value: 'manage', label: '⚙️ Hanya Izin Kelola / Eksekusi' },
+  { value: 'system', label: '🚨 Hanya Izin Sistem / Kritis' },
+];
+
 function resetFilters() {
   permSearch.value = '';
   moduleFilter.value = 'all';
   statusPermFilter.value = 'all';
+  permKindFilter.value = 'all';
 }
-
 
 function saveRolePermissions() {
   isRoleSaving.value = true;
@@ -303,6 +369,123 @@ function saveRolePermissions() {
     onError: () => {
       isRoleSaving.value = false;
       error('Gagal menyimpan matriks perizinan.');
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
+// BULK ROLE PERMISSIONS STATE & ACTIONS
+// -----------------------------------------------------------------------------
+const isBulkRoleModalOpen = ref(false);
+const bulkRoleAction = ref('grant'); // 'grant' | 'revoke' | 'sync'
+const bulkRoleSelectedRoleIds = ref([]);
+const bulkRoleSelectedPermIds = ref([]);
+const isSubmittingBulkRole = ref(false);
+
+function openBulkRoleModal() {
+  bulkRoleAction.value = 'grant';
+  bulkRoleSelectedRoleIds.value = props.roles.filter(r => r.name !== 'super_admin').map(r => r.id);
+  bulkRoleSelectedPermIds.value = [];
+  isBulkRoleModalOpen.value = true;
+}
+
+function toggleBulkRolePermission(permId) {
+  const idx = bulkRoleSelectedPermIds.value.indexOf(permId);
+  if (idx > -1) {
+    bulkRoleSelectedPermIds.value.splice(idx, 1);
+  } else {
+    bulkRoleSelectedPermIds.value.push(permId);
+  }
+}
+
+function toggleBulkRoleGroup(perms, grantAll = true) {
+  const current = new Set(bulkRoleSelectedPermIds.value);
+  perms.forEach(p => {
+    if (grantAll) {
+      current.add(p.id);
+    } else {
+      current.delete(p.id);
+    }
+  });
+  bulkRoleSelectedPermIds.value = Array.from(current);
+}
+
+function submitBulkRole() {
+  if (bulkRoleSelectedRoleIds.value.length === 0) {
+    error('Pilih minimal satu peran sasaran.');
+    return;
+  }
+  if (bulkRoleSelectedPermIds.value.length === 0) {
+    error('Pilih minimal satu hak akses yang ingin diterapkan.');
+    return;
+  }
+
+  isSubmittingBulkRole.value = true;
+  router.post('/admin/pengguna/hak-akses/bulk-matrix', {
+    role_ids: bulkRoleSelectedRoleIds.value,
+    action: bulkRoleAction.value,
+    permission_ids: bulkRoleSelectedPermIds.value,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSubmittingBulkRole.value = false;
+      isBulkRoleModalOpen.value = false;
+      initMatrixState();
+      success('Operasi hak akses massal berhasil diterapkan pada seluruh peran terpilih!', 'Berhasil');
+    },
+    onError: () => {
+      isSubmittingBulkRole.value = false;
+      error('Gagal menerapkan hak akses massal ke peran.');
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
+// COPY ROLE PERMISSIONS STATE & ACTIONS
+// -----------------------------------------------------------------------------
+const isCopyRoleModalOpen = ref(false);
+const copySourceRoleId = ref(props.roles[0]?.id || null);
+const copyTargetRoleIds = ref([]);
+const isSubmittingCopyRole = ref(false);
+
+const copySourceOptions = computed(() => {
+  return props.roles.map(r => ({
+    value: r.id,
+    label: `${r.label} (${r.permissions?.length || (matrixState.value[r.id]?.length || 0)} Izin)`
+  }));
+});
+
+function openCopyRoleModal() {
+  copySourceRoleId.value = selectedRoleId.value;
+  copyTargetRoleIds.value = [];
+  isCopyRoleModalOpen.value = true;
+}
+
+function submitCopyRole() {
+  if (!copySourceRoleId.value) {
+    error('Pilih peran sumber acuan.');
+    return;
+  }
+  if (copyTargetRoleIds.value.length === 0) {
+    error('Pilih minimal satu peran tujuan.');
+    return;
+  }
+
+  isSubmittingCopyRole.value = true;
+  router.post('/admin/pengguna/hak-akses/copy-role-matrix', {
+    source_role_id: copySourceRoleId.value,
+    target_role_ids: copyTargetRoleIds.value,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSubmittingCopyRole.value = false;
+      isCopyRoleModalOpen.value = false;
+      initMatrixState();
+      success('Susunan hak akses berhasil disalin ke seluruh peran tujuan!', 'Berhasil Disalin');
+    },
+    onError: () => {
+      isSubmittingCopyRole.value = false;
+      error('Gagal menyalin hak akses antar peran.');
     }
   });
 }
@@ -540,6 +723,122 @@ function saveUserOverrides() {
     onError: () => {
       isSavingUserOverride.value = false;
       error('Gagal menyimpan hak akses khusus pengguna.');
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
+// BULK USER OVERRIDES STATE & ACTIONS
+// -----------------------------------------------------------------------------
+const selectedUserIds = ref([]);
+const isBulkUserModalOpen = ref(false);
+const bulkUserAction = ref('grant'); // 'grant' | 'revoke' | 'clear_perms' | 'reset_all'
+const bulkUserPermNames = ref([]);
+const isSubmittingBulkUser = ref(false);
+
+const isAllUsersSelected = computed(() => {
+  if (filteredUsers.value.length === 0) return false;
+  return filteredUsers.value.every(u => selectedUserIds.value.includes(u.id));
+});
+
+function toggleSelectAllUsers() {
+  if (isAllUsersSelected.value) {
+    selectedUserIds.value = [];
+  } else {
+    selectedUserIds.value = filteredUsers.value.map(u => u.id);
+  }
+}
+
+function toggleUserSelection(userId) {
+  const idx = selectedUserIds.value.indexOf(userId);
+  if (idx > -1) {
+    selectedUserIds.value.splice(idx, 1);
+  } else {
+    selectedUserIds.value.push(userId);
+  }
+}
+
+function openBulkUserModal(action = 'grant') {
+  if (selectedUserIds.value.length === 0) {
+    error('Pilih minimal satu anggota panitia terlebih dahulu.');
+    return;
+  }
+  bulkUserAction.value = action;
+  bulkUserPermNames.value = [];
+  isBulkUserModalOpen.value = true;
+}
+
+function toggleBulkUserPerm(permName) {
+  const idx = bulkUserPermNames.value.indexOf(permName);
+  if (idx > -1) {
+    bulkUserPermNames.value.splice(idx, 1);
+  } else {
+    bulkUserPermNames.value.push(permName);
+  }
+}
+
+function toggleBulkUserGroup(perms, selectAll = true) {
+  const current = new Set(bulkUserPermNames.value);
+  perms.forEach(p => {
+    if (selectAll) {
+      current.add(p.name);
+    } else {
+      current.delete(p.name);
+    }
+  });
+  bulkUserPermNames.value = Array.from(current);
+}
+
+function submitBulkUserOverrides() {
+  if (selectedUserIds.value.length === 0) return;
+  if (['grant', 'revoke', 'clear_perms'].includes(bulkUserAction.value) && bulkUserPermNames.value.length === 0) {
+    error('Pilih minimal satu hak akses yang ingin diproses.');
+    return;
+  }
+
+  isSubmittingBulkUser.value = true;
+  router.post('/admin/pengguna/hak-akses/bulk-user-permissions', {
+    user_ids: selectedUserIds.value,
+    action: bulkUserAction.value,
+    permission_names: bulkUserPermNames.value,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSubmittingBulkUser.value = false;
+      isBulkUserModalOpen.value = false;
+      selectedUserIds.value = [];
+      success('Hak akses khusus massal berhasil diterapkan pada seluruh panitia terpilih!', 'Berhasil');
+    },
+    onError: () => {
+      isSubmittingBulkUser.value = false;
+      error('Gagal menerapkan hak akses khusus massal.');
+    }
+  });
+}
+
+async function handleBulkResetAllUsers() {
+  if (selectedUserIds.value.length === 0) return;
+  const confirmed = await confirmDialog({
+    title: 'Reset Seluruh Override Panitia Terpilih?',
+    message: `Tindakan ini akan menghapus seluruh hak akses khusus pada ${selectedUserIds.value.length} panitia terpilih dan mengembalikan mereka sepenuhnya mengikuti perannya masing-masing.`,
+    type: 'warning',
+    confirmText: 'Ya, Reset Semua',
+  });
+
+  if (!confirmed) return;
+
+  router.post('/admin/pengguna/hak-akses/bulk-user-permissions', {
+    user_ids: selectedUserIds.value,
+    action: 'reset_all',
+    permission_names: [],
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      selectedUserIds.value = [];
+      success('Seluruh override panitia terpilih berhasil direset.', 'Berhasil');
+    },
+    onError: () => {
+      error('Gagal mereset override panitia.');
     }
   });
 }
@@ -829,6 +1128,31 @@ function saveUserOverrides() {
                     <button
                       v-if="selectedRole?.name !== 'super_admin'"
                       type="button"
+                      class="btn btn-sm btn-outline-info rounded-pill px-3 fw-semibold"
+                      @click="setReadOnlyMode"
+                      title="Setel peran ini hanya memiliki hak akses melihat saja (Read-Only)"
+                    >
+                      <i class="ri-eye-line me-1"></i>Mode Lihat Saja
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold"
+                      @click="openCopyRoleModal"
+                      title="Salin susunan hak akses dari peran lain"
+                    >
+                      <i class="ri-file-copy-line me-1"></i>Salin Peran
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold"
+                      @click="openBulkRoleModal"
+                      title="Kelola hak akses untuk banyak peran sekaligus"
+                    >
+                      <i class="ri-stack-line me-1"></i>Kelola Massal
+                    </button>
+                    <button
+                      v-if="selectedRole?.name !== 'super_admin'"
+                      type="button"
                       class="btn btn-sm btn-outline-success rounded-pill px-3 fw-semibold"
                       @click="grantAllPermissions"
                       title="Pilih seluruh hak akses untuk peran ini"
@@ -880,7 +1204,7 @@ function saveUserOverrides() {
             <div class="card border rounded-4 p-3 mb-3.5 bg-light-subtle shadow-none">
               <div class="row g-2.5 align-items-center">
                 <!-- Search Box -->
-                <div class="col-12 col-md-5">
+                <div class="col-12 col-md-4">
                   <div class="position-relative">
                     <input 
                       v-model="permSearch" 
@@ -902,7 +1226,7 @@ function saveUserOverrides() {
                 </div>
 
                 <!-- Module Category Filter (CustomSelect) -->
-                <div class="col-12 col-sm-6 col-md-4">
+                <div class="col-12 col-sm-6 col-md-3">
                   <CustomSelect
                     v-model="moduleFilter"
                     :options="moduleOptions"
@@ -910,8 +1234,17 @@ function saveUserOverrides() {
                   />
                 </div>
 
-                <!-- Status Filter (CustomSelect) -->
+                <!-- Kind Filter (View vs Manage vs System) (CustomSelect) -->
                 <div class="col-12 col-sm-6 col-md-3">
+                  <CustomSelect
+                    v-model="permKindFilter"
+                    :options="permKindFilterOptions"
+                    placeholder="Pilih Tipe Izin"
+                  />
+                </div>
+
+                <!-- Status Filter (CustomSelect) -->
+                <div class="col-12 col-sm-6 col-md-2">
                   <CustomSelect
                     v-model="statusPermFilter"
                     :options="statusFilterOptions"
@@ -922,11 +1255,22 @@ function saveUserOverrides() {
 
               <!-- Filter Info & Reset Link -->
               <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top fs-11 text-muted">
-                <span>
-                  Menampilkan <strong>{{ totalFilteredCount }}</strong> dari {{ allPermissions.length }} total izin sistem
-                </span>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <span>
+                    Menampilkan <strong>{{ totalFilteredCount }}</strong> dari {{ allPermissions.length }} total izin sistem
+                  </span>
+                  <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill fs-10 px-2 py-0.5">
+                    👁️ Lihat Saja: {{ allPermissions.filter(p => p.name.endsWith('.view')).length }}
+                  </span>
+                  <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill fs-10 px-2 py-0.5">
+                    ⚙️ Kelola: {{ allPermissions.filter(p => !p.name.endsWith('.view') && !p.name.startsWith('settings.') && p.name !== 'roles.manage').length }}
+                  </span>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill fs-10 px-2 py-0.5">
+                    🚨 Sistem: {{ allPermissions.filter(p => p.name.startsWith('settings.') || p.name === 'roles.manage').length }}
+                  </span>
+                </div>
                 <button 
-                  v-if="permSearch || moduleFilter !== 'all' || statusPermFilter !== 'all'"
+                  v-if="permSearch || moduleFilter !== 'all' || statusPermFilter !== 'all' || permKindFilter !== 'all'"
                   type="button" 
                   class="btn btn-link btn-xs p-0 text-primary text-decoration-none fw-semibold"
                   @click="resetFilters"
@@ -1018,16 +1362,26 @@ function saveUserOverrides() {
 
                         <!-- Permission Label & Details -->
                         <div class="flex-grow-1 user-select-none">
-                          <div class="d-flex align-items-center justify-content-between gap-1 mb-0.5">
+                          <div class="d-flex align-items-center justify-content-between gap-1 mb-1 flex-wrap">
                             <span class="fs-12 fw-semibold text-dark-emphasis">
                               {{ perm.label }}
                             </span>
-                            <span 
-                              v-if="isPermChecked(selectedRoleId, perm.id)" 
-                              class="badge bg-success-subtle text-success border border-success-subtle fs-10 px-1.5 py-0.5 rounded-pill flex-shrink-0"
-                            >
-                              <i class="ri-check-line"></i> Aktif
-                            </span>
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                              <span 
+                                class="badge rounded-pill fs-10 px-1.5 py-0.5"
+                                :class="getPermissionKindBadge(perm.name).class"
+                                :title="getPermissionKindBadge(perm.name).desc"
+                              >
+                                <i :class="getPermissionKindBadge(perm.name).icon" class="me-0.5"></i>
+                                {{ getPermissionKindBadge(perm.name).label }}
+                              </span>
+                              <span 
+                                v-if="isPermChecked(selectedRoleId, perm.id)" 
+                                class="badge bg-success-subtle text-success border border-success-subtle fs-10 px-1.5 py-0.5 rounded-pill"
+                              >
+                                <i class="ri-check-line"></i> Aktif
+                              </span>
+                            </div>
                           </div>
                           <div class="font-monospace fs-10 text-muted mb-1">{{ perm.name }}</div>
                           <p class="fs-11 text-muted mb-0 lh-sm">{{ perm.description || 'Tidak ada deskripsi rinci.' }}</p>
@@ -1214,12 +1568,67 @@ function saveUserOverrides() {
               </div>
             </div>
 
+            <!-- Bulk Action Toolbar (When users selected) -->
+            <div 
+              v-if="selectedUserIds.length > 0" 
+              class="p-3 bg-primary-subtle border border-primary-subtle rounded-4 mb-3 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 shadow-sm"
+            >
+              <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 fs-12 fw-bold">
+                  {{ selectedUserIds.length }} Panitia Dipilih
+                </span>
+                <span class="fs-12 text-dark-emphasis fw-medium">Kelola izin khusus panitia secara serentak</span>
+              </div>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-success rounded-pill px-3 fw-semibold shadow-sm d-flex align-items-center gap-1"
+                  @click="openBulkUserModal('grant')"
+                >
+                  <i class="ri-add-line"></i>
+                  <span>Beri Izin Khusus</span>
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-danger rounded-pill px-3 fw-semibold shadow-sm d-flex align-items-center gap-1"
+                  @click="openBulkUserModal('revoke')"
+                >
+                  <i class="ri-forbid-line"></i>
+                  <span>Blokir Izin Massal</span>
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-outline-warning rounded-pill px-3 fw-semibold d-flex align-items-center gap-1"
+                  @click="handleBulkResetAllUsers"
+                >
+                  <i class="ri-restart-line"></i>
+                  <span>Reset ke Default Peran</span>
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-light border rounded-pill px-3"
+                  @click="selectedUserIds = []"
+                >
+                  Batal Pilih
+                </button>
+              </div>
+            </div>
+
             <!-- Users Table -->
             <div class="table-responsive rounded-4 border">
               <table class="table table-hover align-middle mb-0">
                 <thead class="table-light fs-12 text-uppercase">
                   <tr>
-                    <th class="ps-3 py-3">Nama &amp; NIP Panitia</th>
+                    <th class="ps-3 py-3" style="width: 44px;">
+                      <input 
+                        type="checkbox" 
+                        class="form-check-input m-0 cursor-pointer" 
+                        :checked="isAllUsersSelected" 
+                        @change="toggleSelectAllUsers" 
+                        title="Pilih / Batalkan Semua Panitia"
+                      />
+                    </th>
+                    <th>Nama &amp; NIP Panitia</th>
                     <th>Email</th>
                     <th>Peran Utama</th>
                     <th>Status Hak Akses</th>
@@ -1227,8 +1636,20 @@ function saveUserOverrides() {
                   </tr>
                 </thead>
                 <tbody class="fs-12">
-                  <tr v-for="user in filteredUsers" :key="user.id">
+                  <tr 
+                    v-for="user in filteredUsers" 
+                    :key="user.id"
+                    :class="{ 'table-active': selectedUserIds.includes(user.id) }"
+                  >
                     <td class="ps-3 py-3">
+                      <input 
+                        type="checkbox" 
+                        class="form-check-input m-0 cursor-pointer" 
+                        :checked="selectedUserIds.includes(user.id)" 
+                        @change="toggleUserSelection(user.id)" 
+                      />
+                    </td>
+                    <td>
                       <div class="fw-bold text-dark-emphasis">{{ user.name }}</div>
                       <small class="text-muted font-monospace">{{ user.nip ? `NIP: ${user.nip}` : 'NIP: -' }}</small>
                     </td>
@@ -1272,7 +1693,7 @@ function saveUserOverrides() {
                   </tr>
 
                   <tr v-if="filteredUsers.length === 0">
-                    <td colspan="5" class="text-center py-4 text-muted">
+                    <td colspan="6" class="text-center py-4 text-muted">
                       <i class="ri-search-line fs-24 d-block mb-1"></i>
                       <span>Tidak ditemukan data panitia yang cocok dengan pencarian.</span>
                     </td>
@@ -1569,6 +1990,442 @@ function saveUserOverrides() {
                 <span>{{ isSavingUserOverride ? 'Menyimpan...' : 'Simpan Hak Akses Khusus' }}</span>
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ================================================================= -->
+    <!-- MODAL 3: KELOLA IZIN MASSAL MULTI-PERAN                           -->
+    <!-- ================================================================= -->
+    <div 
+      v-if="isBulkRoleModalOpen" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      style="background: rgba(0, 0, 0, 0.6); z-index: 1055;"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+          <div class="modal-header border-bottom p-3.5">
+            <h5 class="modal-title fs-15 fw-bold d-flex align-items-center gap-2">
+              <i class="ri-stack-line text-primary"></i>
+              <span>Kelola Hak Akses Massal Multi-Peran</span>
+            </h5>
+            <button 
+              type="button" 
+              class="btn-close" 
+              @click="isBulkRoleModalOpen = false"
+              aria-label="Tutup"
+            ></button>
+          </div>
+
+          <div class="modal-body p-3.5 d-flex flex-column gap-3.5">
+            <!-- Action Selector -->
+            <div>
+              <label class="form-label fs-12 fw-semibold mb-1.5">Pilih Aksi Pengelolaan Massal:</label>
+              <div class="d-flex flex-wrap gap-2">
+                <button 
+                  type="button" 
+                  class="btn btn-sm rounded-pill px-3 py-1.5 fs-12 fw-semibold d-flex align-items-center gap-1.5 transition-all"
+                  :class="bulkRoleAction === 'grant' ? 'btn-success text-white shadow-sm' : 'btn-light border text-muted'"
+                  @click="bulkRoleAction = 'grant'"
+                >
+                  <i class="ri-add-circle-line"></i>
+                  <span>Tambahkan Izin (Grant)</span>
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-sm rounded-pill px-3 py-1.5 fs-12 fw-semibold d-flex align-items-center gap-1.5 transition-all"
+                  :class="bulkRoleAction === 'revoke' ? 'btn-danger text-white shadow-sm' : 'btn-light border text-muted'"
+                  @click="bulkRoleAction = 'revoke'"
+                >
+                  <i class="ri-indeterminate-circle-line"></i>
+                  <span>Cabut Izin (Revoke)</span>
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-sm rounded-pill px-3 py-1.5 fs-12 fw-semibold d-flex align-items-center gap-1.5 transition-all"
+                  :class="bulkRoleAction === 'sync' ? 'btn-primary text-white shadow-sm' : 'btn-light border text-muted'"
+                  @click="bulkRoleAction = 'sync'"
+                >
+                  <i class="ri-refresh-line"></i>
+                  <span>Selaraskan Seluruh Izin (Sync / Replace)</span>
+                </button>
+              </div>
+              <small class="text-muted fs-11 mt-1 d-block">
+                {{ bulkRoleAction === 'grant' ? 'Menambahkan izin yang dipilih ke dalam peran sasaran tanpa menghapus izin yang sudah ada sebelumnya.' : (bulkRoleAction === 'revoke' ? 'Mencabut izin yang dipilih dari seluruh peran sasaran.' : 'Mengganti seluruh susunan izin peran sasaran secara total hanya dengan daftar yang dipilih di bawah.') }}
+              </small>
+            </div>
+
+            <!-- Target Roles Checkboxes -->
+            <div class="p-3 rounded-4 bg-light-subtle border">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="fs-12 fw-bold text-dark-emphasis">Pilih Peran Sasaran ({{ bulkRoleSelectedRoleIds.length }} Dipilih):</span>
+                <button 
+                  type="button" 
+                  class="btn btn-link btn-xs p-0 text-primary text-decoration-none fw-semibold"
+                  @click="bulkRoleSelectedRoleIds = bulkRoleSelectedRoleIds.length === roles.filter(r => r.name !== 'super_admin').length ? [] : roles.filter(r => r.name !== 'super_admin').map(r => r.id)"
+                >
+                  {{ bulkRoleSelectedRoleIds.length === roles.filter(r => r.name !== 'super_admin').length ? 'Batalkan Semua' : 'Pilih Semua Peran' }}
+                </button>
+              </div>
+              <div class="d-flex flex-wrap gap-2">
+                <label 
+                  v-for="r in roles.filter(role => role.name !== 'super_admin')" 
+                  :key="r.id"
+                  class="btn btn-sm rounded-pill px-2.5 py-1 fs-12 border cursor-pointer d-flex align-items-center gap-1.5"
+                  :class="bulkRoleSelectedRoleIds.includes(r.id) ? 'btn-primary-subtle text-primary border-primary' : 'btn-light border text-muted'"
+                >
+                  <input 
+                    type="checkbox" 
+                    class="form-check-input m-0 cursor-pointer" 
+                    :value="r.id" 
+                    v-model="bulkRoleSelectedRoleIds" 
+                  />
+                  <span>{{ r.label }}</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Permission Selection -->
+            <div>
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <label class="form-label fs-12 fw-semibold mb-0">Pilih Hak Akses yang Diproses ({{ bulkRoleSelectedPermIds.length }} Izin):</label>
+                <div class="d-flex gap-2">
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-outline-info rounded-pill px-2.5"
+                    @click="bulkRoleSelectedPermIds = allPermissions.filter(p => p.name.endsWith('.view') && !p.name.startsWith('settings.')).map(p => p.id)"
+                  >
+                    <i class="ri-eye-line me-1"></i>Hanya Lihat Saja
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-outline-primary rounded-pill px-2.5"
+                    @click="bulkRoleSelectedPermIds = allPermissions.map(p => p.id)"
+                  >
+                    Pilih Semua
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-outline-secondary rounded-pill px-2.5"
+                    @click="bulkRoleSelectedPermIds = []"
+                  >
+                    Kosongkan
+                  </button>
+                </div>
+              </div>
+
+              <div class="d-flex flex-column gap-3" style="max-height: 380px; overflow-y: auto;">
+                <div 
+                  v-for="(perms, grpName) in permissionsGrouped" 
+                  :key="grpName"
+                  class="card border rounded-3 shadow-none p-2.5 bg-card"
+                >
+                  <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom">
+                    <span class="fs-12 fw-bold text-dark-emphasis">{{ grpName }}</span>
+                    <div class="d-flex gap-1">
+                      <button 
+                        type="button" 
+                        class="btn btn-link btn-xs p-0 text-primary text-decoration-none"
+                        @click="toggleBulkRoleGroup(perms, true)"
+                      >
+                        Pilih Kategori
+                      </button>
+                      <span class="text-muted">|</span>
+                      <button 
+                        type="button" 
+                        class="btn btn-link btn-xs p-0 text-secondary text-decoration-none"
+                        @click="toggleBulkRoleGroup(perms, false)"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  </div>
+                  <div class="row g-2">
+                    <div v-for="p in perms" :key="p.id" class="col-md-6">
+                      <div 
+                        class="p-2 rounded-2 border d-flex align-items-start gap-2 cursor-pointer transition-all"
+                        :class="bulkRoleSelectedPermIds.includes(p.id) ? 'border-primary bg-primary-subtle' : 'bg-light-subtle'"
+                        @click="toggleBulkRolePermission(p.id)"
+                      >
+                        <input 
+                          type="checkbox" 
+                          class="form-check-input mt-0.5 cursor-pointer" 
+                          :checked="bulkRoleSelectedPermIds.includes(p.id)"
+                        />
+                        <div class="flex-grow-1">
+                          <div class="d-flex align-items-center justify-content-between gap-1">
+                            <span class="fs-11 fw-semibold text-dark-emphasis">{{ p.label }}</span>
+                            <span 
+                              class="badge rounded-pill fs-9 px-1 py-0.5"
+                              :class="getPermissionKindBadge(p.name).class"
+                            >
+                              {{ getPermissionKindBadge(p.name).label }}
+                            </span>
+                          </div>
+                          <small class="text-muted font-monospace fs-10 d-block">{{ p.name }}</small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="modal-footer border-top p-3 d-flex justify-content-end gap-2">
+            <button 
+              type="button" 
+              class="btn btn-sm btn-light border rounded-pill px-3" 
+              @click="isBulkRoleModalOpen = false"
+            >
+              Batal
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-sm btn-primary rounded-pill px-4 fw-semibold"
+              :disabled="isSubmittingBulkRole || bulkRoleSelectedRoleIds.length === 0 || bulkRoleSelectedPermIds.length === 0"
+              @click="submitBulkRole"
+            >
+              <span v-if="isSubmittingBulkRole" class="spinner-border spinner-border-sm me-1"></span>
+              <span>{{ isSubmittingBulkRole ? 'Menerapkan...' : 'Terapkan Hak Akses Massal' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- MODAL 4: SALIN HAK AKSES DARI PERAN LAIN                          -->
+    <!-- ================================================================= -->
+    <div 
+      v-if="isCopyRoleModalOpen" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      style="background: rgba(0, 0, 0, 0.6); z-index: 1055;"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+          <div class="modal-header border-bottom p-3.5">
+            <h5 class="modal-title fs-15 fw-bold d-flex align-items-center gap-2">
+              <i class="ri-file-copy-line text-primary"></i>
+              <span>Salin Susunan Hak Akses Antar Peran</span>
+            </h5>
+            <button 
+              type="button" 
+              class="btn-close" 
+              @click="isCopyRoleModalOpen = false"
+              aria-label="Tutup"
+            ></button>
+          </div>
+
+          <div class="modal-body p-4 d-flex flex-column gap-3.5">
+            <!-- Source Role Selector (CustomSelect) -->
+            <div>
+              <label class="form-label fs-12 fw-semibold mb-1">Peran Sumber Acuan (Source):</label>
+              <CustomSelect
+                v-model="copySourceRoleId"
+                :options="copySourceOptions"
+                placeholder="Pilih Peran Acuan"
+              />
+              <small class="text-muted fs-11 mt-1 d-block">
+                Seluruh izin yang aktif pada peran acuan ini akan diduplikasi ke peran target.
+              </small>
+            </div>
+
+            <!-- Target Roles (Checkboxes) -->
+            <div>
+              <div class="d-flex align-items-center justify-content-between mb-1.5">
+                <label class="form-label fs-12 fw-semibold mb-0">Pilih Peran Target (Tujuan Salin):</label>
+                <button 
+                  type="button" 
+                  class="btn btn-link btn-xs p-0 text-primary text-decoration-none"
+                  @click="copyTargetRoleIds = copyTargetRoleIds.length === roles.filter(r => r.id !== copySourceRoleId && r.name !== 'super_admin').length ? [] : roles.filter(r => r.id !== copySourceRoleId && r.name !== 'super_admin').map(r => r.id)"
+                >
+                  {{ copyTargetRoleIds.length === roles.filter(r => r.id !== copySourceRoleId && r.name !== 'super_admin').length ? 'Batalkan' : 'Pilih Semua Target' }}
+                </button>
+              </div>
+
+              <div class="d-flex flex-column gap-1.5 p-3 rounded-4 bg-light-subtle border">
+                <label 
+                  v-for="r in roles.filter(role => role.id !== copySourceRoleId && role.name !== 'super_admin')" 
+                  :key="r.id"
+                  class="form-check m-0 d-flex align-items-center gap-2 cursor-pointer p-1 rounded-2"
+                >
+                  <input 
+                    type="checkbox" 
+                    class="form-check-input m-0 cursor-pointer" 
+                    :value="r.id" 
+                    v-model="copyTargetRoleIds" 
+                  />
+                  <span class="fs-12 text-dark-emphasis fw-medium">{{ r.label }}</span>
+                  <span class="badge rounded-pill fs-10 ms-auto" :class="getRoleBadgeClass(r.name, r.badge_color)">
+                    {{ r.name === 'super_admin' ? allPermissions.length : (matrixState[r.id]?.length || 0) }} Izin saat ini
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div class="alert alert-warning py-2.5 px-3 rounded-3 fs-11 mb-0 border border-warning-subtle">
+              <i class="ri-alert-line me-1"></i>
+              Izin pada peran target yang dipilih akan ditimpa dan diselaraskan penuh dengan peran sumber acuan.
+            </div>
+          </div>
+
+          <div class="modal-footer border-top p-3 d-flex justify-content-end gap-2">
+            <button 
+              type="button" 
+              class="btn btn-sm btn-light border rounded-pill px-3" 
+              @click="isCopyRoleModalOpen = false"
+            >
+              Batal
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-sm btn-primary rounded-pill px-4 fw-semibold"
+              :disabled="isSubmittingCopyRole || !copySourceRoleId || copyTargetRoleIds.length === 0"
+              @click="submitCopyRole"
+            >
+              <span v-if="isSubmittingCopyRole" class="spinner-border spinner-border-sm me-1"></span>
+              <span>{{ isSubmittingCopyRole ? 'Menyalin...' : 'Terapkan Salin Izin' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- MODAL 5: KELOLA OVERRIDE MASSAL PANITIA (BULK USER OVERRIDE)      -->
+    <!-- ================================================================= -->
+    <div 
+      v-if="isBulkUserModalOpen" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      style="background: rgba(0, 0, 0, 0.6); z-index: 1055;"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+          <div class="modal-header border-bottom p-3.5">
+            <div>
+              <h5 class="modal-title fs-15 fw-bold d-flex align-items-center gap-2 mb-0.5">
+                <i class="ri-shield-user-line text-primary"></i>
+                <span>{{ bulkUserAction === 'grant' ? 'Beri Izin Khusus Serentak' : (bulkUserAction === 'revoke' ? 'Blokir Izin Spesifik Serentak' : 'Hapus Override Izin Tertentu') }}</span>
+              </h5>
+              <small class="text-muted fs-11">
+                Akan diterapkan pada <strong>{{ selectedUserIds.length }} panitia</strong> terpilih.
+              </small>
+            </div>
+            <button 
+              type="button" 
+              class="btn-close" 
+              @click="isBulkUserModalOpen = false"
+              aria-label="Tutup"
+            ></button>
+          </div>
+
+          <div class="modal-body p-3.5 d-flex flex-column gap-3">
+            <div class="d-flex align-items-center justify-content-between">
+              <span class="fs-12 fw-semibold text-dark-emphasis">Pilih Hak Akses ({{ bulkUserPermNames.length }} Dipilih):</span>
+              <div class="d-flex gap-2">
+                <button 
+                  type="button" 
+                  class="btn btn-xs btn-outline-info rounded-pill px-2.5"
+                  @click="bulkUserPermNames = allPermissions.filter(p => p.name.endsWith('.view') && !p.name.startsWith('settings.')).map(p => p.name)"
+                >
+                  <i class="ri-eye-line me-1"></i>Hanya Lihat Saja
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-xs btn-outline-primary rounded-pill px-2.5"
+                  @click="bulkUserPermNames = allPermissions.map(p => p.name)"
+                >
+                  Pilih Semua
+                </button>
+                <button 
+                  type="button" 
+                  class="btn btn-xs btn-outline-secondary rounded-pill px-2.5"
+                  @click="bulkUserPermNames = []"
+                >
+                  Kosongkan
+                </button>
+              </div>
+            </div>
+
+            <div class="d-flex flex-column gap-3" style="max-height: 420px; overflow-y: auto;">
+              <div 
+                v-for="(perms, grpName) in permissionsGrouped" 
+                :key="grpName"
+                class="card border rounded-3 shadow-none p-2.5 bg-card"
+              >
+                <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom">
+                  <span class="fs-12 fw-bold text-dark-emphasis">{{ grpName }}</span>
+                  <div class="d-flex gap-1">
+                    <button 
+                      type="button" 
+                      class="btn btn-link btn-xs p-0 text-primary text-decoration-none"
+                      @click="toggleBulkUserGroup(perms, true)"
+                    >
+                      Pilih Semua
+                    </button>
+                    <span class="text-muted">|</span>
+                    <button 
+                      type="button" 
+                      class="btn btn-link btn-xs p-0 text-secondary text-decoration-none"
+                      @click="toggleBulkUserGroup(perms, false)"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </div>
+                <div class="row g-2">
+                  <div v-for="p in perms" :key="p.name" class="col-md-6">
+                    <div 
+                      class="p-2 rounded-2 border d-flex align-items-start gap-2 cursor-pointer transition-all"
+                      :class="bulkUserPermNames.includes(p.name) ? 'border-primary bg-primary-subtle' : 'bg-light-subtle'"
+                      @click="toggleBulkUserPerm(p.name)"
+                    >
+                      <input 
+                        type="checkbox" 
+                        class="form-check-input mt-0.5 cursor-pointer" 
+                        :checked="bulkUserPermNames.includes(p.name)"
+                      />
+                      <div class="flex-grow-1">
+                        <div class="d-flex align-items-center justify-content-between gap-1">
+                          <span class="fs-11 fw-semibold text-dark-emphasis">{{ p.label }}</span>
+                          <span 
+                            class="badge rounded-pill fs-9 px-1 py-0.5"
+                            :class="getPermissionKindBadge(p.name).class"
+                          >
+                            {{ getPermissionKindBadge(p.name).label }}
+                          </span>
+                        </div>
+                        <small class="text-muted font-monospace fs-10 d-block">{{ p.name }}</small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer border-top p-3 d-flex justify-content-end gap-2">
+            <button 
+              type="button" 
+              class="btn btn-sm btn-light border rounded-pill px-3" 
+              @click="isBulkUserModalOpen = false"
+            >
+              Batal
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-sm btn-primary rounded-pill px-4 fw-semibold"
+              :disabled="isSubmittingBulkUser || bulkUserPermNames.length === 0"
+              @click="submitBulkUserOverrides"
+            >
+              <span v-if="isSubmittingBulkUser" class="spinner-border spinner-border-sm me-1"></span>
+              <span>{{ isSubmittingBulkUser ? 'Menerapkan...' : 'Terapkan Izin Serentak' }}</span>
+            </button>
           </div>
         </div>
       </div>

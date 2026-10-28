@@ -449,17 +449,18 @@ function toggleCheckboxOption(fieldName, opt) {
 const customFileState = ref({});
 
 function handleCustomFile(fieldName, event, maxFiles = 1) {
-  const selectedFiles = Array.from(event.target.files || []);
+  const selectedFiles = Array.from(event.target?.files || []);
   if (!selectedFiles.length) return;
 
-  if (maxFiles > 1) {
+  const limit = Math.max(1, Number(maxFiles || 1));
+  if (limit > 1) {
     const existing = Array.isArray(customFileState.value[fieldName]) 
       ? [...customFileState.value[fieldName]] 
       : (customFileState.value[fieldName] ? [customFileState.value[fieldName]] : []);
     const combined = [...existing, ...selectedFiles];
-    if (combined.length > maxFiles) {
-      toast.warning(`Maksimal hanya dapat mengunggah ${maxFiles} berkas untuk kolom ini.`);
-      customFileState.value[fieldName] = combined.slice(0, maxFiles);
+    if (combined.length > limit) {
+      toast.warning(`Maksimal hanya dapat mengunggah ${limit} berkas untuk kolom ini.`);
+      customFileState.value[fieldName] = combined.slice(0, limit);
     } else {
       customFileState.value[fieldName] = combined;
     }
@@ -1400,7 +1401,7 @@ function handleUnifiedSubmit() {
                       <!-- 9. Upload Berkas Khusus Cabang -->
                       <div v-else-if="field.type === 'file'">
                         <!-- Single File Mode -->
-                        <div v-if="(field.max_files || 1) <= 1" class="p-3 rounded-3 border border-dashed reg-upload-zone text-center">
+                        <div v-if="Number(field.max_files || 1) <= 1" class="p-3 rounded-3 border border-dashed reg-upload-zone text-center">
                           <input
                             type="file"
                             :id="'cf-' + field.name"
@@ -1451,7 +1452,7 @@ function handleUnifiedSubmit() {
                                 <i class="ri-folders-fill text-primary"></i> Berkas Terpilih ({{ getRegistrantFileList(field.name).length }} dari {{ field.max_files }})
                               </span>
                               <label 
-                                v-if="getRegistrantFileList(field.name).length < field.max_files"
+                                v-if="getRegistrantFileList(field.name).length < Number(field.max_files || 1)"
                                 :for="'cf-' + field.name" 
                                 class="btn btn-xs btn-outline-primary mb-0 cursor-pointer d-inline-flex align-items-center gap-1"
                               >

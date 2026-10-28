@@ -25,6 +25,9 @@ createInertiaApp({
         app.component('custom-select', CustomSelect);
         app.config.globalProperties.$echo = window.Echo;
         app.mount(el);
+        try {
+            window.dispatchEvent(new CustomEvent('semarak:page-ready'));
+        } catch (e) {}
         return app;
     },
     progress: {

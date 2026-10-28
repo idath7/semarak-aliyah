@@ -1499,6 +1499,9 @@ const defaultGalleryPhotos = [
     pillClass: 'pill-gold',
     iconClass: 'ri-trophy-fill',
     src: '/assets/img/gallery/gallery_awarding.jpg',
+    thumb: '/assets/img/gallery/gallery_awarding_thumb.webp',
+    thumbFallback: '/assets/img/gallery/gallery_awarding_thumb.jpg',
+    webp: '/assets/img/gallery/gallery_awarding.webp',
     location: 'Panggung Utama Semarak Aliyah',
     tag: 'Grand Awarding Ceremony',
     desc: 'Momen puncak penyerahan piala bergilir kehormatan Kementerian Agama dan uang pembinaan kepada kontingen madrasah berprestasi.',
@@ -1511,6 +1514,9 @@ const defaultGalleryPhotos = [
     pillClass: 'pill-purple',
     iconClass: 'ri-gamepad-fill',
     src: '/assets/img/gallery/gallery_esport.jpg',
+    thumb: '/assets/img/gallery/gallery_esport_thumb.webp',
+    thumbFallback: '/assets/img/gallery/gallery_esport_thumb.jpg',
+    webp: '/assets/img/gallery/gallery_esport.webp',
     location: 'E-Sport Center Maswahas',
     tag: 'Mobile Legends Bang Bang',
     desc: 'Duel sengit perebutan tahta Land of Dawn antartim SMP/MTs terbaik se-Kabupaten Jember dengan tata panggung turnamen berstandar esports.',
@@ -1523,6 +1529,9 @@ const defaultGalleryPhotos = [
     pillClass: 'pill-blue',
     iconClass: 'ri-flask-fill',
     src: '/assets/img/gallery/gallery_olimpiade.jpg',
+    thumb: '/assets/img/gallery/gallery_olimpiade_thumb.webp',
+    thumbFallback: '/assets/img/gallery/gallery_olimpiade_thumb.jpg',
+    webp: '/assets/img/gallery/gallery_olimpiade.webp',
     location: 'Auditorium Sains Terpadu',
     tag: 'Olimpiade SMP/MTs',
     desc: 'Ratusan saintis belia adu ketelitian dan kecerdasan dalam menyelesaikan studi kasus sains, matematika terapan, dan logika analitis.',
@@ -1535,6 +1544,9 @@ const defaultGalleryPhotos = [
     pillClass: 'pill-pink',
     iconClass: 'ri-mic-fill',
     src: '/assets/img/gallery/gallery_storytelling.jpg',
+    thumb: '/assets/img/gallery/gallery_storytelling_thumb.webp',
+    thumbFallback: '/assets/img/gallery/gallery_storytelling_thumb.jpg',
+    webp: '/assets/img/gallery/gallery_storytelling.webp',
     location: 'Stage Kreasi Bahasa',
     tag: 'Storytelling & Speech',
     desc: 'Penampilan memukau bertutur cerita bahasa Inggris dan pidato bahasa Arab penuh ekspresi, artikulasi tajam, dan kostum teatrikal tematik.',
@@ -1549,6 +1561,9 @@ const defaultGalleryPhotos = [
     pillClass: 'pill-green',
     iconClass: 'ri-music-2-fill',
     src: '/assets/img/gallery/gallery_albanjari.jpg',
+    thumb: '/assets/img/gallery/gallery_albanjari_thumb.webp',
+    thumbFallback: '/assets/img/gallery/gallery_albanjari_thumb.jpg',
+    webp: '/assets/img/gallery/gallery_albanjari.webp',
     location: 'Panggung Terbuka Plaza',
     tag: 'Festival Banjari Jatim',
     desc: 'Harmoni tabuhan terbang dan lantunan syair shalawat merdu menyatukan syiar Islam dan keindahan kesenian tradisi nusantara.',
@@ -1561,6 +1576,9 @@ const defaultGalleryPhotos = [
     pillClass: 'pill-orange',
     iconClass: 'ri-football-fill',
     src: '/assets/img/gallery/gallery_volleyball.jpg',
+    thumb: '/assets/img/gallery/gallery_volleyball_thumb.webp',
+    thumbFallback: '/assets/img/gallery/gallery_volleyball_thumb.jpg',
+    webp: '/assets/img/gallery/gallery_volleyball.webp',
     location: 'Lapangan Utama Maswahas',
     tag: 'Turnamen Voli Pelajar',
     desc: 'Aksi heroik penyelamatan bola dan lonjakan spike tajam memukau ratusan pasang mata penonton di pinggir lapangan.',
@@ -1573,6 +1591,9 @@ const defaultGalleryPhotos = [
     pillClass: 'pill-purple',
     iconClass: 'ri-voiceprint-fill',
     src: '/assets/img/gallery/gallery_singer.jpg',
+    thumb: '/assets/img/gallery/gallery_singer_thumb.webp',
+    thumbFallback: '/assets/img/gallery/gallery_singer_thumb.jpg',
+    webp: '/assets/img/gallery/gallery_singer.webp',
     location: 'Teater Tertutup Maswahas',
     tag: 'Solo Song Competition',
     desc: 'Penjiwaan mendalam dan teknik olah vokal spektakuler peserta solo singer dalam melantunkan tembang religi kontemporer.',
@@ -1585,6 +1606,9 @@ const defaultGalleryPhotos = [
     pillClass: 'pill-gold',
     iconClass: 'ri-flag-fill',
     src: '/assets/img/gallery/gallery_supporters.jpg',
+    thumb: '/assets/img/gallery/gallery_supporters_thumb.webp',
+    thumbFallback: '/assets/img/gallery/gallery_supporters_thumb.jpg',
+    webp: '/assets/img/gallery/gallery_supporters.webp',
     location: 'Tribun Gelanggang Olahraga',
     tag: 'Supporter of the Year',
     desc: 'Semangat kebersamaan dan yel-yel kreatif suporter madrasah yang terus bergelora memberikan energi tanpa henti bagi para atlet.',
@@ -1790,16 +1814,40 @@ function handleLightboxKey(e) {
           <div class="hero-visual">
             <div class="hero-visual-wrapper">
               <div class="hero-main-card">
-                <img :src="heroSettings?.hero_poster_image || '/assets/img/pamflet.jpg'" alt="Pamflet Resmi Semarak Aliyah XIV 2026" class="hero-poster-img" loading="eager">
+                <picture>
+                  <source 
+                    :srcset="heroSettings?.hero_poster_image ? heroSettings.hero_poster_image.replace(/\.(jpg|jpeg|png)$/i, '.webp') : '/assets/img/pamflet.webp'" 
+                    type="image/webp"
+                  >
+                  <img 
+                    :src="heroSettings?.hero_poster_image || '/assets/img/pamflet.jpg'" 
+                    alt="Pamflet Resmi Semarak Aliyah XIV 2026" 
+                    class="hero-poster-img" 
+                    loading="eager"
+                    fetchpriority="high"
+                    decoding="async"
+                    width="450"
+                    height="636"
+                  >
+                </picture>
               </div>
 
               <!-- Floating Character Mascot -->
-              <img 
-                v-if="heroSettings?.hero_mascot_active !== false"
-                :src="heroSettings?.hero_mascot_image || '/assets/img/kadita.png'" 
-                alt="Mascot Semarak Aliyah" 
-                class="hero-character-float"
-              >
+              <picture v-if="heroSettings?.hero_mascot_active !== false">
+                <source 
+                  :srcset="heroSettings?.hero_mascot_image ? heroSettings.hero_mascot_image.replace(/\.(png|jpg|jpeg)$/i, '.webp') : '/assets/img/kadita.webp'" 
+                  type="image/webp"
+                >
+                <img 
+                  :src="heroSettings?.hero_mascot_image || '/assets/img/kadita.png'" 
+                  alt="Mascot Semarak Aliyah" 
+                  class="hero-character-float"
+                  loading="eager"
+                  decoding="async"
+                  width="320"
+                  height="197"
+                >
+              </picture>
 
               <!-- Floating Info Pill -->
               <div v-if="heroSettings?.hero_float_badge_active !== false" class="hero-badge-float">
@@ -2476,6 +2524,7 @@ function handleLightboxKey(e) {
                 :alt="sp.name || 'Logo Sponsor'" 
                 class="sponsor-brand-logo-only" 
                 loading="lazy"
+                decoding="async"
                 draggable="false"
               />
               <div v-else class="sponsor-brand-logo-placeholder">
@@ -2501,7 +2550,7 @@ function handleLightboxKey(e) {
                   class="sponsor-icon-wrap" 
                   :style="{ backgroundColor: sp.bgLight, color: sp.color, borderColor: sp.borderLight }"
                 >
-                  <img v-if="sp.logo" :src="sp.logo" :alt="sp.name" class="sponsor-thumb-logo" draggable="false" />
+                  <img v-if="sp.logo" :src="sp.logo" :alt="sp.name" class="sponsor-thumb-logo" loading="lazy" decoding="async" draggable="false" />
                   <i v-else :class="sp.icon"></i>
                 </div>
                 <div class="sponsor-info">
@@ -2572,12 +2621,18 @@ function handleLightboxKey(e) {
               :title="`Klik untuk memperbesar: ${photo.title}`"
             >
               <div class="gallery-thumb-wrap">
-                <img 
-                  :src="photo.src" 
-                  :alt="photo.title" 
-                  class="gallery-thumb-img" 
-                  loading="lazy"
-                />
+                <picture>
+                  <source v-if="photo.thumb" :srcset="photo.thumb" type="image/webp">
+                  <img 
+                    :src="photo.thumbFallback || photo.thumb || photo.src" 
+                    :alt="photo.title" 
+                    class="gallery-thumb-img" 
+                    loading="lazy"
+                    decoding="async"
+                    width="320"
+                    height="210"
+                  />
+                </picture>
                 <div class="gallery-overlay">
                   <div class="gallery-top-badges">
                     <span class="gallery-cat-pill" :class="photo.pillClass">
@@ -2616,12 +2671,18 @@ function handleLightboxKey(e) {
               :title="`Klik untuk memperbesar: ${photo.title}`"
             >
               <div class="gallery-thumb-wrap">
-                <img 
-                  :src="photo.src" 
-                  :alt="photo.title" 
-                  class="gallery-thumb-img" 
-                  loading="lazy"
-                />
+                <picture>
+                  <source v-if="photo.thumb" :srcset="photo.thumb" type="image/webp">
+                  <img 
+                    :src="photo.thumbFallback || photo.thumb || photo.src" 
+                    :alt="photo.title" 
+                    class="gallery-thumb-img" 
+                    loading="lazy"
+                    decoding="async"
+                    width="320"
+                    height="210"
+                  />
+                </picture>
                 <div class="gallery-overlay">
                   <div class="gallery-top-badges">
                     <span class="gallery-cat-pill" :class="photo.pillClass">
@@ -2684,11 +2745,15 @@ function handleLightboxKey(e) {
           </button>
 
           <div class="gallery-lightbox-img-wrap">
-            <img 
-              :src="currentPhoto.src" 
-              :alt="currentPhoto.title" 
-              class="gallery-lightbox-img" 
-            />
+            <picture>
+              <source v-if="currentPhoto.webp" :srcset="currentPhoto.webp" type="image/webp">
+              <img 
+                :src="currentPhoto.src" 
+                :alt="currentPhoto.title" 
+                class="gallery-lightbox-img" 
+                decoding="async"
+              />
+            </picture>
           </div>
 
           <div class="gallery-lightbox-caption">

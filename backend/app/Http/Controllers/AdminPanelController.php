@@ -3150,6 +3150,8 @@ class AdminPanelController extends Controller
             'visual_particles_active' => Setting::get('visual_particles_active', '1') === '1',
             'visual_particles_type' => Setting::get('visual_particles_type', 'glitter'),
             'back_to_top_active' => Setting::get('back_to_top_active', '1') === '1',
+            'preloader_active' => Setting::get('preloader_active', '1') === '1',
+            'preloader_text' => Setting::get('preloader_text', 'Memuat keseruan Semarak Aliyah...'),
 
             // 7. Hero Section Customization
             'hero_badge_text' => Setting::get('hero_badge_text', 'Ajang Kompetisi Pelajar SMP/MTs Se-Kabupaten Jember'),
@@ -3235,6 +3237,8 @@ class AdminPanelController extends Controller
             'visual_particles_active' => 'nullable',
             'visual_particles_type' => 'required|string|in:glitter,confetti,snow',
             'back_to_top_active' => 'nullable',
+            'preloader_active' => 'nullable',
+            'preloader_text' => 'nullable|string|max:100',
 
             // Hero Section
             'hero_badge_text' => 'nullable|string|max:255',
@@ -3282,6 +3286,7 @@ class AdminPanelController extends Controller
         Setting::set('countdown_show_seconds', $request->boolean('countdown_show_seconds') ? '1' : '0');
         Setting::set('visual_particles_active', $request->boolean('visual_particles_active') ? '1' : '0');
         Setting::set('back_to_top_active', $request->boolean('back_to_top_active') ? '1' : '0');
+        Setting::set('preloader_active', $request->boolean('preloader_active') ? '1' : '0');
 
         // Hero Booleans
         Setting::set('hero_badge_pulse', $request->boolean('hero_badge_pulse') ? '1' : '0');
@@ -3302,7 +3307,7 @@ class AdminPanelController extends Controller
             'floating_wa_number', 'floating_wa_message', 'floating_wa_label', 'floating_wa_position', 'floating_wa_animation',
             'countdown_title', 'countdown_target_date', 'countdown_ended_text',
             'custom_css', 'custom_head_script', 'custom_body_script',
-            'visual_particles_type',
+            'visual_particles_type', 'preloader_text',
             'hero_badge_text', 'hero_headline_prefix', 'hero_headline_highlight', 'hero_subheadline',
             'hero_cta1_text', 'hero_cta1_url', 'hero_cta2_text', 'hero_cta2_url', 'hero_cta3_text', 'hero_cta3_url',
             'hero_poster_image', 'hero_mascot_image',
@@ -3376,6 +3381,8 @@ class AdminPanelController extends Controller
             'visual_particles_active' => '1',
             'visual_particles_type' => 'glitter',
             'back_to_top_active' => '1',
+            'preloader_active' => '1',
+            'preloader_text' => 'Memuat keseruan Semarak Aliyah...',
 
             // Hero Section Defaults
             'hero_badge_text' => 'Ajang Kompetisi Pelajar SMP/MTs Se-Kabupaten Jember',

@@ -271,7 +271,10 @@ onUnmounted(() => {
         <div class="nav-wrapper">
           <Link href="/" class="brand-logo" aria-label="Beranda Semarak Aliyah">
             <div class="brand-logo-badge">
-              <img src="/assets/img/logo.png" alt="Logo Semarak Aliyah 2026">
+              <picture>
+                <source srcset="/assets/img/logo.webp" type="image/webp">
+                <img src="/assets/img/logo.png" alt="Logo Semarak Aliyah 2026" width="32" height="32" decoding="async">
+              </picture>
             </div>
             <div class="brand-info">
               <span class="brand-title">
@@ -397,7 +400,10 @@ onUnmounted(() => {
       <div class="mobile-drawer-head">
         <div class="drawer-brand">
           <div class="brand-logo-badge" style="width: 36px; height: 36px;">
-            <img src="/assets/img/logo.png" alt="Logo" style="height: 24px;">
+            <picture>
+              <source srcset="/assets/img/logo.webp" type="image/webp">
+              <img src="/assets/img/logo.png" alt="Logo" style="height: 24px;" width="24" height="24" loading="lazy" decoding="async">
+            </picture>
           </div>
           <div>
             <div class="drawer-title">
@@ -520,7 +526,10 @@ onUnmounted(() => {
           <!-- Brand / About Column -->
           <div class="footer-brand">
             <div class="footer-brand-header">
-              <img src="/assets/img/logo.png" alt="Logo Semarak Aliyah" class="footer-logo-img">
+              <picture>
+                <source srcset="/assets/img/logo.webp" type="image/webp">
+                <img src="/assets/img/logo.png" alt="Logo Semarak Aliyah" class="footer-logo-img" width="48" height="48" loading="lazy" decoding="async">
+              </picture>
               <div>
                 <div class="footer-brand-title">
                   {{ eventInfo.base }}
@@ -653,7 +662,10 @@ onUnmounted(() => {
       <div class="popup-modal-card">
         <button type="button" class="popup-modal-close" @click="closePopup" aria-label="Tutup Pop-up">&times;</button>
         <div v-if="kustomisasi.popup_image" class="popup-modal-image-wrap">
-          <img :src="kustomisasi.popup_image" alt="Poster Pengumuman" class="popup-modal-img" />
+          <picture>
+            <source :srcset="kustomisasi.popup_image.replace(/\.(jpg|jpeg|png)$/i, '.webp')" type="image/webp">
+            <img :src="kustomisasi.popup_image" alt="Poster Pengumuman" class="popup-modal-img" loading="lazy" decoding="async" />
+          </picture>
         </div>
         <div class="popup-modal-body">
           <span v-if="kustomisasi.popup_badge" class="popup-modal-badge">{{ kustomisasi.popup_badge }}</span>

@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use App\Models\User;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -41,8 +42,9 @@ class HandleInertiaRequests extends Middleware
                 'user' => function () use ($request) {
                     $isAdminOrOperasionalRoute = $request->is('admin', 'admin/*', 'operasional', 'operasional/*');
                     if ($isAdminOrOperasionalRoute) {
+                        /** @var User|null $user */
                         $user = \Illuminate\Support\Facades\Auth::guard('web')->user();
-                        if ($user) {
+                        if ($user instanceof User) {
                             $user->loadMissing('roleRelation');
                             return [
                                 'id' => $user->id,
@@ -139,6 +141,8 @@ class HandleInertiaRequests extends Middleware
                 'visual_particles_active' => \App\Models\Setting::get('visual_particles_active', '1') === '1',
                 'visual_particles_type' => \App\Models\Setting::get('visual_particles_type', 'glitter'),
                 'back_to_top_active' => \App\Models\Setting::get('back_to_top_active', '1') === '1',
+                'preloader_active' => \App\Models\Setting::get('preloader_active', '1') === '1',
+                'preloader_text' => \App\Models\Setting::get('preloader_text', 'Memuat keseruan Semarak Aliyah...'),
             ],
             'generalJuknis' => fn () => \App\Models\Setting::getGeneralJuknis(),
             'paymentBankAccounts' => fn () => \App\Models\Setting::getBankAccounts(),

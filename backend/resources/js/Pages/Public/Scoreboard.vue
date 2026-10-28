@@ -254,7 +254,10 @@ onUnmounted(() => {
 
           <!-- Brand Identity -->
           <div class="topbar-identity">
-            <img src="/assets/images/logo/logo-semarak.png" alt="Logo Semarak Aliyah" class="topbar-logo-img" />
+            <picture>
+              <source srcset="/assets/img/logo.webp" type="image/webp">
+              <img src="/assets/img/logo.png" alt="Logo Semarak Aliyah" class="topbar-logo-img" width="36" height="36" decoding="async" />
+            </picture>
             <div class="topbar-identity-text">
               <span class="identity-title">
                 {{ eventInfo.base }}
@@ -634,7 +637,10 @@ onUnmounted(() => {
         <footer class="scoreboard-minimal-footer">
           <div class="footer-minimal-inner">
             <div class="footer-left-info">
-              <img src="/assets/images/logo/logo-semarak.png" alt="Logo" class="footer-mini-logo" />
+              <picture>
+                <source srcset="/assets/img/logo.webp" type="image/webp">
+                <img src="/assets/img/logo.png" alt="Logo" class="footer-mini-logo" width="22" height="22" loading="lazy" decoding="async" />
+              </picture>
               <span>© {{ eventInfo.year || '2026' }} <strong>{{ school.event_name || 'SEMARAK ALIYAH XIV' }}</strong> • {{ school.school_name || 'MA Unggulan Wahid Hasyim Balung' }}. Papan Skor Resmi Kejuaraan.</span>
             </div>
             <Link href="/" class="footer-back-link">

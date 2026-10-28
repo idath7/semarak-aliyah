@@ -1205,6 +1205,65 @@
                       </div>
                     </div>
                   </div>
+
+                  <!-- Animasi Preload Halaman Publik (Cold Start & Refresh) -->
+                  <div class="col-12 mt-4 pt-3 border-top">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <div>
+                        <div class="fw-bold fs-13 section-title-text d-flex align-items-center gap-2">
+                          <i class="ri-loader-3-line text-primary fs-16"></i>
+                          <span>Animasi Preload Web Publik (Akses Pertama & Refresh)</span>
+                          <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-10 px-2 py-0.5 rounded-pill">Rekomendasi</span>
+                        </div>
+                        <small class="text-muted fs-12">Menampilkan transisi logo & spinner orbital saat pengunjung pertama kali membuka website atau me-refresh browser.</small>
+                      </div>
+                      <div class="form-check form-switch form-switch-md mb-0">
+                        <input 
+                          class="form-check-input cursor-pointer" 
+                          type="checkbox" 
+                          id="preloaderActiveSwitch"
+                          v-model="form.preloader_active"
+                        />
+                      </div>
+                    </div>
+
+                    <div v-if="form.preloader_active" class="mt-3 p-3 rounded-3 border bg-light-subtle">
+                      <div class="row g-3 align-items-center">
+                        <div class="col-md-8">
+                          <label class="form-label fs-12 fw-semibold text-muted mb-1" for="preloaderTextInput">
+                            Teks Indikator Status Loading
+                          </label>
+                          <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-body border-end-0 text-muted">
+                              <i class="ri-chat-voice-line"></i>
+                            </span>
+                            <input 
+                              type="text" 
+                              id="preloaderTextInput" 
+                              class="form-control" 
+                              v-model="form.preloader_text" 
+                              placeholder="Contoh: Memuat keseruan Semarak Aliyah..."
+                              maxlength="100"
+                            />
+                          </div>
+                          <small class="text-muted fs-11 mt-1 d-block">Teks ini akan tampil tepat di bawah progress bar animasi dengan efek titik berdenyut.</small>
+                        </div>
+
+                        <div class="col-md-4 text-md-end mt-2 mt-md-0">
+                          <label class="form-label fs-12 fw-semibold text-muted d-none d-md-block">&nbsp;</label>
+                          <button 
+                            type="button" 
+                            class="btn btn-sm btn-soft-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+                            @click="triggerPreloadPreview"
+                            :disabled="isPreloaderPreviewing"
+                          >
+                            <i class="ri-play-circle-line fs-14"></i>
+                            <span>{{ isPreloaderPreviewing ? 'Sedang Memutar...' : 'Uji Coba Animasi' }}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1566,6 +1625,11 @@
                     <span class="badge" :class="form.back_to_top_active ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'">{{ form.back_to_top_active ? 'Aktif' : 'Mati' }}</span>
                   </div>
                   <div class="d-flex align-items-center gap-2 mb-2">
+                    <i class="ri-checkbox-circle-fill text-success fs-16"></i>
+                    <span class="fw-semibold section-title-text">Animasi Preload:</span>
+                    <span class="badge" :class="form.preloader_active ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'">{{ form.preloader_active ? 'Aktif' : 'Mati' }}</span>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 mb-2">
                     <i class="ri-code-line text-info fs-16"></i>
                     <span class="fw-semibold section-title-text">Custom CSS:</span>
                     <span class="badge preview-badge-realtime border">{{ form.custom_css ? form.custom_css.length + ' karakter' : 'Kosong' }}</span>
@@ -1631,6 +1695,67 @@
         </div>
       </div>
     </div>
+
+    <!-- ======================================================================
+         PREVIEW OVERLAY FOR PRELOADER ANIMATION
+         ====================================================================== -->
+    <Teleport to="body">
+      <div 
+        v-if="isPreloaderPreviewing" 
+        id="public-preloader" 
+        class="public-preloader"
+        style="position: fixed; inset: 0; z-index: 99999999;"
+        aria-hidden="true"
+      >
+        <div class="preloader-backdrop"></div>
+        <div class="preloader-glow-orb preloader-glow-1"></div>
+        <div class="preloader-glow-orb preloader-glow-2"></div>
+        
+        <div class="preloader-stage">
+          <div class="preloader-logo-area">
+            <div class="preloader-orbit-outer"></div>
+            <div class="preloader-orbit-inner"></div>
+            <div class="preloader-logo-halo"></div>
+            <div class="preloader-logo-badge">
+              <img src="/assets/img/logo.png" alt="Logo Semarak" class="preloader-logo-img" />
+            </div>
+          </div>
+
+          <div class="preloader-brand-box">
+            <div class="preloader-badge-tag">
+              <span class="preloader-sparkle">✦</span>
+              <span>SEMARAK ALIYAH XIV 2026</span>
+              <span class="preloader-sparkle">✦</span>
+            </div>
+            <h1 class="preloader-school-title">MA Unggulan Wahid Hasyim Balung</h1>
+          </div>
+
+          <div class="preloader-progress-wrap">
+            <div class="preloader-progress-track">
+              <div class="preloader-progress-bar" style="width: 85%;">
+                <div class="preloader-shimmer"></div>
+              </div>
+            </div>
+            <div class="preloader-status-text">
+              <span class="preloader-status-msg">{{ form.preloader_text || 'Memuat keseruan Semarak Aliyah...' }}</span>
+              <span class="preloader-dot-pulse">
+                <span>.</span><span>.</span><span>.</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <button 
+              type="button" 
+              class="btn btn-sm btn-outline-light rounded-pill px-3 py-1 fs-11"
+              @click="isPreloaderPreviewing = false"
+            >
+              <i class="ri-close-line me-1"></i> Selesai Preview
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </KustomisasiLayout>
 </template>
 
@@ -1752,12 +1877,22 @@ const form = ref({
   visual_particles_active: props.settings.visual_particles_active !== false,
   visual_particles_type: props.settings.visual_particles_type || 'glitter',
   back_to_top_active: props.settings.back_to_top_active !== false,
+  preloader_active: props.settings.preloader_active !== false,
+  preloader_text: props.settings.preloader_text || 'Memuat keseruan Semarak Aliyah...',
 });
 
 const isSaving = ref(false);
 const isResetModalOpen = ref(false);
 const isResetting = ref(false);
 const previewImageError = ref(false);
+const isPreloaderPreviewing = ref(false);
+
+function triggerPreloadPreview() {
+  isPreloaderPreviewing.value = true;
+  setTimeout(() => {
+    isPreloaderPreviewing.value = false;
+  }, 2500);
+}
 
 function addStatItem() {
   form.value.stats_items.push({
@@ -2152,5 +2287,246 @@ function submitReset() {
     linear-gradient(-45deg, #0f172a 25%, transparent 25%), 
     linear-gradient(45deg, transparent 75%, #0f172a 75%), 
     linear-gradient(-45deg, transparent 75%, #0f172a 75%);
+}
+
+/* ==========================================================================
+   PUBLIC PRELOADER PREVIEW STYLES (MATCHES app.blade.php)
+   ========================================================================== */
+#public-preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 99999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+  background-color: #0b0f19;
+  color: #f8fafc;
+}
+
+[data-bs-theme="light"] #public-preloader {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+.preloader-glow-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(40px);
+}
+.preloader-glow-1 {
+  width: 460px;
+  height: 460px;
+  top: 25%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.24) 0%, rgba(236, 72, 153, 0.12) 45%, transparent 70%);
+  animation: preloaderPulseGlow 4s ease-in-out infinite alternate;
+}
+.preloader-glow-2 {
+  width: 320px;
+  height: 320px;
+  bottom: 10%;
+  right: 15%;
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.12) 0%, transparent 65%);
+}
+
+.preloader-stage {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 24px;
+  max-width: 440px;
+  width: 100%;
+}
+
+.preloader-logo-area {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+.preloader-orbit-outer {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  border-top-color: #8b5cf6;
+  border-right-color: #ec4899;
+  border-bottom-color: #f97316;
+  animation: preloaderSpin 2.4s cubic-bezier(0.68, -0.2, 0.27, 1.2) infinite;
+}
+.preloader-orbit-inner {
+  position: absolute;
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(139, 92, 246, 0.4);
+  animation: preloaderSpinRev 3.5s linear infinite;
+}
+.preloader-logo-halo {
+  position: absolute;
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, rgba(236, 72, 153, 0.18) 50%, transparent 70%);
+  animation: preloaderHalo 2.4s ease-in-out infinite;
+}
+.preloader-logo-badge {
+  position: relative;
+  z-index: 3;
+  width: 86px;
+  height: 86px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #111827;
+  border: 1.5px solid rgba(139, 92, 246, 0.38);
+  box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.7);
+  animation: preloaderFloat 2.6s ease-in-out infinite;
+}
+[data-bs-theme="light"] .preloader-logo-badge {
+  background: #ffffff;
+  border-color: rgba(139, 92, 246, 0.2);
+  box-shadow: 0 16px 36px -10px rgba(139, 92, 246, 0.22);
+}
+.preloader-logo-img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+
+.preloader-brand-box {
+  margin-bottom: 24px;
+}
+.preloader-badge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.45);
+  color: #c4b5fd;
+}
+[data-bs-theme="light"] .preloader-badge-tag {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(139, 92, 246, 0.22);
+  color: #7c3aed;
+}
+.preloader-sparkle {
+  font-size: 0.72rem;
+  color: #f59e0b;
+}
+.preloader-school-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0;
+  color: #f1f5f9;
+}
+[data-bs-theme="light"] .preloader-school-title {
+  color: #1e293b;
+}
+
+.preloader-progress-wrap {
+  width: 100%;
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.preloader-progress-track {
+  width: 100%;
+  height: 4.5px;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+  background: rgba(30, 41, 59, 0.85);
+}
+[data-bs-theme="light"] .preloader-progress-track {
+  background: rgba(226, 232, 240, 0.85);
+}
+.preloader-progress-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #8b5cf6 0%, #ec4899 45%, #f97316 80%, #10b981 100%);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.preloader-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  transform: translateX(-100%);
+  animation: preloaderShimmer 1.5s infinite linear;
+}
+.preloader-status-text {
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #cbd5e1;
+}
+[data-bs-theme="light"] .preloader-status-text {
+  color: #475569;
+}
+.preloader-dot-pulse span {
+  display: inline-block;
+  font-weight: 700;
+  animation: preloaderDot 1.4s infinite ease-in-out both;
+}
+.preloader-dot-pulse span:nth-child(1) { animation-delay: 0s; }
+.preloader-dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+.preloader-dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes preloaderSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes preloaderSpinRev {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(-360deg); }
+}
+@keyframes preloaderFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes preloaderHalo {
+  0%, 100% { transform: scale(0.95); opacity: 0.5; }
+  50% { transform: scale(1.08); opacity: 0.9; }
+}
+@keyframes preloaderPulseGlow {
+  0% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.7; }
+  100% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
+}
+@keyframes preloaderShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+@keyframes preloaderDot {
+  0%, 80%, 100% { opacity: 0.2; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
 }
 </style>

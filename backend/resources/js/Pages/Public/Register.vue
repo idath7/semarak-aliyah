@@ -220,8 +220,269 @@ function toggleCheckboxOption(fieldName, opt) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Interactive Validation State & Dynamic Step Numbering
+// -----------------------------------------------------------------------------
+const validationErrors = ref({});
+const submitAttempted = ref(false);
+
 function getFieldError(fieldName) {
+  if (validationErrors.value[fieldName]) {
+    return validationErrors.value[fieldName];
+  }
   return form.errors['cf_' + fieldName] || form.errors[fieldName] || form.errors['custom_fields.' + fieldName];
+}
+
+function hasFieldError(fieldName) {
+  return !!getFieldError(fieldName);
+}
+
+function clearFieldError(fieldName) {
+  if (validationErrors.value[fieldName]) {
+    const updated = { ...validationErrors.value };
+    delete updated[fieldName];
+    validationErrors.value = updated;
+  }
+  if (form.errors[fieldName]) {
+    delete form.errors[fieldName];
+  }
+  if (form.errors['cf_' + fieldName]) {
+    delete form.errors['cf_' + fieldName];
+  }
+  if (form.errors['custom_fields.' + fieldName]) {
+    delete form.errors['custom_fields.' + fieldName];
+  }
+}
+
+function hasStudentError(idx) {
+  const prefix = `participant_${idx}_`;
+  return Object.keys(validationErrors.value).some(k => k.startsWith(prefix));
+}
+
+// Sequential dynamic step numbering for every section
+const stepNumbers = computed(() => {
+  let step = 1;
+  const map = {
+    package: step++,
+    school: step++,
+    roster: step++,
+  };
+  if (dynamicFields.value.length > 0) {
+    map.dynamic = step++;
+  }
+  if (calculatedFee.value > 0 && !isAllInFree.value) {
+    map.payment = step++;
+  }
+  map.notes = step;
+  return map;
+});
+
+// Human-readable list of all current errors for the summary alert banner
+const errorSummaryList = computed(() => {
+  const list = [];
+  const handledKeys = new Set();
+
+  Object.entries(validationErrors.value).forEach(([k, msg]) => {
+    if (msg) {
+      list.push({ key: k, message: msg });
+      handledKeys.add(k);
+    }
+  });
+
+  Object.entries(form.errors).forEach(([k, msg]) => {
+    const cleanKey = k.replace(/^cf_/, '').replace(/^custom_fields\./, '');
+    if (!handledKeys.has(k) && !handledKeys.has(cleanKey) && msg) {
+      list.push({ key: k, message: msg });
+    }
+  });
+
+  return list;
+});
+
+function scrollToField(fieldKey) {
+  if (fieldKey.startsWith('participant_')) {
+    const parts = fieldKey.split('_');
+    const pIdx = parseInt(parts[1], 10);
+    if (!isNaN(pIdx)) {
+      activeMemberTab.value = pIdx;
+    }
+  }
+
+  let targetId = '';
+  if (fieldKey === 'competition_id') targetId = 'reg-competition';
+  else if (fieldKey === 'school_name') targetId = 'reg-sekolah';
+  else if (fieldKey === 'school_district') targetId = 'reg-kecamatan';
+  else if (fieldKey === 'school_address') targetId = 'reg-alamat';
+  else if (fieldKey === 'mentor_name') targetId = 'reg-pendamping';
+  else if (fieldKey === 'mentor_wa') targetId = 'reg-wa';
+  else if (fieldKey === 'mentor_email') targetId = 'reg-email';
+  else if (fieldKey === 'participants_names') targetId = 'reg-peserta';
+  else if (fieldKey === 'payment_method') targetId = 'reg-payment-section';
+  else if (fieldKey === 'team_captain') targetId = 'reg-roster-section';
+  else if (fieldKey.startsWith('cf_')) targetId = fieldKey;
+  else if (fieldKey.startsWith('participant_')) targetId = fieldKey;
+
+  nextTick(() => {
+    let el = targetId ? document.getElementById(targetId) : null;
+    if (!el && fieldKey.startsWith('participant_')) {
+      el = document.querySelector(`[data-field="${fieldKey}"]`) || document.querySelector('.reg-student-card');
+    }
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.focus?.();
+    } else {
+      document.getElementById('form-validation-summary')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+}
+
+function validateForm() {
+  submitAttempted.value = true;
+  const errs = {};
+
+  // 1. Cabang Lomba
+  if (!form.competition_id) {
+    errs['competition_id'] = 'Cabang lomba wajib dipilih.';
+  }
+
+  // 2. Data Sekolah (jika bukan All-In yang sudah terverifikasi otomatis)
+  if (!isAllInFree.value) {
+    if (!form.school_name || !form.school_name.trim()) {
+      errs['school_name'] = 'Nama Asal Sekolah / Madrasah wajib diisi.';
+    }
+    if (!form.custom_fields?.['school_district'] || !form.custom_fields['school_district'].trim()) {
+      errs['school_district'] = 'Kecamatan Asal Sekolah wajib dipilih.';
+    }
+    if (!form.custom_fields?.['school_address'] || !form.custom_fields['school_address'].trim()) {
+      errs['school_address'] = 'Alamat lengkap Sekolah / Madrasah wajib diisi.';
+    }
+  }
+
+  // 3. Kontak Guru Pendamping / Pembina
+  if (!form.mentor_name || !form.mentor_name.trim()) {
+    errs['mentor_name'] = 'Nama Guru Pendamping / Pembina wajib diisi.';
+  }
+  const cleanWa = (form.mentor_wa || '').replace(/\D/g, '');
+  if (!cleanWa) {
+    errs['mentor_wa'] = 'Nomor WhatsApp Guru Pendamping wajib diisi.';
+  } else if (cleanWa.length < 10) {
+    errs['mentor_wa'] = 'Nomor WhatsApp pendamping minimal 10 digit angka valid (contoh: 081234567890).';
+  }
+
+  const mentorEmail = (form.custom_fields?.['mentor_email'] || '').trim();
+  if (!mentorEmail) {
+    errs['mentor_email'] = 'Alamat email Guru Pendamping wajib diisi.';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mentorEmail)) {
+    errs['mentor_email'] = 'Format alamat email guru pendamping tidak valid.';
+  }
+
+  // 4. Data Peserta Delegasi
+  if (repeaterField.value) {
+    const activeList = participantsList.value.slice(0, participantCount.value);
+    let firstInvalidStudentIdx = -1;
+
+    activeList.forEach((p, idx) => {
+      // Nama Siswa
+      if (!p.name || !p.name.trim()) {
+        errs[`participant_${idx}_name`] = `Nama lengkap Siswa #${idx + 1} wajib diisi.`;
+        if (firstInvalidStudentIdx === -1) firstInvalidStudentIdx = idx;
+      }
+
+      // Kapten WA jika siswa ditandai sebagai kapten
+      if (repeaterField.value.sub_fields?.captain_option?.active && p.is_captain) {
+        const capWa = (p.captain_wa || '').replace(/\D/g, '');
+        if (!capWa) {
+          errs[`participant_${idx}_captain_wa`] = `Nomor WhatsApp Kapten Tim (Siswa #${idx + 1}) wajib diisi untuk koordinasi Technical Meeting.`;
+          if (firstInvalidStudentIdx === -1) firstInvalidStudentIdx = idx;
+        } else if (capWa.length < 10) {
+          errs[`participant_${idx}_captain_wa`] = `Nomor WhatsApp kapten tim minimal 10 digit angka valid.`;
+          if (firstInvalidStudentIdx === -1) firstInvalidStudentIdx = idx;
+        }
+      }
+
+      // Custom columns repeater jika required
+      if (repeaterField.value.sub_fields?.custom_columns?.length) {
+        repeaterField.value.sub_fields.custom_columns.forEach(col => {
+          if (col.required) {
+            const colKey = col.name || col.id || col.label;
+            const val = p.custom_columns?.[colKey];
+            if (val === undefined || val === null || String(val).trim() === '') {
+              errs[`participant_${idx}_col_${colKey}`] = `Kolom '${col.label}' untuk Siswa #${idx + 1} wajib diisi.`;
+              if (firstInvalidStudentIdx === -1) firstInvalidStudentIdx = idx;
+            }
+          }
+        });
+      }
+    });
+
+    // Cek apakah tim memerlukan kapten dan belum ada yang dipilih
+    if (teamInfo.value.isTeam && repeaterField.value.sub_fields?.captain_option?.active) {
+      const hasCaptain = activeList.some(p => p.is_captain);
+      if (!hasCaptain && activeList.length > 0) {
+        errs['team_captain'] = 'Satu siswa delegasi wajib ditandai sebagai Kapten Tim (klik "⭐ Jadikan Kapten").';
+      }
+    }
+
+    // Jika tab aktif saat ini bukan siswa yang error, otomatis buka tab siswa yang bermasalah
+    if (firstInvalidStudentIdx !== -1 && memberViewMode.value === 'tabs') {
+      activeMemberTab.value = firstInvalidStudentIdx;
+    }
+  } else {
+    // Textarea biasa
+    if (!form.participants_names || !form.participants_names.trim()) {
+      errs['participants_names'] = 'Nama lengkap peserta delegasi wajib dituliskan.';
+    }
+  }
+
+  // 5. Dynamic Custom Fields
+  if (dynamicFields.value.length > 0) {
+    dynamicFields.value.forEach(field => {
+      if (field.required && isFieldVisible(field)) {
+        if (field.type === 'file') {
+          const files = getCustomFileList(field.name);
+          const single = form.custom_fields?.[field.name];
+          const hasFile = Number(field.max_files || 1) > 1 ? files.length > 0 : !!single;
+          if (!hasFile) {
+            errs[`cf_${field.name}`] = `Berkas '${field.label}' wajib diunggah.`;
+          }
+        } else if (field.type === 'checkbox') {
+          const arr = form.custom_fields?.[field.name];
+          if (!Array.isArray(arr) || arr.length === 0) {
+            errs[`cf_${field.name}`] = `Pilihan '${field.label}' wajib dipilih minimal satu.`;
+          }
+        } else {
+          const val = form.custom_fields?.[field.name];
+          if (val === undefined || val === null || String(val).trim() === '') {
+            errs[`cf_${field.name}`] = `'${field.label}' wajib diisi.`;
+          }
+        }
+      }
+    });
+  }
+
+  // 6. Metode Pembayaran
+  if (calculatedFee.value > 0 && !isAllInFree.value) {
+    if (!form.payment_method || !form.payment_method.trim()) {
+      errs['payment_method'] = 'Metode pembayaran / rekening transfer tujuan wajib dipilih.';
+    }
+  }
+
+  validationErrors.value = errs;
+
+  if (Object.keys(errs).length > 0) {
+    nextTick(() => {
+      const banner = document.getElementById('form-validation-summary');
+      if (banner) {
+        banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        const firstInvalid = document.querySelector('.is-invalid, .field-has-error');
+        firstInvalid?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+    return false;
+  }
+
+  return true;
 }
 
 // Helper to parse and synchronize team rules (inti & cadangan) from competition management
@@ -357,6 +618,18 @@ onMounted(async () => {
       };
     }
     await checkSchoolStatus(initialSchool);
+  }
+
+  if (props.authRegistrant) {
+    if (props.authRegistrant.email && !form.custom_fields['mentor_email']) {
+      form.custom_fields['mentor_email'] = props.authRegistrant.email;
+    }
+    if (props.authRegistrant.school_district && !form.custom_fields['school_district']) {
+      form.custom_fields['school_district'] = props.authRegistrant.school_district;
+    }
+    if (props.authRegistrant.school_address && !form.custom_fields['school_address']) {
+      form.custom_fields['school_address'] = props.authRegistrant.school_address;
+    }
   }
 
   if (props.preselectedLomba) {
@@ -969,6 +1242,11 @@ function handleSubmit() {
     return;
   }
 
+  // Validasi menyeluruh seluruh data wajib pendaftaran
+  if (!validateForm()) {
+    return;
+  }
+
   if (isAllInFree.value) {
     form.package_type = 'Paket All-In';
   }
@@ -1022,6 +1300,15 @@ function handleSubmit() {
     onSuccess: (page) => {
       isSuccess.value = true;
       registeredData.value = page.props.flash?.registered;
+      validationErrors.value = {};
+      submitAttempted.value = false;
+    },
+    onError: (errors) => {
+      validationErrors.value = { ...errors };
+      nextTick(() => {
+        const banner = document.getElementById('form-validation-summary');
+        banner?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
     }
   });
 }
@@ -1970,75 +2257,120 @@ function getCompDropdownSuffix(c) {
             <div v-else class="row g-4 align-items-start">
               <!-- LEFT COLUMN: FORM FIELDS (col-12 col-lg-8) -->
               <div class="col-12 col-lg-8">
-                <form id="registration-form" @submit.prevent="handleSubmit">
-              
-              <!-- CARD 1: PILIHAN PAKET & CABANG LOMBA -->
-              <div class="reg-section-card">
-                <div class="reg-section-header">
-                  <span class="reg-step-pill">1</span>
-                  <div>
-                    <h4 class="reg-section-title">Pilihan Paket & Cabang Lomba</h4>
-                    <p class="reg-section-desc">Pilih skema pendaftaran satuan per lomba atau paket komplit all-in.</p>
+                <form id="registration-form" novalidate @submit.prevent="handleSubmit">
+
+                  <!-- TOP PROMINENT VALIDATION ERROR SUMMARY BANNER -->
+                  <div 
+                    v-if="errorSummaryList.length > 0" 
+                    id="form-validation-summary" 
+                    class="reg-error-summary-banner mb-4"
+                  >
+                    <div class="banner-header">
+                      <div class="banner-icon">
+                        <i class="ri-error-warning-fill"></i>
+                      </div>
+                      <div class="banner-header-text">
+                        <h5 class="banner-title">Mohon Lengkapi {{ errorSummaryList.length }} Data Wajib Berikut</h5>
+                        <p class="banner-subtitle">
+                          Pendaftaran belum dapat dikirim karena masih terdapat isian yang belum terisi atau formatnya belum sesuai. Klik salah satu item untuk langsung menuju kolom yang perlu diperbaiki:
+                        </p>
+                      </div>
+                    </div>
+
+                    <ul class="banner-error-list">
+                      <li 
+                        v-for="(err, eIdx) in errorSummaryList" 
+                        :key="eIdx" 
+                        class="banner-error-item"
+                        @click="scrollToField(err.key)"
+                        title="Klik untuk langsung menuju kolom ini"
+                      >
+                        <div class="d-flex align-items-center gap-2 min-w-0">
+                          <i class="ri-alert-fill text-danger flex-shrink-0"></i>
+                          <span class="text-truncate">{{ err.message }}</span>
+                        </div>
+                        <span class="jump-link-hint">
+                          Perbaiki <i class="ri-corner-down-left-line"></i>
+                        </span>
+                      </li>
+                    </ul>
                   </div>
-                </div>
 
-                <div class="reg-package-grid">
-                  <!-- Paket Satuan -->
-                  <label 
-                    class="reg-package-item" 
-                    :class="{ 'is-selected': form.package_type === 'Paket Satuan' }"
-                  >
-                    <div class="reg-pkg-radio">
-                      <input type="radio" value="Paket Satuan" v-model="form.package_type" />
-                      <span class="custom-radio-dot"></span>
+                  <!-- CARD 1: PILIHAN PAKET & CABANG LOMBA -->
+                  <div class="reg-section-card">
+                    <div class="reg-section-header">
+                      <span class="reg-step-pill">{{ stepNumbers.package }}</span>
+                      <div>
+                        <h4 class="reg-section-title">Pilihan Paket & Cabang Lomba</h4>
+                        <p class="reg-section-desc">Pilih skema pendaftaran satuan per lomba atau paket komplit all-in.</p>
+                      </div>
                     </div>
-                    <div class="reg-pkg-content">
-                      <div class="reg-pkg-name">{{ pricingSettings?.satuan_name || 'Paket Satuan' }}</div>
-                      <div class="reg-pkg-price satuan-price">Rp {{ selectedCompFee.toLocaleString('id-ID') }} <span class="price-sub">/ Cabang</span></div>
-                      <div class="reg-pkg-note">Pendaftaran untuk 1 cabang lomba pilihan</div>
-                    </div>
-                  </label>
 
-                  <!-- Paket All-In -->
-                  <label 
-                    class="reg-package-item" 
-                    :class="{ 'is-selected': form.package_type === 'Paket All-In' }"
-                  >
-                    <div class="reg-pkg-radio">
-                      <input type="radio" value="Paket All-In" v-model="form.package_type" />
-                      <span class="custom-radio-dot"></span>
-                    </div>
-                    <div class="reg-pkg-content">
-                      <div class="reg-pkg-name">{{ pricingSettings?.allin_name || 'Paket All-In Komplit' }}</div>
-                      <div class="reg-pkg-price allin-price">Rp {{ Number(pricingSettings?.allin_price || 200000).toLocaleString('id-ID') }} <span class="price-sub">Semua Lomba</span></div>
-                      <div class="reg-pkg-note">Bebas ikuti seluruh cabang lomba resmi</div>
-                    </div>
-                  </label>
-                </div>
+                    <div class="reg-package-grid">
+                      <!-- Paket Satuan -->
+                      <label 
+                        class="reg-package-item" 
+                        :class="{ 'is-selected': form.package_type === 'Paket Satuan' }"
+                      >
+                        <div class="reg-pkg-radio">
+                          <input type="radio" value="Paket Satuan" v-model="form.package_type" />
+                          <span class="custom-radio-dot"></span>
+                        </div>
+                        <div class="reg-pkg-content">
+                          <div class="reg-pkg-name">{{ pricingSettings?.satuan_name || 'Paket Satuan' }}</div>
+                          <div class="reg-pkg-price satuan-price">Rp {{ selectedCompFee.toLocaleString('id-ID') }} <span class="price-sub">/ Cabang</span></div>
+                          <div class="reg-pkg-note">Pendaftaran untuk 1 cabang lomba pilihan</div>
+                        </div>
+                      </label>
 
-                <!-- Dropdown Cabang Lomba -->
-                <div class="form-group" style="margin-top: 14px; margin-bottom: 0;">
-                  <label class="form-label" for="reg-competition">
-                    {{ form.package_type === 'Paket Satuan' ? 'Pilih Cabang Lomba Utama *' : 'Cabang Lomba yang Ingin Didahulukan' }}
-                  </label>
-                  <CustomSelect 
-                    id="reg-competition" 
-                    v-model="form.competition_id"
-                    size="md"
-                    :disabled="form.package_type === 'Paket All-In'"
-                    placeholder="Pilih Cabang Lomba..."
-                    searchable
-                    search-placeholder="Ketik untuk mencari cabang lomba..."
-                  >
-                    <option 
-                      v-for="c in competitions" 
-                      :key="c.id" 
-                      :value="c.id"
-                      :disabled="getCompStatusInfo(c).isClosed && !(c.registration_type === 'direct_contact' || c.is_direct_registration)"
-                    >
-                      {{ c.title }} (Rp {{ Number(c.fee || 50000).toLocaleString('id-ID') }}){{ getCompDropdownSuffix(c) }}
-                    </option>
-                  </CustomSelect>
+                      <!-- Paket All-In -->
+                      <label 
+                        class="reg-package-item" 
+                        :class="{ 'is-selected': form.package_type === 'Paket All-In' }"
+                      >
+                        <div class="reg-pkg-radio">
+                          <input type="radio" value="Paket All-In" v-model="form.package_type" />
+                          <span class="custom-radio-dot"></span>
+                        </div>
+                        <div class="reg-pkg-content">
+                          <div class="reg-pkg-name">{{ pricingSettings?.allin_name || 'Paket All-In Komplit' }}</div>
+                          <div class="reg-pkg-price allin-price">Rp {{ Number(pricingSettings?.allin_price || 200000).toLocaleString('id-ID') }} <span class="price-sub">Semua Lomba</span></div>
+                          <div class="reg-pkg-note">Bebas ikuti seluruh cabang lomba resmi</div>
+                        </div>
+                      </label>
+                    </div>
+
+                    <!-- Dropdown Cabang Lomba -->
+                    <div class="form-group" style="margin-top: 14px; margin-bottom: 0;">
+                      <label class="form-label" for="reg-competition">
+                        <span>{{ form.package_type === 'Paket Satuan' ? 'Pilih Cabang Lomba Utama' : 'Cabang Lomba yang Ingin Didahulukan' }}</span>
+                        <span class="required-star">*</span>
+                      </label>
+                      <CustomSelect 
+                        id="reg-competition" 
+                        v-model="form.competition_id"
+                        size="md"
+                        :disabled="form.package_type === 'Paket All-In'"
+                        placeholder="Pilih Cabang Lomba..."
+                        searchable
+                        search-placeholder="Ketik untuk mencari cabang lomba..."
+                        @update:modelValue="clearFieldError('competition_id')"
+                      >
+                        <option 
+                          v-for="c in competitions" 
+                          :key="c.id" 
+                          :value="c.id"
+                          :disabled="getCompStatusInfo(c).isClosed && !(c.registration_type === 'direct_contact' || c.is_direct_registration)"
+                        >
+                          {{ c.title }} (Rp {{ Number(c.fee || 50000).toLocaleString('id-ID') }}){{ getCompDropdownSuffix(c) }}
+                        </option>
+                      </CustomSelect>
+
+                      <!-- Validation Error for competition -->
+                      <div v-if="getFieldError('competition_id')" class="invalid-feedback d-block mt-2">
+                        <i class="ri-error-warning-fill me-1"></i>
+                        <span>{{ getFieldError('competition_id') }}</span>
+                      </div>
 
                   <!-- Direct Registration Callout Banner in Modal -->
                   <div v-if="isSelectedCompDirect" class="alert p-3 rounded-3 mt-3 d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3" style="background: rgba(16, 185, 129, 0.12); border: 1.5px solid rgba(16, 185, 129, 0.4);">
@@ -2077,7 +2409,7 @@ function getCompDropdownSuffix(c) {
               <!-- CARD 2: ASAL SEKOLAH & KONTAK PEMBINA -->
               <div class="reg-section-card">
                 <div class="reg-section-header">
-                  <span class="reg-step-pill">2</span>
+                  <span class="reg-step-pill">{{ stepNumbers.school }}</span>
                   <div>
                     <h4 class="reg-section-title">Data Sekolah & Kontak Pembina</h4>
                     <p class="reg-section-desc">Identitas sekolah delegasi dan narahubung guru pendamping resmi.</p>
@@ -2216,25 +2548,30 @@ function getCompDropdownSuffix(c) {
                   <!-- Autocomplete Nama Sekolah -->
                   <div class="form-group" style="position: relative;">
                     <label class="form-label" for="reg-sekolah">
-                      <span>Nama Asal Sekolah / Madrasah *</span>
+                      <span>Nama Asal Sekolah / Madrasah <span class="required-star">*</span></span>
                       <span v-if="isSearchingSchools" class="searching-badge">
                         <i class="ri-loader-4-line ri-spin"></i> Mencari database SMP/MTs...
                       </span>
                     </label>
-                    <div class="input-with-icon">
+                    <div class="input-with-icon" :class="{ 'is-invalid': hasFieldError('school_name') }">
                       <i class="ri-building-line input-icon"></i>
                       <input 
                         type="text" 
                         id="reg-sekolah" 
                         v-model="form.school_name"
                         class="form-control" 
+                        :class="{ 'is-invalid': hasFieldError('school_name') }"
                         placeholder="Ketik nama SMP / MTs (Contoh: SMPN 1 Balung atau MTs Wahid Hasyim)" 
-                        required
                         autocomplete="off"
-                        @input="onSchoolInput"
+                        @input="onSchoolInput(); clearFieldError('school_name')"
                         @focus="onSchoolInput"
                         @blur="onSchoolBlur"
                       />
+                    </div>
+                    <!-- Inline Error Feedback -->
+                    <div v-if="getFieldError('school_name')" class="invalid-feedback d-block">
+                      <i class="ri-error-warning-fill me-1"></i>
+                      <span>{{ getFieldError('school_name') }}</span>
                     </div>
 
                     <!-- Autocomplete Floating Dropdown -->
@@ -2267,9 +2604,9 @@ function getCompDropdownSuffix(c) {
 
                   <!-- Grid Kecamatan Sekolah & NPSN -->
                   <div class="reg-grid-2">
-                    <div class="form-group">
+                    <div class="form-group" :class="{ 'field-has-error': hasFieldError('school_district') }">
                       <label class="form-label" for="reg-kecamatan">
-                        Kecamatan Asal Sekolah *
+                        <span>Kecamatan Asal Sekolah <span class="required-star">*</span></span>
                       </label>
                       <CustomSelect
                         id="reg-kecamatan"
@@ -2279,12 +2616,18 @@ function getCompDropdownSuffix(c) {
                         placeholder="Pilih Kecamatan Asal Sekolah..."
                         searchable
                         search-placeholder="Cari kecamatan..."
+                        @update:modelValue="clearFieldError('school_district')"
                       />
+                      <div v-if="getFieldError('school_district')" class="invalid-feedback d-block">
+                        <i class="ri-error-warning-fill me-1"></i>
+                        <span>{{ getFieldError('school_district') }}</span>
+                      </div>
                     </div>
 
                     <div class="form-group">
                       <label class="form-label" for="reg-npsn">
-                        Nomor Pokok Sekolah Nasional (NPSN) <span class="optional-tag">(Opsional)</span>
+                        <span>Nomor Pokok Sekolah Nasional (NPSN)</span>
+                        <span class="optional-tag">(Opsional)</span>
                       </label>
                       <div class="input-with-icon">
                         <i class="ri-numbers-line input-icon"></i>
@@ -2301,17 +2644,24 @@ function getCompDropdownSuffix(c) {
 
                   <!-- Alamat Sekolah / Madrasah -->
                   <div class="form-group">
-                    <label class="form-label" for="reg-alamat">Alamat Sekolah / Madrasah *</label>
-                    <div class="input-with-icon input-textarea-wrapper">
+                    <label class="form-label" for="reg-alamat">
+                      <span>Alamat Lengkap Sekolah / Madrasah <span class="required-star">*</span></span>
+                    </label>
+                    <div class="input-with-icon input-textarea-wrapper" :class="{ 'is-invalid': hasFieldError('school_address') }">
                       <i class="ri-map-pin-line input-icon" style="top: 14px;"></i>
                       <textarea 
                         id="reg-alamat" 
                         v-model="form.custom_fields['school_address']"
                         class="form-control" 
+                        :class="{ 'is-invalid': hasFieldError('school_address') }"
                         rows="2"
                         placeholder="Contoh: Jl. Raya Puger No. 20, Balung Kulon, Kec. Balung" 
-                        required
+                        @input="clearFieldError('school_address')"
                       ></textarea>
+                    </div>
+                    <div v-if="getFieldError('school_address')" class="invalid-feedback d-block">
+                      <i class="ri-error-warning-fill me-1"></i>
+                      <span>{{ getFieldError('school_address') }}</span>
                     </div>
                   </div>
                 </div>
@@ -2330,23 +2680,32 @@ function getCompDropdownSuffix(c) {
                 <!-- Grid Pembina & WhatsApp -->
                 <div class="reg-grid-2">
                   <div class="form-group">
-                    <label class="form-label" for="reg-pendamping">Nama Guru Pendamping / Pembina *</label>
-                    <div class="input-with-icon">
+                    <label class="form-label" for="reg-pendamping">
+                      <span>Nama Guru Pendamping / Pembina <span class="required-star">*</span></span>
+                    </label>
+                    <div class="input-with-icon" :class="{ 'is-invalid': hasFieldError('mentor_name') }">
                       <i class="ri-user-star-line input-icon"></i>
                       <input 
                         type="text" 
                         id="reg-pendamping" 
                         v-model="form.mentor_name"
                         class="form-control" 
+                        :class="{ 'is-invalid': hasFieldError('mentor_name') }"
                         placeholder="Contoh: Bpk. Ahmad Hidayat, S.Pd" 
-                        required
+                        @input="clearFieldError('mentor_name')"
                       />
+                    </div>
+                    <div v-if="getFieldError('mentor_name')" class="invalid-feedback d-block">
+                      <i class="ri-error-warning-fill me-1"></i>
+                      <span>{{ getFieldError('mentor_name') }}</span>
                     </div>
                   </div>
 
                   <div class="form-group">
-                    <label class="form-label" for="reg-wa">Nomor WhatsApp Pembina (Aktif) *</label>
-                    <div class="input-with-icon">
+                    <label class="form-label" for="reg-wa">
+                      <span>Nomor WhatsApp Pembina (Aktif) <span class="required-star">*</span></span>
+                    </label>
+                    <div class="input-with-icon" :class="{ 'is-invalid': hasFieldError('mentor_wa') }">
                       <i class="ri-whatsapp-line input-icon wa-icon"></i>
                       <input 
                         type="tel" 
@@ -2354,11 +2713,15 @@ function getCompDropdownSuffix(c) {
                         pattern="[0-9]*"
                         id="reg-wa" 
                         v-model="form.mentor_wa"
-                        @input="form.mentor_wa = form.mentor_wa.replace(/\D/g, '')"
-                        class="form-control" 
+                        @input="form.mentor_wa = form.mentor_wa.replace(/\D/g, ''); clearFieldError('mentor_wa')"
+                        class="form-control font-mono" 
+                        :class="{ 'is-invalid': hasFieldError('mentor_wa') }"
                         placeholder="Contoh: 081234567890" 
-                        required
                       />
+                    </div>
+                    <div v-if="getFieldError('mentor_wa')" class="invalid-feedback d-block">
+                      <i class="ri-error-warning-fill me-1"></i>
+                      <span>{{ getFieldError('mentor_wa') }}</span>
                     </div>
                     <div class="field-hint">Hanya angka aktif untuk koordinasi teknis dan TM.</div>
                   </div>
@@ -2366,26 +2729,33 @@ function getCompDropdownSuffix(c) {
 
                 <!-- Email Pendamping -->
                 <div class="form-group">
-                  <label class="form-label" for="reg-email">Email Pendamping *</label>
-                  <div class="input-with-icon">
+                  <label class="form-label" for="reg-email">
+                    <span>Email Pendamping <span class="required-star">*</span></span>
+                  </label>
+                  <div class="input-with-icon" :class="{ 'is-invalid': hasFieldError('mentor_email') }">
                     <i class="ri-mail-line input-icon"></i>
                     <input 
                       type="email" 
                       id="reg-email" 
                       v-model="form.custom_fields['mentor_email']"
                       class="form-control" 
+                      :class="{ 'is-invalid': hasFieldError('mentor_email') }"
                       placeholder="Contoh: pendamping@sekolah.sch.id" 
-                      required
+                      @input="clearFieldError('mentor_email')"
                     />
+                  </div>
+                  <div v-if="getFieldError('mentor_email')" class="invalid-feedback d-block">
+                    <i class="ri-error-warning-fill me-1"></i>
+                    <span>{{ getFieldError('mentor_email') }}</span>
                   </div>
                   <div class="field-hint">Alamat email aktif untuk tanda terima dan dokumen lomba.</div>
                 </div>
               </div>
 
               <!-- CARD 3: BIODATA ANGGOTA DELEGASI -->
-              <div class="reg-section-card">
+              <div id="reg-roster-section" class="reg-section-card">
                 <div class="reg-section-header">
-                  <span class="reg-step-pill">3</span>
+                  <span class="reg-step-pill">{{ stepNumbers.roster }}</span>
                   <div>
                     <h4 class="reg-section-title">Biodata Peserta Delegasi</h4>
                     <p class="reg-section-desc">Roster peserta didik yang mewakili sekolah pada cabang lomba ini.</p>
@@ -2399,7 +2769,7 @@ function getCompDropdownSuffix(c) {
                     <div class="toolbar-info">
                       <div class="toolbar-title">
                         <i class="ri-team-line"></i>
-                        <span>{{ repeaterField.label || 'Jumlah Anggota Delegasi yang Didaftarkan' }} *</span>
+                        <span>{{ repeaterField.label || 'Jumlah Anggota Delegasi yang Didaftarkan' }} <span class="required-star">*</span></span>
                       </div>
                       <div class="toolbar-quota-desc">
                         <span>Kapasitas: <strong>Maksimal {{ teamInfo.max }} Siswa</strong></span>
@@ -2411,6 +2781,11 @@ function getCompDropdownSuffix(c) {
                       <div v-if="teamInfo.rule" class="toolbar-rule-alert">
                         <i class="ri-information-line"></i>
                         <span>Aturan Cabang: {{ teamInfo.rule }}</span>
+                      </div>
+                      <!-- Captain error alert if team requires captain -->
+                      <div v-if="getFieldError('team_captain')" class="alert alert-danger py-2 px-3 mt-2 mb-0 d-flex align-items-center gap-2 rounded-3 fs-12">
+                        <i class="ri-vip-crown-fill text-warning fs-5"></i>
+                        <span>{{ getFieldError('team_captain') }}</span>
                       </div>
                     </div>
 
@@ -2480,7 +2855,8 @@ function getCompDropdownSuffix(c) {
                         :class="{ 
                           'is-active': activeMemberTab === (pIdx - 1),
                           'is-captain': participantsList[pIdx - 1]?.is_captain,
-                          'is-filled': !!participantsList[pIdx - 1]?.name
+                          'is-filled': !!participantsList[pIdx - 1]?.name,
+                          'has-error': hasStudentError(pIdx - 1)
                         }"
                         @click="activeMemberTab = (pIdx - 1)"
                       >
@@ -2492,6 +2868,7 @@ function getCompDropdownSuffix(c) {
                         </span>
                         <span class="tab-sub" v-if="pIdx <= teamInfo.main">(Inti)</span>
                         <span class="tab-sub text-muted" v-else>(Cadangan)</span>
+                        <span v-if="hasStudentError(pIdx - 1)" class="tab-error-badge" title="Terdapat isian wajib yang belum lengkap pada siswa ini">!</span>
                       </button>
                     </div>
                   </div>
@@ -2538,7 +2915,7 @@ function getCompDropdownSuffix(c) {
                               type="radio" 
                               name="reg_captain_sel" 
                               :checked="participantsList[pIdx - 1].is_captain" 
-                              @change="setCaptain(pIdx - 1)" 
+                              @change="setCaptain(pIdx - 1); clearFieldError('team_captain')" 
                             />
                             <span>⭐ Jadikan Kapten</span>
                           </label>
@@ -2549,14 +2926,22 @@ function getCompDropdownSuffix(c) {
                       <div class="student-card-body">
                         <!-- Nama Lengkap -->
                         <div class="form-group">
-                          <label class="form-label">Nama Lengkap Siswa *</label>
+                          <label class="form-label">
+                            <span>Nama Lengkap Siswa <span class="required-star">*</span></span>
+                          </label>
                           <input 
+                            :id="'participant_' + (pIdx - 1) + '_name'"
                             type="text" 
                             v-model="participantsList[pIdx - 1].name"
                             class="form-control" 
+                            :class="{ 'is-invalid': hasFieldError('participant_' + (pIdx - 1) + '_name') }"
                             :placeholder="`Nama Lengkap Peserta ${pIdx}`"
-                            required
+                            @input="clearFieldError('participant_' + (pIdx - 1) + '_name')"
                           />
+                          <div v-if="getFieldError('participant_' + (pIdx - 1) + '_name')" class="invalid-feedback d-block">
+                            <i class="ri-error-warning-fill me-1"></i>
+                            <span>{{ getFieldError('participant_' + (pIdx - 1) + '_name') }}</span>
+                          </div>
                         </div>
 
                         <!-- Row: Jenis Kelamin & Kelas -->
@@ -2641,7 +3026,7 @@ function getCompDropdownSuffix(c) {
                             v-model="participantsList[pIdx - 1].wa_number"
                             @input="participantsList[pIdx - 1].wa_number = (participantsList[pIdx - 1].wa_number || '').replace(/\D/g, '')"
                             class="form-control font-mono" 
-                            placeholder="Contoh: 081234567890"
+                            placeholder="Contoh: 081234567890" 
                           />
                         </div>
 
@@ -2649,21 +3034,27 @@ function getCompDropdownSuffix(c) {
                         <div 
                           v-if="repeaterField.sub_fields?.captain_option?.active && participantsList[pIdx - 1].is_captain" 
                           class="captain-wa-alert-card"
+                          :class="{ 'has-error': hasFieldError('participant_' + (pIdx - 1) + '_captain_wa') }"
                         >
                           <label class="captain-wa-label">
                             <i class="ri-whatsapp-fill"></i>
-                            <span>Nomor WhatsApp Khusus Kapten Tim (Field Angka) *</span>
+                            <span>Nomor WhatsApp Khusus Kapten Tim <span class="required-star">*</span></span>
                           </label>
                           <input 
+                            :id="'participant_' + (pIdx - 1) + '_captain_wa'"
                             type="tel" 
                             inputmode="numeric"
                             pattern="[0-9]*"
                             v-model="participantsList[pIdx - 1].captain_wa"
-                            @input="participantsList[pIdx - 1].captain_wa = (participantsList[pIdx - 1].captain_wa || '').replace(/\D/g, '')"
+                            @input="participantsList[pIdx - 1].captain_wa = (participantsList[pIdx - 1].captain_wa || '').replace(/\D/g, ''); clearFieldError('participant_' + (pIdx - 1) + '_captain_wa')"
                             class="form-control captain-input font-mono" 
-                            placeholder="Contoh: 081234567890 (WA Kapten untuk koordinasi & Technical Meeting)"
-                            required
+                            :class="{ 'is-invalid': hasFieldError('participant_' + (pIdx - 1) + '_captain_wa') }"
+                            placeholder="Contoh: 081234567890 (WA Kapten untuk koordinasi & Technical Meeting)" 
                           />
+                          <div v-if="getFieldError('participant_' + (pIdx - 1) + '_captain_wa')" class="invalid-feedback d-block">
+                            <i class="ri-error-warning-fill me-1"></i>
+                            <span>{{ getFieldError('participant_' + (pIdx - 1) + '_captain_wa') }}</span>
+                          </div>
                           <div class="captain-wa-hint">
                             Nomor WA ini digunakan panitia lomba untuk koordinasi TM & grup WhatsApp resmi seluruh kapten tim.
                           </div>
@@ -2729,7 +3120,7 @@ function getCompDropdownSuffix(c) {
                               placeholder="dd/mm/yyyy"
                               inputClass="form-control"
                               iconClass="ri-calendar-line text-amber-500"
-                              :required="col.required"
+                              @update:modelValue="clearFieldError('participant_' + (pIdx - 1) + '_col_' + (col.name || col.id || col.label))"
                             />
 
                             <!-- Tipe Pilihan: CustomSelect -->
@@ -2739,7 +3130,7 @@ function getCompDropdownSuffix(c) {
                               :options="col.options || []"
                               size="md"
                               :placeholder="`Pilih ${col.label}...`"
-                              :required="col.required"
+                              @update:modelValue="clearFieldError('participant_' + (pIdx - 1) + '_col_' + (col.name || col.id || col.label))"
                             />
 
                             <!-- Tipe Angka / Teks / Email -->
@@ -2750,8 +3141,13 @@ function getCompDropdownSuffix(c) {
                               v-model="participantsList[pIdx - 1].custom_columns[col.name || col.id || col.label]"
                               :placeholder="`Masukkan ${col.label}...`"
                               class="form-control"
-                              :required="col.required"
+                              :class="{ 'is-invalid': hasFieldError('participant_' + (pIdx - 1) + '_col_' + (col.name || col.id || col.label)) }"
+                              @input="clearFieldError('participant_' + (pIdx - 1) + '_col_' + (col.name || col.id || col.label))"
                             />
+                            <div v-if="getFieldError('participant_' + (pIdx - 1) + '_col_' + (col.name || col.id || col.label))" class="invalid-feedback d-block">
+                              <i class="ri-error-warning-fill me-1"></i>
+                              <span>{{ getFieldError('participant_' + (pIdx - 1) + '_col_' + (col.name || col.id || col.label)) }}</span>
+                            </div>
                           </div>
                         </template>
 
@@ -2784,15 +3180,22 @@ function getCompDropdownSuffix(c) {
 
                 <!-- STANDARD PARTICIPANTS TEXTAREA (FALLBACK IF NO REPEATER) -->
                 <div v-else class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label" for="reg-peserta">Nama Lengkap Peserta / Anggota Tim *</label>
+                  <label class="form-label" for="reg-peserta">
+                    <span>Nama Lengkap Peserta / Anggota Tim <span class="required-star">*</span></span>
+                  </label>
                   <textarea 
                     id="reg-peserta" 
                     v-model="form.participants_names"
                     class="form-control" 
+                    :class="{ 'is-invalid': hasFieldError('participants_names') }"
                     rows="3" 
                     placeholder="Contoh :&#10;1. Ahmad Fauzi (Kelas 9A)&#10;2. Siti Nurhaliza (Kelas 8B)" 
-                    required
+                    @input="clearFieldError('participants_names')"
                   ></textarea>
+                  <div v-if="getFieldError('participants_names')" class="invalid-feedback d-block">
+                    <i class="ri-error-warning-fill me-1"></i>
+                    <span>{{ getFieldError('participants_names') }}</span>
+                  </div>
                   <div class="field-hint">Tuliskan nama lengkap peserta beserta keterangan kelas.</div>
                 </div>
               </div>
@@ -2800,7 +3203,7 @@ function getCompDropdownSuffix(c) {
               <!-- CARD 4: PERSYARATAN KHUSUS & BERKAS CABANG (DYNAMIC CUSTOM FIELDS) -->
               <div v-if="dynamicFields.length > 0" class="reg-section-card">
                 <div class="reg-section-header">
-                  <span class="reg-step-pill">4</span>
+                  <span class="reg-step-pill">{{ stepNumbers.dynamic }}</span>
                   <div>
                     <h4 class="reg-section-title">Persyaratan Khusus & Berkas Cabang Lomba</h4>
                     <p class="reg-section-desc">Isian khusus yang ditentukan panitia cabang {{ activeComp?.title || '' }}.</p>
@@ -2834,8 +3237,9 @@ function getCompDropdownSuffix(c) {
                         :id="'cf-' + field.name"
                         v-model="form.custom_fields[field.name]"
                         class="form-control"
+                        :class="{ 'is-invalid': hasFieldError('cf_' + field.name) }"
                         :placeholder="field.placeholder || (field.type === 'url' ? 'https://drive.google.com/...' : `Masukkan ${field.label}...`)"
-                        :required="field.required"
+                        @input="clearFieldError('cf_' + field.name)"
                       />
 
                       <!-- 2. Angka / WhatsApp / Nominal -->
@@ -2846,10 +3250,10 @@ function getCompDropdownSuffix(c) {
                         pattern="[0-9]*"
                         :id="'cf-' + field.name"
                         v-model="form.custom_fields[field.name]"
-                        @input="form.custom_fields[field.name] = (form.custom_fields[field.name] || '').toString().replace(/\D/g, '')"
+                        @input="form.custom_fields[field.name] = (form.custom_fields[field.name] || '').toString().replace(/\D/g, ''); clearFieldError('cf_' + field.name)"
                         class="form-control font-mono"
+                        :class="{ 'is-invalid': hasFieldError('cf_' + field.name) }"
                         :placeholder="field.placeholder || `Masukkan angka ${field.label}...`"
-                        :required="field.required"
                       />
 
                       <!-- 3. Alamat Email -->
@@ -2860,8 +3264,9 @@ function getCompDropdownSuffix(c) {
                         :id="'cf-' + field.name"
                         v-model="form.custom_fields[field.name]"
                         class="form-control"
+                        :class="{ 'is-invalid': hasFieldError('cf_' + field.name) }"
                         :placeholder="field.placeholder || 'nama@sekolah.sch.id'"
-                        :required="field.required"
+                        @input="clearFieldError('cf_' + field.name)"
                       />
 
                       <!-- 4. Textarea / Paragraf -->
@@ -2870,30 +3275,34 @@ function getCompDropdownSuffix(c) {
                         :id="'cf-' + field.name"
                         v-model="form.custom_fields[field.name]"
                         class="form-control"
+                        :class="{ 'is-invalid': hasFieldError('cf_' + field.name) }"
                         rows="3"
                         :placeholder="field.placeholder || `Tuliskan ${field.label}...`"
-                        :required="field.required"
+                        @input="clearFieldError('cf_' + field.name)"
                       ></textarea>
 
                       <!-- 5. Dropdown Pilihan (Wajib CustomSelect) -->
-                      <CustomSelect 
-                        v-else-if="field.type === 'select'"
-                        :id="'cf-' + field.name"
-                        v-model="form.custom_fields[field.name]"
-                        :options="field.options || []"
-                        :placeholder="field.placeholder || `-- Pilih ${field.label} --`"
-                        :searchable="(field.options || []).length > 7"
-                        search-placeholder="Ketik untuk mencari opsi..."
-                        size="md"
-                      />
+                      <div v-else-if="field.type === 'select'" :class="{ 'field-has-error': hasFieldError('cf_' + field.name) }">
+                        <CustomSelect 
+                          :id="'cf-' + field.name"
+                          v-model="form.custom_fields[field.name]"
+                          :options="field.options || []"
+                          :placeholder="field.placeholder || `-- Pilih ${field.label} --`"
+                          :searchable="(field.options || []).length > 7"
+                          search-placeholder="Ketik untuk mencari opsi..."
+                          size="md"
+                          @update:modelValue="clearFieldError('cf_' + field.name)"
+                        />
+                      </div>
 
                       <!-- 6. Pilihan Tunggal (Radio) -->
-                      <div v-else-if="field.type === 'radio'" class="reg-options-list">
+                      <div v-else-if="field.type === 'radio'" class="reg-options-list" :class="{ 'is-invalid': hasFieldError('cf_' + field.name) }">
                         <label 
                           v-for="(opt, oIdx) in (field.options || [])" 
                           :key="oIdx"
                           class="reg-option-card"
                           :class="{ 'is-selected': form.custom_fields[field.name] === opt }"
+                          @click="clearFieldError('cf_' + field.name)"
                         >
                           <span class="option-text">{{ opt }}</span>
                           <input 
@@ -2901,16 +3310,17 @@ function getCompDropdownSuffix(c) {
                             :name="'cf_radio_' + field.name" 
                             :value="opt" 
                             v-model="form.custom_fields[field.name]" 
+                            @change="clearFieldError('cf_' + field.name)"
                           />
                         </label>
                       </div>
 
                       <!-- 7. Pilihan Ganda (Checkbox Multi-Select) -->
-                      <div v-else-if="field.type === 'checkbox'" class="reg-options-list">
+                      <div v-else-if="field.type === 'checkbox'" class="reg-options-list" :class="{ 'is-invalid': hasFieldError('cf_' + field.name) }">
                         <label 
                           v-for="(opt, oIdx) in (field.options || [])" 
                           :key="oIdx"
-                          @click.prevent="toggleCheckboxOption(field.name, opt)"
+                          @click.prevent="toggleCheckboxOption(field.name, opt); clearFieldError('cf_' + field.name)"
                           class="reg-option-card"
                           :class="{ 'is-selected': isCheckboxSelected(field.name, opt) }"
                         >
@@ -2927,9 +3337,12 @@ function getCompDropdownSuffix(c) {
                       <div 
                         v-else-if="field.type === 'file'"
                         class="reg-file-dropzone-box"
-                        :class="{ 'has-file': Number(field.max_files || 1) > 1 ? getCustomFileList(field.name).length > 0 : !!form.custom_fields[field.name] }"
+                        :class="{ 
+                          'has-file': Number(field.max_files || 1) > 1 ? getCustomFileList(field.name).length > 0 : !!form.custom_fields[field.name],
+                          'is-invalid': hasFieldError('cf_' + field.name)
+                        }"
                         @dragover.prevent
-                        @drop.prevent="e => handleCustomFileDrop(field.name, e, field.max_files)"
+                        @drop.prevent="e => { handleCustomFileDrop(field.name, e, field.max_files); clearFieldError('cf_' + field.name); }"
                       >
                         <!-- Single File Mode (max_files <= 1) -->
                         <template v-if="Number(field.max_files || 1) <= 1">
@@ -2944,8 +3357,7 @@ function getCompDropdownSuffix(c) {
                               :id="'cf-' + field.name"
                               class="form-control file-input-element"
                               :accept="field.allowed_extensions ? field.allowed_extensions.map(e => '.' + e).join(',') : undefined"
-                              @change="e => handleCustomFileChange(field.name, e, 1)"
-                              :required="field.required && !form.custom_fields[field.name]"
+                              @change="e => { handleCustomFileChange(field.name, e, 1); clearFieldError('cf_' + field.name); }"
                             />
                           </div>
                           <div v-else class="dropzone-filled">
@@ -2985,8 +3397,7 @@ function getCompDropdownSuffix(c) {
                               multiple
                               class="form-control file-input-element"
                               :accept="field.allowed_extensions ? field.allowed_extensions.map(e => '.' + e).join(',') : undefined"
-                              @change="e => handleCustomFileChange(field.name, e, field.max_files)"
-                              :required="field.required && getCustomFileList(field.name).length === 0"
+                              @change="e => { handleCustomFileChange(field.name, e, field.max_files); clearFieldError('cf_' + field.name); }"
                             />
                           </div>
                           <div v-else class="d-flex flex-column gap-2 text-start">
@@ -3008,7 +3419,7 @@ function getCompDropdownSuffix(c) {
                               multiple
                               class="d-none"
                               :accept="field.allowed_extensions ? field.allowed_extensions.map(e => '.' + e).join(',') : undefined"
-                              @change="e => handleCustomFileChange(field.name, e, field.max_files)"
+                              @change="e => { handleCustomFileChange(field.name, e, field.max_files); clearFieldError('cf_' + field.name); }"
                             />
                             <div 
                               v-for="(fItem, fIdx) in getCustomFileList(field.name)" 
@@ -3046,6 +3457,7 @@ function getCompDropdownSuffix(c) {
                         placeholder="dd/mm/yyyy"
                         inputClass="form-control"
                         iconClass="ri-calendar-line text-amber-500"
+                        @update:modelValue="clearFieldError('cf_' + field.name)"
                       />
 
                       <!-- Help Text -->
@@ -3055,26 +3467,34 @@ function getCompDropdownSuffix(c) {
                       </div>
 
                       <!-- Error Feedback -->
-                      <div v-if="getFieldError(field.name)" class="field-error-feedback">
-                        <i class="ri-error-warning-line"></i>
-                        <span>{{ getFieldError(field.name) }}</span>
+                      <div v-if="getFieldError('cf_' + field.name) || getFieldError(field.name)" class="invalid-feedback d-block">
+                        <i class="ri-error-warning-fill me-1"></i>
+                        <span>{{ getFieldError('cf_' + field.name) || getFieldError(field.name) }}</span>
                       </div>
                     </div>
                   </template>
                 </div>
               </div>
 
-              <!-- CARD 4.5: INFORMASI REKENING TRANSFER TUJUAN & METODE PEMBAYARAN (JIKA BERBAYAR) -->
-              <div v-if="calculatedFee > 0 && !isAllInFree" class="reg-section-card mb-3">
-                <div class="reg-section-title d-flex align-items-center justify-content-between">
-                  <div class="d-flex align-items-center gap-1.5">
-                    <i class="ri-wallet-3-line text-success"></i>
-                    <span>Rekening Transfer Tujuan & Metode Pembayaran</span>
-                    <span class="required-star">*</span>
+              <!-- CARD 5: INFORMASI REKENING TRANSFER TUJUAN & METODE PEMBAYARAN (JIKA BERBAYAR) -->
+              <div v-if="calculatedFee > 0 && !isAllInFree" id="reg-payment-section" class="reg-section-card mb-3">
+                <div class="reg-section-header">
+                  <span class="reg-step-pill">{{ stepNumbers.payment }}</span>
+                  <div class="flex-grow-1">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                      <h4 class="reg-section-title">Rekening Transfer Tujuan & Metode Pembayaran</h4>
+                      <span class="badge bg-primary-subtle text-primary fs-11 fw-semibold">
+                        {{ activeBankAccounts.length + (pricingSettings?.cash_enabled !== false ? 1 : 0) }} Pilihan Saluran
+                      </span>
+                    </div>
+                    <p class="reg-section-desc">Pilih rekening transfer resmi panitia atau pembayaran tunai langsung di kantor sekretariat.</p>
                   </div>
-                  <span class="badge bg-primary-subtle text-primary fs-11 fw-semibold">
-                    {{ activeBankAccounts.length + (pricingSettings?.cash_enabled !== false ? 1 : 0) }} Pilihan Saluran
-                  </span>
+                </div>
+
+                <!-- Validation Error for Payment Method -->
+                <div v-if="getFieldError('payment_method')" class="alert alert-danger py-2 px-3 mb-3 d-flex align-items-center gap-2 rounded-3 fs-12">
+                  <i class="ri-error-warning-fill text-danger fs-5"></i>
+                  <span>{{ getFieldError('payment_method') }}</span>
                 </div>
 
                 <div class="bank-accounts-container">
@@ -3087,7 +3507,7 @@ function getCompDropdownSuffix(c) {
                       'is-selected': form.payment_method === ('Transfer ' + acc.bank_name),
                       'is-primary': acc.is_primary 
                     }"
-                    @click="form.payment_method = ('Transfer ' + acc.bank_name)"
+                    @click="form.payment_method = ('Transfer ' + acc.bank_name); clearFieldError('payment_method')"
                   >
                     <div class="bank-acc-header">
                       <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -3097,6 +3517,7 @@ function getCompDropdownSuffix(c) {
                           :value="'Transfer ' + acc.bank_name" 
                           v-model="form.payment_method" 
                           class="form-check-input mt-0"
+                          @change="clearFieldError('payment_method')"
                           @click.stop
                         />
                         <span class="bank-badge">
@@ -3138,7 +3559,7 @@ function getCompDropdownSuffix(c) {
                     v-if="pricingSettings?.cash_enabled !== false"
                     class="bank-account-card cash-account-card cursor-pointer"
                     :class="{ 'is-selected': form.payment_method === 'Tunai di Sekretariat' }"
-                    @click="form.payment_method = 'Tunai di Sekretariat'"
+                    @click="form.payment_method = 'Tunai di Sekretariat'; clearFieldError('payment_method')"
                   >
                     <div class="bank-acc-header">
                       <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -3148,6 +3569,7 @@ function getCompDropdownSuffix(c) {
                           value="Tunai di Sekretariat" 
                           v-model="form.payment_method" 
                           class="form-check-input mt-0"
+                          @change="clearFieldError('payment_method')"
                           @click.stop
                         />
                         <span class="bank-badge cash-badge">
@@ -3176,36 +3598,58 @@ function getCompDropdownSuffix(c) {
                 </div>
               </div>
 
-              <!-- CARD 5: CATATAN TAMBAHAN -->
-              <div class="reg-section-card" style="margin-bottom: 0;">
-                <div class="form-group" style="margin-bottom: 0;">
-                  <label class="form-label" for="reg-catatan">Catatan / Keterangan Tambahan (Opsional)</label>
+              <!-- CARD 6: CATATAN TAMBAHAN -->
+              <div class="reg-section-card mb-4">
+                <div class="reg-section-header mb-2">
+                  <span class="reg-step-pill step-optional"><i class="ri-chat-1-line"></i></span>
+                  <div>
+                    <h4 class="reg-section-title">Catatan / Keterangan Tambahan <span class="optional-tag">(Opsional)</span></h4>
+                    <p class="reg-section-desc">Tuliskan pesan khusus untuk panitia pendaftaran jika ada hal yang perlu dikonfirmasi.</p>
+                  </div>
+                </div>
+                <div class="form-group mb-0">
                   <input 
                     type="text" 
                     id="reg-catatan" 
                     v-model="form.notes"
                     class="form-control" 
-                    placeholder="Tuliskan catatan untuk panitia pendaftaran jika ada..."
+                    placeholder="Contoh: Pembina akan hadir saat Technical Meeting pukul 09:00 WIB..."
                   />
                 </div>
               </div>
-                <!-- SECONDARY SUBMIT BUTTON AT BOTTOM OF FORM -->
-                <div class="d-flex align-items-center justify-content-between pt-3 border-top flex-wrap gap-2 mt-4">
-                  <button type="button" class="btn btn-outline-secondary px-3 py-2 fw-medium" @click="backToCatalog">
-                    <i class="ri-arrow-left-line me-1"></i> Batal & Kembali ke Katalog
+
+              <!-- SECONDARY SUBMIT BUTTON AT BOTTOM OF FORM -->
+              <div class="reg-bottom-actions-bar pt-3 border-top mt-4 mb-2">
+                <!-- Bottom Error Notice if validation failed -->
+                <div v-if="errorSummaryList.length > 0" class="alert alert-danger py-2.5 px-3 mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2 rounded-3 fs-13">
+                  <div class="d-flex align-items-center gap-2">
+                    <i class="ri-error-warning-fill fs-5 text-danger"></i>
+                    <span>Formulir belum lengkap: Terdapat <strong>{{ errorSummaryList.length }} kolom wajib</strong> yang belum diisi.</span>
+                  </div>
+                  <button type="button" class="btn btn-sm btn-outline-danger px-2.5 py-1 fw-bold fs-12" @click="scrollToField(errorSummaryList[0]?.key)">
+                    Periksa Kolom Pertama <i class="ri-arrow-up-line ms-1"></i>
+                  </button>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                  <button type="button" class="btn-back-catalog" @click="backToCatalog">
+                    <i class="ri-arrow-left-line"></i>
+                    <span>Batal & Kembali ke Katalog</span>
                   </button>
                   <button 
                     type="submit" 
-                    class="btn btn-primary px-4 py-2.5 fw-bold d-inline-flex align-items-center gap-2"
+                    class="btn-submit-page"
                     :disabled="form.processing"
+                    style="min-width: 260px;"
                   >
-                    <i v-if="form.processing" class="ri-loader-4-line ri-spin"></i>
-                    <i v-else class="ri-send-plane-2-fill"></i>
+                    <i v-if="form.processing" class="ri-loader-4-line ri-spin me-1 fs-5"></i>
+                    <i v-else class="ri-send-plane-2-fill me-1 fs-5"></i>
                     <span>{{ form.processing ? 'Mengirim Pendaftaran...' : (activeComp?.form_settings?.submit_text || 'Kirim Pendaftaran Delegasi') }}</span>
                   </button>
                 </div>
-              </form>
-            </div>
+              </div>
+            </form>
+          </div>
 
             <!-- RIGHT COLUMN: STICKY ORDER SUMMARY & PRIMARY SUBMIT (col-12 col-lg-4) -->
             <div class="col-12 col-lg-4">
@@ -3275,6 +3719,24 @@ function getCompDropdownSuffix(c) {
 
                   <!-- PRIMARY SUBMIT BUTTON IN STICKY SIDEBAR -->
                   <div class="sidebar-action-box">
+                    <!-- Sticky Sidebar Error Indicator -->
+                    <div 
+                      v-if="errorSummaryList.length > 0" 
+                      class="alert alert-danger py-2 px-2.5 mb-3 rounded-3 fs-11 d-flex align-items-center justify-content-between gap-1.5"
+                    >
+                      <div class="d-flex align-items-center gap-1.5 min-w-0">
+                        <i class="ri-error-warning-fill text-danger fs-14 flex-shrink-0"></i>
+                        <span class="text-truncate">Ada {{ errorSummaryList.length }} isian belum lengkap</span>
+                      </div>
+                      <button 
+                        type="button" 
+                        class="btn btn-xs btn-outline-danger py-0 px-1.5 fs-10 fw-bold"
+                        @click="scrollToField(errorSummaryList[0]?.key)"
+                      >
+                        Periksa
+                      </button>
+                    </div>
+
                     <a 
                       v-if="isSelectedCompDirect"
                       :href="getDirectRegistrationWaUrl(activeComp)" 
@@ -3300,10 +3762,11 @@ function getCompDropdownSuffix(c) {
 
                     <button 
                       type="button" 
-                      class="btn-back-link w-100 mt-2"
+                      class="btn-back-catalog w-100 justify-content-center mt-2.5"
                       @click="backToCatalog"
                     >
-                      <i class="ri-arrow-left-line me-1"></i> Batal & Kembali ke Katalog
+                      <i class="ri-arrow-left-line me-1"></i>
+                      <span>Batal & Kembali ke Katalog</span>
                     </button>
                   </div>
                 </div>
@@ -7493,6 +7956,217 @@ function getCompDropdownSuffix(c) {
   border-color: #f59e0b !important;
   color: #fde68a !important;
 }
+
+/* =============================================================================
+   FORM VALIDATION ERROR BANNER & INLINE ERROR STYLING
+   ============================================================================= */
+.reg-error-summary-banner {
+  background: #fff5f5;
+  border: 1.5px solid #feb2b2;
+  border-left: 5px solid #e53e3e;
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 4px 14px rgba(229, 62, 62, 0.08);
+  animation: bannerSlideIn 0.25s ease-out;
+}
+
+@keyframes bannerSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.banner-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.banner-icon {
+  font-size: 1.6rem;
+  color: #e53e3e;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.banner-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.banner-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #9b2c2c;
+  margin: 0 0 3px 0;
+  line-height: 1.3;
+}
+
+.banner-subtitle {
+  font-size: 0.85rem;
+  color: #742a2a;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.banner-error-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.banner-error-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  background: #ffffff;
+  border: 1px solid #fed7d7;
+  border-radius: 8px;
+  color: #9b2c2c;
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.banner-error-item:hover {
+  background: #fff5f5;
+  border-color: #fc8181;
+  color: #742a2a;
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(229, 62, 62, 0.12);
+}
+
+.jump-link-hint {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #e53e3e;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Roster tab error badge & state */
+.roster-tab-btn.has-error {
+  border-color: #ef4444 !important;
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+}
+
+.roster-tab-btn.has-error .tab-role-name strong {
+  color: #991b1b !important;
+}
+
+.tab-error-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-left: 4px;
+  animation: pulseBadge 1.8s infinite;
+}
+
+@keyframes pulseBadge {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+/* Step optional modifier */
+.reg-step-pill.step-optional {
+  background: #64748b;
+  color: #ffffff;
+}
+
+/* Dark mode for banner & validation elements */
+[data-bs-theme="dark"] .reg-error-summary-banner,
+:global([data-bs-theme="dark"]) .reg-error-summary-banner,
+:global(html[data-bs-theme="dark"]) .reg-error-summary-banner,
+:global(.dark) .reg-error-summary-banner {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.16) 0%, rgba(30, 41, 59, 0.95) 100%) !important;
+  border: 1.5px solid rgba(239, 68, 68, 0.45) !important;
+  border-left: 5px solid #ef4444 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-bs-theme="dark"] .banner-title,
+:global([data-bs-theme="dark"]) .banner-title,
+:global(html[data-bs-theme="dark"]) .banner-title,
+:global(.dark) .banner-title {
+  color: #fca5a5 !important;
+}
+
+[data-bs-theme="dark"] .banner-subtitle,
+:global([data-bs-theme="dark"]) .banner-subtitle,
+:global(html[data-bs-theme="dark"]) .banner-subtitle,
+:global(.dark) .banner-subtitle {
+  color: #fecaca !important;
+}
+
+[data-bs-theme="dark"] .banner-error-item,
+:global([data-bs-theme="dark"]) .banner-error-item,
+:global(html[data-bs-theme="dark"]) .banner-error-item,
+:global(.dark) .banner-error-item {
+  background: #1e293b !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  color: #fca5a5 !important;
+}
+
+[data-bs-theme="dark"] .banner-error-item:hover,
+:global([data-bs-theme="dark"]) .banner-error-item:hover,
+:global(html[data-bs-theme="dark"]) .banner-error-item:hover,
+:global(.dark) .banner-error-item:hover {
+  background: #334155 !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .jump-link-hint,
+:global([data-bs-theme="dark"]) .jump-link-hint,
+:global(html[data-bs-theme="dark"]) .jump-link-hint,
+:global(.dark) .jump-link-hint {
+  color: #f87171 !important;
+}
+
+[data-bs-theme="dark"] .roster-tab-btn.has-error,
+:global([data-bs-theme="dark"]) .roster-tab-btn.has-error,
+:global(html[data-bs-theme="dark"]) .roster-tab-btn.has-error,
+:global(.dark) .roster-tab-btn.has-error {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.6) !important;
+  color: #fca5a5 !important;
+}
+
+[data-bs-theme="dark"] .roster-tab-btn.has-error .tab-role-name strong,
+:global([data-bs-theme="dark"]) .roster-tab-btn.has-error .tab-role-name strong,
+:global(html[data-bs-theme="dark"]) .roster-tab-btn.has-error .tab-role-name strong,
+:global(.dark) .roster-tab-btn.has-error .tab-role-name strong {
+  color: #fca5a5 !important;
+}
+
+[data-bs-theme="dark"] .reg-step-pill.step-optional,
+:global([data-bs-theme="dark"]) .reg-step-pill.step-optional,
+:global(html[data-bs-theme="dark"]) .reg-step-pill.step-optional,
+:global(.dark) .reg-step-pill.step-optional {
+  background: #334155 !important;
+  color: #94a3b8 !important;
+}
 </style>
 
 <style>
@@ -9121,6 +9795,49 @@ html[data-bs-theme="dark"] .btn-wa-confirm {
   background: #22c55e !important;
   color: #ffffff !important;
   box-shadow: 0 4px 14px rgba(34, 197, 94, 0.4) !important;
+}
+
+/* =============================================================================
+   FORM VALIDATION GLOBAL INPUT STATES & FEEDBACK (WCAG COMPLIANT)
+   ============================================================================= */
+.form-control.is-invalid,
+.field-has-error .form-control,
+.field-has-error .custom-select-trigger {
+  border-color: #dc2626 !important;
+  background-color: #fffaf0 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+}
+
+.input-with-icon.is-invalid .form-control,
+.input-with-icon.is-invalid .input-icon {
+  border-color: #dc2626 !important;
+}
+
+.invalid-feedback {
+  display: block !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  color: #dc2626 !important;
+  margin-top: 5px !important;
+  line-height: 1.35 !important;
+}
+
+/* Dark Mode validation states */
+[data-bs-theme="dark"] .form-control.is-invalid,
+html[data-bs-theme="dark"] .form-control.is-invalid,
+[data-bs-theme="dark"] .field-has-error .form-control,
+html[data-bs-theme="dark"] .field-has-error .form-control,
+[data-bs-theme="dark"] .field-has-error .custom-select-trigger,
+html[data-bs-theme="dark"] .field-has-error .custom-select-trigger {
+  border-color: #ef4444 !important;
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25) !important;
+  color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .invalid-feedback,
+html[data-bs-theme="dark"] .invalid-feedback {
+  color: #fca5a5 !important;
 }
 </style>
 

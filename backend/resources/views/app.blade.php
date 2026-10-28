@@ -160,9 +160,6 @@
             })();
         </script>
         <link rel="stylesheet" href="/assets/css/style.css?v=3.26" />
-        <!-- Preload critical above-the-fold assets for instant rendering -->
-        <link rel="preload" as="image" href="/assets/img/logo.webp" type="image/webp" fetchpriority="high">
-        <link rel="preload" as="image" href="/assets/img/pamflet.webp" type="image/webp" fetchpriority="high">
         @vite(['resources/js/app.js'])
 
         @php

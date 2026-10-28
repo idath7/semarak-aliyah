@@ -1814,13 +1814,11 @@ function handleLightboxKey(e) {
           <div class="hero-visual">
             <div class="hero-visual-wrapper">
               <div class="hero-main-card">
-                <picture>
-                  <source 
-                    :srcset="heroSettings?.hero_poster_image ? heroSettings.hero_poster_image.replace(/\.(jpg|jpeg|png)$/i, '.webp') : '/assets/img/pamflet.webp'" 
-                    type="image/webp"
-                  >
+                <!-- If default poster, use modern WebP with JPG fallback -->
+                <picture v-if="!heroSettings?.hero_poster_image || heroSettings.hero_poster_image === '/assets/img/pamflet.jpg'">
+                  <source srcset="/assets/img/pamflet.webp" type="image/webp">
                   <img 
-                    :src="heroSettings?.hero_poster_image || '/assets/img/pamflet.jpg'" 
+                    src="/assets/img/pamflet.jpg" 
                     alt="Pamflet Resmi Semarak Aliyah XIV 2026" 
                     class="hero-poster-img" 
                     loading="eager"
@@ -1830,16 +1828,39 @@ function handleLightboxKey(e) {
                     height="636"
                   >
                 </picture>
+                <!-- If custom uploaded poster, load directly from original file without guessing webp -->
+                <img 
+                  v-else
+                  :src="heroSettings.hero_poster_image" 
+                  alt="Pamflet Resmi Semarak Aliyah XIV 2026" 
+                  class="hero-poster-img" 
+                  loading="eager"
+                  fetchpriority="high"
+                  decoding="async"
+                  width="450"
+                  height="636"
+                >
               </div>
 
               <!-- Floating Character Mascot -->
-              <picture v-if="heroSettings?.hero_mascot_active !== false">
-                <source 
-                  :srcset="heroSettings?.hero_mascot_image ? heroSettings.hero_mascot_image.replace(/\.(png|jpg|jpeg)$/i, '.webp') : '/assets/img/kadita.webp'" 
-                  type="image/webp"
-                >
+              <template v-if="heroSettings?.hero_mascot_active !== false">
+                <!-- If default mascot, use modern WebP with PNG fallback -->
+                <picture v-if="!heroSettings?.hero_mascot_image || heroSettings.hero_mascot_image === '/assets/img/kadita.png'">
+                  <source srcset="/assets/img/kadita.webp" type="image/webp">
+                  <img 
+                    src="/assets/img/kadita.png" 
+                    alt="Mascot Semarak Aliyah" 
+                    class="hero-character-float"
+                    loading="eager"
+                    decoding="async"
+                    width="320"
+                    height="197"
+                  >
+                </picture>
+                <!-- If custom uploaded mascot, load directly from original file without guessing webp -->
                 <img 
-                  :src="heroSettings?.hero_mascot_image || '/assets/img/kadita.png'" 
+                  v-else
+                  :src="heroSettings.hero_mascot_image" 
                   alt="Mascot Semarak Aliyah" 
                   class="hero-character-float"
                   loading="eager"
@@ -1847,7 +1868,7 @@ function handleLightboxKey(e) {
                   width="320"
                   height="197"
                 >
-              </picture>
+              </template>
 
               <!-- Floating Info Pill -->
               <div v-if="heroSettings?.hero_float_badge_active !== false" class="hero-badge-float">

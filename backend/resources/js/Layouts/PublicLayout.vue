@@ -662,10 +662,7 @@ onUnmounted(() => {
       <div class="popup-modal-card">
         <button type="button" class="popup-modal-close" @click="closePopup" aria-label="Tutup Pop-up">&times;</button>
         <div v-if="kustomisasi.popup_image" class="popup-modal-image-wrap">
-          <picture>
-            <source :srcset="kustomisasi.popup_image.replace(/\.(jpg|jpeg|png)$/i, '.webp')" type="image/webp">
-            <img :src="kustomisasi.popup_image" alt="Poster Pengumuman" class="popup-modal-img" loading="lazy" decoding="async" />
-          </picture>
+          <img :src="kustomisasi.popup_image" alt="Poster Pengumuman" class="popup-modal-img" loading="lazy" decoding="async" />
         </div>
         <div class="popup-modal-body">
           <span v-if="kustomisasi.popup_badge" class="popup-modal-badge">{{ kustomisasi.popup_badge }}</span>

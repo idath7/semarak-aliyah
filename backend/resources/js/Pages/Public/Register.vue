@@ -2185,27 +2185,6 @@ function getCompDropdownSuffix(c) {
                   {{ activeComp?.form_settings?.form_subtitle || 'Lengkapi data pendaftaran delegasi di bawah ini untuk diverifikasi oleh panitia lomba.' }}
                 </p>
               </div>
-
-              <!-- Quick Competition Selector -->
-              <div class="reg-hero-comp-switcher">
-                <label class="switcher-title">Ganti Cabang Lomba :</label>
-                <CustomSelect 
-                  v-model="form.competition_id"
-                  size="sm"
-                  placeholder="Pilih Cabang Lomba..."
-                  searchable
-                  search-placeholder="Ketik nama cabang lomba..."
-                >
-                  <option 
-                    v-for="c in competitions" 
-                    :key="c.id" 
-                    :value="c.id"
-                    :disabled="getCompStatusInfo(c).isClosed && !(c.registration_type === 'direct_contact' || c.is_direct_registration)"
-                  >
-                    {{ c.title }} (Rp {{ Number(c.fee || 50000).toLocaleString('id-ID') }}){{ getCompDropdownSuffix(c) }}
-                  </option>
-                </CustomSelect>
-              </div>
             </div>
           </div>
         </section>
@@ -2313,8 +2292,10 @@ function getCompDropdownSuffix(c) {
                         :class="{ 'is-selected': form.package_type === 'Paket Satuan' }"
                       >
                         <div class="reg-pkg-radio">
-                          <input type="radio" value="Paket Satuan" v-model="form.package_type" />
-                          <span class="custom-radio-dot"></span>
+                          <input type="radio" value="Paket Satuan" v-model="form.package_type" class="d-none" />
+                          <div class="custom-radio-circle" :class="{ 'is-checked': form.package_type === 'Paket Satuan' }">
+                            <div class="radio-inner-dot"></div>
+                          </div>
                         </div>
                         <div class="reg-pkg-content">
                           <div class="reg-pkg-name">{{ pricingSettings?.satuan_name || 'Paket Satuan' }}</div>
@@ -2329,8 +2310,10 @@ function getCompDropdownSuffix(c) {
                         :class="{ 'is-selected': form.package_type === 'Paket All-In' }"
                       >
                         <div class="reg-pkg-radio">
-                          <input type="radio" value="Paket All-In" v-model="form.package_type" />
-                          <span class="custom-radio-dot"></span>
+                          <input type="radio" value="Paket All-In" v-model="form.package_type" class="d-none" />
+                          <div class="custom-radio-circle" :class="{ 'is-checked': form.package_type === 'Paket All-In' }">
+                            <div class="radio-inner-dot"></div>
+                          </div>
                         </div>
                         <div class="reg-pkg-content">
                           <div class="reg-pkg-name">{{ pricingSettings?.allin_name || 'Paket All-In Komplit' }}</div>
@@ -2914,10 +2897,12 @@ function getCompDropdownSuffix(c) {
                             <input 
                               type="radio" 
                               name="reg_captain_sel" 
+                              class="d-none"
                               :checked="participantsList[pIdx - 1].is_captain" 
                               @change="setCaptain(pIdx - 1); clearFieldError('team_captain')" 
                             />
-                            <span>⭐ Jadikan Kapten</span>
+                            <i :class="participantsList[pIdx - 1].is_captain ? 'ri-star-fill text-warning' : 'ri-star-line'"></i>
+                            <span>{{ participantsList[pIdx - 1].is_captain ? 'Ketua Tim' : 'Jadikan Ketua' }}</span>
                           </label>
                         </div>
                       </div>
@@ -2953,14 +2938,16 @@ function getCompDropdownSuffix(c) {
                                 class="gender-segmented-btn" 
                                 :class="{ 'is-selected': participantsList[pIdx - 1].gender === 'L' }"
                               >
-                                <input type="radio" :name="`reg_gender_${pIdx}`" value="L" v-model="participantsList[pIdx - 1].gender" />
+                                <input type="radio" :name="`reg_gender_${pIdx}`" value="L" v-model="participantsList[pIdx - 1].gender" class="d-none" />
+                                <i class="ri-men-line"></i>
                                 <span>Laki-laki</span>
                               </label>
                               <label 
                                 class="gender-segmented-btn" 
                                 :class="{ 'is-selected': participantsList[pIdx - 1].gender === 'P' }"
                               >
-                                <input type="radio" :name="`reg_gender_${pIdx}`" value="P" v-model="participantsList[pIdx - 1].gender" />
+                                <input type="radio" :name="`reg_gender_${pIdx}`" value="P" v-model="participantsList[pIdx - 1].gender" class="d-none" />
+                                <i class="ri-women-line"></i>
                                 <span>Perempuan</span>
                               </label>
                             </div>
@@ -3066,16 +3053,39 @@ function getCompDropdownSuffix(c) {
                             <span><i class="ri-camera-line text-sky-500"></i> Pas Foto Formal Siswa</span>
                             <span class="file-spec-tag">1 File • Format Foto</span>
                           </label>
-                          <div class="reg-file-dropzone-sm">
+                          <div class="reg-custom-file-upload">
                             <input 
+                              :id="'photo_formal_' + (pIdx - 1)"
                               type="file" 
                               accept="image/*"
-                              class="form-control" 
+                              class="d-none" 
                               @change="e => participantsList[pIdx - 1].photo_formal_name = e.target.files[0]?.name || ''"
                             />
-                            <div v-if="participantsList[pIdx - 1].photo_formal_name" class="file-chosen-info">
-                              <i class="ri-checkbox-circle-fill text-emerald-500"></i>
-                              <span>{{ participantsList[pIdx - 1].photo_formal_name }}</span>
+                            <div v-if="!participantsList[pIdx - 1].photo_formal_name" class="custom-file-trigger-box">
+                              <label :for="'photo_formal_' + (pIdx - 1)" class="btn-custom-file-pick">
+                                <i class="ri-camera-fill"></i>
+                                <span>Pilih Pas Foto</span>
+                              </label>
+                              <span class="file-hint-text">JPG/PNG, maks. 3MB</span>
+                            </div>
+                            <div v-else class="custom-file-selected-card">
+                              <div class="d-flex align-items-center gap-2 min-w-0">
+                                <i class="ri-image-line text-primary fs-5"></i>
+                                <span class="fs-12 fw-semibold text-truncate">{{ participantsList[pIdx - 1].photo_formal_name }}</span>
+                              </div>
+                              <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+                                <label :for="'photo_formal_' + (pIdx - 1)" class="btn-file-action btn-change" title="Ganti foto">
+                                  <i class="ri-refresh-line"></i> Ganti
+                                </label>
+                                <button 
+                                  type="button" 
+                                  class="btn-file-action btn-delete" 
+                                  title="Hapus foto"
+                                  @click="participantsList[pIdx - 1].photo_formal_name = ''"
+                                >
+                                  <i class="ri-delete-bin-line"></i>
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -3086,17 +3096,40 @@ function getCompDropdownSuffix(c) {
                             <span><i class="ri-gallery-upload-line text-emerald-500"></i> Upload Foto Pose Gaya Bebas</span>
                             <span class="file-spec-tag tag-multi">Dapat &gt;1 Foto</span>
                           </label>
-                          <div class="reg-file-dropzone-sm">
+                          <div class="reg-custom-file-upload">
                             <input 
+                              :id="'photo_freestyle_' + (pIdx - 1)"
                               type="file" 
                               multiple
                               accept="image/*"
-                              class="form-control" 
+                              class="d-none" 
                               @change="e => handleFreestyleFiles(pIdx - 1, e)"
                             />
-                            <div v-if="participantsList[pIdx - 1].freestyle_count" class="file-chosen-info">
-                              <i class="ri-checkbox-circle-fill text-emerald-500"></i>
-                              <span>{{ participantsList[pIdx - 1].freestyle_count }} file foto pose gaya bebas dipilih</span>
+                            <div v-if="!participantsList[pIdx - 1].freestyle_count" class="custom-file-trigger-box">
+                              <label :for="'photo_freestyle_' + (pIdx - 1)" class="btn-custom-file-pick">
+                                <i class="ri-gallery-upload-fill"></i>
+                                <span>Pilih Foto Pose</span>
+                              </label>
+                              <span class="file-hint-text">Bisa pilih &gt;1 foto</span>
+                            </div>
+                            <div v-else class="custom-file-selected-card">
+                              <div class="d-flex align-items-center gap-2 min-w-0">
+                                <i class="ri-gallery-fill text-success fs-5"></i>
+                                <span class="fs-12 fw-semibold text-truncate">{{ participantsList[pIdx - 1].freestyle_count }} foto pose dipilih</span>
+                              </div>
+                              <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+                                <label :for="'photo_freestyle_' + (pIdx - 1)" class="btn-file-action btn-change" title="Tambah / Ganti foto">
+                                  <i class="ri-add-line"></i> Ganti
+                                </label>
+                                <button 
+                                  type="button" 
+                                  class="btn-file-action btn-delete" 
+                                  title="Hapus foto"
+                                  @click="participantsList[pIdx - 1].freestyle_count = 0"
+                                >
+                                  <i class="ri-delete-bin-line"></i>
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -3302,7 +3335,7 @@ function getCompDropdownSuffix(c) {
                           :key="oIdx"
                           class="reg-option-card"
                           :class="{ 'is-selected': form.custom_fields[field.name] === opt }"
-                          @click="clearFieldError('cf_' + field.name)"
+                          @click="form.custom_fields[field.name] = opt; clearFieldError('cf_' + field.name)"
                         >
                           <span class="option-text">{{ opt }}</span>
                           <input 
@@ -3310,8 +3343,12 @@ function getCompDropdownSuffix(c) {
                             :name="'cf_radio_' + field.name" 
                             :value="opt" 
                             v-model="form.custom_fields[field.name]" 
+                            class="d-none"
                             @change="clearFieldError('cf_' + field.name)"
                           />
+                          <div class="option-check-circle" :class="{ 'is-checked': form.custom_fields[field.name] === opt }">
+                            <i class="ri-check-line" v-if="form.custom_fields[field.name] === opt"></i>
+                          </div>
                         </label>
                       </div>
 
@@ -3328,8 +3365,11 @@ function getCompDropdownSuffix(c) {
                           <input 
                             type="checkbox" 
                             :checked="isCheckboxSelected(field.name, opt)"
-                            tabindex="-1"
+                            class="d-none"
                           />
+                          <div class="option-check-circle checkbox-shape" :class="{ 'is-checked': isCheckboxSelected(field.name, opt) }">
+                            <i class="ri-check-line" v-if="isCheckboxSelected(field.name, opt)"></i>
+                          </div>
                         </label>
                       </div>
 
@@ -3355,10 +3395,14 @@ function getCompDropdownSuffix(c) {
                             <input 
                               type="file" 
                               :id="'cf-' + field.name"
-                              class="form-control file-input-element"
+                              class="d-none"
                               :accept="field.allowed_extensions ? field.allowed_extensions.map(e => '.' + e).join(',') : undefined"
                               @change="e => { handleCustomFileChange(field.name, e, 1); clearFieldError('cf_' + field.name); }"
                             />
+                            <label :for="'cf-' + field.name" class="btn-dropzone-pick">
+                              <i class="ri-folder-open-fill"></i>
+                              <span>Pilih Berkas</span>
+                            </label>
                           </div>
                           <div v-else class="dropzone-filled">
                             <div class="file-filled-left">
@@ -3395,10 +3439,14 @@ function getCompDropdownSuffix(c) {
                               type="file" 
                               :id="'cf-' + field.name"
                               multiple
-                              class="form-control file-input-element"
+                              class="d-none"
                               :accept="field.allowed_extensions ? field.allowed_extensions.map(e => '.' + e).join(',') : undefined"
                               @change="e => { handleCustomFileChange(field.name, e, field.max_files); clearFieldError('cf_' + field.name); }"
                             />
+                            <label :for="'cf-' + field.name" class="btn-dropzone-pick">
+                              <i class="ri-folders-fill"></i>
+                              <span>Pilih Berkas-berkas</span>
+                            </label>
                           </div>
                           <div v-else class="d-flex flex-column gap-2 text-start">
                             <div class="d-flex align-items-center justify-content-between pb-1 border-bottom">
@@ -3516,10 +3564,12 @@ function getCompDropdownSuffix(c) {
                           name="single_payment_method" 
                           :value="'Transfer ' + acc.bank_name" 
                           v-model="form.payment_method" 
-                          class="form-check-input mt-0"
+                          class="d-none"
                           @change="clearFieldError('payment_method')"
-                          @click.stop
                         />
+                        <div class="custom-radio-circle sm" :class="{ 'is-checked': form.payment_method === ('Transfer ' + acc.bank_name) }">
+                          <div class="radio-inner-dot"></div>
+                        </div>
                         <span class="bank-badge">
                           <i class="ri-bank-card-line"></i> {{ acc.bank_name }}
                         </span>
@@ -3568,10 +3618,12 @@ function getCompDropdownSuffix(c) {
                           name="single_payment_method" 
                           value="Tunai di Sekretariat" 
                           v-model="form.payment_method" 
-                          class="form-check-input mt-0"
+                          class="d-none"
                           @change="clearFieldError('payment_method')"
-                          @click.stop
                         />
+                        <div class="custom-radio-circle sm" :class="{ 'is-checked': form.payment_method === 'Tunai di Sekretariat' }">
+                          <div class="radio-inner-dot"></div>
+                        </div>
                         <span class="bank-badge cash-badge">
                           <i class="ri-money-dollar-circle-line text-warning"></i> Tunai di Sekretariat
                         </span>
@@ -3618,8 +3670,8 @@ function getCompDropdownSuffix(c) {
                 </div>
               </div>
 
-              <!-- SECONDARY SUBMIT BUTTON AT BOTTOM OF FORM -->
-              <div class="reg-bottom-actions-bar pt-3 border-top mt-4 mb-2">
+              <!-- MOBILE-ONLY SUBMIT BUTTON AT BOTTOM OF FORM (Desktop uses persistent sticky sidebar) -->
+              <div class="reg-bottom-actions-bar d-lg-none pt-3 border-top mt-4 mb-2">
                 <!-- Bottom Error Notice if validation failed -->
                 <div v-if="errorSummaryList.length > 0" class="alert alert-danger py-2.5 px-3 mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2 rounded-3 fs-13">
                   <div class="d-flex align-items-center gap-2">
@@ -3638,9 +3690,8 @@ function getCompDropdownSuffix(c) {
                   </button>
                   <button 
                     type="submit" 
-                    class="btn-submit-page"
+                    class="btn-submit-page flex-grow-1"
                     :disabled="form.processing"
-                    style="min-width: 260px;"
                   >
                     <i v-if="form.processing" class="ri-loader-4-line ri-spin me-1 fs-5"></i>
                     <i v-else class="ri-send-plane-2-fill me-1 fs-5"></i>
@@ -3758,15 +3809,6 @@ function getCompDropdownSuffix(c) {
                       <i v-if="form.processing" class="ri-loader-4-line ri-spin me-1 fs-5"></i>
                       <i v-else class="ri-send-plane-2-fill me-1 fs-5"></i>
                       <span>{{ form.processing ? 'Mengirim Pendaftaran...' : (activeComp?.form_settings?.submit_text || 'Kirim Pendaftaran Delegasi') }}</span>
-                    </button>
-
-                    <button 
-                      type="button" 
-                      class="btn-back-catalog w-100 justify-content-center mt-2.5"
-                      @click="backToCatalog"
-                    >
-                      <i class="ri-arrow-left-line me-1"></i>
-                      <span>Batal & Kembali ke Katalog</span>
                     </button>
                   </div>
                 </div>
@@ -4211,6 +4253,7 @@ function getCompDropdownSuffix(c) {
                   :key="'allin-opt-' + (acc.id || acc.account_number)"
                   class="reg-radio-item"
                   :class="{ 'is-active': allInForm.payment_method === ('Transfer ' + acc.bank_name) }"
+                  @click="allInForm.payment_method = ('Transfer ' + acc.bank_name)"
                 >
                   <div class="d-flex align-items-center gap-2">
                     <input
@@ -4218,8 +4261,11 @@ function getCompDropdownSuffix(c) {
                       name="allin_payment_method"
                       :value="'Transfer ' + acc.bank_name"
                       v-model="allInForm.payment_method"
-                      class="form-check-input mt-0"
+                      class="d-none"
                     />
+                    <div class="custom-radio-circle sm" :class="{ 'is-checked': allInForm.payment_method === ('Transfer ' + acc.bank_name) }">
+                      <div class="radio-inner-dot"></div>
+                    </div>
                     <span class="reg-radio-label-text">Transfer {{ acc.bank_name }} (Rek. {{ acc.account_number }})</span>
                   </div>
                   <i class="ri-bank-line text-success fs-16"></i>
@@ -4228,6 +4274,7 @@ function getCompDropdownSuffix(c) {
                 <label 
                   class="reg-radio-item"
                   :class="{ 'is-active': allInForm.payment_method === 'Tunai di Sekretariat' }"
+                  @click="allInForm.payment_method = 'Tunai di Sekretariat'"
                 >
                   <div class="d-flex align-items-center gap-2">
                     <input
@@ -4235,8 +4282,11 @@ function getCompDropdownSuffix(c) {
                       name="allin_payment_method"
                       value="Tunai di Sekretariat"
                       v-model="allInForm.payment_method"
-                      class="form-check-input mt-0"
+                      class="d-none"
                     />
+                    <div class="custom-radio-circle sm" :class="{ 'is-checked': allInForm.payment_method === 'Tunai di Sekretariat' }">
+                      <div class="radio-inner-dot"></div>
+                    </div>
                     <span class="reg-radio-label-text">Tunai Langsung di Sekretariat Panitia</span>
                   </div>
                   <i class="ri-money-dollar-circle-line text-warning fs-16"></i>
@@ -4249,12 +4299,41 @@ function getCompDropdownSuffix(c) {
                 <span>Unggah Bukti Transfer Bank (Opsional)</span>
                 <span class="text-muted fs-11">Format: JPG, PNG, PDF (Maks. 5MB)</span>
               </label>
-              <input 
-                type="file" 
-                accept="image/*,.pdf"
-                class="form-control"
-                @change="handleAllInProofChange"
-              />
+              <div class="reg-custom-file-upload">
+                <input 
+                  id="allin-proof-file"
+                  type="file" 
+                  accept="image/*,.pdf"
+                  class="d-none"
+                  @change="handleAllInProofChange"
+                />
+                <div v-if="!allInForm.proof_file" class="custom-file-trigger-box">
+                  <label for="allin-proof-file" class="btn-custom-file-pick">
+                    <i class="ri-upload-2-fill"></i>
+                    <span>Pilih Berkas Bukti Transfer</span>
+                  </label>
+                  <span class="file-hint-text">JPG/PNG/PDF, maks. 5MB</span>
+                </div>
+                <div v-else class="custom-file-selected-card">
+                  <div class="d-flex align-items-center gap-2 min-w-0">
+                    <i class="ri-file-check-line text-success fs-5"></i>
+                    <span class="fs-12 fw-semibold text-truncate">{{ allInForm.proof_file?.name || 'Bukti Transfer' }}</span>
+                  </div>
+                  <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+                    <label for="allin-proof-file" class="btn-file-action btn-change" title="Ganti berkas">
+                      <i class="ri-refresh-line"></i> Ganti
+                    </label>
+                    <button 
+                      type="button" 
+                      class="btn-file-action btn-delete" 
+                      title="Hapus berkas"
+                      @click="allInForm.proof_file = null"
+                    >
+                      <i class="ri-delete-bin-line"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="form-group mb-0">
@@ -8165,6 +8244,268 @@ function getCompDropdownSuffix(c) {
 :global(html[data-bs-theme="dark"]) .reg-step-pill.step-optional,
 :global(.dark) .reg-step-pill.step-optional {
   background: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+/* =============================================================================
+   CUSTOM CONTROL ELEMENTS (NO NATIVE BROWSER BUTTONS / RADIOS)
+   ============================================================================= */
+/* Hide native inputs inside custom wrappers */
+.gender-segmented-btn input[type="radio"],
+.captain-toggle-label input[type="radio"],
+.reg-radio-item input[type="radio"],
+.reg-package-item input[type="radio"] {
+  display: none !important;
+}
+
+/* Custom Radio Circle */
+.custom-radio-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.custom-radio-circle.is-checked {
+  border-color: #8b5cf6;
+  background: #ffffff;
+}
+
+.custom-radio-circle .radio-inner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  transition: all 0.18s ease;
+}
+
+.custom-radio-circle.is-checked .radio-inner-dot {
+  background: #8b5cf6;
+}
+
+.custom-radio-circle.sm {
+  width: 16px;
+  height: 16px;
+}
+
+.custom-radio-circle.sm .radio-inner-dot {
+  width: 7px;
+  height: 7px;
+}
+
+/* Option Check Circle for Custom Fields */
+.option-check-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #ffffff;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.option-check-circle.is-checked {
+  border-color: #8b5cf6;
+  background: #8b5cf6;
+}
+
+.option-check-circle.checkbox-shape {
+  border-radius: 5px;
+}
+
+.option-check-circle.checkbox-shape.is-checked {
+  border-color: #10b981;
+  background: #10b981;
+}
+
+/* Custom Styled File Upload Components */
+.reg-custom-file-upload {
+  margin-top: 5px;
+}
+
+.custom-file-trigger-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-custom-file-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  border: 1.5px solid #cbd5e1;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+  margin: 0;
+}
+
+.btn-custom-file-pick:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+
+.file-hint-text {
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+.custom-file-selected-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1.5px solid #bbf7d0;
+  border-radius: 8px;
+}
+
+.btn-file-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+  margin: 0;
+}
+
+.btn-file-action.btn-change {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.btn-file-action.btn-change:hover {
+  background: #bae6fd;
+  color: #0284c7;
+}
+
+.btn-file-action.btn-delete {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.btn-file-action.btn-delete:hover {
+  background: #fca5a5;
+  color: #7f1d1d;
+}
+
+/* Dropzone Custom Button */
+.btn-dropzone-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  background: #8b5cf6;
+  color: #ffffff;
+  border: none;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.btn-dropzone-pick:hover {
+  background: #7c3aed;
+  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Dark Mode Overrides for Custom Control Elements */
+[data-bs-theme="dark"] .custom-radio-circle,
+:global([data-bs-theme="dark"]) .custom-radio-circle,
+:global(html[data-bs-theme="dark"]) .custom-radio-circle,
+:global(.dark) .custom-radio-circle {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+[data-bs-theme="dark"] .custom-radio-circle.is-checked,
+:global([data-bs-theme="dark"]) .custom-radio-circle.is-checked,
+:global(html[data-bs-theme="dark"]) .custom-radio-circle.is-checked,
+:global(.dark) .custom-radio-circle.is-checked {
+  border-color: #a78bfa !important;
+}
+
+[data-bs-theme="dark"] .custom-radio-circle.is-checked .radio-inner-dot,
+:global([data-bs-theme="dark"]) .custom-radio-circle.is-checked .radio-inner-dot,
+:global(html[data-bs-theme="dark"]) .custom-radio-circle.is-checked .radio-inner-dot,
+:global(.dark) .custom-radio-circle.is-checked .radio-inner-dot {
+  background: #a78bfa !important;
+}
+
+[data-bs-theme="dark"] .option-check-circle,
+:global([data-bs-theme="dark"]) .option-check-circle,
+:global(html[data-bs-theme="dark"]) .option-check-circle,
+:global(.dark) .option-check-circle {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+[data-bs-theme="dark"] .btn-custom-file-pick,
+:global([data-bs-theme="dark"]) .btn-custom-file-pick,
+:global(html[data-bs-theme="dark"]) .btn-custom-file-pick,
+:global(.dark) .btn-custom-file-pick {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] .btn-custom-file-pick:hover,
+:global([data-bs-theme="dark"]) .btn-custom-file-pick:hover,
+:global(html[data-bs-theme="dark"]) .btn-custom-file-pick:hover,
+:global(.dark) .btn-custom-file-pick:hover {
+  background: #334155 !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+}
+
+[data-bs-theme="dark"] .custom-file-selected-card,
+:global([data-bs-theme="dark"]) .custom-file-selected-card,
+:global(html[data-bs-theme="dark"]) .custom-file-selected-card,
+:global(.dark) .custom-file-selected-card {
+  background: #1e293b !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  color: #f1f5f9 !important;
+}
+
+[data-bs-theme="dark"] .file-hint-text,
+:global([data-bs-theme="dark"]) .file-hint-text,
+:global(html[data-bs-theme="dark"]) .file-hint-text,
+:global(.dark) .file-hint-text {
   color: #94a3b8 !important;
 }
 </style>

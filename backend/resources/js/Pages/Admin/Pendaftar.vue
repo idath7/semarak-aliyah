@@ -203,55 +203,55 @@ onMounted(() => {
     <!-- ============================================================== -->
     <!-- PAGE TITLE & BREADCRUMB                                        -->
     <!-- ============================================================== -->
-    <div class="row mb-4 align-items-center">
-      <div class="col-md-7">
+    <div class="row mb-3 mb-sm-4 align-items-center g-2">
+      <div class="col-12 col-md-6">
         <div class="d-flex align-items-center gap-2 mb-1">
-          <Link href="/admin" class="text-muted text-decoration-none fs-13">Dashboard</Link>
-          <span class="text-muted fs-12">/</span>
-          <span class="text-dark fw-semibold fs-13">Data Pendaftar</span>
+          <Link href="/admin" class="text-muted text-decoration-none fs-12 fs-sm-13">Dashboard</Link>
+          <span class="text-muted fs-11 fs-sm-12">/</span>
+          <span class="text-dark fw-semibold fs-12 fs-sm-13">Data Pendaftar</span>
         </div>
-        <h4 class="fs-18 fw-bold mb-1 text-dark">Data Delegasi Pendaftar Masuk</h4>
-        <p class="text-muted mb-0 fs-13">
+        <h4 class="fs-16 fs-sm-18 fw-bold mb-1 text-dark">Data Delegasi Pendaftar Masuk</h4>
+        <p class="text-muted mb-0 fs-12 fs-sm-13">
           Pantau seluruh kontingen pendaftar, periksa berkas persyaratan, dan kelola status verifikasi pembayaran.
         </p>
       </div>
-      <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex flex-wrap justify-content-md-end align-items-center gap-2">
-        <Link href="/admin/sekolah-terdaftar" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm">
+      <div class="col-12 col-md-6 text-start text-md-end mt-2 mt-md-0 d-flex flex-wrap justify-content-start justify-content-md-end align-items-center gap-1.5">
+        <Link href="/admin/sekolah-terdaftar" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm fs-11 fs-sm-12">
           <i class="ri-user-add-line"></i> + Input Manual (Meja Panitia)
         </Link>
-        <Link href="/admin/sekolah-terdaftar" class="btn btn-sm btn-info text-white d-inline-flex align-items-center gap-1 shadow-xs">
-          <i class="ri-community-line"></i> Sekolah Terdaftar & Merge
+        <Link href="/admin/sekolah-terdaftar" class="btn btn-sm btn-info text-white d-inline-flex align-items-center gap-1 shadow-xs fs-11 fs-sm-12">
+          <i class="ri-community-line"></i> Sekolah Terdaftar
         </Link>
-        <Link href="/admin/lomba" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+        <Link href="/admin/lomba" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 fs-11 fs-sm-12">
           <i class="ri-medal-line"></i> Kelola Lomba
         </Link>
-        <a href="/admin/export" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 shadow-sm" title="Download rekapitulasi data pendaftar dalam format Microsoft Excel (.xlsx)">
+        <a href="/admin/export" class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 shadow-sm fs-11 fs-sm-12" title="Download rekapitulasi data pendaftar dalam format Microsoft Excel (.xlsx)">
           <i class="ri-file-excel-2-line"></i> Export Excel (.xlsx)
         </a>
       </div>
     </div>
 
     <!-- ============================================================== -->
-    <!-- 4 KPI SUMMARY METRIC CARDS                                     -->
+    <!-- 4 KPI SUMMARY METRIC CARDS (Responsive 2x2 on Mobile)          -->
     <!-- ============================================================== -->
-    <div class="row">
+    <div class="row g-2 g-sm-3 mb-4">
       <!-- Card 1: Total Pendaftar -->
-      <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card card-animate border-0 shadow-sm h-100">
-          <div class="card-body">
+      <div class="col-6 col-md-6 col-xl-3">
+        <div class="card card-animate border-0 shadow-sm h-100 mb-0">
+          <div class="card-body p-3">
             <div class="d-flex align-items-center justify-content-between">
-              <div>
-                <p class="text-uppercase fw-semibold text-muted fs-12 mb-1">Total Delegasi</p>
-                <h4 class="fs-22 fw-bold mb-0 text-dark">
+              <div class="min-w-0">
+                <p class="text-uppercase fw-semibold text-muted fs-11 fs-sm-12 mb-1 text-truncate">Total Delegasi</p>
+                <h4 class="fs-18 fs-sm-22 fw-bold mb-0 text-dark">
                   {{ stats.total_registrations || registrationsList.length }}
-                  <span class="fs-12 text-muted fw-normal">Peserta</span>
+                  <span class="fs-11 fs-sm-12 text-muted fw-normal">Peserta</span>
                 </h4>
-                <span class="badge bg-primary-subtle text-primary fs-11 mt-2">
-                  <i class="ri-team-line align-middle me-1"></i> Semua Cabang
+                <span class="badge bg-primary-subtle text-primary fs-10 fs-sm-11 mt-1.5 text-truncate d-inline-block max-w-100">
+                  <i class="ri-team-line align-middle me-0.5"></i> Semua Cabang
                 </span>
               </div>
-              <div class="avatar-sm flex-shrink-0">
-                <span class="avatar-title bg-primary-subtle text-primary rounded fs-20">
+              <div class="avatar-xs avatar-sm-sm flex-shrink-0 ms-2">
+                <span class="avatar-title bg-primary-subtle text-primary rounded fs-18 fs-sm-20">
                   <i class="ri-user-star-line"></i>
                 </span>
               </div>
@@ -261,22 +261,22 @@ onMounted(() => {
       </div>
 
       <!-- Card 2: Terverifikasi -->
-      <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card card-animate border-0 shadow-sm h-100">
-          <div class="card-body">
+      <div class="col-6 col-md-6 col-xl-3">
+        <div class="card card-animate border-0 shadow-sm h-100 mb-0">
+          <div class="card-body p-3">
             <div class="d-flex align-items-center justify-content-between">
-              <div>
-                <p class="text-uppercase fw-semibold text-muted fs-12 mb-1">Terverifikasi Sah</p>
-                <h4 class="fs-22 fw-bold mb-0 text-success">
+              <div class="min-w-0">
+                <p class="text-uppercase fw-semibold text-muted fs-11 fs-sm-12 mb-1 text-truncate">Terverifikasi Sah</p>
+                <h4 class="fs-18 fs-sm-22 fw-bold mb-0 text-success">
                   {{ countVerified }}
-                  <span class="fs-12 text-muted fw-normal">Delegasi</span>
+                  <span class="fs-11 fs-sm-12 text-muted fw-normal">Delegasi</span>
                 </h4>
-                <span class="badge bg-success-subtle text-success fs-11 mt-2">
-                  <i class="ri-shield-check-line align-middle me-1"></i> Berkas Lengkap
+                <span class="badge bg-success-subtle text-success fs-10 fs-sm-11 mt-1.5 text-truncate d-inline-block max-w-100">
+                  <i class="ri-shield-check-line align-middle me-0.5"></i> Lengkap
                 </span>
               </div>
-              <div class="avatar-sm flex-shrink-0">
-                <span class="avatar-title bg-success-subtle text-success rounded fs-20">
+              <div class="avatar-xs avatar-sm-sm flex-shrink-0 ms-2">
+                <span class="avatar-title bg-success-subtle text-success rounded fs-18 fs-sm-20">
                   <i class="ri-checkbox-circle-line"></i>
                 </span>
               </div>
@@ -286,22 +286,22 @@ onMounted(() => {
       </div>
 
       <!-- Card 3: Menunggu Verifikasi -->
-      <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card card-animate border-0 shadow-sm h-100">
-          <div class="card-body">
+      <div class="col-6 col-md-6 col-xl-3">
+        <div class="card card-animate border-0 shadow-sm h-100 mb-0">
+          <div class="card-body p-3">
             <div class="d-flex align-items-center justify-content-between">
-              <div>
-                <p class="text-uppercase fw-semibold text-muted fs-12 mb-1">Menunggu Review</p>
-                <h4 class="fs-22 fw-bold mb-0 text-warning">
+              <div class="min-w-0">
+                <p class="text-uppercase fw-semibold text-muted fs-11 fs-sm-12 mb-1 text-truncate">Perlu Review</p>
+                <h4 class="fs-18 fs-sm-22 fw-bold mb-0 text-warning">
                   {{ countPending }}
-                  <span class="fs-12 text-muted fw-normal">Delegasi</span>
+                  <span class="fs-11 fs-sm-12 text-muted fw-normal">Delegasi</span>
                 </h4>
-                <span class="badge bg-warning-subtle text-warning fs-11 mt-2">
-                  <i class="ri-time-line align-middle me-1"></i> Perlu Tindakan
+                <span class="badge bg-warning-subtle text-warning fs-10 fs-sm-11 mt-1.5 text-truncate d-inline-block max-w-100">
+                  <i class="ri-time-line align-middle me-0.5"></i> Tindakan
                 </span>
               </div>
-              <div class="avatar-sm flex-shrink-0">
-                <span class="avatar-title bg-warning-subtle text-warning rounded fs-20">
+              <div class="avatar-xs avatar-sm-sm flex-shrink-0 ms-2">
+                <span class="avatar-title bg-warning-subtle text-warning rounded fs-18 fs-sm-20">
                   <i class="ri-error-warning-line"></i>
                 </span>
               </div>
@@ -311,21 +311,21 @@ onMounted(() => {
       </div>
 
       <!-- Card 4: Total Dana Masuk -->
-      <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card card-animate border-0 shadow-sm h-100">
-          <div class="card-body">
+      <div class="col-6 col-md-6 col-xl-3">
+        <div class="card card-animate border-0 shadow-sm h-100 mb-0">
+          <div class="card-body p-3">
             <div class="d-flex align-items-center justify-content-between">
-              <div>
-                <p class="text-uppercase fw-semibold text-muted fs-12 mb-1">Total Dana Masuk</p>
-                <h4 class="fs-22 fw-bold mb-0 text-dark">
+              <div class="min-w-0">
+                <p class="text-uppercase fw-semibold text-muted fs-11 fs-sm-12 mb-1 text-truncate">Dana Masuk</p>
+                <h4 class="fs-18 fs-sm-22 fw-bold mb-0 text-dark">
                   {{ formatRupiah(stats.total_fee) }}
                 </h4>
-                <span class="badge bg-info-subtle text-info fs-11 mt-2">
-                  <i class="ri-wallet-3-line align-middle me-1"></i> Biaya Registrasi
+                <span class="badge bg-info-subtle text-info fs-10 fs-sm-11 mt-1.5 text-truncate d-inline-block max-w-100">
+                  <i class="ri-wallet-3-line align-middle me-0.5"></i> Registrasi
                 </span>
               </div>
-              <div class="avatar-sm flex-shrink-0">
-                <span class="avatar-title bg-info-subtle text-info rounded fs-20">
+              <div class="avatar-xs avatar-sm-sm flex-shrink-0 ms-2">
+                <span class="avatar-title bg-info-subtle text-info rounded fs-18 fs-sm-20">
                   <i class="ri-money-dollar-circle-line"></i>
                 </span>
               </div>
@@ -341,32 +341,32 @@ onMounted(() => {
     <div class="row">
       <div class="col-12">
         <div class="card border-0 shadow-sm">
-          <!-- Card Header with Filters & Search -->
+          <!-- Card Header with Filters & Search (Responsive Mobile & Desktop) -->
           <div class="card-header bg-white border-bottom py-3">
-            <div class="row align-items-center g-3">
-              <div class="col-md-4">
-                <h5 class="card-title mb-0 fs-14 fw-bold text-dark">
-                  <i class="ri-team-line text-primary me-1"></i> Daftar Delegasi Kontingen Masuk
+            <div class="row align-items-center g-2.5">
+              <div class="col-12 col-lg-5">
+                <h5 class="card-title mb-0 fs-14 fw-bold text-dark d-flex align-items-center">
+                  <i class="ri-team-line text-primary me-1.5 fs-16"></i> Daftar Delegasi Kontingen Masuk
                 </h5>
                 <span class="text-muted fs-11">Menampilkan {{ filteredRegistrations.length }} dari {{ registrationsList.length }} data</span>
               </div>
 
               <!-- Filter Tabs & Inputs -->
-              <div class="col-md-8">
-                <div class="d-flex flex-wrap align-items-center justify-content-md-end gap-2">
+              <div class="col-12 col-lg-7">
+                <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-lg-end gap-2">
                   <!-- Search Box -->
-                  <div class="position-relative" style="min-width: 240px;">
+                  <div class="position-relative flex-grow-1" style="min-width: 0;">
                     <input 
                       v-model="searchQuery"
                       type="text" 
-                      class="form-control form-control-sm ps-4" 
+                      class="form-control form-control-sm ps-4 w-100 fs-12" 
                       placeholder="Cari sekolah, ID, nama peserta..."
                     />
                     <i class="ri-search-line position-absolute top-50 start-0 translate-middle-y ms-2 text-muted fs-12"></i>
                   </div>
 
                   <!-- Competition Dropdown Filter -->
-                  <div style="min-width: 220px;">
+                  <div class="flex-grow-1 flex-sm-grow-0" style="min-width: 0; min-width: min(220px, 100%);">
                     <CustomSelect v-model="selectedCompetition" size="sm">
                       <option value="all">Semua Cabang Lomba</option>
                       <option v-for="c in competitionsList" :key="c.id" :value="c.id">{{ c.title }}</option>
@@ -376,48 +376,48 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- Status Filter Pills -->
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 pt-2 border-top">
-              <div class="d-flex align-items-center gap-2">
+            <!-- Status Filter Pills (Touch Scrollable on Mobile) -->
+            <div class="d-flex align-items-center justify-content-between gap-2 mt-3 pt-2.5 border-top flex-wrap flex-sm-nowrap">
+              <div class="d-flex align-items-center gap-1.5 overflow-x-auto pb-1 text-nowrap scrollbar-none w-100 w-sm-auto">
                 <button 
                   @click="selectedStatus = 'all'" 
-                  class="btn btn-xs rounded-pill"
+                  class="btn btn-xs rounded-pill flex-shrink-0 px-2.5 py-1"
                   :class="selectedStatus === 'all' ? 'btn-primary' : 'btn-outline-secondary'"
                 >
                   Semua ({{ countAll }})
                 </button>
                 <button 
                   @click="selectedStatus = 'Menunggu Verifikasi'" 
-                  class="btn btn-xs rounded-pill"
+                  class="btn btn-xs rounded-pill flex-shrink-0 px-2.5 py-1"
                   :class="selectedStatus === 'Menunggu Verifikasi' ? 'btn-warning text-dark font-bold' : 'btn-outline-warning'"
                 >
                   Menunggu Review ({{ countPending }})
                 </button>
                 <button 
                   @click="selectedStatus = 'Terverifikasi'" 
-                  class="btn btn-xs rounded-pill"
+                  class="btn btn-xs rounded-pill flex-shrink-0 px-2.5 py-1"
                   :class="selectedStatus === 'Terverifikasi' ? 'btn-success' : 'btn-outline-success'"
                 >
                   Terverifikasi ({{ countVerified }})
                 </button>
                 <button 
                   @click="selectedStatus = 'Ditolak'" 
-                  class="btn btn-xs rounded-pill"
+                  class="btn btn-xs rounded-pill flex-shrink-0 px-2.5 py-1"
                   :class="selectedStatus === 'Ditolak' ? 'btn-danger' : 'btn-outline-danger'"
                 >
                   Ditolak ({{ countRejected }})
                 </button>
               </div>
 
-              <div class="text-muted fs-12 d-none d-md-block">
+              <div class="text-muted fs-11 d-none d-lg-block flex-shrink-0">
                 <i class="ri-information-line text-info align-middle me-1"></i>
                 Klik status untuk memverifikasi 1-klik secara instan
               </div>
             </div>
           </div>
 
-          <!-- Card Body: Table -->
-          <div class="card-body p-0">
+          <!-- Card Body: Desktop Table (Visible on md and up) -->
+          <div class="card-body p-0 d-none d-md-block">
             <div class="table-responsive">
               <table class="table table-hover align-middle table-nowrap mb-0">
                 <thead class="table-light">
@@ -599,6 +599,203 @@ onMounted(() => {
               </table>
             </div>
           </div>
+
+          <!-- Card Body: Mobile Dedicated Cards View (Visible on < md) -->
+          <div class="card-body p-2.5 p-sm-3 d-block d-md-none bg-light/30">
+            <!-- Empty State -->
+            <div v-if="filteredRegistrations.length === 0" class="text-center py-5 bg-white rounded-3 border text-muted fs-12">
+              <i class="ri-search-eye-line fs-28 d-block mb-1 text-muted"></i>
+              Tidak ada data pendaftaran yang sesuai dengan pencarian atau filter.
+            </div>
+
+            <!-- Mobile Registration Cards List -->
+            <div v-else class="d-flex flex-column gap-2.5">
+              <div 
+                v-for="(reg, idx) in filteredRegistrations" 
+                :key="reg.id"
+                class="card border rounded-3 shadow-none bg-white p-3 mb-0 transition-all"
+              >
+                <!-- Top Row: #, Code, Date, Gate Masuk Badge -->
+                <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
+                  <div class="d-flex align-items-center gap-1.5 min-w-0">
+                    <span class="badge bg-light text-muted font-monospace fs-10 px-1.5 py-0.5">#{{ idx + 1 }}</span>
+                    <span class="fw-bold font-mono text-primary fs-12 text-truncate">{{ reg.reg_code }}</span>
+                    <small class="text-muted fs-10 text-nowrap">• {{ formatDate(reg.created_at) }}</small>
+                  </div>
+                  <span 
+                    class="badge fs-10 px-2 py-0.5 rounded-pill flex-shrink-0"
+                    :class="reg.checkin_status === 'checked_in' ? 'bg-info-subtle text-info' : 'bg-light text-muted border'"
+                    title="Status Gate Check-in Peserta"
+                  >
+                    <i 
+                      class="align-middle me-0.5"
+                      :class="reg.checkin_status === 'checked_in' ? 'ri-qr-code-line' : 'ri-time-line'"
+                    ></i>
+                    {{ reg.checkin_status === 'checked_in' ? 'Gate Masuk' : 'Belum Gate' }}
+                  </span>
+                </div>
+
+                <!-- School Name -->
+                <div class="mb-2">
+                  <h6 class="fs-13 fw-bold text-dark mb-1 d-flex align-items-center gap-1.5">
+                    <i class="ri-community-line text-primary fs-15 flex-shrink-0"></i>
+                    <span class="text-truncate">{{ reg.school_name }}</span>
+                  </h6>
+                  <div class="d-flex align-items-center gap-1.5 flex-wrap fs-11">
+                    <span class="badge bg-primary-subtle text-primary fw-semibold">
+                      <i class="ri-medal-line me-0.5"></i> {{ reg.competition_title || reg.competition_id }}
+                    </span>
+                    <span class="badge bg-light text-muted border">{{ reg.package_type }}</span>
+                    <span v-if="reg.total_fee" class="badge bg-success-subtle text-success font-monospace">
+                      {{ formatRupiah(reg.total_fee) }}
+                    </span>
+                    <span 
+                      v-if="reg.custom_fields && Object.keys(reg.custom_fields).length > 0" 
+                      class="badge bg-warning-subtle text-warning border border-warning-subtle"
+                      title="Pendaftar melengkapi berkas/pertanyaan khusus cabang"
+                    >
+                      <i class="ri-survey-line fs-10"></i> {{ Object.keys(reg.custom_fields).length }} Field Khusus
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Delegation Participants Preview -->
+                <div v-if="reg.participants_names" class="mb-2 p-2 rounded-2 bg-light border fs-11 text-muted">
+                  <div class="fw-bold text-dark mb-0.5 d-flex align-items-center gap-1">
+                    <i class="ri-user-star-line text-warning"></i> Delegasi Siswa:
+                  </div>
+                  <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4;">
+                    {{ reg.participants_names }}
+                  </div>
+                </div>
+
+                <!-- Mentor & Contacts (WA & Email) -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between pt-1 mb-2 gap-1.5 fs-11">
+                  <div class="d-flex align-items-center gap-1 min-w-0 text-muted">
+                    <i class="ri-user-follow-line flex-shrink-0"></i>
+                    <span class="text-truncate fw-medium text-dark">{{ reg.mentor_name || 'Tanpa Pendamping' }}</span>
+                  </div>
+                  <div class="d-flex align-items-center gap-1 flex-wrap">
+                    <a 
+                      v-if="reg.mentor_wa"
+                      :href="getWaChatUrl(reg.mentor_wa, `Halo Bapak/Ibu ${reg.mentor_name || 'Pembina'} (${reg.school_name || ''}), kami dari Panitia Semarak Aliyah terkait pendaftaran (Kode: ${reg.reg_code}) pada cabang ${reg.competition_title || reg.competition_id}: `)" 
+                      target="_blank" 
+                      class="badge bg-success-subtle text-success border border-success-subtle text-decoration-none d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill flex-shrink-0"
+                      title="Hubungi WhatsApp"
+                    >
+                      <i class="ri-whatsapp-line"></i> {{ reg.mentor_wa }}
+                    </a>
+                    <a 
+                      v-if="reg.custom_fields?.contact_email || reg.custom_fields?.email" 
+                      :href="`mailto:${reg.custom_fields?.contact_email || reg.custom_fields?.email}`" 
+                      class="badge bg-info-subtle text-info border border-info-subtle text-decoration-none d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill flex-shrink-0"
+                      title="Kirim Email"
+                    >
+                      <i class="ri-mail-line"></i> Email
+                    </a>
+                  </div>
+                </div>
+
+                <!-- Dual Verification Status Badges (Berkas & Bayar) with 1-click Modal / Toggle -->
+                <div class="p-2 rounded-2 bg-light border mb-2.5 d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                  <!-- Verifikasi Berkas -->
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="text-muted fs-10">Berkas:</span>
+                    <span 
+                      class="badge fs-10 px-2 py-0.5 cursor-pointer rounded-pill"
+                      :class="{
+                        'bg-success-subtle text-success': reg.registration_status === 'Terverifikasi',
+                        'bg-warning-subtle text-warning': reg.registration_status === 'Menunggu Verifikasi',
+                        'bg-danger-subtle text-danger': reg.registration_status === 'Ditolak'
+                      }"
+                      @click="openDetailModal(reg)"
+                      title="Klik untuk ubah status pendaftaran"
+                    >
+                      <i 
+                        class="align-middle me-0.5"
+                        :class="{
+                          'ri-checkbox-circle-line': reg.registration_status === 'Terverifikasi',
+                          'ri-time-line': reg.registration_status === 'Menunggu Verifikasi',
+                          'ri-close-circle-line': reg.registration_status === 'Ditolak'
+                        }"
+                      ></i>
+                      {{ reg.registration_status || 'Menunggu' }}
+                    </span>
+                  </div>
+
+                  <!-- Verifikasi Pembayaran -->
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="text-muted fs-10">Bayar:</span>
+                    <span 
+                      class="badge fs-10 px-2 py-0.5 cursor-pointer rounded-pill"
+                      :class="{
+                        'bg-success-subtle text-success': reg.payment_status === 'Terverifikasi',
+                        'bg-warning-subtle text-warning': reg.payment_status === 'Menunggu Verifikasi',
+                        'bg-danger-subtle text-danger': reg.payment_status === 'Ditolak'
+                      }"
+                      @click="toggleVerification(reg)"
+                      title="Klik untuk toggle status pembayaran"
+                    >
+                      <i 
+                        class="align-middle me-0.5"
+                        :class="{
+                          'ri-money-dollar-circle-line': reg.payment_status === 'Terverifikasi',
+                          'ri-time-line': reg.payment_status === 'Menunggu Verifikasi',
+                          'ri-close-circle-line': reg.payment_status === 'Ditolak'
+                        }"
+                      ></i>
+                      {{ reg.payment_status || 'Menunggu' }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Complete Action Buttons: 4 features intact and touch-friendly -->
+                <div class="pt-2 border-top d-flex align-items-center gap-1.5">
+                  <!-- 1-Click Quick Verify Toggle Button -->
+                  <button 
+                    type="button" 
+                    class="btn btn-xs flex-grow-1 d-inline-flex align-items-center justify-content-center gap-1 py-1.5 rounded-2 font-medium"
+                    :class="(reg.payment_status === 'Terverifikasi' && reg.registration_status === 'Terverifikasi') ? 'btn-outline-warning' : 'btn-success text-white'"
+                    @click="toggleVerification(reg)"
+                    :title="(reg.payment_status === 'Terverifikasi' && reg.registration_status === 'Terverifikasi') ? 'Tarik Verifikasi' : 'Verifikasi Cepat Keduanya'"
+                  >
+                    <i :class="(reg.payment_status === 'Terverifikasi' && reg.registration_status === 'Terverifikasi') ? 'ri-close-line' : 'ri-check-line'"></i>
+                    <span>{{ (reg.payment_status === 'Terverifikasi' && reg.registration_status === 'Terverifikasi') ? 'Tarik' : 'Verifikasi Cepat' }}</span>
+                  </button>
+
+                  <!-- Modal Detail Review Button -->
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-outline-primary flex-grow-1 d-inline-flex align-items-center justify-content-center gap-1 py-1.5 rounded-2 font-medium"
+                    @click="openDetailModal(reg)"
+                    title="Aksi Cepat: Ringkasan & Verifikasi Modal"
+                  >
+                    <i class="ri-eye-line"></i>
+                    <span>Review</span>
+                  </button>
+
+                  <!-- Cetak Nota Invoice / Kwitansi Resmi -->
+                  <a 
+                    :href="'/admin/invoice/' + reg.id" 
+                    target="_blank" 
+                    class="btn btn-xs btn-outline-secondary px-2.5 py-1.5 rounded-2 text-muted flex-shrink-0"
+                    title="Cetak Nota Tagihan / Kwitansi Resmi (A4)"
+                  >
+                    <i class="ri-file-paper-2-line fs-14"></i>
+                  </a>
+
+                  <!-- Halaman Penuh: Verifikasi Detail & Formulir Cabang -->
+                  <Link 
+                    :href="'/admin/pendaftar/' + reg.id" 
+                    class="btn btn-xs btn-outline-info px-2.5 py-1.5 rounded-2 flex-shrink-0"
+                    title="Buka Halaman Khusus Verifikasi Mendetail & Output Form Builder"
+                  >
+                    <i class="ri-survey-line fs-14"></i>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -610,34 +807,34 @@ onMounted(() => {
       v-if="showDetailModal && activeDetailItem" 
       class="modal fade show d-block" 
       tabindex="-1" 
-      style="background: rgba(0,0,0,0.55); z-index: 1060;"
+      style="background: rgba(0,0,0,0.55); z-index: 1060; overflow-y: auto;"
     >
-      <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg my-2 my-sm-auto">
         <div class="modal-content border-0 shadow-lg">
-          <div class="modal-header bg-light border-bottom d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge bg-primary fs-12 font-mono">{{ activeDetailItem.reg_code }}</span>
-              <div>
-                <h5 class="modal-title fs-14 fw-bold text-dark mb-0">Aksi Cepat: Detail Pendaftar</h5>
-                <span class="fs-10 text-muted">Ringkasan kilat delegasi</span>
+          <div class="modal-header bg-light border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2 py-2.5 px-3 px-sm-4">
+            <div class="d-flex align-items-center gap-2 min-w-0">
+              <span class="badge bg-primary fs-11 fs-sm-12 font-mono flex-shrink-0">{{ activeDetailItem.reg_code }}</span>
+              <div class="min-w-0">
+                <h5 class="modal-title fs-13 fs-sm-14 fw-bold text-dark mb-0 text-truncate">Aksi Cepat: Detail Pendaftar</h5>
+                <span class="fs-10 text-muted d-none d-sm-block">Ringkasan kilat delegasi</span>
               </div>
             </div>
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-1.5 ms-auto">
               <Link 
                 :href="'/admin/pendaftar/' + activeDetailItem.id" 
-                class="btn btn-xs btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+                class="btn btn-xs btn-primary d-inline-flex align-items-center gap-1 shadow-sm fs-11"
                 title="Buka halaman khusus verifikasi detail dengan seluruh output formulir cabang lomba"
               >
-                <i class="ri-survey-line"></i> Buka Verifikasi Lengkap
+                <i class="ri-survey-line"></i> <span class="d-none d-sm-inline">Buka</span> Verifikasi Lengkap
               </Link>
               <button type="button" class="btn-close ms-1" @click="showDetailModal = false"></button>
             </div>
           </div>
 
-          <div class="modal-body p-4">
-            <div class="row g-4">
+          <div class="modal-body p-3 p-sm-4">
+            <div class="row g-3 g-sm-4">
               <!-- Left Column: School & Mentor Info -->
-              <div class="col-md-6 border-end">
+              <div class="col-12 col-md-6 border-md-end border-bottom border-md-bottom-0 pb-3 pb-md-0">
                 <h6 class="fs-13 fw-bold text-dark mb-3 text-uppercase" style="letter-spacing: 0.5px;">
                   <i class="ri-community-line text-primary me-1"></i> Informasi Lembaga & Pendamping
                 </h6>
@@ -921,12 +1118,12 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="modal-footer bg-light border-top py-2.5 d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center gap-2">
+          <div class="modal-footer bg-light border-top py-2.5 px-3 px-sm-4 d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
               <a 
                 :href="'/admin/invoice/' + activeDetailItem.id" 
                 target="_blank" 
-                class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5"
+                class="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center gap-1.5 flex-grow-1 flex-sm-grow-0"
                 title="Cetak Nota Tagihan / Kwitansi Resmi"
               >
                 <i class="ri-file-paper-2-line"></i>
@@ -934,7 +1131,7 @@ onMounted(() => {
               </a>
               <Link 
                 :href="'/admin/pendaftar/' + activeDetailItem.id" 
-                class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+                class="btn btn-sm btn-primary d-inline-flex align-items-center justify-content-center gap-1.5 shadow-sm flex-grow-1 flex-sm-grow-0"
               >
                 <i class="ri-survey-line"></i>
                 <span>Buka Verifikasi Detail &rarr;</span>

@@ -251,44 +251,44 @@ onMounted(() => {
     <!-- ============================================================== -->
     <!-- PAGE TITLE & BREADCRUMB                                        -->
     <!-- ============================================================== -->
-    <div class="row mb-4 align-items-center">
-      <div class="col-md-7">
-        <h4 class="fs-18 fw-bold mb-1 text-dark">Dashboard Panitia {{ school.event_name || 'Semarak Aliyah XIV' }}</h4>
-        <p class="text-muted mb-0 fs-13">
+    <div class="row mb-3 mb-sm-4 align-items-center g-2">
+      <div class="col-12 col-md-7">
+        <h4 class="fs-16 fs-sm-18 fw-bold mb-1 text-dark">Dashboard Panitia {{ school.event_name || 'Semarak Aliyah XIV' }}</h4>
+        <p class="text-muted mb-0 fs-12 fs-sm-13">
           {{ school.school_name || 'MA Unggulan Wahid Hasyim Balung, Jember' }} • Pantau pendaftaran, verifikasi peserta, dan kuota lomba secara real-time.
         </p>
       </div>
-      <div class="col-md-5 text-md-end mt-3 mt-md-0 d-flex justify-content-md-end align-items-center gap-2">
-        <span class="badge bg-light text-dark border px-3 py-2 fs-12">
+      <div class="col-12 col-md-5 text-start text-md-end mt-2 mt-md-0 d-flex flex-wrap justify-content-start justify-content-md-end align-items-center gap-2">
+        <span class="badge bg-light text-dark border px-2.5 py-1.5 fs-11 fs-sm-12">
           <i class="ri-calendar-line text-primary me-1"></i> Edisi {{ eventInfo.edition }} • {{ eventInfo.year }}
         </span>
-        <a href="/admin/export" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm">
+        <a href="/admin/export" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm fs-11 fs-sm-12">
           <i class="ri-download-cloud-2-line"></i> Unduh Data
         </a>
       </div>
     </div>
 
     <!-- ============================================================== -->
-    <!-- 4 VELZON KPI METRIC WIDGET CARDS                               -->
+    <!-- 4 VELZON KPI METRIC WIDGET CARDS (Responsive Grid)            -->
     <!-- ============================================================== -->
-    <div class="row">
+    <div class="row g-2.5 g-sm-3 mb-3 mb-md-4">
       <!-- Widget 1: Total Pendaftar -->
-      <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card card-animate border-0 shadow-sm h-100">
-          <div class="card-body">
+      <div class="col-6 col-md-6 col-xl-3">
+        <div class="card card-animate border-0 shadow-sm h-100 mb-0">
+          <div class="card-body p-3">
             <div class="d-flex align-items-center justify-content-between">
-              <div>
-                <p class="text-uppercase fw-semibold text-muted fs-12 mb-1">Total Pendaftar</p>
-                <h4 class="fs-22 fw-bold mb-0 text-dark">
+              <div class="min-w-0">
+                <p class="text-uppercase fw-semibold text-muted fs-11 fs-sm-12 mb-1 text-truncate">Total Pendaftar</p>
+                <h4 class="fs-18 fs-sm-22 fw-bold mb-0 text-dark">
                   {{ stats.total_registrations || registrationsList.length }} 
-                  <span class="fs-12 text-muted fw-normal">Peserta</span>
+                  <span class="fs-11 fs-sm-12 text-muted fw-normal">Peserta</span>
                 </h4>
-                <span class="badge bg-success-subtle text-success fs-11 mt-2">
+                <span class="badge bg-success-subtle text-success fs-10 fs-sm-11 mt-1.5 text-truncate d-inline-block max-w-100">
                   <i class="ri-arrow-up-line align-middle"></i> Terdaftar Aktif
                 </span>
               </div>
-              <div class="avatar-sm flex-shrink-0">
-                <span class="avatar-title bg-primary-subtle text-primary rounded fs-20">
+              <div class="avatar-xs avatar-sm-sm flex-shrink-0 ms-2">
+                <span class="avatar-title bg-primary-subtle text-primary rounded fs-18 fs-sm-20">
                   <i class="ri-user-star-line"></i>
                 </span>
               </div>
@@ -298,21 +298,21 @@ onMounted(() => {
       </div>
 
       <!-- Widget 2: Total Dana Masuk -->
-      <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card card-animate border-0 shadow-sm h-100">
-          <div class="card-body">
+      <div class="col-6 col-md-6 col-xl-3">
+        <div class="card card-animate border-0 shadow-sm h-100 mb-0">
+          <div class="card-body p-3">
             <div class="d-flex align-items-center justify-content-between">
-              <div>
-                <p class="text-uppercase fw-semibold text-muted fs-12 mb-1">Total Dana Masuk</p>
-                <h4 class="fs-22 fw-bold mb-0 text-dark">
+              <div class="min-w-0">
+                <p class="text-uppercase fw-semibold text-muted fs-11 fs-sm-12 mb-1 text-truncate">Total Dana Masuk</p>
+                <h4 class="fs-16 fs-sm-20 fw-bold mb-0 text-dark text-truncate" :title="formatRupiah(stats.total_fee)">
                   {{ formatRupiah(stats.total_fee) }}
                 </h4>
-                <span class="badge bg-info-subtle text-info fs-11 mt-2">
-                  <i class="ri-shield-check-line align-middle"></i> Terverifikasi Panitia
+                <span class="badge bg-info-subtle text-info fs-10 fs-sm-11 mt-1.5 text-truncate d-inline-block max-w-100">
+                  <i class="ri-shield-check-line align-middle"></i> Terverifikasi
                 </span>
               </div>
-              <div class="avatar-sm flex-shrink-0">
-                <span class="avatar-title bg-success-subtle text-success rounded fs-20">
+              <div class="avatar-xs avatar-sm-sm flex-shrink-0 ms-2">
+                <span class="avatar-title bg-success-subtle text-success rounded fs-18 fs-sm-20">
                   <i class="ri-wallet-3-line"></i>
                 </span>
               </div>
@@ -322,14 +322,14 @@ onMounted(() => {
       </div>
 
       <!-- Widget 3: Kuota Terisi -->
-      <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card card-animate border-0 shadow-sm h-100">
-          <div class="card-body">
+      <div class="col-6 col-md-6 col-xl-3">
+        <div class="card card-animate border-0 shadow-sm h-100 mb-0">
+          <div class="card-body p-3">
             <div class="d-flex align-items-center justify-content-between">
-              <div>
-                <p class="text-uppercase fw-semibold text-muted fs-12 mb-1">Tingkat Keterisian Kuota</p>
-                <h4 class="fs-22 fw-bold mb-0 text-dark">{{ stats.quota_filled_percentage || 0 }}%</h4>
-                <div class="progress mt-2" style="height: 6px; width: 140px;">
+              <div class="min-w-0 w-100">
+                <p class="text-uppercase fw-semibold text-muted fs-11 fs-sm-12 mb-1 text-truncate">Keterisian Kuota</p>
+                <h4 class="fs-18 fs-sm-22 fw-bold mb-0 text-dark">{{ stats.quota_filled_percentage || 0 }}%</h4>
+                <div class="progress mt-1.5 w-100" style="height: 5px; max-width: 140px;">
                   <div 
                     class="progress-bar bg-warning" 
                     role="progressbar" 
@@ -339,8 +339,8 @@ onMounted(() => {
                   ></div>
                 </div>
               </div>
-              <div class="avatar-sm flex-shrink-0">
-                <span class="avatar-title bg-warning-subtle text-warning rounded fs-20">
+              <div class="avatar-xs avatar-sm-sm flex-shrink-0 ms-2">
+                <span class="avatar-title bg-warning-subtle text-warning rounded fs-18 fs-sm-20">
                   <i class="ri-pie-chart-2-line"></i>
                 </span>
               </div>
@@ -350,22 +350,22 @@ onMounted(() => {
       </div>
 
       <!-- Widget 4: Menunggu Verifikasi -->
-      <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card card-animate border-0 shadow-sm h-100">
-          <div class="card-body">
+      <div class="col-6 col-md-6 col-xl-3">
+        <div class="card card-animate border-0 shadow-sm h-100 mb-0">
+          <div class="card-body p-3">
             <div class="d-flex align-items-center justify-content-between">
-              <div>
-                <p class="text-uppercase fw-semibold text-muted fs-12 mb-1">Menunggu Verifikasi</p>
-                <h4 class="fs-22 fw-bold mb-0 text-danger">
+              <div class="min-w-0">
+                <p class="text-uppercase fw-semibold text-muted fs-11 fs-sm-12 mb-1 text-truncate">Perlu Review</p>
+                <h4 class="fs-18 fs-sm-22 fw-bold mb-0 text-danger">
                   {{ countPending }} 
-                  <span class="fs-12 text-muted fw-normal">Peserta</span>
+                  <span class="fs-11 fs-sm-12 text-muted fw-normal">Peserta</span>
                 </h4>
-                <span class="badge bg-danger-subtle text-danger fs-11 mt-2">
-                  <i class="ri-error-warning-line align-middle"></i> Perlu Tindakan
+                <span class="badge bg-danger-subtle text-danger fs-10 fs-sm-11 mt-1.5 text-truncate d-inline-block max-w-100">
+                  <i class="ri-error-warning-line align-middle"></i> Tindakan
                 </span>
               </div>
-              <div class="avatar-sm flex-shrink-0">
-                <span class="avatar-title bg-danger-subtle text-danger rounded fs-20">
+              <div class="avatar-xs avatar-sm-sm flex-shrink-0 ms-2">
+                <span class="avatar-title bg-danger-subtle text-danger rounded fs-18 fs-sm-20">
                   <i class="ri-error-warning-line"></i>
                 </span>
               </div>
@@ -589,34 +589,35 @@ onMounted(() => {
         <div class="card border-0 shadow-sm">
           <!-- Card Header with Filters & Search -->
           <div class="card-header bg-white border-bottom py-3">
-            <div class="row align-items-center g-3">
-              <div class="col-md-5">
-                <div class="d-flex align-items-center gap-2">
-                  <h5 class="card-title mb-0 fs-14 fw-bold text-dark">
-                    <i class="ri-team-line text-primary me-1"></i> Data Delegasi Pendaftar Masuk
+            <div class="row align-items-center g-2.5">
+              <!-- Title & Full Page Link -->
+              <div class="col-12 col-lg-5">
+                <div class="d-flex align-items-center justify-content-between justify-content-lg-start gap-2 flex-wrap">
+                  <h5 class="card-title mb-0 fs-14 fw-bold text-dark d-flex align-items-center">
+                    <i class="ri-team-line text-primary me-1.5 fs-16"></i> Data Delegasi Pendaftar Masuk
                   </h5>
-                  <Link href="/admin/pendaftar" class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1">
-                    Buka Halaman Lengkap <i class="ri-arrow-right-line"></i>
+                  <Link href="/admin/pendaftar" class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1 flex-shrink-0">
+                    Buka Lengkap <i class="ri-arrow-right-line"></i>
                   </Link>
                 </div>
               </div>
 
-              <!-- Filter Tabs & Inputs -->
-              <div class="col-md-8">
-                <div class="d-flex flex-wrap align-items-center justify-content-md-end gap-2">
+              <!-- Filter Search & Dropdown -->
+              <div class="col-12 col-lg-7">
+                <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-lg-end gap-2">
                   <!-- Search Box -->
-                  <div class="position-relative" style="min-width: 200px;">
+                  <div class="position-relative flex-grow-1" style="min-width: 0;">
                     <input 
                       v-model="searchQuery"
                       type="text" 
-                      class="form-control form-control-sm ps-4" 
+                      class="form-control form-control-sm ps-4 w-100 fs-12" 
                       placeholder="Cari sekolah, ID, pendamping..."
                     />
                     <i class="ri-search-line position-absolute top-50 start-0 translate-middle-y ms-2 text-muted fs-12"></i>
                   </div>
 
                   <!-- Competition Dropdown Filter -->
-                  <div style="min-width: 220px;">
+                  <div class="flex-grow-1 flex-sm-grow-0" style="min-width: 0; min-width: min(220px, 100%);">
                     <CustomSelect v-model="selectedCompetition" size="sm">
                       <option value="all">Semua Cabang Lomba</option>
                       <option v-for="c in competitionsList" :key="c.id" :value="c.id">{{ c.title }}</option>
@@ -626,32 +627,32 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- Status Filter Pills -->
-            <div class="d-flex align-items-center gap-2 mt-3 pt-2 border-top">
+            <!-- Status Filter Pills (Horizontal Touch Scrollable on Mobile) -->
+            <div class="d-flex align-items-center gap-1.5 mt-3 pt-2.5 border-top overflow-x-auto pb-1 text-nowrap scrollbar-none">
               <button 
                 @click="selectedStatus = 'all'" 
-                class="btn btn-xs rounded-pill"
+                class="btn btn-xs rounded-pill flex-shrink-0 px-2.5 py-1"
                 :class="selectedStatus === 'all' ? 'btn-primary' : 'btn-outline-secondary'"
               >
                 Semua ({{ countAll }})
               </button>
               <button 
                 @click="selectedStatus = 'Menunggu Verifikasi'" 
-                class="btn btn-xs rounded-pill"
+                class="btn btn-xs rounded-pill flex-shrink-0 px-2.5 py-1"
                 :class="selectedStatus === 'Menunggu Verifikasi' ? 'btn-warning text-dark font-bold' : 'btn-outline-warning'"
               >
                 Menunggu Review ({{ countPending }})
               </button>
               <button 
                 @click="selectedStatus = 'Terverifikasi'" 
-                class="btn btn-xs rounded-pill"
+                class="btn btn-xs rounded-pill flex-shrink-0 px-2.5 py-1"
                 :class="selectedStatus === 'Terverifikasi' ? 'btn-success' : 'btn-outline-success'"
               >
                 Terverifikasi ({{ countVerified }})
               </button>
               <button 
                 @click="selectedStatus = 'Ditolak'" 
-                class="btn btn-xs rounded-pill"
+                class="btn btn-xs rounded-pill flex-shrink-0 px-2.5 py-1"
                 :class="selectedStatus === 'Ditolak' ? 'btn-danger' : 'btn-outline-danger'"
               >
                 Ditolak ({{ countRejected }})
@@ -659,8 +660,8 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Card Body: Table -->
-          <div class="card-body p-0">
+          <!-- Card Body: Desktop Table (Visible on md and up) -->
+          <div class="card-body p-0 d-none d-md-block">
             <div class="table-responsive">
               <table class="table table-hover align-middle table-nowrap mb-0">
                 <thead class="table-light">
@@ -748,6 +749,15 @@ onMounted(() => {
                         >
                           <i class="ri-eye-line"></i>
                         </button>
+
+                        <!-- Link Buka Halaman Lengkap -->
+                        <Link 
+                          :href="`/admin/pendaftar/${reg.id}`" 
+                          class="btn btn-sm btn-outline-secondary"
+                          title="Buka Halaman Khusus Verifikasi"
+                        >
+                          <i class="ri-survey-line"></i>
+                        </Link>
                       </div>
                     </td>
                   </tr>
@@ -756,11 +766,136 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- Card Footer with Link to Full Page -->
-          <div class="card-footer bg-light border-top d-flex align-items-center justify-content-between py-2.5 px-3">
-            <span class="fs-12 text-muted">Menampilkan ringkasan pendaftar delegasi aktif</span>
-            <Link href="/admin/pendaftar" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-xs">
-              Buka Halaman Lengkap Pendaftar ({{ registrationsList.length }} Delegasi) <i class="ri-arrow-right-line"></i>
+          <!-- Card Body: Mobile Dedicated Cards View (Visible on < md) -->
+          <div class="card-body p-2.5 p-sm-3 d-block d-md-none bg-light/30">
+            <!-- Empty State -->
+            <div v-if="filteredRegistrations.length === 0" class="text-center py-5 bg-white rounded-3 border text-muted fs-12">
+              <i class="ri-search-eye-line fs-28 d-block mb-1 text-muted"></i>
+              Tidak ada data pendaftaran yang sesuai dengan pencarian atau filter.
+            </div>
+
+            <!-- Mobile Registration Cards List -->
+            <div v-else class="d-flex flex-column gap-2.5">
+              <div 
+                v-for="(reg, idx) in filteredRegistrations" 
+                :key="reg.id"
+                class="card border rounded-3 shadow-none bg-white p-3 mb-0 transition-all"
+              >
+                <!-- Top Row: #, Code & Status Badge -->
+                <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
+                  <div class="d-flex align-items-center gap-1.5 min-w-0">
+                    <span class="badge bg-light text-muted font-monospace fs-10 px-1.5 py-0.5">#{{ idx + 1 }}</span>
+                    <span class="fw-bold font-mono text-primary fs-12 text-truncate">{{ reg.reg_code }}</span>
+                    <small class="text-muted fs-10 text-nowrap">• {{ formatDate(reg.created_at) }}</small>
+                  </div>
+                  <span 
+                    class="badge fs-10 px-2 py-0.5 rounded-pill flex-shrink-0"
+                    :class="{
+                      'bg-success-subtle text-success': reg.payment_status === 'Terverifikasi',
+                      'bg-warning-subtle text-warning': reg.payment_status === 'Menunggu Verifikasi',
+                      'bg-danger-subtle text-danger': reg.payment_status === 'Ditolak'
+                    }"
+                  >
+                    <i 
+                      class="align-middle me-0.5"
+                      :class="{
+                        'ri-checkbox-circle-line': reg.payment_status === 'Terverifikasi',
+                        'ri-time-line': reg.payment_status === 'Menunggu Verifikasi',
+                        'ri-close-circle-line': reg.payment_status === 'Ditolak'
+                      }"
+                    ></i>
+                    {{ reg.payment_status }}
+                  </span>
+                </div>
+
+                <!-- School & Competition Info -->
+                <div class="mb-2">
+                  <h6 class="fs-13 fw-bold text-dark mb-1 d-flex align-items-center gap-1.5">
+                    <i class="ri-school-line text-primary fs-15 flex-shrink-0"></i>
+                    <span class="text-truncate">{{ reg.school_name }}</span>
+                  </h6>
+                  <div class="d-flex align-items-center gap-1.5 flex-wrap fs-11">
+                    <span class="badge bg-primary-subtle text-primary fw-semibold">
+                      <i class="ri-medal-line me-0.5"></i> {{ reg.competition_title || reg.competition_id }}
+                    </span>
+                    <span class="badge bg-light text-muted border">{{ reg.package_type }}</span>
+                    <span v-if="reg.total_fee" class="badge bg-success-subtle text-success font-monospace">
+                      {{ formatRupiah(reg.total_fee) }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Delegation Participants Preview -->
+                <div v-if="reg.participants_names" class="mb-2 p-2 rounded-2 bg-light border fs-11 text-muted">
+                  <div class="fw-bold text-dark mb-0.5 d-flex align-items-center gap-1">
+                    <i class="ri-user-star-line text-warning"></i> Delegasi Siswa:
+                  </div>
+                  <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4;">
+                    {{ reg.participants_names }}
+                  </div>
+                </div>
+
+                <!-- Mentor & Direct WA Button -->
+                <div class="d-flex align-items-center justify-content-between pt-1 mb-2.5 fs-11">
+                  <div class="d-flex align-items-center gap-1 min-w-0 me-2 text-muted">
+                    <i class="ri-user-follow-line flex-shrink-0"></i>
+                    <span class="text-truncate fw-medium text-dark">{{ reg.mentor_name || 'Tanpa Pendamping' }}</span>
+                  </div>
+                  <a 
+                    v-if="reg.mentor_wa"
+                    :href="getWaChatUrl(reg.mentor_wa, `Halo Bapak/Ibu ${reg.mentor_name} (${reg.school_name}), kami dari Panitia ${school.event_name || 'Semarak Aliyah'}. Terkait pendaftaran Anda (Kode: ${reg.reg_code}) pada cabang ${reg.competition_title}: `)" 
+                    target="_blank" 
+                    class="badge bg-success-subtle text-success border border-success-subtle text-decoration-none d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill flex-shrink-0"
+                    title="Hubungi WhatsApp"
+                  >
+                    <i class="ri-whatsapp-line"></i> Chat WA
+                  </a>
+                </div>
+
+                <!-- Action Buttons: Complete Features Touch-Friendly -->
+                <div class="pt-2 border-top d-flex align-items-center gap-1.5">
+                  <!-- Quick Verify Toggle Button -->
+                  <button 
+                    type="button" 
+                    class="btn btn-xs flex-grow-1 d-inline-flex align-items-center justify-content-center gap-1 py-1.5 rounded-2 font-medium"
+                    :class="reg.payment_status === 'Terverifikasi' ? 'btn-outline-warning' : 'btn-success text-white'"
+                    @click="toggleVerification(reg)"
+                  >
+                    <i :class="reg.payment_status === 'Terverifikasi' ? 'ri-arrow-go-back-line' : 'ri-check-line'"></i>
+                    <span>{{ reg.payment_status === 'Terverifikasi' ? 'Batal' : 'Verifikasi Cepat' }}</span>
+                  </button>
+
+                  <!-- Modal Detail Periksa Berkas Button -->
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-outline-primary flex-grow-1 d-inline-flex align-items-center justify-content-center gap-1 py-1.5 rounded-2 font-medium"
+                    @click="openDetailModal(reg)"
+                  >
+                    <i class="ri-eye-line"></i>
+                    <span>Periksa Berkas</span>
+                  </button>
+
+                  <!-- Link Buka Halaman Lengkap -->
+                  <Link 
+                    :href="`/admin/pendaftar/${reg.id}`" 
+                    class="btn btn-xs btn-light border px-2 py-1.5 rounded-2 text-muted flex-shrink-0"
+                    title="Buka Lembar Verifikasi Lengkap"
+                  >
+                    <i class="ri-survey-line fs-14"></i>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Footer with Link to Full Page (Responsive) -->
+          <div class="card-footer bg-light border-top d-flex flex-column flex-sm-row align-items-center justify-content-between py-2.5 px-3 gap-2">
+            <span class="fs-11 fs-sm-12 text-muted text-center text-sm-start">
+              Menampilkan {{ filteredRegistrations.length }} dari {{ registrationsList.length }} pendaftar delegasi aktif
+            </span>
+            <Link href="/admin/pendaftar" class="btn btn-sm btn-primary d-inline-flex align-items-center justify-content-center gap-1 shadow-xs w-100 w-sm-auto fs-12">
+              <span>Buka Halaman Lengkap Pendaftar</span>
+              <i class="ri-arrow-right-line"></i>
             </Link>
           </div>
         </div>
@@ -772,17 +907,17 @@ onMounted(() => {
     <!-- ============================================================== -->
     <div 
       v-if="showDetailModal && activeDetailItem" 
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 p-sm-4 bg-black/60 backdrop-blur-sm"
     >
-      <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden text-dark">
-        <div class="px-4 py-3 bg-light border-bottom d-flex align-items-center justify-content-between">
-          <h5 class="modal-title fs-15 fw-bold mb-0 text-dark">
-            <i class="ri-file-search-line text-primary me-1"></i> Detail Delegasi & Pemeriksaan Berkas
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden text-dark">
+        <div class="px-3 px-sm-4 py-3 bg-light border-bottom d-flex align-items-center justify-content-between flex-shrink-0">
+          <h5 class="modal-title fs-14 fs-sm-15 fw-bold mb-0 text-dark text-truncate me-2">
+            <i class="ri-file-search-line text-primary me-1"></i> Detail Delegasi & Berkas
           </h5>
-          <button type="button" class="btn-close" @click="showDetailModal = false"></button>
+          <button type="button" class="btn-close flex-shrink-0" @click="showDetailModal = false"></button>
         </div>
 
-        <div class="p-4 space-y-3 fs-13">
+        <div class="p-3 p-sm-4 space-y-3 fs-13 overflow-y-auto flex-grow-1">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="text-muted fs-11 fw-semibold mb-0 d-block">Asal Sekolah / Lembaga:</label>
@@ -854,12 +989,12 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="px-4 py-3 bg-light border-top d-flex align-items-center justify-content-between">
-          <button type="button" class="btn btn-sm btn-light" @click="showDetailModal = false">Tutup</button>
-          <div class="d-flex align-items-center gap-2">
+        <div class="px-3 px-sm-4 py-2.5 bg-light border-top d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-2 flex-shrink-0">
+          <button type="button" class="btn btn-sm btn-light order-2 order-sm-1" @click="showDetailModal = false">Tutup</button>
+          <div class="d-flex align-items-center gap-2 order-1 order-sm-2">
             <button 
               type="button" 
-              class="btn btn-sm btn-danger"
+              class="btn btn-sm btn-danger flex-grow-1 flex-sm-grow-0"
               @click="submitVerificationDecision('Ditolak')"
               :disabled="isProcessingVerification"
             >
@@ -867,7 +1002,7 @@ onMounted(() => {
             </button>
             <button 
               type="button" 
-              class="btn btn-sm btn-success"
+              class="btn btn-sm btn-success flex-grow-1 flex-sm-grow-0"
               @click="submitVerificationDecision('Terverifikasi')"
               :disabled="isProcessingVerification"
             >

@@ -2043,10 +2043,10 @@ function handleLightboxKey(e) {
               </div>
             </div>
 
-            <Link :href="ctaRegisterUrl" class="pricing-action-btn btn-satuan">
+            <a :href="ctaRegisterUrl" class="pricing-action-btn btn-satuan text-decoration-none">
               <span>Pilih Cabang Lomba Satuan</span>
               <i class="ri-arrow-right-line"></i>
-            </Link>
+            </a>
           </div>
 
           <!-- Paket All-In Komplit -->
@@ -2117,10 +2117,10 @@ function handleLightboxKey(e) {
               </div>
             </div>
 
-            <Link :href="ctaRegisterUrl" class="pricing-action-btn btn-allin">
+            <a :href="ctaRegisterUrl" class="pricing-action-btn btn-allin text-decoration-none">
               <i class="ri-flashlight-fill"></i>
               <span>Daftar Paket All-In Sekarang</span>
-            </Link>
+            </a>
           </div>
         </div>
       </div>
@@ -2258,14 +2258,14 @@ function handleLightboxKey(e) {
                 <i class="ri-whatsapp-line"></i>
                 <span>Daftar via PJ</span>
               </a>
-              <Link 
+              <a 
                 v-else-if="!getCompStatusInfo(comp).isClosed"
                 :href="getCompRegisterUrl(comp.id)" 
-                class="btn-card-register"
+                class="btn-card-register text-decoration-none"
               >
                 <i class="ri-flashlight-line"></i>
                 Daftar
-              </Link>
+              </a>
               <button 
                 v-else
                 type="button"
@@ -2282,10 +2282,10 @@ function handleLightboxKey(e) {
         </div>
 
         <div style="text-align: center; margin-top: 45px;">
-          <Link :href="ctaRegisterUrl" class="btn-primary">
+          <a :href="ctaRegisterUrl" class="btn-primary text-decoration-none">
             <i class="ri-dashboard-line"></i>
             <span>Kunjungi Portal Layanan Registrasi Lengkap</span>
-          </Link>
+          </a>
         </div>
       </div>
     </section>
@@ -2428,14 +2428,14 @@ function handleLightboxKey(e) {
                 <i class="ri-information-line"></i>
                 <span>Detail & Juknis</span>
               </button>
-              <Link 
+              <a 
                 v-if="!getCompStatusInfo(comp).isClosed"
                 :href="getCompRegisterUrl(comp.id)" 
-                class="btn-tm-register"
+                class="btn-tm-register text-decoration-none"
               >
                 <i class="ri-flashlight-line"></i>
                 <span>Daftar</span>
-              </Link>
+              </a>
               <button 
                 v-else
                 type="button"
@@ -3061,15 +3061,15 @@ function handleLightboxKey(e) {
             <i class="ri-whatsapp-line"></i>
             <span>Daftar via WhatsApp Koordinator</span>
           </a>
-          <Link 
+          <a 
             v-else-if="!getCompStatusInfo(selectedComp).isClosed"
             :href="getCompRegisterUrl(selectedComp.id)" 
-            class="btn-modal-primary"
+            class="btn-modal-primary text-decoration-none"
             @click="closeDetailModal"
           >
             <i class="ri-arrow-right-line"></i>
             <span>Lanjut Daftar</span>
-          </Link>
+          </a>
           <button
             v-else
             type="button"

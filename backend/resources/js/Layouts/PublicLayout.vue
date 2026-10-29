@@ -367,11 +367,11 @@ onUnmounted(() => {
               <i :class="isDark ? 'ri-sun-line text-warning' : 'ri-moon-line'"></i>
             </button>
 
-            <Link :href="ctaRegisterUrl" class="btn-header-cta">
+            <a :href="ctaRegisterUrl" class="btn-header-cta text-decoration-none">
               <i class="ri-flashlight-fill"></i>
               <span class="btn-cta-text-full">Layanan Registrasi</span>
               <span class="btn-cta-text-short">Daftar</span>
-            </Link>
+            </a>
             <button 
               type="button" 
               class="mobile-toggle" 
@@ -505,10 +505,10 @@ onUnmounted(() => {
       </nav>
 
       <div class="drawer-actions">
-        <Link :href="ctaRegisterUrl" class="btn-primary drawer-btn-cta" @click="closeMobileMenu">
+        <a :href="ctaRegisterUrl" class="btn-primary drawer-btn-cta text-decoration-none" @click="closeMobileMenu">
           <i class="ri-flashlight-fill"></i>
           <span>Layanan Registrasi</span>
-        </Link>
+        </a>
       </div>
     </div>
 
@@ -574,9 +574,9 @@ onUnmounted(() => {
               <h4 class="footer-heading">Cabang Lomba</h4>
               <ul v-if="footerCompetitions.length > 0" class="footer-links">
                 <li v-for="comp in footerCompetitions" :key="comp.id">
-                  <Link :href="getCompRegisterUrl(comp.slug || comp.id)">
+                  <a :href="getCompRegisterUrl(comp.slug || comp.id)" class="text-decoration-none">
                     <i class="ri-arrow-right-s-line"></i> {{ comp.name }}
-                  </Link>
+                  </a>
                 </li>
               </ul>
               <p v-else class="text-xs text-muted mb-0 py-1" style="font-size: 13px; opacity: 0.7;">

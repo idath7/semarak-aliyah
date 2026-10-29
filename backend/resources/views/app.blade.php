@@ -100,26 +100,29 @@
     <link rel="stylesheet" href="/assets/vendor/remixicon/remixicon.css">
     <link rel="stylesheet" href="/assets/vendor/boxicons/css/boxicons.min.css">
 
-    @if(request()->is('admin*') || request()->is('operasional*') || request()->is('login*') || request()->is('pendaftar*'))
+    @if(request()->is('admin*') || request()->is('operasional*') || request()->is('login*') || request()->is('pendaftar*') || request()->is('layanan-registrasi*'))
         <!-- Admin, Operasional & Pendaftar Portal Fonts & Assets (Synchronous Theme Restorer) -->
         <script>
             (function() {
                 try {
                     var isPendaftar = window.location.pathname.startsWith('/pendaftar');
-                    var t = isPendaftar 
-                        ? (localStorage.getItem('semarak_theme') || localStorage.getItem('velzon_theme_v2') || 'dark')
-                        : (localStorage.getItem('velzon_theme_v2') || localStorage.getItem('semarak_theme') || 'dark');
+                    var isRegister = window.location.pathname.startsWith('/layanan-registrasi');
+                    var t = isRegister
+                        ? (localStorage.getItem('semarak_theme') || 'light')
+                        : (isPendaftar 
+                            ? (localStorage.getItem('semarak_theme') || localStorage.getItem('velzon_theme_v2') || 'dark')
+                            : (localStorage.getItem('velzon_theme_v2') || localStorage.getItem('semarak_theme') || 'dark'));
                     if (t !== 'dark' && t !== 'light') {
-                        t = 'dark';
+                        t = isRegister ? 'light' : 'dark';
                     }
                     document.documentElement.setAttribute('data-bs-theme', t);
                     document.documentElement.setAttribute('data-topbar', t === 'dark' ? 'dark' : 'light');
                     document.documentElement.setAttribute('data-sidebar', 'dark');
                     document.documentElement.style.colorScheme = t;
                     if (t === 'dark') {
-                        document.documentElement.style.backgroundColor = '#0b0f19';
+                        document.documentElement.style.backgroundColor = isRegister ? '#09110d' : '#0b0f19';
                     } else {
-                        document.documentElement.style.backgroundColor = '#f3f3f9';
+                        document.documentElement.style.backgroundColor = isRegister ? '#f7faf7' : '#f3f3f9';
                     }
                 } catch(e) {}
             })();
@@ -127,7 +130,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <style>
             [data-bs-theme="dark"] body {
-                background-color: #0b0f19 !important;
+                background-color: {{ request()->is('layanan-registrasi*') ? '#09110d' : '#0b0f19' }} !important;
                 color: #f1f5f9 !important;
             }
             [data-bs-theme="dark"] body::before,
@@ -135,7 +138,7 @@
                 display: none !important;
             }
             [data-bs-theme="light"] body {
-                background-color: #f3f3f9 !important;
+                background-color: {{ request()->is('layanan-registrasi*') ? '#f7faf7' : '#f3f3f9' }} !important;
                 color: #212529 !important;
             }
         </style>

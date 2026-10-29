@@ -856,7 +856,7 @@ function handleUnifiedSubmit() {
               <div class="fs-11 reg-desc">Data diambil langsung dari akun pendaftar resmi lembaga Anda.</div>
             </div>
           </div>
-          <Link href="/pendaftar/dashboard" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fs-11 fw-semibold">
+          <Link href="/pendaftar/dashboard" class="btn btn-sm btn-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-1 fs-11 fw-semibold">
             <i class="ri-edit-line me-1"></i> Edit Profil di Dashboard
           </Link>
         </div>
@@ -1065,7 +1065,7 @@ function handleUnifiedSubmit() {
                     <button
                       v-if="isManualCodeVerified || form.allin_code"
                       type="button"
-                      class="btn btn-outline-danger px-2.5 fs-14"
+                      class="btn btn-sm btn-danger-subtle text-danger border border-danger-subtle px-2.5 fs-14"
                       @click="clearManualPackageCode"
                       title="Hapus kode"
                     >
@@ -1419,7 +1419,7 @@ function handleUnifiedSubmit() {
                             </span>
                           </label>
                           <div v-if="customFileState[field.name]" class="mt-2 text-end">
-                            <button type="button" class="btn btn-xs btn-outline-danger" @click="removeCustomFile(field.name)">
+                            <button type="button" class="btn btn-xs btn-danger-subtle text-danger border border-danger-subtle rounded px-2 py-0.5" @click="removeCustomFile(field.name)">
                               <i class="ri-close-line me-1"></i> Batal Berkas
                             </button>
                           </div>
@@ -1454,7 +1454,7 @@ function handleUnifiedSubmit() {
                               <label 
                                 v-if="getRegistrantFileList(field.name).length < Number(field.max_files || 1)"
                                 :for="'cf-' + field.name" 
-                                class="btn btn-xs btn-outline-primary mb-0 cursor-pointer d-inline-flex align-items-center gap-1"
+                                class="btn btn-xs btn-primary-subtle text-primary border border-primary-subtle rounded mb-0 cursor-pointer d-inline-flex align-items-center gap-1"
                               >
                                 <i class="ri-add-line"></i> Tambah Berkas
                               </label>
@@ -1474,7 +1474,7 @@ function handleUnifiedSubmit() {
                               </div>
                               <button 
                                 type="button" 
-                                class="btn btn-xs btn-outline-danger py-0.5 px-2"
+                                class="btn btn-xs btn-danger-subtle text-danger border border-danger-subtle rounded py-0.5 px-2"
                                 @click="removeCustomFile(field.name, fIdx)"
                                 title="Hapus berkas ini"
                               >
@@ -1510,7 +1510,7 @@ function handleUnifiedSubmit() {
                     <div class="d-flex align-items-center gap-1">
                       <button
                         type="button"
-                        class="btn btn-xs btn-outline-secondary px-2 py-0.5 rounded"
+                        class="btn btn-xs btn-light border px-2 py-0.5 rounded"
                         :disabled="participantCount <= teamInfo.min"
                         @click="syncParticipantsCount(participantCount - 1)"
                       >
@@ -1519,7 +1519,7 @@ function handleUnifiedSubmit() {
                       <span class="fs-12 fw-bold px-2 reg-title">{{ participantCount }}</span>
                       <button
                         type="button"
-                        class="btn btn-xs btn-outline-secondary px-2 py-0.5 rounded"
+                        class="btn btn-xs btn-light border px-2 py-0.5 rounded"
                         :disabled="participantCount >= teamInfo.max"
                         @click="syncParticipantsCount(participantCount + 1)"
                       >
@@ -1762,7 +1762,7 @@ function handleUnifiedSubmit() {
                       </div>
                       <button
                         type="button"
-                        class="btn btn-xs btn-outline-danger border-0 p-1"
+                        class="btn btn-xs btn-danger-subtle text-danger border border-danger-subtle rounded p-1"
                         @click="removeDocumentFile(idx)"
                         title="Hapus berkas"
                       >
@@ -1901,7 +1901,7 @@ function handleUnifiedSubmit() {
                       </label>
                     </div>
                     <div v-if="allInProofFile" class="mt-2 text-end">
-                      <button type="button" class="btn btn-xs btn-outline-danger" @click="removeAllInProofFile">
+                      <button type="button" class="btn btn-xs btn-danger-subtle text-danger border border-danger-subtle rounded px-2 py-0.5" @click="removeAllInProofFile">
                         <i class="ri-close-line me-1"></i> Batal Bukti
                       </button>
                     </div>
@@ -2041,7 +2041,7 @@ function handleUnifiedSubmit() {
                       </label>
                     </div>
                     <div v-if="paymentProofFile" class="mt-2 text-end">
-                      <button type="button" class="btn btn-xs btn-outline-danger" @click="removeProofFile">
+                      <button type="button" class="btn btn-xs btn-danger-subtle text-danger border border-danger-subtle rounded px-2 py-0.5" @click="removeProofFile">
                         <i class="ri-close-line me-1"></i> Batal Unggah Bukti
                       </button>
                     </div>

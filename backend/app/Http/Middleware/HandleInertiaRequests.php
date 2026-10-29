@@ -42,23 +42,23 @@ class HandleInertiaRequests extends Middleware
                 'user' => function () use ($request) {
                     $isAdminOrOperasionalRoute = $request->is('admin', 'admin/*', 'operasional', 'operasional/*');
                     if ($isAdminOrOperasionalRoute) {
-                        /** @var User|null $user */
-                        $user = \Illuminate\Support\Facades\Auth::guard('web')->user();
-                        if ($user instanceof User) {
-                            $user->loadMissing('roleRelation');
+                        $authUser = \Illuminate\Support\Facades\Auth::guard('web')->user();
+                        if ($authUser && $authUser instanceof \App\Models\User) {
+                            /** @var \App\Models\User $authUser */
+                            $authUser->loadMissing('roleRelation');
                             return [
-                                'id' => $user->id,
-                                'name' => $user->name,
-                                'email' => $user->email,
-                                'nip' => $user->nip,
-                                'phone' => $user->phone,
-                                'avatar' => $user->avatar_url,
-                                'role' => $user->role,
-                                'role_label' => $user->roleRelation?->label ?? ucfirst(str_replace('_', ' ', $user->role)),
-                                'role_badge' => $user->roleRelation?->badge_color ?? 'primary',
-                                'division' => $user->division,
-                                'is_super_admin' => $user->isSuperAdmin(),
-                                'permissions' => $user->allPermissions(),
+                                'id' => $authUser->id,
+                                'name' => $authUser->name,
+                                'email' => $authUser->email,
+                                'nip' => $authUser->nip,
+                                'phone' => $authUser->phone,
+                                'avatar' => $authUser->avatar_url,
+                                'role' => $authUser->role,
+                                'role_label' => $authUser->roleRelation?->label ?? ucfirst(str_replace('_', ' ', $authUser->role)),
+                                'role_badge' => $authUser->roleRelation?->badge_color ?? 'primary',
+                                'division' => $authUser->division,
+                                'is_super_admin' => $authUser->isSuperAdmin(),
+                                'permissions' => $authUser->allPermissions(),
                             ];
                         }
                         return null;

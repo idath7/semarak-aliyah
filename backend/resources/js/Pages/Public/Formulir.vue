@@ -743,6 +743,11 @@ onMounted(() => {
   if (props.authRegistrant?.email && form.custom_fields) form.custom_fields['mentor_email'] = props.authRegistrant.email;
   if (props.authRegistrant?.school_district && form.custom_fields) form.custom_fields['school_district'] = props.authRegistrant.school_district;
   initCompetitionData();
+  nextTick(() => {
+    try {
+      window.dispatchEvent(new CustomEvent('semarak:page-ready'));
+    } catch (e) {}
+  });
 });
 </script>
 
@@ -859,7 +864,7 @@ onMounted(() => {
               <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
               Pendaftaran Resmi • {{ activeComp?.category_label || 'Jenjang SMP / MTs Sederajat' }}
             </div>
-            <h1 class="font-headline font-extrabold text-2xl sm:text-4xl text-on-surface tracking-tight">
+            <h1 class="font-headline font-extrabold text-2xl sm:text-4xl text-on-surface tracking-tight m-0">
               {{ formSettings.form_title || (`Formulir Pendaftaran Cabang ${activeComp?.title || 'Lomba'}`) }}
             </h1>
             
@@ -896,9 +901,9 @@ onMounted(() => {
             <!-- SECTION 1: Informasi Asal Sekolah & Guru Pembina (Identitas)   -->
             <!-- ============================================================== -->
             <div class="space-y-4">
-              <div class="flex items-center gap-2.5 pb-2 border-b border-border-subtle">
-                <i class="ri-bank-line text-primary text-[22px] leading-none"></i>
-                <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface">1. Delegasi &amp; Asal Sekolah</h2>
+              <div class="flex items-center gap-2.5 pb-2 border-b border-border-subtle form-section-header">
+                <i class="ri-bank-line text-primary form-section-icon"></i>
+                <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface m-0 form-section-title">1. Delegasi &amp; Asal Sekolah</h2>
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                 <!-- Nama Asal Sekolah with Autocomplete -->
@@ -1084,9 +1089,9 @@ onMounted(() => {
             <!-- ============================================================== -->
             <div class="space-y-4" id="sectionDataPeserta">
               <div class="flex items-center justify-between pb-2 border-b border-border-subtle flex-wrap gap-2">
-                <div class="flex items-center gap-2.5">
-                  <i class="ri-group-line text-primary text-[22px] leading-none"></i>
-                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface m-0">
+                <div class="flex items-center gap-2.5 form-section-header">
+                  <i class="ri-group-line text-primary form-section-icon"></i>
+                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface m-0 form-section-title">
                     2. {{ repeaterField?.label || 'Biodata Peserta & Delegasi' }}
                   </h2>
                 </div>
@@ -1470,9 +1475,9 @@ onMounted(() => {
             <!-- ============================================================== -->
             <div v-if="otherCustomFields.length > 0" class="space-y-5">
               <div class="flex items-center justify-between pb-2 border-b border-border-subtle">
-                <div class="flex items-center gap-2.5">
-                  <i class="ri-file-upload-line text-primary text-[22px] leading-none"></i>
-                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface">
+                <div class="flex items-center gap-2.5 form-section-header">
+                  <i class="ri-file-upload-line text-primary form-section-icon"></i>
+                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface m-0 form-section-title">
                     3. Berkas &amp; Informasi Khusus Cabang
                   </h2>
                 </div>
@@ -1631,9 +1636,9 @@ onMounted(() => {
             <!-- ============================================================== -->
             <div class="space-y-4" id="sectionPembayaran">
               <div class="flex items-center justify-between pb-2 border-b border-border-subtle flex-wrap gap-2">
-                <div class="flex items-center gap-2.5">
-                  <i class="ri-wallet-3-line text-primary text-[22px] leading-none"></i>
-                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface">
+                <div class="flex items-center gap-2.5 form-section-header">
+                  <i class="ri-wallet-3-line text-primary form-section-icon"></i>
+                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface m-0 form-section-title">
                     {{ otherCustomFields.length > 0 ? '4.' : '3.' }} Metode Pembayaran &amp; Biaya
                   </h2>
                 </div>
@@ -1780,9 +1785,9 @@ onMounted(() => {
             <div class="space-y-6 pt-4 border-t border-border-subtle">
               <div class="rounded-xl border border-primary/20 bg-emerald-light/30 p-5 space-y-3.5 shadow-xs">
                 <div class="flex items-center justify-between pb-2 border-b border-primary/10 flex-wrap gap-2">
-                  <div class="flex items-center gap-2">
-                    <i class="ri-file-list-3-line text-primary text-[20px] leading-none"></i>
-                    <h3 class="font-headline font-bold text-sm sm:text-base text-on-surface">Ringkasan Delegasi &amp; Pendaftaran</h3>
+                  <div class="flex items-center gap-2 form-section-header">
+                    <i class="ri-file-list-3-line text-primary form-section-icon !w-5 !h-5 !text-[20px]"></i>
+                    <h3 class="font-headline font-bold text-sm sm:text-base text-on-surface m-0 form-section-title">Ringkasan Delegasi &amp; Pendaftaran</h3>
                   </div>
                   <span class="text-[11px] font-bold text-emerald-dark bg-emerald-light px-2.5 py-0.5 rounded-full border border-primary/20">Resmi Panitia</span>
                 </div>
@@ -2202,6 +2207,53 @@ label.form-label-aligned {
   display: inline-flex !important;
   align-items: center !important;
   line-height: 1.25 !important;
+}
+
+/* Form Section Header Alignment (Pixel-Perfect Middle Align) */
+.form-section-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.625rem !important;
+  line-height: 1 !important;
+}
+
+.form-section-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: middle !important;
+  line-height: 1 !important;
+  font-size: 1.375rem !important; /* 22px */
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: translateY(-0.5px) !important;
+}
+
+.form-section-title {
+  display: inline-flex !important;
+  align-items: center !important;
+  margin: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding: 0 !important;
+  line-height: 1.25 !important;
+  vertical-align: middle !important;
+}
+
+/* Force override any Bootstrap or framework margin-bottom on headings in flex containers */
+.flex > h1,
+.flex > h2,
+.flex > h3,
+.flex > h4,
+div.flex > h1,
+div.flex > h2,
+div.flex > h3,
+div.flex > h4 {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 /* Perfect input styling */

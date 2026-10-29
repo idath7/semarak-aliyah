@@ -1,20 +1,37 @@
 @php
-    $bgImage = \App\Models\Setting::get('admin_login_bg_image', '/assets/images/auth-one-bg.jpg');
-    $bgOverlay = \App\Models\Setting::get('admin_login_bg_overlay_type', 'gradient_velzon');
-    $bgOpacity = (int)\App\Models\Setting::get('admin_login_bg_overlay_opacity', 85);
-    $bgBlur = (int)\App\Models\Setting::get('admin_login_bg_blur', 0);
-    $showWave = filter_var(\App\Models\Setting::get('admin_login_show_wave', '1'), FILTER_VALIDATE_BOOLEAN);
-    $particlesActive = filter_var(\App\Models\Setting::get('admin_login_particles_active', '1'), FILTER_VALIDATE_BOOLEAN);
-    $loginTitle = \App\Models\Setting::get('admin_login_title', 'Selamat Datang Kembali !');
-    $loginSubtitle = \App\Models\Setting::get('admin_login_subtitle', 'Masuk untuk melanjutkan ke Panel Semarak Aliyah.');
-    $eventName = \App\Models\Setting::get('event_name', 'SEMARAK ALIYAH XIV 2026');
-    $schoolName = \App\Models\Setting::get('school_name', 'MA Unggulan Wahid Hasyim Balung');
-    $recaptchaEnabled = filter_var(\App\Models\Setting::get('admin_login_recaptcha_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
-    $recaptchaSiteKey = \App\Models\Setting::get('recaptcha_site_key', env('RECAPTCHA_SITE_KEY', ''));
-    $recaptchaVersion = \App\Models\Setting::get('recaptcha_version', 'v2_checkbox');
+$bgImage = \App\Models\Setting::get('admin_login_bg_image', '/assets/images/auth-one-bg.jpg');
+$bgOverlay = \App\Models\Setting::get('admin_login_bg_overlay_type', 'gradient_velzon');
+$bgOpacity = (int)\App\Models\Setting::get('admin_login_bg_overlay_opacity', 85);
+$bgBlur = (int)\App\Models\Setting::get('admin_login_bg_blur', 0);
+$showWave = filter_var(\App\Models\Setting::get('admin_login_show_wave', '1'), FILTER_VALIDATE_BOOLEAN);
+$particlesActive = filter_var(\App\Models\Setting::get('admin_login_particles_active', '1'), FILTER_VALIDATE_BOOLEAN);
+$loginTitle = \App\Models\Setting::get('admin_login_title', 'Selamat Datang Kembali !');
+$loginSubtitle = \App\Models\Setting::get('admin_login_subtitle', 'Masuk untuk melanjutkan ke Panel Semarak Aliyah.');
+$eventName = \App\Models\Setting::get('event_name', 'SEMARAK ALIYAH XIV 2026');
+$schoolName = \App\Models\Setting::get('school_name', 'MA Unggulan Wahid Hasyim Balung');
+$recaptchaEnabled = filter_var(\App\Models\Setting::get('admin_login_recaptcha_enabled', '0'), FILTER_VALIDATE_BOOLEAN);
+$recaptchaSiteKey = \App\Models\Setting::get('recaptcha_site_key', env('RECAPTCHA_SITE_KEY', ''));
+$recaptchaVersion = \App\Models\Setting::get('recaptcha_version', 'v2_checkbox');
+
+$bgOpacityFloat = (float)$bgOpacity / 100;
+if ($bgOverlay === 'dark') {
+    $overlayBackground = "rgba(15, 23, 42, {$bgOpacityFloat})";
+} elseif ($bgOverlay === 'emerald') {
+    $overlayBackground = "linear-gradient(135deg, rgba(6, 78, 59, {$bgOpacityFloat}), rgba(4, 120, 87, {$bgOpacityFloat}))";
+} elseif ($bgOverlay === 'gold') {
+    $overlayBackground = "linear-gradient(135deg, rgba(120, 53, 15, {$bgOpacityFloat}), rgba(180, 83, 9, {$bgOpacityFloat}))";
+} elseif ($bgOverlay === 'none') {
+    $overlayBackground = "transparent";
+} else {
+    $overlayBackground = "linear-gradient(to right, rgba(54, 69, 116, {$bgOpacityFloat}), rgba(64, 81, 137, {$bgOpacityFloat}))";
+}
+
+$bgFilter = $bgBlur > 0 ? "blur({$bgBlur}px)" : "none";
+$bgTransform = $bgBlur > 0 ? "scale(1.03)" : "none";
 @endphp
 <!doctype html>
 <html lang="id" data-layout="vertical" data-topbar="light" data-sidebar="dark" data-sidebar-size="lg" data-bs-theme="light">
+
 <head>
     <meta charset="utf-8" />
     <meta name="color-scheme" content="light dark">
@@ -86,14 +103,12 @@
         }
 
         .auth-one-bg {
-            background-image: url("{{ $bgImage }}") !important;
+            background-image: var(--auth-bg-img) !important;
             background-position: center !important;
             background-size: cover !important;
             background-repeat: no-repeat !important;
-            @if($bgBlur > 0)
-            filter: blur({{ $bgBlur }}px);
-            transform: scale(1.03);
-            @endif
+            filter: var(--auth-bg-filter, none);
+            transform: var(--auth-bg-transform, none);
         }
 
         .auth-one-bg .bg-overlay {
@@ -104,17 +119,7 @@
             bottom: 0;
             left: 0;
             top: 0;
-            @if($bgOverlay === 'dark')
-            background: rgba(15, 23, 42, {{ (float)$bgOpacity / 100 }}) !important;
-            @elseif($bgOverlay === 'emerald')
-            background: linear-gradient(135deg, rgba(6, 78, 59, {{ (float)$bgOpacity / 100 }}), rgba(4, 120, 87, {{ (float)$bgOpacity / 100 }})) !important;
-            @elseif($bgOverlay === 'gold')
-            background: linear-gradient(135deg, rgba(120, 53, 15, {{ (float)$bgOpacity / 100 }}), rgba(180, 83, 9, {{ (float)$bgOpacity / 100 }})) !important;
-            @elseif($bgOverlay === 'none')
-            background: transparent !important;
-            @else
-            background: linear-gradient(to right, rgba(54, 69, 116, {{ (float)$bgOpacity / 100 }}), rgba(64, 81, 137, {{ (float)$bgOpacity / 100 }})) !important;
-            @endif
+            background: var(--auth-bg-overlay, rgba(54, 69, 116, 0.85)) !important;
         }
 
         .auth-one-bg .shape {
@@ -126,7 +131,7 @@
             pointer-events: none;
         }
 
-        .auth-one-bg .shape > svg {
+        .auth-one-bg .shape>svg {
             width: 100%;
             height: auto;
             fill: #f3f3f9 !important;
@@ -238,7 +243,7 @@
             background-clip: padding-box;
             border: 1.5px solid #cbd5e1;
             border-radius: 0.35rem;
-            transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+            transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
         }
 
         .form-control::placeholder {
@@ -317,7 +322,8 @@
             transition: all 0.2s ease-in-out;
         }
 
-        .btn-success:hover, .btn-success:focus {
+        .btn-success:hover,
+        .btn-success:focus {
             background-color: #099885 !important;
             border-color: #088f7d !important;
             box-shadow: 0 4px 12px 0 rgba(10, 179, 156, 0.45);
@@ -400,44 +406,116 @@
             font-weight: 700 !important;
         }
 
-        /* 4 Login Method Tabs (Velzon Custom Tab Style) */
+        /* 4 Login Method Tabs (Velzon Custom Tab Style - Fully Responsive) */
         .login-nav-tabs {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
             background: #f1f5f9;
             padding: 4px;
-            border-radius: 8px;
+            border-radius: 10px;
             margin-bottom: 1.25rem;
             gap: 4px;
+            border: 1px solid #e2e8f0;
         }
 
         .login-tab-btn {
-            flex: 1;
-            padding: 8px 6px;
-            font-size: 11.5px;
-            font-weight: 600;
-            border: none;
-            border-radius: 6px;
-            background: transparent;
-            color: #64748b;
-            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 5px;
-            transition: all 0.2s ease-in-out;
+            gap: 6px;
+            padding: 9px 6px;
+            font-size: 11.5px;
+            font-weight: 600;
+            border: 1px solid transparent;
+            border-radius: 7px;
+            background: transparent;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+            min-width: 0;
+            text-align: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .login-tab-btn span {
+            overflow: hidden;
+            text-overflow: ellipsis;
             white-space: nowrap;
         }
 
         .login-tab-btn:hover {
-            color: #1e293b;
-            background: rgba(255, 255, 255, 0.6);
+            color: #0f172a;
+            background: rgba(255, 255, 255, 0.7);
         }
 
         .login-tab-btn.active {
             background: #ffffff;
             color: #405189;
-            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(64, 81, 137, 0.12);
             font-weight: 700;
+        }
+
+        /* Responsive Breakpoint for Mobile HP (< 520px) */
+        @media (max-width: 519.98px) {
+            .login-nav-tabs {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+                padding: 6px;
+                border-radius: 10px;
+            }
+
+            .login-tab-btn {
+                padding: 10px 8px;
+                font-size: 12px;
+                border-radius: 8px;
+                min-height: 42px;
+                gap: 7px;
+            }
+
+            .login-tab-btn i {
+                font-size: 15px !important;
+            }
+        }
+
+        /* Extra small devices (< 360px) */
+        @media (max-width: 359.98px) {
+            .login-nav-tabs {
+                gap: 4px;
+                padding: 4px;
+            }
+
+            .login-tab-btn {
+                padding: 8px 4px;
+                font-size: 11px;
+                gap: 4px;
+                min-height: 38px;
+            }
+
+            .login-tab-btn i {
+                font-size: 13px !important;
+            }
+        }
+
+        /* Dark Mode Support for Tabs & Callouts */
+        [data-bs-theme="dark"] .login-nav-tabs {
+            background: #0f172a;
+            border-color: #1e293b;
+        }
+
+        [data-bs-theme="dark"] .login-tab-btn {
+            color: #94a3b8;
+        }
+
+        [data-bs-theme="dark"] .login-tab-btn:hover {
+            color: #f8fafc;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        [data-bs-theme="dark"] .login-tab-btn.active {
+            background: #1e293b;
+            color: #93c5fd;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(147, 197, 253, 0.2);
         }
 
         .login-tab-pane {
@@ -450,8 +528,15 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(4px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .login-callout {
@@ -519,6 +604,18 @@
             border-color: #475569;
             color: #ffffff;
         }
+
+        [data-bs-theme="dark"] .login-callout-info {
+            background-color: rgba(30, 64, 175, 0.15);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: #93c5fd;
+        }
+
+        [data-bs-theme="dark"] .login-callout-success {
+            background-color: rgba(22, 101, 52, 0.15);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: #86efac;
+        }
     </style>
 </head>
 
@@ -526,8 +623,8 @@
 
     <div class="auth-page-wrapper pt-5">
         <!-- auth page bg (Velzon Hero Image Overlay & Wave Shape) -->
-        <div class="auth-one-bg-position auth-one-bg" id="auth-particles">
-            <div class="bg-overlay"></div>
+        <div class="auth-one-bg-position auth-one-bg" id="auth-particles" data-particles="{{ $particlesActive ? '1' : '0' }}" style="--auth-bg-img: url('{{ $bgImage }}'); --auth-bg-filter: {{ $bgFilter }}; --auth-bg-transform: {{ $bgTransform }};">
+            <div class="bg-overlay" style="--auth-bg-overlay: {{ $overlayBackground }};"></div>
 
             @if($showWave)
             <div class="shape">
@@ -560,28 +657,28 @@
                     <div class="col-md-8 col-lg-6 col-xl-5">
                         <div class="card mt-2 card-bg-fill">
 
-                            <div class="card-body p-4">
+                            <div class="card-body p-3 p-sm-4">
                                 <div class="text-center mt-1">
                                     <h5 class="signin-title">{{ $loginTitle }}</h5>
                                     <p class="signin-subtitle">{{ $loginSubtitle }}</p>
                                 </div>
 
                                 @if(session('info'))
-                                    <div class="alert alert-info py-2 px-3 fs-13 mb-3 fw-medium">{{ session('info') }}</div>
+                                <div class="alert alert-info py-2 px-3 fs-13 mb-3 fw-medium">{{ session('info') }}</div>
                                 @endif
                                 @if($errors->any())
-                                    <div class="alert alert-danger py-2 px-3 fs-13 mb-3 fw-medium">{{ $errors->first() }}</div>
+                                <div class="alert alert-danger py-2 px-3 fs-13 mb-3 fw-medium">{{ $errors->first() }}</div>
                                 @endif
 
                                 @php
-                                    $activeTab = 'default';
-                                    if ($errors->has('sso_nip') || $errors->has('sso_password') || old('active_tab') === 'sso') {
-                                        $activeTab = 'sso';
-                                    } elseif ($errors->has('otp_phone') || $errors->has('otp_code') || old('active_tab') === 'otp') {
-                                        $activeTab = 'otp';
-                                    } elseif ($errors->has('google') || old('active_tab') === 'google') {
-                                        $activeTab = 'google';
-                                    }
+                                $activeTab = 'default';
+                                if ($errors->has('sso_nip') || $errors->has('sso_password') || old('active_tab') === 'sso') {
+                                $activeTab = 'sso';
+                                } elseif ($errors->has('otp_phone') || $errors->has('otp_code') || old('active_tab') === 'otp') {
+                                $activeTab = 'otp';
+                                } elseif ($errors->has('google') || old('active_tab') === 'google') {
+                                $activeTab = 'google';
+                                }
                                 @endphp
 
                                 <!-- Navigasi 4 Metode Login -->
@@ -635,15 +732,15 @@
                                             </div>
 
                                             @if($recaptchaEnabled)
-                                                <div class="mt-3 mb-1 d-flex flex-column align-items-center justify-content-center">
-                                                    @if(!empty($recaptchaSiteKey))
-                                                        <div class="g-recaptcha" data-sitekey="{{ $recaptchaSiteKey }}" data-theme="light"></div>
-                                                    @else
-                                                        <div class="alert alert-warning py-2 px-3 fs-12 w-100 text-center mb-0">
-                                                            <i class="ri-alert-line me-1"></i> Google reCAPTCHA aktif namun Kunci Situs (Site Key) belum diisi di Pengaturan Login Admin.
-                                                        </div>
-                                                    @endif
+                                            <div class="mt-3 mb-1 d-flex flex-column align-items-center justify-content-center">
+                                                @if(!empty($recaptchaSiteKey))
+                                                <div class="g-recaptcha" data-sitekey="{{ $recaptchaSiteKey }}" data-theme="light"></div>
+                                                @else
+                                                <div class="alert alert-warning py-2 px-3 fs-12 w-100 text-center mb-0">
+                                                    <i class="ri-alert-line me-1"></i> Google reCAPTCHA aktif namun Kunci Situs (Site Key) belum diisi di Pengaturan Login Admin.
                                                 </div>
+                                                @endif
+                                            </div>
                                             @endif
 
                                             <div class="mt-4">
@@ -692,9 +789,9 @@
                                             </div>
 
                                             @if($recaptchaEnabled && !empty($recaptchaSiteKey))
-                                                <div class="mt-3 mb-1 d-flex flex-column align-items-center justify-content-center">
-                                                    <div class="g-recaptcha" data-sitekey="{{ $recaptchaSiteKey }}" data-theme="light"></div>
-                                                </div>
+                                            <div class="mt-3 mb-1 d-flex flex-column align-items-center justify-content-center">
+                                                <div class="g-recaptcha" data-sitekey="{{ $recaptchaSiteKey }}" data-theme="light"></div>
+                                            </div>
                                             @endif
 
                                             <div class="mt-4">
@@ -781,10 +878,10 @@
                                         <div class="py-2 mb-2">
                                             <a href="{{ route('admin.auth.google') }}" class="btn-google w-100 shadow-sm py-2 px-3 fs-14 fw-semibold">
                                                 <svg width="20" height="20" viewBox="0 0 48 48" class="align-middle me-1">
-                                                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                                                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                                                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                                                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                                                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                                                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                                                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                                                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
                                                 </svg>
                                                 <span>Masuk Cepat dengan Google</span>
                                             </a>
@@ -832,7 +929,7 @@
                     <div class="col-lg-12">
                         <div class="text-center">
                             <p class="mb-0 fs-12">
-                                &copy; {{ date('Y') }} {{ $eventName }}. Dikelola dengan <i class="ri-heart-fill text-danger align-middle"></i> oleh Panitia Maswahas & MA Unggulan Wahid Hasyim
+                                &copy; {{ date('Y') }} {{ $eventName }}. Dikelola dengan <i class="ri-heart-fill text-danger align-middle"></i> oleh maswahasLabs - MAS Wahid Hasyim Balung
                             </p>
                         </div>
                     </div>
@@ -899,7 +996,9 @@
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': csrfToken
                     },
-                    body: JSON.stringify({ phone_or_nip: val })
+                    body: JSON.stringify({
+                        phone_or_nip: val
+                    })
                 });
 
                 const data = await res.json();
@@ -907,12 +1006,12 @@
                     currentPhoneOrNip = val;
                     document.getElementById('otp-step-1').classList.add('d-none');
                     document.getElementById('otp-step-2').classList.remove('d-none');
-                    
+
                     const noticeEl = document.getElementById('otp-sent-notice');
                     if (noticeEl) {
                         noticeEl.innerHTML = `<i class="ri-check-line me-1"></i>${data.message}`;
                     }
-                    
+
                     startOtpTimer(300);
                     const codeInput = document.getElementById('otp-code-input');
                     if (codeInput) {
@@ -1090,9 +1189,9 @@
             }
 
             // Velzon Signature Floating White Particles Canvas
-            @if($particlesActive)
             const bgContainer = document.getElementById('auth-particles');
-            if (bgContainer) {
+            const isParticlesActive = bgContainer && bgContainer.getAttribute('data-particles') === '1';
+            if (isParticlesActive && bgContainer) {
                 const canvas = document.createElement('canvas');
                 canvas.className = 'particles-js-canvas-el';
                 canvas.style.position = 'absolute';
@@ -1147,8 +1246,8 @@
                 }
                 draw();
             }
-            @endif
         });
     </script>
 </body>
+
 </html>

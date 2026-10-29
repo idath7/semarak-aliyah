@@ -263,7 +263,6 @@ const competitionOptions = computed(() => {
       value: c.id,
       label: `${c.title}${statusSuffix}`,
       disabled: c.is_closed || (isRegistered && selectedPackageType.value !== 'Paket All-In'),
-      category: c.category_label,
       fee: c.fee,
       isRegistered,
       isClosed: c.is_closed,
@@ -993,7 +992,7 @@ function handleUnifiedSubmit() {
                     prefixIcon="ri-medal-line"
                     size="md"
                     searchable
-                    searchPlaceholder="Cari nama lomba atau kategori..."
+                    searchPlaceholder="Cari nama cabang lomba..."
                   />
                   <div v-if="form.errors.competition_id" class="text-danger fs-12 mt-1 fw-medium">
                     {{ form.errors.competition_id }}
@@ -1002,7 +1001,7 @@ function handleUnifiedSubmit() {
                   <!-- Info Lomba Terpilih (Rule 4: Batas Tanggal dd/mm/yyyy & Jam 24 Jam) -->
                   <div v-if="currentCompetition" class="mt-3 p-3 rounded-3 reg-comp-info d-flex flex-column gap-1.5 fs-12">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                      <span class="reg-desc">Kategori: <strong class="reg-title">{{ currentCompetition.category_label || 'Umum' }}</strong></span>
+                      <span class="fs-13 fw-bold reg-title">{{ currentCompetition.title }}</span>
                       <span class="badge badge-subtle-success fs-11">
                         Biaya: {{ formatRupiah(calculatedFee) }}
                       </span>

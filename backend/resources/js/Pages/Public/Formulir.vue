@@ -192,10 +192,9 @@ function getFieldHelpText(canonicalName, fallback = '') {
 const competitionOptions = computed(() => {
   return (props.competitions || []).map(c => {
     const feeText = Number(c.fee) > 0 ? `Rp ${Number(c.fee).toLocaleString('id-ID')}` : 'Gratis';
-    const cat = c.category_label || (c.category ? `[${c.category}] ` : '');
     return {
       value: c.id,
-      label: `${c.title} • ${feeText} (${cat || 'Umum'})`
+      label: `${c.title} • ${feeText}`
     };
   });
 });
@@ -973,10 +972,10 @@ onMounted(() => {
           <div class="text-center mb-8 sm:mb-10 space-y-3">
             <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-light text-emerald-dark text-xs sm:text-sm font-semibold border border-primary/20 shadow-xs">
               <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-              Pendaftaran Resmi • {{ activeComp?.category_label || 'Jenjang SMP / MTs Sederajat' }}
+              Pendaftaran Resmi Delegasi • Semarak Aliyah XIV
             </div>
             <h1 class="font-headline font-extrabold text-2xl sm:text-4xl text-on-surface tracking-tight m-0">
-              {{ formSettings.form_title || (`Formulir Pendaftaran Cabang ${activeComp?.title || 'Lomba'}`) }}
+              {{ formSettings.form_title || (`Formulir Pendaftaran ${activeComp?.title || 'Lomba'}`) }}
             </h1>
             
             <!-- Inline Switcher if multiple competitions exist -->
@@ -2019,7 +2018,7 @@ onMounted(() => {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div class="flex justify-between py-1 border-b border-dashed border-primary/10">
                     <span class="text-on-surface-variant">Cabang Lomba:</span>
-                    <span class="font-semibold text-on-surface">{{ activeComp?.title || 'Lomba' }} ({{ activeComp?.category_label || 'SMP/MTs' }})</span>
+                    <span class="font-semibold text-on-surface">{{ activeComp?.title || 'Lomba' }}</span>
                   </div>
                   <div class="flex justify-between py-1 border-b border-dashed border-primary/10">
                     <span class="text-on-surface-variant">Skema Paket:</span>

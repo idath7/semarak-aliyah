@@ -1133,10 +1133,10 @@ function printReport() {
     <!-- MODAL 2: INPUT MANUAL PENDAFTARAN & DELEGASI (MEJA PANITIA)           -->
     <!-- ===================================================================== -->
     <div v-if="showManualModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.6); z-index: 1060;">
-      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 1260px; width: 96%;">
         <div class="modal-content shadow-lg border-0">
           <!-- Modal Header -->
-          <div class="modal-header py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
+          <div class="modal-header py-2.5 px-3 px-md-4 border-bottom d-flex align-items-center justify-content-between">
             <h6 class="modal-title fw-bold mb-0 d-flex align-items-center gap-2 fs-14">
               <i class="ri-user-add-line text-primary fs-18"></i>
               <span>Input Manual Pendaftaran &amp; Delegasi (Meja Panitia)</span>
@@ -1145,7 +1145,7 @@ function printReport() {
           </div>
 
           <!-- Modal Body -->
-          <div class="modal-body p-3 bg-light">
+          <div class="modal-body p-3 p-md-4 bg-light">
             <div class="row g-3">
               <!-- 1. DATA SEKOLAH / KONTINGEN -->
               <div class="col-12 col-lg-6">
@@ -1399,111 +1399,236 @@ function printReport() {
               <!-- 3. DELEGASI SISWA PESERTA -->
               <div class="col-12">
                 <div class="card shadow-sm border-0">
-                  <div class="card-header bg-white py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
-                    <span class="fw-bold text-dark fs-12 text-uppercase d-flex align-items-center gap-1.5">
-                      <i class="ri-team-line text-success"></i> 3. Data Delegasi Siswa (Peserta)
-                    </span>
+                  <div class="card-header bg-white py-3 px-3 px-md-4 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div>
+                      <span class="fw-bold text-dark fs-13 text-uppercase d-flex align-items-center gap-1.5">
+                        <i class="ri-team-line text-success fs-16"></i> 3. Data Delegasi Siswa (Peserta)
+                        <span class="badge bg-success-subtle text-success fs-11 px-2 py-0.5 rounded-pill ms-1">
+                          {{ manualForm.input_students_mode === 'list' ? manualForm.students.length + ' Siswa' : 'Mode Teks' }}
+                        </span>
+                      </span>
+                      <span class="fs-11 text-muted d-block mt-0.5">
+                        Lengkapi identitas delegasi siswa yang didaftarkan secara rinci.
+                      </span>
+                    </div>
                     <div class="btn-group btn-group-sm" role="group">
                       <button 
                         type="button" 
-                        class="btn btn-xs py-0.5 px-2"
-                        :class="manualForm.input_students_mode === 'list' ? 'btn-primary' : 'btn-light border'"
+                        class="btn btn-sm py-1 px-3 fs-12 d-inline-flex align-items-center gap-1.5"
+                        :class="manualForm.input_students_mode === 'list' ? 'btn-primary' : 'btn-light border text-muted'"
                         @click="manualForm.input_students_mode = 'list'"
                       >
-                        Form Baris Siswa
+                        <i class="ri-list-check"></i> Form Baris Siswa
                       </button>
                       <button 
                         type="button" 
-                        class="btn btn-xs py-0.5 px-2"
-                        :class="manualForm.input_students_mode === 'text' ? 'btn-primary' : 'btn-light border'"
+                        class="btn btn-sm py-1 px-3 fs-12 d-inline-flex align-items-center gap-1.5"
+                        :class="manualForm.input_students_mode === 'text' ? 'btn-primary' : 'btn-light border text-muted'"
                         @click="manualForm.input_students_mode = 'text'"
                       >
-                        Paste Teks Daftar
+                        <i class="ri-file-text-line"></i> Paste Teks Daftar
                       </button>
                     </div>
                   </div>
 
-                  <div class="card-body p-3">
-                    <!-- MODE 1: FORM LIST BARIS REPEATER -->
+                  <div class="card-body p-3 p-md-4">
+                    <!-- MODE 1: FORM LIST BARIS REPEATER (Spacious Responsive Cards/Grid) -->
                     <div v-if="manualForm.input_students_mode === 'list'">
-                      <div class="table-responsive mb-2">
-                        <table class="table table-sm table-bordered align-middle mb-0 fs-11">
-                          <thead class="table-light">
-                            <tr>
-                              <th style="width: 35px;" class="text-center">No</th>
-                              <th>Nama Lengkap Siswa <span class="text-danger">*</span></th>
-                              <th style="width: 160px;">NISN (Opsional)</th>
-                              <th style="width: 140px;">Jenis Kelamin</th>
-                              <th style="width: 120px;">Kelas</th>
-                              <th style="width: 45px;" class="text-center">Aksi</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr v-for="(student, sIdx) in manualForm.students" :key="sIdx">
-                              <td class="text-center text-muted fw-bold">{{ sIdx + 1 }}</td>
-                              <td>
+                      <!-- Header Kolom untuk Desktop (≥ lg) -->
+                      <div 
+                        class="d-none d-lg-grid gap-3 align-items-center text-muted fs-11 fw-bold text-uppercase px-3 pb-2 border-bottom mb-2.5" 
+                        style="grid-template-columns: 44px 1fr 180px 160px 160px 44px;"
+                      >
+                        <div class="text-center">No</div>
+                        <div>Nama Lengkap Siswa <span class="text-danger">*</span></div>
+                        <div>NISN (Opsional)</div>
+                        <div>Jenis Kelamin</div>
+                        <div>Kelas</div>
+                        <div class="text-center">Aksi</div>
+                      </div>
+
+                      <!-- List Baris Siswa -->
+                      <div class="d-flex flex-column gap-2.5">
+                        <div 
+                          v-for="(student, sIdx) in manualForm.students" 
+                          :key="sIdx"
+                          class="p-2.5 p-md-3 bg-white rounded-3 border shadow-none transition-all hover-shadow-sm position-relative"
+                        >
+                          <!-- Desktop Grid View (≥ lg) -->
+                          <div 
+                            class="d-none d-lg-grid gap-3 align-items-center" 
+                            style="grid-template-columns: 44px 1fr 180px 160px 160px 44px;"
+                          >
+                            <div class="text-center">
+                              <span class="badge bg-light text-dark border font-monospace fs-12 px-2 py-1 rounded-pill">
+                                {{ sIdx + 1 }}
+                              </span>
+                            </div>
+                            <div>
+                              <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light border-end-0 text-muted">
+                                  <i class="ri-user-line"></i>
+                                </span>
                                 <input 
                                   type="text" 
                                   v-model="student.name" 
-                                  class="form-control form-control-sm fs-11"
+                                  class="form-control form-control-sm fs-12"
                                   placeholder="Nama lengkap siswa delegasi..." 
                                 />
-                              </td>
-                              <td>
+                              </div>
+                            </div>
+                            <div>
+                              <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light border-end-0 text-muted">
+                                  <i class="ri-barcode-line"></i>
+                                </span>
                                 <input 
                                   type="text" 
                                   v-model="student.nisn" 
-                                  class="form-control form-control-sm fs-11 font-monospace"
+                                  class="form-control form-control-sm fs-12 font-monospace"
                                   placeholder="0012345678" 
                                 />
-                              </td>
-                              <td>
+                              </div>
+                            </div>
+                            <div>
+                              <CustomSelect 
+                                v-model="student.gender" 
+                                :options="genderOptions" 
+                                size="sm"
+                              />
+                            </div>
+                            <div>
+                              <CustomSelect 
+                                v-model="student.grade" 
+                                :options="gradeOptions" 
+                                size="sm"
+                              />
+                            </div>
+                            <div class="text-center">
+                              <button 
+                                type="button" 
+                                class="btn btn-sm btn-outline-danger p-1.5 rounded-2 d-inline-flex align-items-center justify-content-center"
+                                :disabled="manualForm.students.length <= 1"
+                                @click="removeStudentRow(sIdx)"
+                                title="Hapus baris siswa"
+                                style="width: 34px; height: 34px;"
+                              >
+                                <i class="ri-delete-bin-line fs-14"></i>
+                              </button>
+                            </div>
+                          </div>
+
+                          <!-- Mobile & Tablet Responsive Form Card (< lg) -->
+                          <div class="d-block d-lg-none">
+                            <div class="d-flex align-items-center justify-content-between pb-2 mb-2.5 border-bottom">
+                              <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-primary-subtle text-primary font-monospace fs-11 px-2.5 py-1 rounded-pill fw-bold">
+                                  Siswa #{{ sIdx + 1 }}
+                                </span>
+                                <span class="fw-semibold text-dark fs-12 text-truncate" v-if="student.name">
+                                  {{ student.name }}
+                                </span>
+                              </div>
+                              <button 
+                                type="button" 
+                                class="btn btn-xs btn-outline-danger d-inline-flex align-items-center gap-1 py-1 px-2.5 rounded-pill"
+                                :disabled="manualForm.students.length <= 1"
+                                @click="removeStudentRow(sIdx)"
+                                title="Hapus baris siswa"
+                              >
+                                <i class="ri-delete-bin-line"></i> Hapus
+                              </button>
+                            </div>
+
+                            <div class="row g-2.5">
+                              <div class="col-12">
+                                <label class="form-label fs-11 fw-bold text-muted text-uppercase mb-1">
+                                  Nama Lengkap Siswa <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group input-group-sm">
+                                  <span class="input-group-text bg-light border-end-0 text-muted">
+                                    <i class="ri-user-line"></i>
+                                  </span>
+                                  <input 
+                                    type="text" 
+                                    v-model="student.name" 
+                                    class="form-control form-control-sm fs-12"
+                                    placeholder="Nama lengkap siswa delegasi..." 
+                                  />
+                                </div>
+                              </div>
+
+                              <div class="col-12 col-sm-4">
+                                <label class="form-label fs-11 fw-bold text-muted text-uppercase mb-1">
+                                  NISN (Opsional)
+                                </label>
+                                <div class="input-group input-group-sm">
+                                  <span class="input-group-text bg-light border-end-0 text-muted">
+                                    <i class="ri-barcode-line"></i>
+                                  </span>
+                                  <input 
+                                    type="text" 
+                                    v-model="student.nisn" 
+                                    class="form-control form-control-sm fs-12 font-monospace"
+                                    placeholder="0012345678" 
+                                  />
+                                </div>
+                              </div>
+
+                              <div class="col-6 col-sm-4">
+                                <label class="form-label fs-11 fw-bold text-muted text-uppercase mb-1">
+                                  Jenis Kelamin
+                                </label>
                                 <CustomSelect 
                                   v-model="student.gender" 
                                   :options="genderOptions" 
-                                  size="xs"
+                                  size="sm"
                                 />
-                              </td>
-                              <td>
+                              </div>
+
+                              <div class="col-6 col-sm-4">
+                                <label class="form-label fs-11 fw-bold text-muted text-uppercase mb-1">
+                                  Kelas
+                                </label>
                                 <CustomSelect 
                                   v-model="student.grade" 
                                   :options="gradeOptions" 
-                                  size="xs"
+                                  size="sm"
                                 />
-                              </td>
-                              <td class="text-center">
-                                <button 
-                                  type="button" 
-                                  class="btn btn-sm btn-soft-danger p-1"
-                                  :disabled="manualForm.students.length <= 1"
-                                  @click="removeStudentRow(sIdx)"
-                                  title="Hapus baris siswa"
-                                >
-                                  <i class="ri-delete-bin-line"></i>
-                                </button>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      <button 
-                        type="button" 
-                        class="btn btn-sm btn-soft-success d-inline-flex align-items-center gap-1 fs-11"
-                        @click="addStudentRow"
-                      >
-                        <i class="ri-add-line"></i>
-                        <span>+ Tambah Siswa Delegasi</span>
-                      </button>
+                      <!-- Bottom Actions & Summary -->
+                      <div class="mt-3.5 d-flex align-items-center justify-content-between flex-wrap gap-2 pt-2.5 border-top">
+                        <button 
+                          type="button" 
+                          class="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 py-1.5 px-3 rounded-pill shadow-xs"
+                          @click="addStudentRow"
+                        >
+                          <i class="ri-user-add-line fs-14"></i>
+                          <span class="fw-semibold">+ Tambah Baris Siswa</span>
+                        </button>
+                        <span class="text-muted fs-11">
+                          Total: <strong class="text-dark">{{ manualForm.students.length }} siswa</strong> dalam daftar delegasi ini
+                        </span>
+                      </div>
                     </div>
 
                     <!-- MODE 2: PASTE MULTILINE TEXT -->
-                    <div v-else>
-                      <label class="form-label fs-11 fw-bold text-dark">Paste Daftar Nama Siswa Delegasi (1 nama per baris atau pisahkan dengan koma):</label>
+                    <div v-else class="p-3 bg-white rounded-3 border">
+                      <label class="form-label fs-12 fw-bold text-dark d-flex align-items-center gap-1.5 mb-1.5">
+                        <i class="ri-file-copy-2-line text-primary"></i> Paste Daftar Nama Siswa Delegasi:
+                      </label>
+                      <p class="text-muted fs-11 mb-2">
+                        Format bebas: 1 nama per baris atau dipisahkan dengan tanda koma. Informasi NISN (jika ada dalam tanda kurung) akan tersimpan secara otomatis.
+                      </p>
                       <textarea 
                         v-model="manualForm.participants_text" 
-                        class="form-control form-control-sm fs-12 font-monospace"
-                        rows="4"
+                        class="form-control fs-12 font-monospace p-3"
+                        rows="6"
                         placeholder="Contoh:&#10;Muhammad Alif (NISN: 0012938192)&#10;Nabila Putri Ayu&#10;Zaidan Rahmat"
                       ></textarea>
                     </div>
@@ -1708,6 +1833,7 @@ function printReport() {
 .text-truncate-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

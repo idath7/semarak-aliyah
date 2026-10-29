@@ -24,8 +24,14 @@ class RegistrationController extends Controller
         ]);
 
         $regCode = 'SA26-' . rand(100000, 999999);
-        $package = $validated['package_type'] ?? 'Paket Satuan (Rp 50.000 / Cabang)';
-        $totalFee = str_contains($package, '200.000') ? 200000 : 50000;
+        $comp = (!empty($validated['competition_id']) && $validated['competition_id'] !== 'all-in')
+            ? Competition::find($validated['competition_id'])
+            : null;
+        $compFee = $comp ? (int)$comp->fee : 50000;
+        $package = $validated['package_type'] ?? "Paket Satuan (Rp " . number_format($compFee, 0, ',', '.') . " / Cabang)";
+        $totalFee = str_contains($package, '200.000') || $package === 'Paket All-In'
+            ? (int)Setting::get('package_allin_price', 200000)
+            : $compFee;
 
         $cleanWa = Setting::formatWaNumber($validated['mentor_wa']);
         $user = \App\Models\Registrant::where('phone', $cleanWa)->orWhere('phone', $validated['mentor_wa'])->first();

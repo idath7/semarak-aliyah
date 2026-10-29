@@ -62,6 +62,7 @@ class Competition extends Model
         'is_quota_full',
         'is_registration_closed',
         'is_manually_closed',
+        'is_form_inactive',
         'quota_status_text',
         'is_tournament',
         'is_direct_registration',
@@ -103,6 +104,35 @@ class Competition extends Model
     public function isManuallyClosed(): bool
     {
         return $this->status === 'closed' && !$this->isDeadlinePassed() && !$this->isQuotaFull();
+    }
+
+    /**
+     * Cek apakah formulir pendaftaran builder untuk cabang lomba ini dalam status nonaktif.
+     * Kondisi nonaktif:
+     * 1. Pendaftaran dialihkan ke kontak langsung WA (direct_contact), formulir online tidak digunakan.
+     * 2. Pengaturan form_settings['is_active'] secara eksplisit diset false.
+     * 3. Status pendaftaran cabang lomba ditutup ('closed').
+     */
+    public function isFormInactive(): bool
+    {
+        if ($this->registration_type === 'direct_contact') {
+            return true;
+        }
+
+        if (isset($this->form_settings['is_active']) && $this->form_settings['is_active'] === false) {
+            return true;
+        }
+
+        if ($this->status === 'closed') {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function getIsFormInactiveAttribute(): bool
+    {
+        return $this->isFormInactive();
     }
 
     public function getIsDeadlinePassedAttribute(): bool

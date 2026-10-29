@@ -29,11 +29,19 @@ const toast = useToast();
 
 // Committee Leadership & Coordinator Role Helpers
 const canModifyActiveComp = computed(() => {
-  return props.committeeStructure?.can_modify_active_comp !== false;
+  return props.committeeStructure?.can_modify_active_comp === true;
 });
 
 const isCoordinatorRole = computed(() => {
   return props.committeeStructure?.is_coordinator === true;
+});
+
+const isGlobalAdmin = computed(() => {
+  return props.committeeStructure?.is_global_admin === true;
+});
+
+const hasTmManage = computed(() => {
+  return props.committeeStructure?.has_tm_manage !== false;
 });
 
 const currentCoordinatorCompId = computed(() => {
@@ -436,6 +444,7 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
           </div>
           <div class="page-title-right mt-3 mt-sm-0 d-flex align-items-center gap-2">
             <button 
+              v-if="isGlobalAdmin"
               type="button" 
               class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
               @click="showSectionModal = true"
@@ -715,11 +724,18 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
             >
               <span>{{ comp.title }}</span>
               <span 
-                v-if="comp.id === currentCoordinatorCompId || comp.coordinator_id === currentUserId"
+                v-if="comp.is_coordinated || comp.id === currentCoordinatorCompId || comp.coordinator_id === currentUserId"
                 class="badge bg-warning text-dark fs-9 px-1"
                 title="Cabang yang Anda koordinasi"
               >
                 ⭐ Cabang Anda
+              </span>
+              <span 
+                v-else-if="comp.can_modify === false && !isGlobalAdmin"
+                class="badge bg-secondary-subtle text-muted fs-9 px-1"
+                title="Bukan wewenang Anda (Lihat Saja)"
+              >
+                <i class="ri-lock-line me-0.5"></i>Lihat Saja
               </span>
               <span 
                 class="badge rounded-pill fs-10"
@@ -744,7 +760,7 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
       </div>
     </div>
 
-    <!-- Warning Banner jika Koordinator Lomba melihat cabang yang bukan koordinasinya -->
+    <!-- Warning Banner jika Koordinator Lomba melihat cabang yang bukan koordinasinya atau tidak berizin -->
     <div v-if="!canModifyActiveComp" class="alert alert-warning border border-warning-subtle d-flex align-items-center gap-3 p-3 mb-4 rounded-3 shadow-sm">
       <div class="avatar-sm flex-shrink-0">
         <span class="avatar-title bg-warning-subtle text-warning rounded-circle fs-20">
@@ -753,7 +769,10 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
       </div>
       <div class="flex-grow-1">
         <h6 class="fw-bold mb-1 text-dark">Mode Pratinjau (Akses Pengubahan Dibatasi)</h6>
-        <p class="mb-0 fs-12 text-muted">
+        <p v-if="!hasTmManage" class="mb-0 fs-12 text-muted">
+          Akun Anda tidak memiliki izin untuk mengelola Technical Meeting (<code>tm.manage</code> dinonaktifkan pada Hak Akses &amp; Peran). Halaman ini ditampilkan dalam mode baca saja (Read-Only).
+        </p>
+        <p v-else class="mb-0 fs-12 text-muted">
           Anda login sebagai Koordinator Lomba. Anda hanya memiliki wewenang mengacak nomor undian dan mengubah agenda TM pada cabang lomba yang Anda koordinasi. Untuk cabang <strong>{{ activeComp?.title }}</strong> ini, perubahan hanya dapat dilakukan oleh Koordinator cabang terkait atau Pimpinan Panitia (Ketua, Wakil Ketua, Sekretaris).
         </p>
       </div>

@@ -1941,6 +1941,7 @@ function handleUnifiedSubmit() {
                     <div class="fs-24 fw-black text-primary mt-1">
                       {{ formatRupiah(calculatedFee) }}
                     </div>
+                    <div class="fs-11 reg-desc text-muted mt-0.5">Biaya pendaftaran flat per cabang lomba (bukan per peserta)</div>
                     <div v-if="calculatedFee === 0" class="badge badge-subtle-success fs-11 mt-1">
                       Gratis / Lunas Paket All-In
                     </div>

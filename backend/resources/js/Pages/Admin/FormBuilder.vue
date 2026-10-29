@@ -11,6 +11,11 @@ const props = defineProps({
   competitions: { type: Array, default: () => [] },
   selectedCompetition: { type: Object, default: () => ({}) },
   presets: { type: Object, default: () => ({}) },
+  canManageForm: { type: Boolean, default: false },
+  isFormInactive: { type: Boolean, default: false },
+  isCoordinator: { type: Boolean, default: false },
+  isGlobalAdmin: { type: Boolean, default: false },
+  hasManagePermission: { type: Boolean, default: false },
 });
 
 const toast = useToast();
@@ -28,6 +33,7 @@ const previewValues = ref({});
 // Form Data State
 const fields = ref([]);
 const formSettings = ref({
+  is_active: true,
   show_package_type: false,
   form_title: '',
   form_subtitle: '',
@@ -35,6 +41,51 @@ const formSettings = ref({
 });
 const isDirty = ref(false);
 const isSaving = ref(false);
+
+// Authorization & Lock Computeds
+const canManageForm = computed(() => {
+  return props.canManageForm === true;
+});
+
+const isFormInactive = computed(() => {
+  return props.isFormInactive === true || props.selectedCompetition?.is_form_inactive === true || formSettings.value.is_active === false;
+});
+
+const isUserCoordinator = computed(() => {
+  return props.isCoordinator === true || props.selectedCompetition?.is_coordinated === true;
+});
+
+const disabledReasonTitle = computed(() => {
+  if (isFormInactive.value) {
+    return 'Formulir Nonaktif / Terkunci';
+  }
+  if (!props.isGlobalAdmin && !isUserCoordinator.value) {
+    return 'Bukan Wewenang Anda (Lihat Saja)';
+  }
+  if (!props.hasManagePermission) {
+    return 'Hak Akses Kelola Formulir Dinonaktifkan';
+  }
+  return 'Mode Baca Saja (Terkunci)';
+});
+
+const disabledReasonDetail = computed(() => {
+  if (isFormInactive.value) {
+    if (props.selectedCompetition?.registration_type === 'direct_contact') {
+      return 'Cabang lomba ini menggunakan pendaftaran via kontak langsung (WhatsApp). Formulir online tidak aktif.';
+    }
+    if (props.selectedCompetition?.status === 'closed') {
+      return 'Pendaftaran cabang lomba ini telah ditutup oleh panitia.';
+    }
+    return 'Formulir pendaftaran cabang lomba ini telah dinonaktifkan / dikunci dari pengaturan.';
+  }
+  if (!props.isGlobalAdmin && !isUserCoordinator.value) {
+    return 'Cabang lomba ini dikoordinasikan oleh panitia lain. Anda hanya dapat melihat pratinjau susunan kolom formulir.';
+  }
+  if (!props.hasManagePermission) {
+    return 'Akun Anda tidak memiliki izin untuk mengonfigurasi atau mengubah formulir pendaftaran (form_builder.manage).';
+  }
+  return 'Anda hanya memiliki wewenang membaca (pratinjau) untuk formulir cabang lomba ini.';
+});
 
 // Accordion Expand/Collapse Map: { [fieldId]: boolean }
 const expandedMap = ref({});
@@ -451,8 +502,10 @@ function initializeData() {
   });
 
   const s = props.selectedCompetition?.form_settings;
+  const compIsInactive = props.selectedCompetition?.is_form_inactive ?? false;
   if (s && typeof s === 'object') {
     formSettings.value = {
+      is_active: s.is_active !== undefined ? !!s.is_active : !compIsInactive,
       show_package_type: !!s.show_package_type,
       form_title: s.form_title || '',
       form_subtitle: s.form_subtitle || '',
@@ -460,6 +513,7 @@ function initializeData() {
     };
   } else {
     formSettings.value = {
+      is_active: !compIsInactive,
       show_package_type: false,
       form_title: '',
       form_subtitle: '',
@@ -560,13 +614,27 @@ const fieldTypes = [
 
 // Dropdown Options for CustomSelect UI
 const competitionOptions = computed(() => {
-  return (props.competitions || []).map(c => ({
-    value: c.id,
-    label: `${c.icon ? c.icon + ' ' : ''}${c.title}`,
-    desc: `${c.custom_fields?.length || 0} Pertanyaan • ${c.category_label || c.category || 'Cabang Lomba'}`,
-    badge: c.category_label || c.category,
-    icon: 'ri-trophy-line',
-  }));
+  return (props.competitions || []).map(c => {
+    let statusSuffix = '';
+    let iconClass = 'ri-trophy-line text-warning';
+    if (c.is_form_inactive) {
+      statusSuffix = ' [Nonaktif]';
+      iconClass = 'ri-lock-line text-danger';
+    } else if (c.is_coordinated) {
+      statusSuffix = ' [Wewenang Anda]';
+      iconClass = 'ri-shield-check-line text-success';
+    } else if (!props.isGlobalAdmin && !c.can_manage) {
+      statusSuffix = ' [Lihat Saja]';
+      iconClass = 'ri-eye-line text-muted';
+    }
+    return {
+      value: c.id,
+      label: `${c.icon ? c.icon + ' ' : ''}${c.title}${statusSuffix}`,
+      desc: `${c.custom_fields?.length || 0} Pertanyaan • ${c.category_label || c.category || 'Cabang Lomba'}`,
+      badge: c.is_form_inactive ? 'Nonaktif' : (c.is_coordinated ? 'Wewenang Anda' : (c.category_label || c.category)),
+      icon: iconClass,
+    };
+  });
 });
 
 const fieldTypeOptions = computed(() => {
@@ -924,6 +992,10 @@ const displayedFields = computed(() => {
 
 // Add Field from Toolbox
 function addField(typeObj) {
+  if (!canManageForm.value) {
+    toast.warning(disabledReasonDetail.value);
+    return;
+  }
   const id = generateId();
   const label = typeObj.defaultLabel || (typeObj.type === 'participant_repeater' ? 'Biodata Siswa Delegasi' : `Pertanyaan Baru (${typeObj.label})`);
   const name = typeObj.defaultName || makeSlug(label);
@@ -964,6 +1036,10 @@ function addField(typeObj) {
 
 // Add Core Identity Preset
 function addCorePreset(preset) {
+  if (!canManageForm.value) {
+    toast.warning(disabledReasonDetail.value);
+    return;
+  }
   const id = generateId();
   const newField = {
     id: id,
@@ -993,6 +1069,10 @@ function addCorePreset(preset) {
 
 // Add Quick Preset
 function addQuickPreset(preset) {
+  if (!canManageForm.value) {
+    toast.warning(disabledReasonDetail.value);
+    return;
+  }
   const id = generateId();
   const name = makeSlug(preset.label);
   const newField = {
@@ -1028,6 +1108,10 @@ function addQuickPreset(preset) {
 
 // Field Operations
 async function removeField(index) {
+  if (!canManageForm.value) {
+    toast.warning(disabledReasonDetail.value);
+    return;
+  }
   const f = fields.value[index];
   if (isMandatoryIdentity(f)) {
     const ok = await confirmDialog({
@@ -1062,6 +1146,10 @@ async function removeField(index) {
 }
 
 function duplicateField(index) {
+  if (!canManageForm.value) {
+    toast.warning(disabledReasonDetail.value);
+    return;
+  }
   const original = fields.value[index];
   const clone = JSON.parse(JSON.stringify(original));
   clone.id = generateId();
@@ -1073,6 +1161,10 @@ function duplicateField(index) {
 }
 
 function moveFieldUp(index) {
+  if (!canManageForm.value) {
+    toast.warning(disabledReasonDetail.value);
+    return;
+  }
   if (index > 0) {
     const item = fields.value.splice(index, 1)[0];
     fields.value.splice(index - 1, 0, item);
@@ -1080,6 +1172,10 @@ function moveFieldUp(index) {
 }
 
 function moveFieldDown(index) {
+  if (!canManageForm.value) {
+    toast.warning(disabledReasonDetail.value);
+    return;
+  }
   if (index < fields.value.length - 1) {
     const item = fields.value.splice(index, 1)[0];
     fields.value.splice(index + 1, 0, item);
@@ -1214,12 +1310,17 @@ let draggedItemIndex = null;
 const dragOverIndex = ref(null);
 
 function onDragStart(index, event) {
+  if (!canManageForm.value) {
+    event.preventDefault();
+    return;
+  }
   draggedItemIndex = index;
   event.dataTransfer.effectAllowed = 'move';
   event.dataTransfer.setData('text/plain', index);
 }
 
 function onDragOver(index, event) {
+  if (!canManageForm.value) return;
   event.preventDefault();
   event.dataTransfer.dropEffect = 'move';
   dragOverIndex.value = index;
@@ -1230,6 +1331,7 @@ function onDragLeave() {
 }
 
 function onDrop(targetIndex, event) {
+  if (!canManageForm.value) return;
   event.preventDefault();
   dragOverIndex.value = null;
   if (draggedItemIndex === null || draggedItemIndex === targetIndex) return;
@@ -1242,6 +1344,10 @@ function onDrop(targetIndex, event) {
 
 // Save Form
 function saveFormFields() {
+  if (!canManageForm.value) {
+    toast.error(disabledReasonDetail.value, disabledReasonTitle.value);
+    return;
+  }
   if (!currentCompId.value) return;
 
   // Pastikan 7 Field Identitas Wajib Standar selalu lengkap sebelum disimpan
@@ -1526,6 +1632,10 @@ function syncWithCompetitionRules(field) {
 }
 
 async function applyPreset(presetKey) {
+  if (!canManageForm.value) {
+    toast.error(disabledReasonDetail.value, disabledReasonTitle.value);
+    return;
+  }
   const presetObj = props.presets?.[presetKey];
   const presetTitle = presetObj?.title || presetKey;
   const ok = await confirmDialog({
@@ -1550,6 +1660,10 @@ async function applyPreset(presetKey) {
 }
 
 function executeCopy() {
+  if (!canManageForm.value) {
+    toast.error(disabledReasonDetail.value, disabledReasonTitle.value);
+    return;
+  }
   if (!sourceCompIdToCopy.value) return;
   router.post(`/admin/form-builder/${currentCompId.value}/copy`, {
     source_competition_id: sourceCompIdToCopy.value,
@@ -1563,6 +1677,10 @@ function executeCopy() {
 }
 
 async function resetForm() {
+  if (!canManageForm.value) {
+    toast.error(disabledReasonDetail.value, disabledReasonTitle.value);
+    return;
+  }
   const ok = await confirmDialog({
     title: 'Kosongkan Seluruh Formulir?',
     message: `Yakin ingin mengosongkan semua field formulir cabang "${props.selectedCompetition?.title}"? Semua pertanyaan yang telah dikonfigurasi akan dihapus.`,
@@ -1675,8 +1793,18 @@ function setParticipantCountDirect(field, val) {
                 />
               </div>
 
-              <!-- Unsaved Status Indicator -->
-              <div v-if="isDirty" class="d-flex align-items-center gap-1.5 px-2 py-1 rounded-pill bg-warning-subtle text-warning-emphasis fs-11 fw-semibold text-nowrap flex-shrink-0">
+              <!-- Nonaktif / Read-Only / Status Indicator -->
+              <div v-if="isFormInactive" class="d-flex align-items-center gap-1.5 px-2 py-1 rounded-pill bg-danger-subtle text-danger fs-11 fw-semibold text-nowrap flex-shrink-0" title="Pendaftaran cabang lomba ini sedang dinonaktifkan / ditutup">
+                <i class="ri-lock-line"></i>
+                <span class="d-none d-xl-inline">Formulir Nonaktif</span>
+                <span class="d-inline d-xl-none">Nonaktif</span>
+              </div>
+              <div v-else-if="!canManageForm" class="d-flex align-items-center gap-1.5 px-2 py-1 rounded-pill bg-secondary-subtle text-secondary fs-11 fw-semibold text-nowrap flex-shrink-0" :title="disabledReasonTitle + ' - ' + disabledReasonDetail">
+                <i class="ri-eye-line"></i>
+                <span class="d-none d-xl-inline">Lihat Saja</span>
+                <span class="d-inline d-xl-none">Read-Only</span>
+              </div>
+              <div v-else-if="isDirty" class="d-flex align-items-center gap-1.5 px-2 py-1 rounded-pill bg-warning-subtle text-warning-emphasis fs-11 fw-semibold text-nowrap flex-shrink-0">
                 <span class="pulse-dot bg-warning"></span>
                 <span class="d-none d-xl-inline">Belum Disimpan</span>
                 <span class="d-inline d-xl-none">Belum Simpan</span>
@@ -1732,6 +1860,7 @@ function setParticipantCountDirect(field, val) {
               <button 
                 type="button" 
                 class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-1 fw-bold px-2.5 shadow-sm text-nowrap"
+                :disabled="!canManageForm"
                 @click="showPresetModal = true"
                 title="Kelola & Kustomisasi Template / Preset Formulir"
               >
@@ -1762,23 +1891,23 @@ function setParticipantCountDirect(field, val) {
                       <i class="ri-settings-3-line text-primary"></i> Pengaturan Judul &amp; Paket
                     </a>
                   </li>
-                  <li>
+                  <li v-if="isGlobalAdmin">
                     <Link href="/admin/pengaturan/kebijakan-pendaftaran" class="dropdown-item py-2 d-flex align-items-center gap-2 cursor-pointer">
                       <i class="ri-user-settings-line text-warning"></i> Kebijakan Akses &amp; Login Pendaftar
                     </Link>
                   </li>
-                  <li>
+                  <li v-if="canManageForm">
                     <a class="dropdown-item py-2 d-flex align-items-center gap-2 cursor-pointer" @click="showOptionsMenu = false; showPresetModal = true">
                       <i class="ri-magic-line text-warning"></i> Terapkan Template Siap Pakai
                     </a>
                   </li>
-                  <li>
+                  <li v-if="canManageForm">
                     <a class="dropdown-item py-2 d-flex align-items-center gap-2 cursor-pointer" @click="showOptionsMenu = false; showCopyModal = true">
                       <i class="ri-file-copy-line text-info"></i> Salin dari Cabang Lomba Lain
                     </a>
                   </li>
-                  <li><hr class="dropdown-divider my-1"></li>
-                  <li>
+                  <li v-if="canManageForm"><hr class="dropdown-divider my-1"></li>
+                  <li v-if="canManageForm">
                     <a class="dropdown-item py-2 d-flex align-items-center gap-2 text-danger cursor-pointer" @click="showOptionsMenu = false; resetForm()">
                       <i class="ri-refresh-line"></i> Kosongkan Seluruh Field
                     </a>
@@ -1788,15 +1917,18 @@ function setParticipantCountDirect(field, val) {
 
               <button 
                 type="button" 
-                class="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 fw-bold px-2.5 px-md-3 shadow-sm save-btn text-nowrap"
-                :disabled="isSaving"
+                class="btn btn-sm d-inline-flex align-items-center gap-1.5 fw-bold px-2.5 px-md-3 shadow-sm save-btn text-nowrap"
+                :class="canManageForm ? 'btn-success' : 'btn-secondary opacity-75'"
+                :disabled="isSaving || !canManageForm"
                 @click="saveFormFields"
-                title="Simpan formulir (Ctrl + S)"
+                :title="!canManageForm ? disabledReasonTitle + ' (' + disabledReasonDetail + ')' : 'Simpan formulir (Ctrl + S)'"
               >
-                <i v-if="!isSaving" class="ri-save-line fs-14"></i>
+                <i v-if="!canManageForm" class="ri-lock-line fs-14"></i>
+                <i v-else-if="!isSaving" class="ri-save-line fs-14"></i>
                 <span v-if="isSaving" class="spinner-border spinner-border-sm"></span>
-                <span>Simpan<span class="d-none d-xxl-inline"> Formulir</span></span>
-                <span class="badge bg-dark-subtle text-white font-mono fs-10 px-1 py-0.5 rounded ms-1 opacity-75 d-none d-md-inline">^S</span>
+                <span v-if="!canManageForm">Terkunci</span>
+                <span v-else>Simpan<span class="d-none d-xxl-inline"> Formulir</span></span>
+                <span v-if="canManageForm" class="badge bg-dark-subtle text-white font-mono fs-10 px-1 py-0.5 rounded ms-1 opacity-75 d-none d-md-inline">^S</span>
               </button>
             </div>
 
@@ -1876,6 +2008,15 @@ function setParticipantCountDirect(field, val) {
             <!-- Toolbox Body Items -->
             <div class="card-body p-2.5 toolbox-scroll-area">
               
+              <!-- Lock Banner if cannot manage form -->
+              <div v-if="!canManageForm" class="alert alert-warning border-0 rounded-2 p-2.5 mb-2.5 d-flex align-items-start gap-2 fs-11">
+                <i class="ri-lock-2-line fs-16 text-warning flex-shrink-0 mt-0.5"></i>
+                <div>
+                  <div class="fw-bold">{{ disabledReasonTitle }}</div>
+                  <div class="text-muted fs-10 mt-0.5">{{ disabledReasonDetail }}</div>
+                </div>
+              </div>
+
               <!-- Tab 1: Basic Input Types -->
               <div v-show="toolboxTab === 'types'" class="d-flex flex-column gap-1.5">
                 <div v-if="filteredFieldTypes.length === 0" class="text-center py-4 text-muted fs-12">
@@ -1886,9 +2027,10 @@ function setParticipantCountDirect(field, val) {
                   :key="ft.label || ft.type"
                   type="button" 
                   class="btn btn-sm btn-outline-light text-start p-2 rounded-2 border d-flex align-items-center justify-content-between transition-all hover-tool-card"
-                  :class="{ 'border-warning-subtle bg-warning-subtle/10': ft.isRepeater, 'border-info-subtle bg-info-subtle/10': ft.badge === 'Wilayah' }"
+                  :class="{ 'border-warning-subtle bg-warning-subtle/10': ft.isRepeater, 'border-info-subtle bg-info-subtle/10': ft.badge === 'Wilayah', 'opacity-50 cursor-not-allowed': !canManageForm }"
+                  :disabled="!canManageForm"
                   @click="addField(ft)"
-                  :title="`Klik untuk menambahkan pertanyaan bertipe ${ft.label}`"
+                  :title="!canManageForm ? disabledReasonDetail : `Klik untuk menambahkan pertanyaan bertipe ${ft.label}`"
                 >
                   <div class="d-flex align-items-center gap-2 text-truncate">
                     <div 
@@ -1906,7 +2048,7 @@ function setParticipantCountDirect(field, val) {
                       <div class="text-muted fs-10 text-truncate lh-sm mt-0.5">{{ ft.desc }}</div>
                     </div>
                   </div>
-                  <i class="ri-add-line fs-14 text-muted flex-shrink-0 ms-1"></i>
+                  <i :class="canManageForm ? 'ri-add-line fs-14 text-muted' : 'ri-lock-line fs-13 text-muted'" class="flex-shrink-0 ms-1"></i>
                 </button>
               </div>
 
@@ -1924,6 +2066,7 @@ function setParticipantCountDirect(field, val) {
                     Gunakan template siap pakai atau sesuaikan susunan field/kolom formulir.
                   </div>
                   <button 
+                    v-if="canManageForm"
                     type="button" 
                     class="btn btn-xs btn-warning text-dark fw-bold d-flex align-items-center justify-content-center gap-1 py-1 mt-0.5 shadow-sm"
                     @click="showPresetModal = true"
@@ -1941,8 +2084,10 @@ function setParticipantCountDirect(field, val) {
                   :key="qIdx"
                   type="button" 
                   class="btn btn-sm btn-outline-light text-start p-2 rounded-2 border d-flex align-items-center justify-content-between transition-all hover-tool-card"
+                  :class="{ 'opacity-50 cursor-not-allowed': !canManageForm }"
+                  :disabled="!canManageForm"
                   @click="addQuickPreset(qp)"
-                  :title="`Klik untuk menambahkan preset ${qp.name}`"
+                  :title="!canManageForm ? disabledReasonDetail : `Klik untuk menambahkan preset ${qp.name}`"
                 >
                   <div class="d-flex align-items-center gap-2 text-truncate">
                     <div 
@@ -1959,7 +2104,7 @@ function setParticipantCountDirect(field, val) {
                       <div class="text-muted fs-10 text-truncate lh-sm mt-0.5">{{ qp.category }} • {{ qp.type.toUpperCase() }}</div>
                     </div>
                   </div>
-                  <i class="ri-add-line fs-14 text-muted flex-shrink-0 ms-1"></i>
+                  <i :class="canManageForm ? 'ri-add-line fs-14 text-muted' : 'ri-lock-line fs-13 text-muted'" class="flex-shrink-0 ms-1"></i>
                 </button>
               </div>
 
@@ -1977,6 +2122,7 @@ function setParticipantCountDirect(field, val) {
                     Setiap formulir cabang lomba memuat: Nama Sekolah, Kecamatan, NPSN, Alamat Sekolah, Nama Pendamping, No. WA (hanya angka), Email, dan Kode Paket Komplit (All-In).
                   </div>
                   <button 
+                    v-if="canManageForm"
                     type="button" 
                     class="btn btn-xs btn-primary text-white fw-bold d-flex align-items-center justify-content-center gap-1 py-1 mt-0.5 shadow-sm"
                     @click="restoreMandatoryFields"
@@ -1994,7 +2140,10 @@ function setParticipantCountDirect(field, val) {
                   :key="cIdx"
                   type="button" 
                   class="btn btn-sm btn-outline-light text-start p-2 rounded-2 border d-flex align-items-center justify-content-between transition-all hover-tool-card"
+                  :class="{ 'opacity-50 cursor-not-allowed': !canManageForm }"
+                  :disabled="!canManageForm"
                   @click="addCorePreset(cip)"
+                  :title="!canManageForm ? disabledReasonDetail : `Klik untuk menambahkan ${cip.name}`"
                 >
                   <div class="d-flex align-items-center gap-2 text-truncate">
                     <div class="tool-icon-box rounded-2 flex-shrink-0 d-flex align-items-center justify-content-center bg-info-subtle text-info">
@@ -2005,7 +2154,7 @@ function setParticipantCountDirect(field, val) {
                       <div class="text-muted fs-10 text-truncate lh-sm mt-0.5">{{ cip.desc }}</div>
                     </div>
                   </div>
-                  <i class="ri-add-line fs-14 text-muted flex-shrink-0 ms-1"></i>
+                  <i :class="canManageForm ? 'ri-add-line fs-14 text-muted' : 'ri-lock-line fs-13 text-muted'" class="flex-shrink-0 ms-1"></i>
                 </button>
               </div>
 
@@ -2016,6 +2165,7 @@ function setParticipantCountDirect(field, val) {
               <button 
                 type="button" 
                 class="btn btn-xs btn-outline-primary flex-fill d-flex align-items-center justify-content-center gap-1"
+                :disabled="!canManageForm"
                 @click="showPresetModal = true"
               >
                 <i class="ri-magic-line"></i> Template Lomba
@@ -2054,6 +2204,7 @@ function setParticipantCountDirect(field, val) {
                 <!-- Global Expand/Collapse & Filter Controls -->
                 <div class="d-flex align-items-center gap-1.5">
                   <button 
+                    v-if="canManageForm"
                     type="button" 
                     class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1"
                     @click="restoreMandatoryFields"
@@ -2080,6 +2231,15 @@ function setParticipantCountDirect(field, val) {
                     <i class="ri-expand-up-down-line"></i>
                     <span class="d-none d-sm-inline">Bentangkan Semua</span>
                   </button>
+                </div>
+              </div>
+
+              <!-- Locked Banner on Canvas if !canManageForm -->
+              <div v-if="!canManageForm" class="alert alert-warning border-warning-subtle d-flex align-items-center gap-2.5 py-2 px-3 mt-1 mb-0 rounded-2">
+                <i class="ri-lock-2-line fs-18 text-warning flex-shrink-0"></i>
+                <div class="fs-12 flex-grow-1">
+                  <span class="fw-bold text-dark">{{ disabledReasonTitle }}:</span>
+                  <span class="text-muted ms-1">{{ disabledReasonDetail }}. Seluruh konfigurasi dan pertanyaan berstatus Read-Only.</span>
                 </div>
               </div>
 
@@ -2110,9 +2270,9 @@ function setParticipantCountDirect(field, val) {
                 </div>
                 <h5 class="fs-15 fw-bold text-dark">Formulir Cabang Ini Belum Memiliki Pertanyaan</h5>
                 <p class="text-muted fs-12 max-w-md mx-auto mb-3">
-                  Pilih tipe komponen dari toolbox di sebelah kiri, atau terapkan template siap pakai hanya dengan 1-klik.
+                  {{ canManageForm ? 'Pilih tipe komponen dari toolbox di sebelah kiri, atau terapkan template siap pakai hanya dengan 1-klik.' : 'Tidak ada pertanyaan pendaftaran yang dikonfigurasi untuk cabang lomba ini.' }}
                 </p>
-                <div class="d-flex justify-content-center gap-2">
+                <div v-if="canManageForm" class="d-flex justify-content-center gap-2">
                   <button 
                     type="button" 
                     class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
@@ -2179,6 +2339,7 @@ function setParticipantCountDirect(field, val) {
                       
                       <!-- Dedicated Drag Handle -->
                       <span 
+                        v-if="canManageForm"
                         class="drag-grip text-muted p-1 rounded hover-drag"
                         draggable="true"
                         @dragstart.stop="onDragStart(index, $event)"
@@ -2186,6 +2347,13 @@ function setParticipantCountDirect(field, val) {
                         title="Tahan & seret untuk memindahkan urutan"
                       >
                         <i class="ri-draggable fs-16"></i>
+                      </span>
+                      <span 
+                        v-else
+                        class="text-muted p-1 opacity-50"
+                        title="Urutan terkunci (Read-Only)"
+                      >
+                        <i class="ri-lock-line fs-14"></i>
                       </span>
 
                       <!-- Index Pill -->
@@ -2262,18 +2430,18 @@ function setParticipantCountDirect(field, val) {
                         type="button" 
                         class="btn btn-xs rounded-pill px-2 py-0.5 fw-semibold transition-all"
                         :class="field.required ? 'btn-danger-subtle text-danger border border-danger-subtle' : 'btn-light text-muted border'"
-                        @click="isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name) ? null : (field.required = !field.required)"
-                        :disabled="isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name)"
-                        :title="isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name) ? 'Field identitas ini wajib diisi sesuai standar lomba' : (field.required ? 'Pertanyaan ini wajib diisi oleh pendaftar' : 'Pertanyaan ini opsional')"
+                        @click="!canManageForm || (isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name)) ? null : (field.required = !field.required)"
+                        :disabled="!canManageForm || (isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name))"
+                        :title="!canManageForm ? disabledReasonDetail : (isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name) ? 'Field identitas ini wajib diisi sesuai standar lomba' : (field.required ? 'Pertanyaan ini wajib diisi oleh pendaftar' : 'Pertanyaan ini opsional'))"
                       >
-                        <i v-if="isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name)" class="ri-lock-line me-0.5"></i>
+                        <i v-if="!canManageForm || (isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name))" class="ri-lock-line me-0.5"></i>
                         {{ field.required ? 'Wajib' : 'Opsional' }}
                       </button>
 
-                      <div class="vr mx-0.5 d-none d-sm-block"></div>
+                      <div v-if="canManageForm" class="vr mx-0.5 d-none d-sm-block"></div>
 
                       <!-- Move Up / Down Buttons -->
-                      <div class="btn-group btn-group-xs d-none d-sm-inline-flex">
+                      <div v-if="canManageForm" class="btn-group btn-group-xs d-none d-sm-inline-flex">
                         <button 
                           type="button" 
                           class="btn btn-xs btn-light border" 
@@ -2296,6 +2464,7 @@ function setParticipantCountDirect(field, val) {
 
                       <!-- Duplicate Button -->
                       <button 
+                        v-if="canManageForm"
                         type="button" 
                         class="btn btn-xs btn-light border text-secondary" 
                         @click="duplicateField(index)"
@@ -2306,6 +2475,7 @@ function setParticipantCountDirect(field, val) {
 
                       <!-- Delete Button -->
                       <button 
+                        v-if="canManageForm"
                         type="button" 
                         class="btn btn-xs btn-outline-danger" 
                         @click="removeField(index)"
@@ -2329,6 +2499,7 @@ function setParticipantCountDirect(field, val) {
 
                   <!-- Card Body: Expanded Editor Section -->
                   <div v-show="isExpanded(field.id)" class="field-body p-3 border-top bg-light-subtle">
+                    <fieldset :disabled="!canManageForm" class="border-0 p-0 m-0">
                     <div class="row g-2.5">
                       
                       <!-- Label Pertanyaan Input -->
@@ -2357,6 +2528,7 @@ function setParticipantCountDirect(field, val) {
                         <CustomSelect 
                           v-model="field.type" 
                           :options="fieldTypeOptions"
+                          :disabled="!canManageForm"
                           size="sm"
                           placeholder="Pilih tipe input..."
                         />
@@ -2689,6 +2861,7 @@ function setParticipantCountDirect(field, val) {
                                           <CustomSelect 
                                             v-model="col.type" 
                                             :options="columnTypeOptions"
+                                            :disabled="!canManageForm"
                                             size="xs"
                                             placeholder="Tipe..."
                                           />
@@ -2939,6 +3112,7 @@ function setParticipantCountDirect(field, val) {
                                   { value: '', label: 'Biarkan Kosong (Wajib Dipilih Pendaftar)' },
                                   { value: 'today', label: 'Otomatis Tanggal Hari Ini' }
                                 ]"
+                                :disabled="!canManageForm"
                                 size="sm"
                                 placeholder="Pilih default..."
                               />
@@ -2982,6 +3156,7 @@ function setParticipantCountDirect(field, val) {
                                 <CustomSelect 
                                   v-model="field.conditional_logic.depend_on_field" 
                                   :options="getConditionalTargetOptions(field.id)"
+                                  :disabled="!canManageForm"
                                   size="xs"
                                   placeholder="-- Pilih Pertanyaan Target --"
                                 />
@@ -2992,6 +3167,7 @@ function setParticipantCountDirect(field, val) {
                                 <CustomSelect 
                                   v-model="field.conditional_logic.operator" 
                                   :options="conditionOperatorOptions"
+                                  :disabled="!canManageForm"
                                   size="xs"
                                 />
                               </div>
@@ -3018,6 +3194,7 @@ function setParticipantCountDirect(field, val) {
                       </div>
 
                     </div>
+                    </fieldset>
                   </div>
 
                 </div>
@@ -3036,11 +3213,16 @@ function setParticipantCountDirect(field, val) {
               </div>
               <button 
                 type="button" 
-                class="btn btn-xs btn-success d-inline-flex align-items-center gap-1 fw-bold"
-                :disabled="isSaving"
+                class="btn btn-xs d-inline-flex align-items-center gap-1 fw-bold"
+                :class="canManageForm ? 'btn-success' : 'btn-secondary opacity-75'"
+                :disabled="isSaving || !canManageForm"
                 @click="saveFormFields"
+                :title="!canManageForm ? disabledReasonTitle + ' (' + disabledReasonDetail + ')' : 'Simpan formulir (Ctrl + S)'"
               >
-                <i class="ri-check-line"></i> Simpan Perubahan
+                <i v-if="!canManageForm" class="ri-lock-line"></i>
+                <i v-else-if="!isSaving" class="ri-check-line"></i>
+                <span v-if="isSaving" class="spinner-border spinner-border-sm"></span>
+                <span>{{ canManageForm ? 'Simpan Perubahan' : 'Terkunci' }}</span>
               </button>
             </div>
 
@@ -4005,6 +4187,29 @@ function setParticipantCountDirect(field, val) {
             <button type="button" class="btn-close" @click="showSettingsModal = false"></button>
           </div>
           <div class="modal-body p-4 space-y-3">
+            <!-- Toggle Online Form Active Status -->
+            <div class="p-3 bg-light rounded-3 border mb-3">
+              <div class="form-check form-switch d-flex align-items-center justify-content-between mb-0">
+                <div>
+                  <label class="form-check-label fs-13 fw-bold text-dark mb-0" for="toggleFormActive">
+                    Status Pendaftaran Online Cabang Lomba
+                  </label>
+                  <p class="text-muted fs-11 mb-0 mt-0.5">
+                    {{ formSettings.is_active ? 'Pendaftaran sedang AKTIF dan formulir dapat diakses pendaftar.' : 'Pendaftaran NONAKTIF / DITUTUP. Formulir terkunci dalam mode baca (Read-Only).' }}
+                  </p>
+                </div>
+                <input 
+                  class="form-check-input cursor-pointer ms-3" 
+                  type="checkbox" 
+                  role="switch" 
+                  id="toggleFormActive"
+                  v-model="formSettings.is_active"
+                  :disabled="!canManageForm && !isGlobalAdmin"
+                />
+              </div>
+            </div>
+
+            <fieldset :disabled="!canManageForm" class="border-0 p-0 m-0 space-y-3">
             <div class="p-3 bg-light rounded-3 border mb-3">
               <div class="form-check form-switch d-flex align-items-center justify-content-between mb-0">
                 <div>
@@ -4054,10 +4259,12 @@ function setParticipantCountDirect(field, val) {
                 placeholder="Contoh: Kirim Pendaftaran Delegasi"
               />
             </div>
+            </fieldset>
           </div>
           <div class="modal-footer bg-light border-top py-2 px-4 d-flex justify-content-between">
             <button type="button" class="btn btn-sm btn-secondary" @click="showSettingsModal = false">Tutup</button>
             <button 
+              v-if="canManageForm || isGlobalAdmin"
               type="button" 
               class="btn btn-sm btn-primary fw-semibold"
               @click="showSettingsModal = false; saveFormFields()"
@@ -4138,6 +4345,7 @@ function setParticipantCountDirect(field, val) {
                     <button 
                       type="button" 
                       class="btn btn-sm btn-outline-warning flex-grow-1 fw-semibold d-flex align-items-center justify-content-center gap-1" 
+                      :disabled="!canManageForm"
                       @click="applyPreset(p.key)"
                     >
                       <i class="ri-check-line"></i>
@@ -4654,7 +4862,7 @@ function setParticipantCountDirect(field, val) {
             <button 
               type="button" 
               class="btn btn-sm btn-primary fw-semibold"
-              :disabled="!sourceCompIdToCopy"
+              :disabled="!sourceCompIdToCopy || !canManageForm"
               @click="executeCopy"
             >
               <i class="ri-check-line"></i> Salin Formulir Sekarang

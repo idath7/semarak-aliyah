@@ -409,7 +409,6 @@ class RolePermissionController extends Controller
                 'dashboard.view',
                 'registrants.view',
                 'competitions.view',
-                'competitions.manage',
                 'tm.view',
                 'tm.manage',
                 'form_builder.view',

@@ -288,7 +288,7 @@ class AdminPanelController extends Controller
     /**
      * Cek otorisasi apakah user yang sedang login berhak mengubah / mengelola cabang lomba spesifik.
      */
-    protected function authorizeCompetitionAccess(string|int|null $competitionId = null, string $action = 'kelola'): bool
+    protected function authorizeCompetitionAccess(string|int|null $competitionId = null, ?string $requiredPermission = null): bool
     {
         /** @var User|null $user */
         $user = Auth::guard('web')->user();
@@ -296,26 +296,31 @@ class AdminPanelController extends Controller
             return false;
         }
 
-        // Super Admin, Admin, Ketua Panitia, Wakil Ketua Panitia, dan Sekretaris memiliki akses penuh ke seluruh lomba
-        if ($user->isSuperAdmin() || in_array($user->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'])) {
+        // 1. Super Admin memiliki akses mutlak ke seluruh cabang lomba
+        if ($user->isSuperAdmin()) {
             return true;
         }
 
-        // User dengan izin competitions.manage secara eksplisit
-        if ($user->hasPermission('competitions.manage')) {
+        // 2. Pimpinan Panitia Utama (Admin, Ketua, Wakil Ketua, Sekretaris) berhak atas seluruh lomba
+        if (in_array($user->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'], true)) {
+            if ($requiredPermission && !$user->hasPermission($requiredPermission)) {
+                return false;
+            }
             return true;
+        }
+
+        // 3. Jika aksi membutuhkan izin modul spesifik dan user tidak memilikinya (misal dicabut di pengaturan hak akses), tolak segera!
+        if ($requiredPermission && !$user->hasPermission($requiredPermission)) {
+            return false;
         }
 
         if (!$competitionId) {
             return false;
         }
 
-        // Koordinator Lomba: Berhak atas cabang lomba yang dikoordinasikannya (baik koordinator utama maupun koordinator ke-2, ke-3, dst)
-        if ($user->role === 'koordinator_lomba' || $user->isCoordinatorFor($competitionId)) {
-            return $user->isCoordinatorFor($competitionId);
-        }
-
-        return false;
+        // 4. Untuk Koordinator Lomba atau panitia lainnya:
+        // HANYA berhak jika cabang lomba ini adalah cabang lomba yang dikoordinasikan oleh user ini
+        return $user->isCoordinatorFor($competitionId);
     }
 
     public function competitionsIndex(Request $request)
@@ -1308,16 +1313,37 @@ class AdminPanelController extends Controller
 
     public function formBuilderIndex(Request $request)
     {
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+        $isGlobalAdmin = $authUser?->isSuperAdmin() || in_array($authUser?->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'], true);
+        $hasManagePermission = $authUser ? $authUser->hasPermission('form_builder.manage') : false;
+        $coordinatedIds = $authUser ? $authUser->getCoordinatedCompetitionIds() : [];
+
         $competitions = Competition::orderBy('id', 'asc')->get();
         foreach ($competitions as $comp) {
             $comp->custom_fields = self::ensureMandatoryFields($comp->custom_fields ?? []);
+            $isCoordinated = in_array((string)$comp->id, $coordinatedIds, true);
+            $comp->is_coordinated = $isCoordinated;
+            $comp->is_form_inactive = $comp->isFormInactive();
+            $comp->can_manage = $hasManagePermission && ($isGlobalAdmin || $isCoordinated) && (!$comp->is_form_inactive || $isGlobalAdmin);
         }
 
-        $selectedId = $request->query('comp', $competitions->first()?->id);
-        $selectedComp = Competition::find($selectedId) ?: $competitions->first();
+        $selectedId = $request->query('comp');
+        if (!$selectedId && !$isGlobalAdmin && !empty($coordinatedIds)) {
+            $selectedId = $coordinatedIds[0];
+        }
+        if (!$selectedId || !$competitions->contains('id', $selectedId)) {
+            $selectedId = $competitions->first()?->id;
+        }
+
+        $selectedComp = $selectedId ? $competitions->firstWhere('id', $selectedId) : $competitions->first();
         if ($selectedComp) {
             $selectedComp->custom_fields = self::ensureMandatoryFields($selectedComp->custom_fields ?? []);
         }
+
+        $isCoordinatedSelected = $selectedComp ? in_array((string)$selectedComp->id, $coordinatedIds, true) : false;
+        $isFormInactiveSelected = $selectedComp ? $selectedComp->isFormInactive() : false;
+        $canManageForm = $hasManagePermission && ($isGlobalAdmin || $isCoordinatedSelected) && (!$isFormInactiveSelected || $isGlobalAdmin);
 
         $presets = self::getAllFormPresets();
 
@@ -1325,30 +1351,77 @@ class AdminPanelController extends Controller
             'competitions' => $competitions,
             'selectedCompetition' => $selectedComp,
             'presets' => $presets,
+            'canManageForm' => $canManageForm,
+            'isFormInactive' => $isFormInactiveSelected,
+            'isCoordinator' => $isCoordinatedSelected,
+            'isGlobalAdmin' => $isGlobalAdmin,
+            'hasManagePermission' => $hasManagePermission,
         ]);
     }
 
     public function formBuilderShow(string|int $competitionId, Request $request)
     {
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+        $isGlobalAdmin = $authUser?->isSuperAdmin() || in_array($authUser?->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'], true);
+        $hasManagePermission = $authUser ? $authUser->hasPermission('form_builder.manage') : false;
+        $coordinatedIds = $authUser ? $authUser->getCoordinatedCompetitionIds() : [];
+
         $competitions = Competition::orderBy('id', 'asc')->get();
         foreach ($competitions as $comp) {
             $comp->custom_fields = self::ensureMandatoryFields($comp->custom_fields ?? []);
+            $isCoordinated = in_array((string)$comp->id, $coordinatedIds, true);
+            $comp->is_coordinated = $isCoordinated;
+            $comp->is_form_inactive = $comp->isFormInactive();
+            $comp->can_manage = $hasManagePermission && ($isGlobalAdmin || $isCoordinated) && (!$comp->is_form_inactive || $isGlobalAdmin);
         }
 
         $selectedComp = Competition::findOrFail($competitionId);
         $selectedComp->custom_fields = self::ensureMandatoryFields($selectedComp->custom_fields ?? []);
+
+        $isCoordinatedSelected = in_array((string)$selectedComp->id, $coordinatedIds, true);
+        $isFormInactiveSelected = $selectedComp->isFormInactive();
+        $canManageForm = $hasManagePermission && ($isGlobalAdmin || $isCoordinatedSelected) && (!$isFormInactiveSelected || $isGlobalAdmin);
+
         $presets = self::getAllFormPresets();
 
         return \Inertia\Inertia::render('Admin/FormBuilder', [
             'competitions' => $competitions,
             'selectedCompetition' => $selectedComp,
             'presets' => $presets,
+            'canManageForm' => $canManageForm,
+            'isFormInactive' => $isFormInactiveSelected,
+            'isCoordinator' => $isCoordinatedSelected,
+            'isGlobalAdmin' => $isGlobalAdmin,
+            'hasManagePermission' => $hasManagePermission,
         ]);
     }
 
     public function formBuilderSave(string|int $competitionId, Request $request)
     {
         $comp = Competition::findOrFail($competitionId);
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+
+        // 1. Otorisasi wewenang cabang lomba & hak akses form_builder.manage
+        if (!$this->authorizeCompetitionAccess($competitionId, 'form_builder.manage')) {
+            $msg = "Akses Ditolak: Anda tidak memiliki wewenang atau hak akses untuk mengubah formulir pendaftaran cabang \"{$comp->title}\".";
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json(['status' => 'error', 'message' => $msg], 403);
+            }
+            return redirect()->back()->with('error', $msg);
+        }
+
+        // 2. Proteksi jika formulir berstatus nonaktif (hanya Super Admin / Admin Utama yang dapat mengubah atau mengaktifkan kembali)
+        $isGlobalAdmin = $authUser?->isSuperAdmin() || in_array($authUser?->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'], true);
+        if ($comp->isFormInactive() && !$isGlobalAdmin) {
+            $msg = "Aksi Ditolak: Formulir pendaftaran cabang lomba \"{$comp->title}\" sedang nonaktif (status ditutup / pendaftaran kontak langsung).";
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json(['status' => 'error', 'message' => $msg], 403);
+            }
+            return redirect()->back()->with('error', $msg);
+        }
+
         $fields = $request->input('custom_fields', []);
         $settings = $request->input('form_settings', $comp->form_settings ?? []);
 
@@ -1357,12 +1430,14 @@ class AdminPanelController extends Controller
 
         $comp->custom_fields = $cleanFields;
         if (is_array($settings)) {
-            $comp->form_settings = [
+            $currentSettings = is_array($comp->form_settings) ? $comp->form_settings : [];
+            $comp->form_settings = array_merge($currentSettings, [
+                'is_active' => isset($settings['is_active']) ? (bool)$settings['is_active'] : true,
                 'show_package_type' => (bool) ($settings['show_package_type'] ?? false),
                 'form_title' => $settings['form_title'] ?? '',
                 'form_subtitle' => $settings['form_subtitle'] ?? '',
                 'submit_text' => $settings['submit_text'] ?? 'Kirim Pendaftaran Delegasi',
-            ];
+            ]);
         }
         $comp->save();
 
@@ -1381,6 +1456,18 @@ class AdminPanelController extends Controller
     public function formBuilderApplyPreset(string|int $competitionId, Request $request)
     {
         $comp = Competition::findOrFail($competitionId);
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+
+        if (!$this->authorizeCompetitionAccess($competitionId, 'form_builder.manage')) {
+            return redirect()->back()->with('error', "Akses Ditolak: Anda tidak memiliki wewenang atau hak akses untuk mengubah formulir cabang \"{$comp->title}\".");
+        }
+
+        $isGlobalAdmin = $authUser?->isSuperAdmin() || in_array($authUser?->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'], true);
+        if ($comp->isFormInactive() && !$isGlobalAdmin) {
+            return redirect()->back()->with('error', "Aksi Ditolak: Formulir pendaftaran cabang lomba \"{$comp->title}\" sedang nonaktif.");
+        }
+
         $presetKey = $request->input('preset', 'template_1_siswa');
         $presets = self::getAllFormPresets();
 
@@ -1543,6 +1630,18 @@ class AdminPanelController extends Controller
     public function formBuilderCopyFrom(string|int $competitionId, Request $request)
     {
         $comp = Competition::findOrFail($competitionId);
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+
+        if (!$this->authorizeCompetitionAccess($competitionId, 'form_builder.manage')) {
+            return redirect()->back()->with('error', "Akses Ditolak: Anda tidak memiliki wewenang atau hak akses untuk mengubah formulir cabang \"{$comp->title}\".");
+        }
+
+        $isGlobalAdmin = $authUser?->isSuperAdmin() || in_array($authUser?->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'], true);
+        if ($comp->isFormInactive() && !$isGlobalAdmin) {
+            return redirect()->back()->with('error', "Aksi Ditolak: Formulir pendaftaran cabang lomba \"{$comp->title}\" sedang nonaktif.");
+        }
+
         $sourceId = $request->input('source_competition_id');
         $sourceComp = Competition::findOrFail($sourceId);
 
@@ -1557,6 +1656,18 @@ class AdminPanelController extends Controller
     public function formBuilderReset(string|int $competitionId)
     {
         $comp = Competition::findOrFail($competitionId);
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+
+        if (!$this->authorizeCompetitionAccess($competitionId, 'form_builder.manage')) {
+            return redirect()->back()->with('error', "Akses Ditolak: Anda tidak memiliki wewenang atau hak akses untuk mengosongkan formulir cabang \"{$comp->title}\".");
+        }
+
+        $isGlobalAdmin = $authUser?->isSuperAdmin() || in_array($authUser?->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'], true);
+        if ($comp->isFormInactive() && !$isGlobalAdmin) {
+            return redirect()->back()->with('error', "Aksi Ditolak: Formulir pendaftaran cabang lomba \"{$comp->title}\" sedang nonaktif.");
+        }
+
         $comp->custom_fields = [];
         $comp->form_settings = [];
         $comp->save();
@@ -2394,11 +2505,22 @@ class AdminPanelController extends Controller
     {
         /** @var User|null $authUser */
         $authUser = Auth::guard('web')->user();
+        $isGlobalAdmin = $authUser?->isSuperAdmin() || in_array($authUser?->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'], true);
+        $hasTmManage = $authUser ? $authUser->hasPermission('tm.manage') : false;
+        $coordinatedIds = $authUser ? $authUser->getCoordinatedCompetitionIds() : [];
+
         $competitions = Competition::with(['coordinator:id,name,phone,email,role'])->withCount('registrations')->orderBy('id', 'asc')->get();
+        foreach ($competitions as $c) {
+            $isCoordinated = in_array((string)$c->id, $coordinatedIds, true);
+            $c->is_coordinated = $isCoordinated;
+            $c->can_modify = $hasTmManage && ($isGlobalAdmin || $isCoordinated);
+        }
         
         $activeCompId = $request->input('comp');
         // Jika koordinator lomba membuka halaman TM tanpa query string comp, prioritaskan cabang lombanya
-        if (!$activeCompId && $authUser?->role === 'koordinator_lomba' && $authUser->competition_id) {
+        if (!$activeCompId && !$isGlobalAdmin && !empty($coordinatedIds)) {
+            $activeCompId = $coordinatedIds[0];
+        } elseif (!$activeCompId && $authUser?->role === 'koordinator_lomba' && $authUser->competition_id) {
             $activeCompId = $authUser->competition_id;
         }
 
@@ -2474,8 +2596,10 @@ class AdminPanelController extends Controller
             'current_user_id'        => $authUser?->id,
             'current_user_role'      => $authUser?->role,
             'current_user_comp'      => $authUser?->competition_id,
-            'can_modify_active_comp' => $this->authorizeCompetitionAccess($activeCompId),
-            'is_coordinator'         => $authUser?->role === 'koordinator_lomba' || ($activeComp && $activeComp->isUserCoordinator($authUser?->id)) || !empty($authUser?->getCoordinatedCompetitionIds()),
+            'can_modify_active_comp' => $this->authorizeCompetitionAccess($activeCompId, 'tm.manage'),
+            'is_coordinator'         => $authUser?->role === 'koordinator_lomba' || ($activeComp && $activeComp->isUserCoordinator($authUser?->id)) || !empty($coordinatedIds),
+            'is_global_admin'        => $isGlobalAdmin,
+            'has_tm_manage'          => $hasTmManage,
         ];
 
         return \Inertia\Inertia::render('Admin/TechnicalMeeting', [
@@ -2529,6 +2653,12 @@ class AdminPanelController extends Controller
 
     public function updateTmSectionSettings(Request $request)
     {
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+        if (!$authUser?->isSuperAdmin() && !in_array($authUser?->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'], true)) {
+            return redirect()->back()->with('error', 'Akses Ditolak: Hanya Panitia Inti (Admin/Ketua/Sekretaris) yang berwenang mengubah pengaturan global agenda Technical Meeting.');
+        }
+
         $validated = $request->validate([
             'tag' => 'required|string|max:100',
             'title' => 'required|string|max:150',
@@ -2559,8 +2689,8 @@ class AdminPanelController extends Controller
     {
         $competition = Competition::findOrFail($competitionId);
 
-        if (!$this->authorizeCompetitionAccess($competitionId)) {
-            return redirect()->back()->with('error', "Akses Ditolak: Anda hanya berwenang mengelola Technical Meeting untuk cabang lomba yang Anda koordinasi.");
+        if (!$this->authorizeCompetitionAccess($competitionId, 'tm.manage')) {
+            return redirect()->back()->with('error', "Akses Ditolak: Anda tidak memiliki wewenang atau hak akses untuk mengelola Technical Meeting cabang lomba \"{$competition->title}\".");
         }
 
         $validated = $request->validate([
@@ -2636,8 +2766,8 @@ class AdminPanelController extends Controller
     {
         $competition = Competition::findOrFail($competitionId);
         
-        if (!$this->authorizeCompetitionAccess($competitionId)) {
-            return redirect()->back()->with('error', "Akses Ditolak: Anda hanya berwenang mengacak nomor undian untuk cabang lomba yang Anda koordinasi.");
+        if (!$this->authorizeCompetitionAccess($competitionId, 'tm.manage')) {
+            return redirect()->back()->with('error', "Akses Ditolak: Anda tidak memiliki wewenang atau hak akses untuk mengacak nomor undian cabang \"{$competition->title}\".");
         }
 
         // Ambil semua pendaftar pada cabang lomba ini
@@ -2671,8 +2801,10 @@ class AdminPanelController extends Controller
 
     public function updateParticipantOrder(Request $request, string|int $competitionId)
     {
-        if (!$this->authorizeCompetitionAccess($competitionId)) {
-            return redirect()->back()->with('error', "Akses Ditolak: Anda hanya berwenang mengubah urutan peserta untuk cabang lomba yang Anda koordinasi.");
+        $competition = Competition::findOrFail($competitionId);
+
+        if (!$this->authorizeCompetitionAccess($competitionId, 'tm.manage')) {
+            return redirect()->back()->with('error', "Akses Ditolak: Anda tidak memiliki wewenang atau hak akses untuk mengubah urutan peserta cabang \"{$competition->title}\".");
         }
 
         $request->validate([
@@ -2696,8 +2828,8 @@ class AdminPanelController extends Controller
     {
         $competition = Competition::findOrFail($competitionId);
 
-        if (!$this->authorizeCompetitionAccess($competitionId)) {
-            return redirect()->back()->with('error', "Akses Ditolak: Anda hanya berwenang mereset undian untuk cabang lomba yang Anda koordinasi.");
+        if (!$this->authorizeCompetitionAccess($competitionId, 'tm.manage')) {
+            return redirect()->back()->with('error', "Akses Ditolak: Anda tidak memiliki wewenang atau hak akses untuk mereset undian cabang \"{$competition->title}\".");
         }
 
         Registration::where('competition_id', $competitionId)->update([

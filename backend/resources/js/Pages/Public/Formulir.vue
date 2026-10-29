@@ -531,10 +531,9 @@ const totalCalculatedFee = computed(() => {
   if (form.package_type === 'Paket All-In') {
     return Number(props.pricingSettings?.allin_price || 250000);
   }
-  if (activeComp.value?.is_team) {
-    return baseCompFee.value;
-  }
-  return baseCompFee.value * (participantCount.value || 1);
+  // Biaya pendaftaran bersifat FLAT per cabang lomba (bukan dihitung per siswa/peserta).
+  // Berapapun jumlah peserta yang didaftarkan, biaya tetap sama sesuai tarif cabang lomba.
+  return baseCompFee.value;
 });
 
 // -----------------------------------------------------------------------------
@@ -1175,7 +1174,7 @@ onMounted(() => {
                           <span class="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded">Cabang Ini</span>
                         </div>
                         <p class="text-xs font-semibold text-primary mt-0.5">Rp {{ baseCompFee.toLocaleString('id-ID') }}</p>
-                        <p class="text-[11px] text-on-surface-variant">Khusus pendaftaran cabang {{ activeComp?.title || 'ini' }}</p>
+                        <p class="text-[11px] text-on-surface-variant">Khusus pendaftaran cabang {{ activeComp?.title || 'ini' }} (Biaya flat per cabang)</p>
                       </div>
                     </div>
                     <i class="ri-price-tag-3-line text-primary text-[20px] shrink-0"></i>
@@ -1205,15 +1204,21 @@ onMounted(() => {
 
               <!-- Selector Jumlah Peserta (Jika Min < Max) -->
               <div v-if="minParticipants < maxParticipants" class="p-4 rounded-xl bg-background/50 border border-border-subtle space-y-3">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 flex-wrap">
                   <label class="form-label-aligned">
                     <i class="ri-user-follow-line text-primary"></i>
                     <span>Jumlah Delegasi Peserta yang Didaftarkan</span>
                   </label>
-                  <span class="text-[11px] font-medium text-emerald-dark bg-emerald-light border border-primary/20 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 w-fit">
-                    <i class="ri-information-line text-[14px]"></i>
-                    Batas Maksimal: {{ maxParticipants }} Peserta
-                  </span>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[11px] font-medium text-emerald-dark bg-emerald-light border border-primary/20 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 w-fit">
+                      <i class="ri-information-line text-[14px]"></i>
+                      Batas Maksimal: {{ maxParticipants }} Peserta
+                    </span>
+                    <span class="text-[11px] font-semibold text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 w-fit">
+                      <i class="ri-price-tag-3-line text-[13px]"></i>
+                      Biaya Flat Cabang: Rp {{ baseCompFee.toLocaleString('id-ID') }}
+                    </span>
+                  </div>
                 </div>
 
                 <!-- Stepper Buttons -->
@@ -1852,7 +1857,7 @@ onMounted(() => {
                   </div>
                   <div class="flex justify-between py-1 border-b border-dashed border-primary/10 sm:border-b-0">
                     <span class="text-on-surface-variant">Jumlah Delegasi Cabang:</span>
-                    <span class="font-semibold text-on-surface">{{ participantCount }} Siswa (@ Rp {{ baseCompFee.toLocaleString('id-ID') }})</span>
+                    <span class="font-semibold text-on-surface">{{ participantCount }} Siswa (Biaya Flat Cabang)</span>
                   </div>
                   <div class="flex justify-between py-1 border-b border-dashed border-primary/10 sm:border-b-0">
                     <span class="text-on-surface-variant">Metode Bayar:</span>

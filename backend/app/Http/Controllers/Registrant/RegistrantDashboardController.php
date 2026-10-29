@@ -801,6 +801,7 @@ class RegistrantDashboardController extends Controller
         $masterReg = $allInRegs->firstWhere('total_fee', '>', 0) ?: $allInRegs->first();
         $regCode = $masterReg->reg_code;
         $path = $proof->storeAs("uploads/registrations/{$regCode}", time() . "_bukti_{$safeName}", 'public');
+        $fileUrl = '/storage/' . $path;
         $primaryBankName = collect(Setting::getBankAccounts())->firstWhere('is_primary', true)['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)');
         $paymentMethod = $request->input('payment_method') ?: ('Transfer ' . $primaryBankName);
 
@@ -1245,8 +1246,11 @@ class RegistrantDashboardController extends Controller
 
         // Upload Berkas Khusus Dinamis dari Form Builder (custom_files / custom_fields)
         if ($request->hasFile('custom_files') || $request->hasFile('custom_fields')) {
-            $customUploads = $request->file('custom_files') ?: $request->file('custom_fields');
-            if (is_array($customUploads)) {
+            $customUploads = array_merge(
+                (array)$request->file('custom_files', []),
+                (array)$request->file('custom_fields', [])
+            );
+            if (is_array($customUploads) && !empty($customUploads)) {
                 $compCustomFields = ($competition && is_array($competition->custom_fields)) ? $competition->custom_fields : [];
                 $compFieldMap = [];
                 foreach ($compCustomFields as $cf) {

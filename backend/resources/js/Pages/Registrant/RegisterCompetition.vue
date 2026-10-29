@@ -469,7 +469,9 @@ function handleCustomFile(fieldName, event, maxFiles = 1) {
   }
 
   if (!form.custom_files) form.custom_files = {};
+  if (!form.custom_fields) form.custom_fields = {};
   form.custom_files[fieldName] = customFileState.value[fieldName];
+  form.custom_fields[fieldName] = customFileState.value[fieldName];
 
   if (event.target) event.target.value = '';
 }
@@ -483,6 +485,7 @@ function removeCustomFile(fieldName, index = null) {
       if (form.custom_fields) delete form.custom_fields[fieldName];
     } else {
       if (form.custom_files) form.custom_files[fieldName] = customFileState.value[fieldName];
+      if (form.custom_fields) form.custom_fields[fieldName] = customFileState.value[fieldName];
     }
   } else {
     delete customFileState.value[fieldName];
@@ -701,6 +704,31 @@ function submitRegistration() {
   if (!form.participants_names || !form.participants_names.trim()) {
     toast.error('Daftar nama peserta / delegasi wajib diisi.');
     return;
+  }
+
+  // Validate dynamic custom fields
+  for (const f of dynamicFields.value) {
+    if (f.required && isFieldVisible(f)) {
+      if (f.type === 'file') {
+        const files = getRegistrantFileList(f.name);
+        if (!files.length && !form.custom_files?.[f.name] && !form.custom_fields?.[f.name]) {
+          toast.error(`Berkas "${f.label}" wajib diunggah.`);
+          return;
+        }
+      } else if (f.type === 'checkbox') {
+        const val = form.custom_fields?.[f.name];
+        if (!val || (Array.isArray(val) && val.length === 0)) {
+          toast.error(`Pilihan "${f.label}" minimal pilih 1 opsi.`);
+          return;
+        }
+      } else {
+        const val = form.custom_fields?.[f.name];
+        if (val === undefined || val === null || String(val).trim() === '') {
+          toast.error(`Kolom "${f.label}" wajib diisi.`);
+          return;
+        }
+      }
+    }
   }
 
   if (isManualCodeVerified.value || props.isAllInVerified) {
@@ -1941,7 +1969,6 @@ function handleUnifiedSubmit() {
                     <div class="fs-24 fw-black text-primary mt-1">
                       {{ formatRupiah(calculatedFee) }}
                     </div>
-                    <div class="fs-11 reg-desc text-muted mt-0.5">Biaya pendaftaran flat per cabang lomba (bukan per peserta)</div>
                     <div v-if="calculatedFee === 0" class="badge badge-subtle-success fs-11 mt-1">
                       Gratis / Lunas Paket All-In
                     </div>

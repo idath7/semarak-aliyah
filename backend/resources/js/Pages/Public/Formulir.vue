@@ -106,6 +106,7 @@ const form = useForm({
   mentor_wa: props.authRegistrant?.phone || '',
   participants_names: '',
   custom_fields: {},
+  custom_files: {},
   notes: '',
   payment_method: 'Transfer Bank BSI',
   payment_proof: null
@@ -322,6 +323,8 @@ function initCompetitionData() {
         form.custom_fields[f.name] = f.options?.[0] || '';
       } else if (f.type === 'date') {
         form.custom_fields[f.name] = f.date_default || '';
+      } else if (f.type === 'file') {
+        // File fields are handled by customFiles & FormData
       } else {
         form.custom_fields[f.name] = '';
       }
@@ -558,23 +561,71 @@ function copyAccount(accNum) {
 const customFiles = ref({});
 const paymentProofRef = ref(null);
 
-function handleCustomFileChange(fieldName, e) {
-  const file = e.target?.files?.[0];
-  if (file) {
-    if (!form.custom_fields) form.custom_fields = {};
-    form.custom_fields[fieldName] = file;
+function getCustomFileList(fieldName) {
+  const val = customFiles.value[fieldName];
+  if (!val) return [];
+  return Array.isArray(val) ? val : [val];
+}
+
+function handleCustomFileChange(fieldName, e, maxFiles = 1) {
+  const selected = Array.from(e.target?.files || []);
+  if (!selected.length) return;
+
+  const limit = Math.max(1, Number(maxFiles || 1));
+  if (!form.custom_fields) form.custom_fields = {};
+  if (!form.custom_files) form.custom_files = {};
+
+  if (limit > 1) {
+    const existing = Array.isArray(customFiles.value[fieldName])
+      ? [...customFiles.value[fieldName]]
+      : (customFiles.value[fieldName] ? [customFiles.value[fieldName]] : []);
+    
+    // Cegah berkas kembar dengan nama & ukuran sama
+    const newFiles = selected.filter(nf => !existing.some(ef => ef.name === nf.name && ef.size === nf.size));
+    const combined = [...existing, ...newFiles];
+
+    if (combined.length > limit) {
+      showToast(`Maksimal hanya dapat memilih ${limit} berkas untuk kolom ini.`, 'ri-error-warning-fill');
+      customFiles.value[fieldName] = combined.slice(0, limit);
+    } else {
+      customFiles.value[fieldName] = combined;
+    }
+    form.custom_fields[fieldName] = customFiles.value[fieldName];
+    form.custom_files[fieldName] = customFiles.value[fieldName];
+    showToast(`${customFiles.value[fieldName].length} berkas dipilih`);
+  } else {
+    const file = selected[0];
     customFiles.value[fieldName] = file;
-    clearFieldError(fieldName);
+    form.custom_fields[fieldName] = file;
+    form.custom_files[fieldName] = file;
     showToast(`Berkas terpilih: ${file.name}`);
+  }
+
+  clearFieldError(fieldName);
+  if (e.target) e.target.value = '';
+}
+
+function removeCustomFileIndex(fieldName, idx) {
+  if (Array.isArray(customFiles.value[fieldName])) {
+    customFiles.value[fieldName].splice(idx, 1);
+    if (customFiles.value[fieldName].length === 0) {
+      delete customFiles.value[fieldName];
+      if (form.custom_fields) delete form.custom_fields[fieldName];
+      if (form.custom_files) delete form.custom_files[fieldName];
+    } else {
+      if (form.custom_fields) form.custom_fields[fieldName] = customFiles.value[fieldName];
+      if (form.custom_files) form.custom_files[fieldName] = customFiles.value[fieldName];
+    }
+    showToast('Berkas berhasil dihapus');
   }
 }
 
 function clearCustomFile(fieldName, inputRef) {
-  if (form.custom_fields) {
-    form.custom_fields[fieldName] = null;
-  }
+  if (form.custom_fields) delete form.custom_fields[fieldName];
+  if (form.custom_files) delete form.custom_files[fieldName];
   delete customFiles.value[fieldName];
   if (inputRef) inputRef.value = '';
+  showToast('Berkas berhasil dikosongkan');
 }
 
 function handleParticipantPhoto(pIdx, type, e) {
@@ -601,8 +652,9 @@ function clearPaymentProof(e) {
 
 function formatFileSize(bytes) {
   if (!bytes) return '0 B';
-  const mb = (bytes / (1024 * 1024)).toFixed(2);
-  return `${mb} MB`;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 // -----------------------------------------------------------------------------
@@ -702,7 +754,8 @@ function validateForm() {
     if (f.required && evaluateCondition(f.conditional_logic, form.custom_fields)) {
       const val = form.custom_fields?.[f.name];
       if (f.type === 'file') {
-        if (!val && !customFiles.value[f.name]) {
+        const files = getCustomFileList(f.name);
+        if (!files.length && !form.custom_fields?.[f.name] && !form.custom_files?.[f.name]) {
           errs[f.name] = `Berkas "${f.label}" wajib diunggah.`;
         }
       } else if (f.type === 'checkbox') {
@@ -749,13 +802,29 @@ function handleSubmit() {
     })
     .join('\n');
 
-  // Sync custom_fields
+  // Sync custom_fields & custom_files
   if (!form.custom_fields) form.custom_fields = {};
+  if (!form.custom_files) form.custom_files = {};
   const repeaterKey = repeaterField.value?.name || 'biodata_peserta';
   form.custom_fields[repeaterKey] = activeParticipants;
   form.custom_fields['school_name'] = form.school_name;
   form.custom_fields['mentor_name'] = form.mentor_name;
   form.custom_fields['mentor_wa'] = form.mentor_wa;
+
+  // Sync custom files into form
+  otherCustomFields.value.forEach(f => {
+    if (f.type === 'file') {
+      const files = getCustomFileList(f.name);
+      if (files.length > 0) {
+        const val = Number(f.max_files || 1) > 1 ? files : files[0];
+        form.custom_fields[f.name] = val;
+        form.custom_files[f.name] = val;
+      } else {
+        delete form.custom_fields[f.name];
+        delete form.custom_files[f.name];
+      }
+    }
+  });
 
   form.post('/formulir-pendaftaran', {
     preserveScroll: true,
@@ -1174,7 +1243,7 @@ onMounted(() => {
                           <span class="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded">Cabang Ini</span>
                         </div>
                         <p class="text-xs font-semibold text-primary mt-0.5">Rp {{ baseCompFee.toLocaleString('id-ID') }}</p>
-                        <p class="text-[11px] text-on-surface-variant">Khusus pendaftaran cabang {{ activeComp?.title || 'ini' }} (Biaya flat per cabang)</p>
+                        <p class="text-[11px] text-on-surface-variant">Khusus pendaftaran cabang {{ activeComp?.title || 'ini' }}</p>
                       </div>
                     </div>
                     <i class="ri-price-tag-3-line text-primary text-[20px] shrink-0"></i>
@@ -1207,18 +1276,12 @@ onMounted(() => {
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 flex-wrap">
                   <label class="form-label-aligned">
                     <i class="ri-user-follow-line text-primary"></i>
-                    <span>Jumlah Delegasi Peserta yang Didaftarkan</span>
+                    <span>Jumlah Delegasi</span>
                   </label>
-                  <div class="flex items-center gap-1.5 flex-wrap">
-                    <span class="text-[11px] font-medium text-emerald-dark bg-emerald-light border border-primary/20 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 w-fit">
-                      <i class="ri-information-line text-[14px]"></i>
-                      Batas Maksimal: {{ maxParticipants }} Peserta
-                    </span>
-                    <span class="text-[11px] font-semibold text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 w-fit">
-                      <i class="ri-price-tag-3-line text-[13px]"></i>
-                      Biaya Flat Cabang: Rp {{ baseCompFee.toLocaleString('id-ID') }}
-                    </span>
-                  </div>
+                  <span class="text-[11px] font-medium text-emerald-dark bg-emerald-light border border-primary/20 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 w-fit">
+                    <i class="ri-information-line text-[14px]"></i>
+                    Batas Maksimal: {{ maxParticipants }} Peserta
+                  </span>
                 </div>
 
                 <!-- Stepper Buttons -->
@@ -1555,13 +1618,13 @@ onMounted(() => {
                       </span>
                     </label>
                     <span v-if="field.type === 'file'" class="text-[11px] text-on-surface-variant font-normal">
-                      Maks. {{ field.max_size_mb || 5 }} MB
+                      Maks. {{ field.max_size_mb || 5 }} MB • {{ (field.max_files || 1) > 1 ? `Hingga ${field.max_files} Berkas` : '1 Berkas' }}
                     </span>
                   </div>
 
-                  <!-- Type: FILE UPLOAD DROPZONE -->
+                  <!-- Type: FILE UPLOAD (Single File Mode: max_files <= 1) -->
                   <div 
-                    v-if="field.type === 'file'"
+                    v-if="field.type === 'file' && Number(field.max_files || 1) <= 1"
                     class="border-2 border-dashed border-border-subtle hover:border-primary/60 rounded-xl p-5 bg-background/50 hover:bg-emerald-light/20 transition-all flex flex-col sm:flex-row items-center justify-between gap-4 cursor-pointer relative"
                     @click="$refs['file_input_' + field.name]?.[0]?.click?.()"
                   >
@@ -1570,7 +1633,7 @@ onMounted(() => {
                       type="file" 
                       class="hidden" 
                       :accept="field.allowed_extensions && field.allowed_extensions.length ? field.allowed_extensions.map(e => '.' + e).join(',') : '*'"
-                      @change="handleCustomFileChange(field.name, $event)"
+                      @change="handleCustomFileChange(field.name, $event, 1)"
                     >
                     <div class="flex items-center gap-3.5">
                       <div class="w-11 h-11 rounded-xl bg-emerald-light text-primary flex items-center justify-center shrink-0">
@@ -1578,7 +1641,7 @@ onMounted(() => {
                       </div>
                       <div class="text-left">
                         <p class="text-sm font-semibold text-on-surface">
-                          {{ customFiles[field.name] ? customFiles[field.name].name : (field.placeholder || `Upload ${field.label}`) }}
+                          {{ customFiles[field.name] ? (customFiles[field.name].name || customFiles[field.name]) : (field.placeholder || `Upload ${field.label}`) }}
                         </p>
                         <p class="text-xs text-on-surface-variant">
                           {{ customFiles[field.name] ? `${formatFileSize(customFiles[field.name].size)} • Berkas siap dikirim` : (field.help_text || 'Klik untuk memilih dokumen berkas') }}
@@ -1601,6 +1664,113 @@ onMounted(() => {
                       >
                         <i class="ri-delete-bin-line leading-none"></i>
                       </button>
+                    </div>
+                  </div>
+
+                  <!-- Type: FILE UPLOAD (Multi File Mode: max_files > 1) -->
+                  <div 
+                    v-else-if="field.type === 'file' && Number(field.max_files || 1) > 1"
+                    class="border-2 border-dashed border-border-subtle rounded-xl p-4 sm:p-5 bg-background/50 transition-all"
+                  >
+                    <input 
+                      :ref="'file_input_' + field.name"
+                      type="file" 
+                      multiple
+                      class="hidden" 
+                      :accept="field.allowed_extensions && field.allowed_extensions.length ? field.allowed_extensions.map(e => '.' + e).join(',') : '*'"
+                      @change="handleCustomFileChange(field.name, $event, field.max_files)"
+                    >
+                    
+                    <!-- State 1: Belum Ada Berkas Terpilih -->
+                    <div 
+                      v-if="getCustomFileList(field.name).length === 0"
+                      class="flex flex-col items-center justify-center py-6 px-4 text-center cursor-pointer hover:bg-emerald-light/20 rounded-lg transition-colors group"
+                      @click="$refs['file_input_' + field.name]?.[0]?.click?.()"
+                    >
+                      <div class="w-12 h-12 rounded-2xl bg-emerald-light text-primary flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                        <i class="ri-folders-line text-2xl leading-none"></i>
+                      </div>
+                      <p class="text-sm font-semibold text-on-surface mb-1">
+                        {{ field.placeholder || `Unggah Dokumen ${field.label}` }}
+                      </p>
+                      <p class="text-xs text-on-surface-variant max-w-md">
+                        {{ field.help_text || `Bisa memilih hingga ${field.max_files} berkas sekaligus atau bertahap. Format: ${(field.allowed_extensions && field.allowed_extensions.length) ? field.allowed_extensions.join(', ').toUpperCase() : 'PDF, JPG, PNG'} • Maks. ${field.max_size_mb || 5} MB per berkas` }}
+                      </p>
+                      <button 
+                        type="button" 
+                        class="mt-3.5 px-4 py-2 rounded-lg bg-emerald-light text-primary font-semibold text-xs hover:bg-primary hover:text-white transition-all cursor-pointer shadow-xs inline-flex items-center gap-1.5"
+                      >
+                        <i class="ri-upload-2-line"></i>
+                        <span>Pilih Berkas (Hingga {{ field.max_files }} File)</span>
+                      </button>
+                    </div>
+
+                    <!-- State 2: Ada Berkas Terpilih -->
+                    <div v-else class="space-y-3">
+                      <div class="flex items-center justify-between pb-2.5 border-b border-border-subtle flex-wrap gap-2">
+                        <div class="flex items-center gap-2">
+                          <span class="w-6 h-6 rounded-full bg-emerald-light text-primary flex items-center justify-center text-xs font-bold">
+                            <i class="ri-folders-fill"></i>
+                          </span>
+                          <span class="text-xs font-bold text-on-surface">
+                            Berkas Terpilih ({{ getCustomFileList(field.name).length }} dari {{ field.max_files }} berkas)
+                          </span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <button 
+                            v-if="getCustomFileList(field.name).length < Number(field.max_files || 1)"
+                            type="button"
+                            @click="$refs['file_input_' + field.name]?.[0]?.click?.()"
+                            class="px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white text-xs font-semibold transition-all inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <i class="ri-add-line"></i>
+                            <span>Tambah Berkas</span>
+                          </button>
+                          <button 
+                            type="button"
+                            @click="clearCustomFile(field.name, $refs['file_input_' + field.name]?.[0])"
+                            class="px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/50 border border-red-200 text-xs font-semibold cursor-pointer transition-colors inline-flex items-center gap-1"
+                            title="Hapus semua berkas"
+                          >
+                            <i class="ri-delete-bin-line"></i>
+                            <span>Hapus Semua</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- List Kartu File -->
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div 
+                          v-for="(fItem, fIdx) in getCustomFileList(field.name)" 
+                          :key="fIdx"
+                          class="p-2.5 rounded-xl bg-white dark:bg-[#111d17] border border-border-subtle flex items-center justify-between gap-2 shadow-xs hover:border-primary/50 transition-colors"
+                        >
+                          <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center text-[10px] font-bold shrink-0">
+                              #{{ fIdx + 1 }}
+                            </span>
+                            <div class="w-8 h-8 rounded-lg bg-emerald-light/60 text-primary flex items-center justify-center shrink-0">
+                              <i class="ri-file-text-line text-base"></i>
+                            </div>
+                            <div class="min-w-0 text-left">
+                              <p class="text-xs font-semibold text-on-surface truncate" :title="fItem.name">
+                                {{ fItem.name }}
+                              </p>
+                              <p class="text-[10px] text-on-surface-variant font-mono">
+                                {{ formatFileSize(fItem.size) }}
+                              </p>
+                            </div>
+                          </div>
+                          <button 
+                            type="button"
+                            @click="removeCustomFileIndex(field.name, fIdx)"
+                            class="p-1.5 rounded-lg text-on-surface-variant hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors cursor-pointer shrink-0"
+                            title="Hapus berkas ini"
+                          >
+                            <i class="ri-close-line text-base leading-none"></i>
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -1856,8 +2026,8 @@ onMounted(() => {
                     <span class="font-bold text-primary">{{ form.package_type }} (Rp {{ totalCalculatedFee.toLocaleString('id-ID') }})</span>
                   </div>
                   <div class="flex justify-between py-1 border-b border-dashed border-primary/10 sm:border-b-0">
-                    <span class="text-on-surface-variant">Jumlah Delegasi Cabang:</span>
-                    <span class="font-semibold text-on-surface">{{ participantCount }} Siswa (Biaya Flat Cabang)</span>
+                    <span class="text-on-surface-variant">Jumlah Delegasi:</span>
+                    <span class="font-semibold text-on-surface">{{ participantCount }} Siswa</span>
                   </div>
                   <div class="flex justify-between py-1 border-b border-dashed border-primary/10 sm:border-b-0">
                     <span class="text-on-surface-variant">Metode Bayar:</span>

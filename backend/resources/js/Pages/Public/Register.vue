@@ -50,6 +50,7 @@ const form = useForm({
   competition_id: props.preselectedLomba || props.competitions?.[0]?.id || 'mipa',
   participants_names: '',
   custom_fields: {},
+  custom_files: {},
   notes: '',
   payment_method: '',
 });
@@ -1243,6 +1244,12 @@ function handleSubmit() {
   }
 
   form.custom_fields = mergedCustom;
+  if (!form.custom_files) form.custom_files = {};
+  for (const [k, v] of Object.entries(mergedCustom)) {
+    if (v instanceof File || (Array.isArray(v) && v.length && v[0] instanceof File)) {
+      form.custom_files[k] = v;
+    }
+  }
 
   form.post('/layanan-registrasi', {
     preserveScroll: true,

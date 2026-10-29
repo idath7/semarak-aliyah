@@ -116,7 +116,7 @@ function openCalendar() {
 </script>
 
 <template>
-  <div class="position-relative w-100 datepicker-wrapper">
+  <div class="datepicker-wrapper position-relative w-100">
     <input
       :id="id"
       ref="inputElement"
@@ -127,17 +127,17 @@ function openCalendar() {
       :disabled="disabled"
       :class="[inputClass || 'form-control fs-13 bg-white', { 'is-invalid': hasError }]"
       autocomplete="off"
-      style="padding-right: 38px;"
+      style="padding-right: 2.75rem !important;"
       @input="handleInput"
     />
     <button 
       type="button"
-      class="btn p-0 position-absolute end-0 top-50 translate-middle-y pe-2.5 text-muted d-flex align-items-center border-0 bg-transparent"
-      style="cursor: pointer; z-index: 2;"
+      class="datepicker-toggle-btn"
       tabindex="-1"
       :disabled="disabled"
       @click="openCalendar"
       title="Buka kalender"
+      aria-label="Buka kalender"
     >
       <i :class="iconClass"></i>
     </button>
@@ -145,6 +145,81 @@ function openCalendar() {
 </template>
 
 <style>
+/* Self-contained Datepicker Wrapper & Toggle Button Styling */
+.datepicker-wrapper {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.datepicker-wrapper input {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding-right: 2.75rem !important;
+}
+
+.datepicker-wrapper .datepicker-toggle-btn {
+  position: absolute !important;
+  right: 0.75rem !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 2rem !important;
+  height: 2rem !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  color: #006948 !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  border-radius: 0.375rem !important;
+  transition: all 0.15s ease !important;
+}
+
+.datepicker-wrapper .datepicker-toggle-btn:hover {
+  background-color: rgba(0, 105, 72, 0.08) !important;
+  color: #00855d !important;
+}
+
+.datepicker-wrapper .datepicker-toggle-btn:active {
+  transform: translateY(-50%) scale(0.92) !important;
+}
+
+.datepicker-wrapper .datepicker-toggle-btn:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed !important;
+}
+
+.datepicker-wrapper .datepicker-toggle-btn i {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1.15rem !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
+  pointer-events: none !important;
+}
+
+/* Dark mode styling */
+[data-bs-theme="dark"] .datepicker-wrapper .datepicker-toggle-btn,
+.dark .datepicker-wrapper .datepicker-toggle-btn,
+.semarak-root-page.dark .datepicker-wrapper .datepicker-toggle-btn {
+  color: #86efac !important;
+}
+
+[data-bs-theme="dark"] .datepicker-wrapper .datepicker-toggle-btn:hover,
+.dark .datepicker-wrapper .datepicker-toggle-btn:hover,
+.semarak-root-page.dark .datepicker-wrapper .datepicker-toggle-btn:hover {
+  background-color: rgba(134, 239, 172, 0.15) !important;
+  color: #bbf7d0 !important;
+}
+
 /* Velzon & Semarak Flatpickr Styling - Light & Dark Theme WCAG AA Compliant */
 .flatpickr-calendar {
   background: #ffffff !important;

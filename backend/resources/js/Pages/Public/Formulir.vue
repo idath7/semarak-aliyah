@@ -903,8 +903,9 @@ onMounted(() => {
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
                 <!-- Nama Asal Sekolah with Autocomplete -->
                 <div class="space-y-1.5 md:col-span-2 relative">
-                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
-                    Nama Asal Sekolah / Madrasah <span class="text-red-500">*</span>
+                  <label class="form-label-aligned">
+                    <i class="ri-school-line text-primary"></i>
+                    <span>Nama Asal Sekolah / Madrasah <span class="text-red-500">*</span></span>
                   </label>
                   <input 
                     id="reg-sekolah"
@@ -941,8 +942,9 @@ onMounted(() => {
 
                 <!-- Kecamatan Asal Sekolah (Dropdown Mandatori Standar) -->
                 <div class="space-y-1.5">
-                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
-                    Kecamatan Asal Sekolah <span class="text-red-500">*</span>
+                  <label class="form-label-aligned">
+                    <i class="ri-map-pin-2-line text-primary"></i>
+                    <span>Kecamatan Asal Sekolah <span class="text-red-500">*</span></span>
                   </label>
                   <CustomSelect
                     v-model="form.custom_fields['school_district']"
@@ -956,8 +958,9 @@ onMounted(() => {
 
                 <!-- NPSN Sekolah (Opsional) -->
                 <div class="space-y-1.5">
-                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
-                    Nomor Pokok Sekolah Nasional (NPSN) <span class="text-xs text-on-surface-variant font-normal">(Opsional)</span>
+                  <label class="form-label-aligned">
+                    <i class="ri-hashtag text-primary"></i>
+                    <span>Nomor Pokok Sekolah Nasional (NPSN) <span class="text-xs text-on-surface-variant font-normal">(Opsional)</span></span>
                   </label>
                   <input 
                     v-model="form.custom_fields['school_npsn']"
@@ -969,8 +972,9 @@ onMounted(() => {
 
                 <!-- Alamat Lengkap Sekolah / Madrasah -->
                 <div class="space-y-1.5 md:col-span-2">
-                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
-                    Alamat Lengkap Sekolah / Madrasah <span class="text-red-500">*</span>
+                  <label class="form-label-aligned">
+                    <i class="ri-map-pin-user-line text-primary"></i>
+                    <span>Alamat Lengkap Sekolah / Madrasah <span class="text-red-500">*</span></span>
                   </label>
                   <textarea 
                     rows="2"
@@ -985,72 +989,60 @@ onMounted(() => {
 
                 <!-- Nama Guru Pembina / Pendamping -->
                 <div class="space-y-1.5" id="reg-pendamping">
-                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
-                    Nama Guru Pembina / Pendamping <span class="text-red-500">*</span>
+                  <label class="form-label-aligned">
+                    <i class="ri-user-star-line text-primary"></i>
+                    <span>Nama Guru Pembina / Pendamping <span class="text-red-500">*</span></span>
                   </label>
-                  <div class="relative flex items-center">
-                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                      <i class="ri-user-star-line text-[18px] leading-none"></i>
-                    </div>
-                    <input 
-                      v-model="form.mentor_name"
-                      @input="clearFieldError('mentor_name')"
-                      class="w-full h-11 pl-10 pr-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                      :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('mentor_name') }"
-                      placeholder="Ust. Ahmad Hidayat, S.Pd." 
-                      required 
-                      type="text"
-                    >
-                  </div>
+                  <input 
+                    v-model="form.mentor_name"
+                    @input="clearFieldError('mentor_name')"
+                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('mentor_name') }"
+                    placeholder="Contoh: Ust. Ahmad Hidayat, S.Pd." 
+                    required 
+                    type="text"
+                  >
                   <p v-if="getFieldError('mentor_name')" class="text-xs text-red-500 font-medium">{{ getFieldError('mentor_name') }}</p>
                 </div>
 
                 <!-- Nomor WhatsApp Aktif Pembina -->
                 <div class="space-y-1.5" id="reg-wa">
-                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
-                    Nomor WhatsApp Aktif Pembina <span class="text-red-500">*</span>
+                  <label class="form-label-aligned">
+                    <i class="ri-whatsapp-line text-emerald-600"></i>
+                    <span>Nomor WhatsApp Aktif Pembina <span class="text-red-500">*</span></span>
                   </label>
-                  <div class="relative flex items-center">
-                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-emerald-dark">
-                      <i class="ri-whatsapp-line text-[18px] leading-none"></i>
-                    </div>
-                    <input 
-                      v-model="form.mentor_wa"
-                      @input="clearFieldError('mentor_wa')"
-                      class="w-full h-11 pl-10 pr-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                      :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('mentor_wa') }"
-                      placeholder="0812-3456-7890 (Untuk Koordinasi & TM)" 
-                      required 
-                      type="tel"
-                    >
-                  </div>
+                  <input 
+                    v-model="form.mentor_wa"
+                    @input="clearFieldError('mentor_wa')"
+                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('mentor_wa') }"
+                    placeholder="0812-3456-7890 (Untuk Koordinasi & TM)" 
+                    required 
+                    type="tel"
+                  >
                   <p v-if="getFieldError('mentor_wa')" class="text-xs text-red-500 font-medium">{{ getFieldError('mentor_wa') }}</p>
                 </div>
 
                 <!-- Email Aktif Pembina -->
                 <div class="space-y-1.5 md:col-span-2">
-                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
-                    Alamat Email Aktif Pembina <span class="text-xs text-on-surface-variant font-normal">(Untuk Tanda Terima &amp; Juknis)</span>
+                  <label class="form-label-aligned">
+                    <i class="ri-mail-line text-primary"></i>
+                    <span>Alamat Email Aktif Pembina <span class="text-xs text-on-surface-variant font-normal">(Untuk Tanda Terima &amp; Juknis)</span></span>
                   </label>
-                  <div class="relative flex items-center">
-                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                      <i class="ri-mail-line text-[18px] leading-none"></i>
-                    </div>
-                    <input 
-                      v-model="form.custom_fields['mentor_email']"
-                      class="w-full h-11 pl-10 pr-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                      placeholder="pembina@sekolah.sch.id / official@gmail.com" 
-                      type="email"
-                    >
-                  </div>
+                  <input 
+                    v-model="form.custom_fields['mentor_email']"
+                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    placeholder="pembina@sekolah.sch.id / official@gmail.com" 
+                    type="email"
+                  >
                 </div>
               </div>
 
               <!-- Input & Verifikasi Kode Paket Komplit (All-In) -->
               <div class="p-3.5 sm:p-4 rounded-xl border border-dashed border-primary/40 bg-emerald-light/30 space-y-2.5">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                  <label class="block text-xs font-semibold text-on-surface flex items-center gap-1.5">
-                    <i class="ri-vip-crown-line text-primary text-[18px] leading-none"></i>
+                  <label class="form-label-aligned">
+                    <i class="ri-vip-crown-line text-primary"></i>
                     <span>Punya Kode Paket Komplit (All-In)?</span>
                   </label>
                   <span class="text-[11px] text-amber-dark font-medium bg-amber-soft px-2 py-0.5 rounded w-fit">Gratis Biaya Cabang (Rp 0)</span>
@@ -1094,7 +1086,7 @@ onMounted(() => {
               <div class="flex items-center justify-between pb-2 border-b border-border-subtle flex-wrap gap-2">
                 <div class="flex items-center gap-2.5">
                   <i class="ri-group-line text-primary text-[22px] leading-none"></i>
-                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface">
+                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface m-0">
                     2. {{ repeaterField?.label || 'Biodata Peserta & Delegasi' }}
                   </h2>
                 </div>
@@ -1107,8 +1099,9 @@ onMounted(() => {
               <!-- Pilihan Skema Paket Pendaftaran (Hanya jika diaktifkan di Form Builder) -->
               <div v-if="formSettings.show_package_type" class="p-4 rounded-xl bg-background/50 border border-border-subtle space-y-2.5">
                 <div class="flex items-center justify-between">
-                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
-                    Pilihan Skema Paket Pendaftaran <span class="text-red-500">*</span>
+                  <label class="form-label-aligned">
+                    <i class="ri-price-tag-3-line text-primary"></i>
+                    <span>Pilihan Skema Paket Pendaftaran <span class="text-red-500">*</span></span>
                   </label>
                   <span class="text-[11px] text-primary font-semibold bg-emerald-light px-2 py-0.5 rounded-full">Biaya Fleksibel</span>
                 </div>
@@ -1158,12 +1151,12 @@ onMounted(() => {
               <!-- Selector Jumlah Peserta (Jika Min < Max) -->
               <div v-if="minParticipants < maxParticipants" class="p-4 rounded-xl bg-background/50 border border-border-subtle space-y-3">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
-                  <div class="flex items-center gap-2">
-                    <i class="ri-user-follow-line text-primary text-[18px] leading-none"></i>
-                    <label class="block text-xs sm:text-sm font-semibold text-on-surface">Jumlah Delegasi Peserta yang Didaftarkan</label>
-                  </div>
+                  <label class="form-label-aligned">
+                    <i class="ri-user-follow-line text-primary"></i>
+                    <span>Jumlah Delegasi Peserta yang Didaftarkan</span>
+                  </label>
                   <span class="text-[11px] font-medium text-emerald-dark bg-emerald-light border border-primary/20 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 w-fit">
-                    <i class="ri-information-line text-[14px] leading-none"></i>
+                    <i class="ri-information-line text-[14px]"></i>
                     Batas Maksimal: {{ maxParticipants }} Peserta
                   </span>
                 </div>
@@ -1220,10 +1213,10 @@ onMounted(() => {
                   <!-- Header Kartu Peserta -->
                   <div class="flex items-center justify-between border-b border-border-subtle pb-2.5 flex-wrap gap-2">
                     <div class="flex items-center gap-2">
-                      <span class="w-6 h-6 rounded-full bg-emerald-light text-emerald-dark font-headline text-xs font-bold flex items-center justify-center">
+                      <span class="w-6 h-6 rounded-full bg-emerald-light text-emerald-dark font-headline text-xs font-bold inline-flex items-center justify-center">
                         {{ pIdx }}
                       </span>
-                      <h3 class="font-headline font-bold text-sm text-on-surface">
+                      <h3 class="font-headline font-bold text-sm text-on-surface m-0 inline-flex items-center">
                         Biodata Siswa Peserta #{{ pIdx }}
                       </h3>
 
@@ -1241,12 +1234,13 @@ onMounted(() => {
                     <!-- Pilihan Kapten Tim (Jika diaktifkan di Form Builder) -->
                     <div v-if="subFieldsConfig.captain_option?.active" class="flex items-center gap-2">
                       <label 
-                        class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold cursor-pointer transition-all"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold cursor-pointer transition-all"
                         :class="participants[pIdx - 1]?.is_captain ? 'bg-amber-soft text-amber-dark border-amber-500 font-bold' : 'bg-background/50 border-border-subtle text-on-surface-variant hover:border-primary/40'"
                         @click="setCaptain(pIdx - 1)"
                       >
                         <input type="radio" name="kapten_tim" :checked="participants[pIdx - 1]?.is_captain" class="w-3.5 h-3.5 text-amber-500">
-                        <span>⭐ Kapten Tim</span>
+                        <i class="ri-star-fill text-amber-500 text-[14px]"></i>
+                        <span>Kapten Tim</span>
                       </label>
                     </div>
                   </div>
@@ -1259,9 +1253,9 @@ onMounted(() => {
                       class="space-y-1.5"
                       :class="(subFieldsConfig.grade?.active !== false || subFieldsConfig.gender?.active !== false) ? 'md:col-span-6' : 'md:col-span-12'"
                     >
-                      <label class="block text-xs font-semibold text-on-surface">
-                        {{ subFieldsConfig.name.label || 'Nama Lengkap Siswa' }}
-                        <span v-if="subFieldsConfig.name.required" class="text-red-500">*</span>
+                      <label class="form-label-aligned">
+                        <i class="ri-user-3-line text-primary"></i>
+                        <span>{{ subFieldsConfig.name.label || 'Nama Lengkap Siswa' }} <span v-if="subFieldsConfig.name.required" class="text-red-500">*</span></span>
                       </label>
                       <input 
                         v-model="participants[pIdx - 1].name"
@@ -1280,9 +1274,9 @@ onMounted(() => {
                       v-if="subFieldsConfig.grade?.active !== false"
                       class="space-y-1.5 md:col-span-3"
                     >
-                      <label class="block text-xs font-semibold text-on-surface">
-                        {{ subFieldsConfig.grade.label || 'Kelas / Tingkat' }}
-                        <span v-if="subFieldsConfig.grade.required" class="text-red-500">*</span>
+                      <label class="form-label-aligned">
+                        <i class="ri-graduation-cap-line text-primary"></i>
+                        <span>{{ subFieldsConfig.grade.label || 'Kelas / Tingkat' }} <span v-if="subFieldsConfig.grade.required" class="text-red-500">*</span></span>
                       </label>
                       <CustomSelect 
                         v-model="participants[pIdx - 1].grade"
@@ -1297,13 +1291,13 @@ onMounted(() => {
                       v-if="subFieldsConfig.gender?.active !== false"
                       class="space-y-1.5 md:col-span-3"
                     >
-                      <label class="block text-xs font-semibold text-on-surface">
-                        {{ subFieldsConfig.gender.label || 'Jenis Kelamin' }}
-                        <span v-if="subFieldsConfig.gender.required" class="text-red-500">*</span>
+                      <label class="form-label-aligned">
+                        <i class="ri-men-line text-primary"></i>
+                        <span>{{ subFieldsConfig.gender.label || 'Jenis Kelamin' }} <span v-if="subFieldsConfig.gender.required" class="text-red-500">*</span></span>
                       </label>
                       <div class="grid grid-cols-2 gap-2 h-11">
                         <label 
-                          class="flex items-center justify-center gap-1 border border-border-subtle rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
+                          class="inline-flex items-center justify-center gap-1.5 border border-border-subtle rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
                           :class="{ 'bg-emerald-light border-primary text-primary': participants[pIdx - 1].gender === 'L' }"
                           @click="participants[pIdx - 1].gender = 'L'"
                         >
@@ -1311,7 +1305,7 @@ onMounted(() => {
                           <span>Laki-Laki</span>
                         </label>
                         <label 
-                          class="flex items-center justify-center gap-1 border border-border-subtle rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
+                          class="inline-flex items-center justify-center gap-1.5 border border-border-subtle rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
                           :class="{ 'bg-emerald-light border-primary text-primary': participants[pIdx - 1].gender === 'P' }"
                           @click="participants[pIdx - 1].gender = 'P'"
                         >
@@ -1326,9 +1320,9 @@ onMounted(() => {
                       v-if="subFieldsConfig.birth_date?.active"
                       class="space-y-1.5 md:col-span-6"
                     >
-                      <label class="block text-xs font-semibold text-on-surface">
-                        {{ subFieldsConfig.birth_date.label || 'Tanggal Lahir Siswa' }}
-                        <span v-if="subFieldsConfig.birth_date.required" class="text-red-500">*</span>
+                      <label class="form-label-aligned">
+                        <i class="ri-calendar-event-line text-primary"></i>
+                        <span>{{ subFieldsConfig.birth_date.label || 'Tanggal Lahir Siswa' }} <span v-if="subFieldsConfig.birth_date.required" class="text-red-500">*</span></span>
                       </label>
                       <IndoDatePicker 
                         v-model="participants[pIdx - 1].birth_date"
@@ -1342,9 +1336,9 @@ onMounted(() => {
                       v-if="subFieldsConfig.nisn?.active"
                       class="space-y-1.5 md:col-span-6"
                     >
-                      <label class="block text-xs font-semibold text-on-surface">
-                        {{ subFieldsConfig.nisn.label || 'NISN Siswa' }}
-                        <span v-if="subFieldsConfig.nisn.required" class="text-red-500">*</span>
+                      <label class="form-label-aligned">
+                        <i class="ri-id-card-line text-primary"></i>
+                        <span>{{ subFieldsConfig.nisn.label || 'NISN Siswa' }} <span v-if="subFieldsConfig.nisn.required" class="text-red-500">*</span></span>
                       </label>
                       <input 
                         v-model="participants[pIdx - 1].nisn"
@@ -1359,8 +1353,9 @@ onMounted(() => {
                       v-if="subFieldsConfig.custom_id?.active"
                       class="space-y-1.5 md:col-span-6"
                     >
-                      <label class="block text-xs font-semibold text-on-surface">
-                        {{ subFieldsConfig.custom_id.label || 'ID Siswa / No. Identitas' }}
+                      <label class="form-label-aligned">
+                        <i class="ri-shield-keyhole-line text-primary"></i>
+                        <span>{{ subFieldsConfig.custom_id.label || 'ID Siswa / No. Identitas' }}</span>
                       </label>
                       <input 
                         v-model="participants[pIdx - 1].custom_id"
@@ -1375,8 +1370,9 @@ onMounted(() => {
                       v-if="subFieldsConfig.wa_number?.active"
                       class="space-y-1.5 md:col-span-6"
                     >
-                      <label class="block text-xs font-semibold text-on-surface">
-                        {{ subFieldsConfig.wa_number.label || 'Nomor WhatsApp Siswa' }}
+                      <label class="form-label-aligned">
+                        <i class="ri-phone-line text-primary"></i>
+                        <span>{{ subFieldsConfig.wa_number.label || 'Nomor WhatsApp Siswa' }}</span>
                       </label>
                       <input 
                         v-model="participants[pIdx - 1].wa_number"
@@ -1391,9 +1387,9 @@ onMounted(() => {
                       v-if="subFieldsConfig.captain_option?.active && participants[pIdx - 1]?.is_captain"
                       class="space-y-1.5 md:col-span-12 p-3 rounded-xl bg-amber-soft/40 border border-amber-500/30"
                     >
-                      <label class="block text-xs font-bold text-amber-dark flex items-center gap-1.5">
-                        <i class="ri-whatsapp-fill text-emerald-dark text-[18px]"></i>
-                        <span>Nomor WhatsApp Khusus Kapten Tim *</span>
+                      <label class="form-label-aligned text-amber-dark font-bold">
+                        <i class="ri-whatsapp-fill text-emerald-dark"></i>
+                        <span>Nomor WhatsApp Khusus Kapten Tim <span class="text-red-500">*</span></span>
                       </label>
                       <input 
                         v-model="participants[pIdx - 1].captain_wa"
@@ -1409,10 +1405,13 @@ onMounted(() => {
                       v-if="subFieldsConfig.photo_formal?.active"
                       class="space-y-1.5 md:col-span-6"
                     >
-                      <label class="block text-xs font-semibold text-on-surface flex items-center justify-between">
-                        <span>{{ subFieldsConfig.photo_formal.label || 'Upload Pas Foto Formal' }}</span>
+                      <div class="flex items-center justify-between">
+                        <label class="form-label-aligned">
+                          <i class="ri-image-add-line text-primary"></i>
+                          <span>{{ subFieldsConfig.photo_formal.label || 'Upload Pas Foto Formal' }}</span>
+                        </label>
                         <span class="text-[11px] text-on-surface-variant font-normal">Maks. 3 MB</span>
-                      </label>
+                      </div>
                       <div class="border border-dashed border-border-subtle hover:border-primary rounded-xl p-3 bg-background/50 text-center cursor-pointer transition-colors">
                         <input 
                           type="file" 
@@ -1436,9 +1435,9 @@ onMounted(() => {
                       :key="col.id || col.label"
                       class="space-y-1.5 md:col-span-6"
                     >
-                      <label class="block text-xs font-semibold text-on-surface">
-                        {{ col.label || 'Kolom Tambahan' }}
-                        <span v-if="col.required" class="text-red-500">*</span>
+                      <label class="form-label-aligned">
+                        <i class="ri-edit-line text-primary"></i>
+                        <span>{{ col.label || 'Kolom Tambahan' }} <span v-if="col.required" class="text-red-500">*</span></span>
                       </label>
                       <IndoDatePicker 
                         v-if="col.type === 'date'"
@@ -1486,16 +1485,19 @@ onMounted(() => {
                   v-if="evaluateCondition(field.conditional_logic, form.custom_fields)" 
                   class="space-y-1.5 transition-all"
                 >
-                  <label class="block text-xs sm:text-sm font-semibold text-on-surface flex items-center justify-between">
-                    <span>
-                      {{ field.label }}
-                      <span v-if="field.required" class="text-red-500">*</span>
-                      <span v-else class="text-xs text-on-surface-variant font-normal"> (Opsional)</span>
-                    </span>
+                  <div class="flex items-center justify-between">
+                    <label class="form-label-aligned">
+                      <i class="ri-file-text-line text-primary"></i>
+                      <span>
+                        {{ field.label }}
+                        <span v-if="field.required" class="text-red-500">*</span>
+                        <span v-else class="text-xs text-on-surface-variant font-normal"> (Opsional)</span>
+                      </span>
+                    </label>
                     <span v-if="field.type === 'file'" class="text-[11px] text-on-surface-variant font-normal">
                       Maks. {{ field.max_size_mb || 5 }} MB
                     </span>
-                  </label>
+                  </div>
 
                   <!-- Type: FILE UPLOAD DROPZONE -->
                   <div 
@@ -1643,8 +1645,9 @@ onMounted(() => {
               <!-- JIKA BIAYA > 0 (PILIHAN SALURAN PEMBAYARAN) -->
               <div v-if="totalCalculatedFee > 0" class="space-y-4">
                 <div class="space-y-2.5">
-                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
-                    Pilih Saluran Pembayaran <span class="text-red-500">*</span>
+                  <label class="form-label-aligned">
+                    <i class="ri-bank-card-line text-primary"></i>
+                    <span>Pilih Saluran Pembayaran <span class="text-red-500">*</span></span>
                   </label>
                   <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <!-- Pilihan 1: BSI -->
@@ -1719,8 +1722,8 @@ onMounted(() => {
                 <!-- Upload Bukti Transfer -->
                 <div class="p-4 rounded-xl border border-border-subtle bg-background/50 space-y-2.5">
                   <div class="flex items-center justify-between">
-                    <label class="block text-xs font-semibold text-on-surface flex items-center gap-1.5">
-                      <i class="ri-bill-line text-primary text-[18px] leading-none"></i>
+                    <label class="form-label-aligned">
+                      <i class="ri-bill-line text-primary"></i>
                       <span>Upload Bukti Pembayaran / Transfer</span>
                     </label>
                     <span class="text-[11px] text-on-surface-variant font-medium">Bisa disusulkan ke WhatsApp Panitia</span>
@@ -2148,6 +2151,59 @@ img.brand-logo,
 .uppercase { text-transform: uppercase !important; }
 .truncate { overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
 
+/* =============================================================================
+   Universal Middle-Alignment for Icons & Labels (Pixel-Perfect Middle Align)
+   ============================================================================= */
+i[class*="ri-"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: middle !important;
+  line-height: 1 !important;
+  flex-shrink: 0 !important;
+}
+
+.form-label-aligned,
+label.form-label-aligned {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.375rem !important; /* 6px optical gap */
+  font-size: 0.8125rem !important; /* 13px */
+  font-weight: 600 !important;
+  color: var(--color-on-surface, #171d19) !important;
+  line-height: 1.25 !important;
+  vertical-align: middle !important;
+  margin-bottom: 0.375rem !important;
+  width: fit-content !important;
+}
+
+.semarak-root-page.dark .form-label-aligned,
+[data-bs-theme="dark"] .form-label-aligned {
+  color: #f1f5f9 !important;
+}
+
+.form-label-aligned i,
+.form-label-aligned [class*="ri-"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: middle !important;
+  line-height: 1 !important;
+  font-size: 1rem !important; /* 16px */
+  width: 1.125rem !important;
+  height: 1.125rem !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: translateY(-0.5px) !important; /* Optical perfection to match font x-height */
+}
+
+.form-label-aligned span {
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: 1.25 !important;
+}
+
 /* Perfect input styling */
 input[type="text"], input[type="tel"], input[type="email"] {
   height: 2.75rem !important; /* 44px (h-11) */
@@ -2170,6 +2226,25 @@ input[type="text"], input[type="tel"], input[type="email"] {
   background-color: rgba(17, 29, 23, 0.6) !important;
   border-color: #1e3529 !important;
   color: #f8fafc !important;
+}
+
+/* Datepicker position & padding protection */
+.datepicker-wrapper input[type="text"],
+:deep(.datepicker-wrapper input) {
+  padding-right: 2.75rem !important;
+}
+
+:deep(.datepicker-wrapper .datepicker-toggle-btn) {
+  position: absolute !important;
+  right: 0.75rem !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 2rem !important;
+  height: 2rem !important;
+  z-index: 10 !important;
 }
 
 input[type="text"].pl-10, input[type="tel"].pl-10, input[type="email"].pl-10 {

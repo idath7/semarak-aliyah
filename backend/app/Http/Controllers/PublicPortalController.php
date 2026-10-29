@@ -253,6 +253,14 @@ class PublicPortalController extends Controller
         $request = $request ?: request();
         $isLoginRequired = Setting::get('registration_login_required', '0') === '1';
         $lomba = $competition ?: $request->query('lomba');
+
+        // Jika rute dipanggil untuk mendaftar cabang lomba tertentu, arahkan langsung ke halaman formulir khusus yang bersih & profesional:
+        if (!empty($competition)) {
+            return redirect()->route('public.formulir', ['competition' => $competition]);
+        }
+        if ($request && $request->filled('lomba')) {
+            return redirect()->route('public.formulir', ['competition' => $request->query('lomba')]);
+        }
         /** @var \App\Models\Registrant|\App\Models\User|null $user */
         $user = Auth::guard('pendaftar')->user() ?? Auth::user();
         $isRegistrantLoggedIn = Auth::guard('pendaftar')->check() || ($user instanceof \App\Models\Registrant) || ($user instanceof \App\Models\User && $user->isRegistrant());

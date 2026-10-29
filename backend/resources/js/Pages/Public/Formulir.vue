@@ -36,40 +36,15 @@ const props = defineProps({
 // Theme Management (Light / Dark)
 const { isDark, initTheme, toggleTheme } = useTheme();
 
-// 31 Kecamatan Resmi Kabupaten Jember + Pilihan Luar Jember
+// -----------------------------------------------------------------------------
+// Constants
+// -----------------------------------------------------------------------------
 const JEMBER_KECAMATAN_LIST = [
-  'Ajung',
-  'Ambulu',
-  'Arjasa',
-  'Balung',
-  'Bangsalsari',
-  'Gumukmas',
-  'Jelbuk',
-  'Jenggawah',
-  'Jombang',
-  'Kalisat',
-  'Kaliwates',
-  'Kencong',
-  'Ledokombo',
-  'Mayang',
-  'Mumbulsari',
-  'Pakusari',
-  'Panti',
-  'Patrang',
-  'Puger',
-  'Rambipuji',
-  'Semboro',
-  'Silo',
-  'Sukorambi',
-  'Sukowono',
-  'Sumberbaru',
-  'Sumberjambe',
-  'Sumbersari',
-  'Tanggul',
-  'Tempurejo',
-  'Umbulsari',
-  'Wuluhan',
-  'Luar Kabupaten Jember'
+  'Ajung', 'Ambulu', 'Arjasa', 'Balung', 'Bangsalsari', 'Gumukmas', 'Jelbuk', 'Jenggawah',
+  'Jombang', 'Kalisat', 'Kaliwates', 'Kencong', 'Ledokombo', 'Mayang', 'Mumbulsari',
+  'Pakusari', 'Panti', 'Patrang', 'Puger', 'Rambipuji', 'Semboro', 'Silo', 'Sukorambi',
+  'Sukowono', 'Sumberbaru', 'Sumberjambe', 'Sumbersari', 'Tanggul', 'Tempurejo', 'Umbulsari',
+  'Wuluhan', 'Luar Kabupaten Jember'
 ];
 
 const gradeOptions = [
@@ -78,8 +53,45 @@ const gradeOptions = [
   'Kelas 7 SMP / MTs'
 ];
 
+const MANDATORY_NAMES = [
+  'school_name', 'asal_sekolah', 'nama_sekolah', 'nama_lembaga', 'nama_sekolah_madrasah',
+  'school_district', 'kecamatan', 'kecamatan_sekolah', 'kecamatan_asal_sekolah', 'wilayah_kecamatan',
+  'school_npsn', 'npsn', 'npsn_sekolah', 'nomor_pokok_sekolah_nasional',
+  'school_address', 'alamat_sekolah', 'alamat_lengkap_sekolah', 'alamat',
+  'mentor_name', 'nama_pendamping', 'nama_guru_pendamping', 'nama_pembina',
+  'mentor_wa', 'nomor_wa', 'whatsapp', 'nomor_whatsapp', 'nomor_whatsapp_pendamping',
+  'mentor_email', 'contact_email', 'email', 'alamat_email', 'email_pendamping',
+  'allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code'
+];
+
+function isMandatoryIdentity(field) {
+  if (!field) return false;
+  if (field.is_mandatory_identity) return true;
+  return MANDATORY_NAMES.includes(field.name);
+}
+
+// Helper to reliably find a competition by id, slug, or title match
+function findCompetition(idOrSlug) {
+  if (!idOrSlug) return null;
+  const needle = String(idOrSlug).toLowerCase().trim();
+  return (props.competitions || []).find(c => {
+    const cId = String(c.id).toLowerCase();
+    const cSlug = c.slug ? String(c.slug).toLowerCase() : '';
+    const cTitle = c.title ? String(c.title).toLowerCase().replace(/\s+/g, '-') : '';
+    return cId === needle || cSlug === needle || cTitle === needle || cTitle.includes(needle) || needle.includes(cId);
+  }) || null;
+}
+
+function resolveInitialCompId() {
+  if (props.preselectedLomba) {
+    const matched = findCompetition(props.preselectedLomba);
+    if (matched) return matched.id;
+  }
+  return props.competitions?.[0]?.id || '';
+}
+
 // -----------------------------------------------------------------------------
-// Core Form & State Management
+// Core Form & State Management (Top-to-Bottom Initialization)
 // -----------------------------------------------------------------------------
 const isSuccess = ref(false);
 const registeredData = ref(null);
@@ -88,7 +100,7 @@ const validationErrors = ref({});
 
 const form = useForm({
   package_type: 'Paket Satuan', // 'Paket Satuan' | 'Paket All-In'
-  competition_id: props.preselectedLomba || props.competitions?.[0]?.id || '',
+  competition_id: resolveInitialCompId(),
   school_name: props.authRegistrant?.school_name || '',
   mentor_name: props.authRegistrant?.name || '',
   mentor_wa: props.authRegistrant?.phone || '',
@@ -119,7 +131,7 @@ function showToast(msg, icon = 'ri-checkbox-circle-fill') {
 
 // Active Competition
 const activeComp = computed(() => {
-  return props.competitions?.find(c => String(c.id) === String(form.competition_id)) || props.competitions?.[0] || null;
+  return findCompetition(form.competition_id) || props.competitions?.[0] || null;
 });
 
 // Form Settings from Form Builder
@@ -144,95 +156,6 @@ const competitionOptions = computed(() => {
     };
   });
 });
-
-// Watch competition change to sync defaults and participant structure
-watch(() => form.competition_id, () => {
-  initCompetitionData();
-}, { immediate: true });
-
-// Help Panitia WA URL
-const helpWaUrl = computed(() => {
-  const wa = school.value?.contact_wa || '083850070767';
-  const compTitle = activeComp.value?.title || 'Lomba';
-  const msg = `Halo Panitia Semarak Aliyah XIV, saya butuh bantuan pendaftaran cabang ${compTitle}.`;
-  return getWaChatUrl(wa, msg);
-});
-
-// Juknis URL
-const juknisUrl = computed(() => {
-  return activeComp.value?.juknis_url || '/#juknis';
-});
-
-// -----------------------------------------------------------------------------
-// School Search & Autocomplete
-// -----------------------------------------------------------------------------
-const schoolSuggestions = ref([]);
-const isSearchingSchools = ref(false);
-const showSchoolDropdown = ref(false);
-let schoolSearchTimeout = null;
-
-function onSchoolInput() {
-  clearFieldError('school_name');
-  const query = (form.school_name || '').trim();
-  if (!query || query.length < 2) {
-    schoolSuggestions.value = [];
-    showSchoolDropdown.value = false;
-    return;
-  }
-
-  if (schoolSearchTimeout) clearTimeout(schoolSearchTimeout);
-  schoolSearchTimeout = setTimeout(async () => {
-    isSearchingSchools.value = true;
-    try {
-      const res = await fetch(`/api/schools?search=${encodeURIComponent(query)}&limit=6&paginate=0`);
-      if (res.ok) {
-        const json = await res.json();
-        schoolSuggestions.value = json.data || [];
-        showSchoolDropdown.value = schoolSuggestions.value.length > 0;
-      }
-    } catch (e) {
-      console.error('Failed to fetch school suggestions:', e);
-    } finally {
-      isSearchingSchools.value = false;
-    }
-  }, 250);
-}
-
-function onSchoolBlur() {
-  setTimeout(() => {
-    showSchoolDropdown.value = false;
-  }, 220);
-}
-
-function selectSchool(s) {
-  form.school_name = s.name;
-  if (!form.custom_fields) form.custom_fields = {};
-  if (s.kecamatan) form.custom_fields['school_district'] = s.kecamatan;
-  if (s.alamat) form.custom_fields['school_address'] = s.alamat;
-  showSchoolDropdown.value = false;
-  schoolSuggestions.value = [];
-  showToast(`Sekolah terpilih: ${s.name}`);
-}
-
-// -----------------------------------------------------------------------------
-// Form Builder Custom Fields & Participant Repeater
-// -----------------------------------------------------------------------------
-const MANDATORY_NAMES = [
-  'school_name', 'asal_sekolah', 'nama_sekolah', 'nama_lembaga', 'nama_sekolah_madrasah',
-  'school_district', 'kecamatan', 'kecamatan_sekolah', 'kecamatan_asal_sekolah', 'wilayah_kecamatan',
-  'school_npsn', 'npsn', 'npsn_sekolah', 'nomor_pokok_sekolah_nasional',
-  'school_address', 'alamat_sekolah', 'alamat_lengkap_sekolah', 'alamat',
-  'mentor_name', 'nama_pendamping', 'nama_guru_pendamping', 'nama_pembina',
-  'mentor_wa', 'nomor_wa', 'whatsapp', 'nomor_whatsapp', 'nomor_whatsapp_pendamping',
-  'mentor_email', 'contact_email', 'email', 'alamat_email', 'email_pendamping',
-  'allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code'
-];
-
-function isMandatoryIdentity(field) {
-  if (!field) return false;
-  if (field.is_mandatory_identity) return true;
-  return MANDATORY_NAMES.includes(field.name);
-}
 
 // Repeater Field configuration
 const repeaterField = computed(() => {
@@ -299,7 +222,9 @@ const maxParticipants = computed(() => {
   return Math.max(minParticipants.value, Number(activeComp.value?.max_delegates) || minParticipants.value);
 });
 
+// Participant Reactive State
 const participantCount = ref(1);
+const participants = ref([]);
 
 function createEmptyParticipant(idx = 1) {
   return {
@@ -310,7 +235,7 @@ function createEmptyParticipant(idx = 1) {
     nisn: '',
     custom_id: '',
     wa_number: '',
-    is_captain: idx === 1 && subFieldsConfig.value.captain_option?.active,
+    is_captain: idx === 1 && !!subFieldsConfig.value?.captain_option?.active,
     captain_wa: '',
     photo_formal: null,
     photo_freestyle: [],
@@ -318,17 +243,124 @@ function createEmptyParticipant(idx = 1) {
   };
 }
 
-const participants = ref([]);
-
 function initParticipantsArray() {
-  const targetLen = Math.max(maxParticipants.value, 15);
-  const current = [...participants.value];
+  const targetLen = Math.max(maxParticipants.value || 1, 15);
+  const current = Array.isArray(participants.value) ? [...participants.value] : [];
   while (current.length < targetLen) {
     current.push(createEmptyParticipant(current.length + 1));
   }
   participants.value = current;
 }
 
+function initCompetitionData() {
+  const min = minParticipants.value || 1;
+  participantCount.value = min;
+  initParticipantsArray();
+
+  if (!form.custom_fields) form.custom_fields = {};
+
+  // Prefill default mandatory identity values
+  if (!form.custom_fields['school_district']) {
+    form.custom_fields['school_district'] = props.authRegistrant?.school_district || 'Balung';
+  }
+  if (!form.custom_fields['school_address']) {
+    form.custom_fields['school_address'] = props.authRegistrant?.school_name || '';
+  }
+  if (!form.custom_fields['mentor_email']) {
+    form.custom_fields['mentor_email'] = props.authRegistrant?.email || '';
+  }
+
+  // Initialize other custom fields default values
+  (otherCustomFields.value || []).forEach(f => {
+    if (form.custom_fields[f.name] === undefined) {
+      if (f.type === 'checkbox') {
+        form.custom_fields[f.name] = [];
+      } else if (f.type === 'select') {
+        form.custom_fields[f.name] = f.options?.[0] || '';
+      } else if (f.type === 'date') {
+        form.custom_fields[f.name] = f.date_default || '';
+      } else {
+        form.custom_fields[f.name] = '';
+      }
+    }
+  });
+}
+
+// Run initial competition setup safely once all computed/state are initialized
+initCompetitionData();
+
+// Watch competition switcher for dynamic changes
+watch(() => form.competition_id, () => {
+  initCompetitionData();
+});
+
+// Help Panitia WA URL
+const helpWaUrl = computed(() => {
+  const wa = school.value?.contact_wa || '083850070767';
+  const compTitle = activeComp.value?.title || 'Lomba';
+  const msg = `Halo Panitia Semarak Aliyah XIV, saya butuh bantuan pendaftaran cabang ${compTitle}.`;
+  return getWaChatUrl(wa, msg);
+});
+
+// Juknis URL
+const juknisUrl = computed(() => {
+  return activeComp.value?.juknis_url || '/#juknis';
+});
+
+// -----------------------------------------------------------------------------
+// School Search & Autocomplete
+// -----------------------------------------------------------------------------
+const schoolSuggestions = ref([]);
+const isSearchingSchools = ref(false);
+const showSchoolDropdown = ref(false);
+let schoolSearchTimeout = null;
+
+function onSchoolInput() {
+  clearFieldError('school_name');
+  const query = (form.school_name || '').trim();
+  if (!query || query.length < 2) {
+    schoolSuggestions.value = [];
+    showSchoolDropdown.value = false;
+    return;
+  }
+
+  if (schoolSearchTimeout) clearTimeout(schoolSearchTimeout);
+  schoolSearchTimeout = setTimeout(async () => {
+    isSearchingSchools.value = true;
+    try {
+      const res = await fetch(`/api/schools?search=${encodeURIComponent(query)}&limit=6&paginate=0`);
+      if (res.ok) {
+        const json = await res.json();
+        schoolSuggestions.value = json.data || [];
+        showSchoolDropdown.value = schoolSuggestions.value.length > 0;
+      }
+    } catch (e) {
+      console.error('Failed to fetch school suggestions:', e);
+    } finally {
+      isSearchingSchools.value = false;
+    }
+  }, 250);
+}
+
+function onSchoolBlur() {
+  setTimeout(() => {
+    showSchoolDropdown.value = false;
+  }, 220);
+}
+
+function selectSchool(s) {
+  form.school_name = s.name;
+  if (!form.custom_fields) form.custom_fields = {};
+  if (s.kecamatan) form.custom_fields['school_district'] = s.kecamatan;
+  if (s.alamat) form.custom_fields['school_address'] = s.alamat;
+  showSchoolDropdown.value = false;
+  schoolSuggestions.value = [];
+  showToast(`Sekolah terpilih: ${s.name}`);
+}
+
+// -----------------------------------------------------------------------------
+// Participant Controls
+// -----------------------------------------------------------------------------
 function setCaptain(pIdx) {
   participants.value.forEach((p, idx) => {
     p.is_captain = (idx === pIdx);
@@ -348,40 +380,6 @@ function setParticipantCount(val) {
   const clamped = Math.max(minParticipants.value, Math.min(maxParticipants.value, Number(val) || minParticipants.value));
   participantCount.value = clamped;
   showToast(`Jumlah peserta: ${clamped} Siswa`);
-}
-
-function initCompetitionData() {
-  const min = minParticipants.value;
-  participantCount.value = min;
-  initParticipantsArray();
-
-  if (!form.custom_fields) form.custom_fields = {};
-
-  // Prefill default mandatory identity values
-  if (!form.custom_fields['school_district']) {
-    form.custom_fields['school_district'] = props.authRegistrant?.school_district || 'Balung';
-  }
-  if (!form.custom_fields['school_address']) {
-    form.custom_fields['school_address'] = props.authRegistrant?.school_name || '';
-  }
-  if (!form.custom_fields['mentor_email']) {
-    form.custom_fields['mentor_email'] = props.authRegistrant?.email || '';
-  }
-
-  // Initialize other custom fields default values
-  otherCustomFields.value.forEach(f => {
-    if (form.custom_fields[f.name] === undefined) {
-      if (f.type === 'checkbox') {
-        form.custom_fields[f.name] = [];
-      } else if (f.type === 'select') {
-        form.custom_fields[f.name] = f.options?.[0] || '';
-      } else if (f.type === 'date') {
-        form.custom_fields[f.name] = f.date_default || '';
-      } else {
-        form.custom_fields[f.name] = '';
-      }
-    }
-  });
 }
 
 // -----------------------------------------------------------------------------
@@ -493,7 +491,7 @@ const totalCalculatedFee = computed(() => {
   if (activeComp.value?.is_team) {
     return baseCompFee.value;
   }
-  return baseCompFee.value * participantCount.value;
+  return baseCompFee.value * (participantCount.value || 1);
 });
 
 // -----------------------------------------------------------------------------
@@ -576,7 +574,7 @@ function getFieldError(fieldName) {
 }
 
 function hasFieldError(fieldName) {
-  return !getFieldError(fieldName);
+  return !!getFieldError(fieldName);
 }
 
 function clearFieldError(fieldName) {
@@ -736,7 +734,7 @@ function handleSubmit() {
 onMounted(() => {
   initTheme();
   if (props.preselectedLomba) {
-    const matched = props.competitions?.find(c => String(c.id) === String(props.preselectedLomba));
+    const matched = findCompetition(props.preselectedLomba);
     if (matched) form.competition_id = matched.id;
   }
   if (props.authRegistrant?.school_name) form.school_name = props.authRegistrant.school_name;

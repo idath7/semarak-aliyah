@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, router, Link } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { useToast } from '@/Composables/useToast';
@@ -76,6 +76,13 @@ const form = ref({
 });
 
 const formErrors = ref({});
+
+// Otomatis sesuaikan peran ke Koordinator Lomba jika cabang lomba dipilih untuk peran panitia umum
+watch(() => form.value.competition_id, (newVal) => {
+  if (newVal && form.value.role === 'panitia') {
+    form.value.role = 'koordinator_lomba';
+  }
+});
 
 // Form Avatar Cropper State
 const isFormAvatarCropperOpen = ref(false);
@@ -636,19 +643,19 @@ async function executeSync() {
           </div>
         </div>
 
-        <!-- 2. Panitia Aktif -->
+        <!-- 2. Koordinator Lomba -->
         <div class="col-6 col-lg-3">
           <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
             <div class="card-body p-3">
               <div class="d-flex align-items-center justify-content-between">
                 <div>
-                  <p class="text-muted text-uppercase fs-11 fw-bold tracking-wider mb-1">Panitia Aktif</p>
-                  <h4 class="fs-22 fw-bold mb-0 text-success">{{ metrics.total_active || 0 }}</h4>
-                  <small class="text-success fs-11 fw-medium"><i class="ri-check-double-line me-1"></i>Akun Siap Tugas</small>
+                  <p class="text-muted text-uppercase fs-11 fw-bold tracking-wider mb-1">Koordinator Lomba</p>
+                  <h4 class="fs-22 fw-bold mb-0 text-warning">{{ metrics.total_koordinator || 0 }}</h4>
+                  <small class="text-muted fs-11"><i class="ri-medal-fill text-warning me-1"></i>PJ Teknis Cabang</small>
                 </div>
                 <div class="avatar-sm flex-shrink-0">
-                  <span class="avatar-title bg-success-subtle text-success rounded-circle fs-20">
-                    <i class="ri-user-follow-line"></i>
+                  <span class="avatar-title bg-warning-subtle text-warning rounded-circle fs-20">
+                    <i class="ri-medal-line"></i>
                   </span>
                 </div>
               </div>
@@ -882,8 +889,19 @@ async function executeSync() {
 
                 <!-- Penugasan Lomba -->
                 <td>
-                  <span v-if="user.competition" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-11 px-2 py-1">
-                    <i class="ri-medal-fill text-warning me-1"></i>{{ user.competition.title }}
+                  <div v-if="user.coordinated_competitions && user.coordinated_competitions.length > 0" class="d-flex flex-wrap gap-1">
+                    <span 
+                      v-for="comp in user.coordinated_competitions" 
+                      :key="comp.id"
+                      class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-11 px-2 py-1 d-inline-flex align-items-center gap-1"
+                      :title="`Koordinator Cabang Lomba: ${comp.title}`"
+                    >
+                      <i class="ri-medal-fill text-warning"></i>
+                      <span>{{ comp.title }}</span>
+                    </span>
+                  </div>
+                  <span v-else-if="user.competition" class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-11 px-2 py-1 d-inline-flex align-items-center gap-1">
+                    <i class="ri-medal-fill text-warning me-1"></i><span>{{ user.competition.title }}</span>
                   </span>
                   <span v-else class="text-muted fs-12">Umum / Semua Cabang</span>
                 </td>

@@ -23,6 +23,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  competitions: {
+    type: Array,
+    default: () => [],
+  },
   metrics: {
     type: Object,
     default: () => ({}),
@@ -637,8 +641,29 @@ async function handleDeleteRole(role) {
 const userSearch = ref('');
 const isUserModalOpen = ref(false);
 const selectedUser = ref(null);
+const selectedUserRole = ref('');
+const selectedUserCompId = ref('');
+const isSavingUserRole = ref(false);
+const isSyncingCoordinators = ref(false);
 const userOverrides = ref({}); // { 'perm.name': true | false }
 const isSavingUserOverride = ref(false);
+
+const roleDropdownOptions = computed(() => {
+  return (props.roles || []).map(r => ({
+    value: r.name,
+    label: r.label + (r.name === 'koordinator_lomba' ? ' (PJ Lomba)' : '')
+  }));
+});
+
+const compDropdownOptions = computed(() => {
+  return [
+    { value: '', label: '-- Pilih Cabang Lomba yang Dikoordinasi --' },
+    ...(props.competitions || []).map(c => ({
+      value: String(c.id),
+      label: `${c.title} (${c.category_label || 'Lomba'})`
+    }))
+  ];
+});
 
 const filteredUsers = computed(() => {
   if (!userSearch.value) return props.usersList;
@@ -653,8 +678,49 @@ const filteredUsers = computed(() => {
 
 function openUserOverrideModal(user) {
   selectedUser.value = user;
+  selectedUserRole.value = user.role || 'panitia';
+  selectedUserCompId.value = user.competition_id || '';
   userOverrides.value = { ...(user.custom_permissions || {}) };
   isUserModalOpen.value = true;
+}
+
+function saveUserPrimaryRole() {
+  if (!selectedUser.value) return;
+  isSavingUserRole.value = true;
+
+  router.put(`/admin/pengguna/hak-akses/user/${selectedUser.value.id}/role`, {
+    role: selectedUserRole.value,
+    competition_id: selectedUserRole.value === 'koordinator_lomba' ? selectedUserCompId.value : null,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSavingUserRole.value = false;
+      if (selectedUser.value) {
+        selectedUser.value.role = selectedUserRole.value;
+        selectedUser.value.competition_id = selectedUserRole.value === 'koordinator_lomba' ? selectedUserCompId.value : null;
+      }
+      success(`Peran utama panitia '${selectedUser.value?.name}' berhasil diubah menjadi '${getRoleLabel(selectedUserRole.value)}'!`, 'Tersimpan');
+    },
+    onError: () => {
+      isSavingUserRole.value = false;
+      error('Gagal memperbarui peran utama pengguna.');
+    }
+  });
+}
+
+function handleSyncCoordinators() {
+  isSyncingCoordinators.value = true;
+  router.post('/admin/pengguna/hak-akses/sync-coordinators', {}, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSyncingCoordinators.value = false;
+      success('Penyelarasan peran koordinator lomba selesai diterapkan.', 'Tersinkron');
+    },
+    onError: () => {
+      isSyncingCoordinators.value = false;
+      error('Gagal menyelaraskan peran koordinator lomba.');
+    }
+  });
 }
 
 function getUserPermState(permName) {
@@ -1556,15 +1622,29 @@ async function handleBulkResetAllUsers() {
                 </p>
               </div>
 
-              <!-- Search Panitia Input -->
-              <div class="position-relative" style="min-width: 280px;">
-                <input 
-                  v-model="userSearch" 
-                  type="text" 
-                  class="form-control form-control-sm rounded-pill ps-4 pe-3" 
-                  placeholder="Cari nama, NIP, email, atau peran..."
-                />
-                <span class="ri-search-line position-absolute top-50 translate-middle-y text-muted" style="left: 12px; font-size: 13px;"></span>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <!-- Tombol Sinkronisasi Koordinator Lomba -->
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-outline-warning rounded-pill px-3 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-sm"
+                  :disabled="isSyncingCoordinators"
+                  @click="handleSyncCoordinators"
+                  title="Penyelarasan otomatis seluruh akun panitia yang ditugaskan di cabang lomba menjadi peran Koordinator Lomba"
+                >
+                  <i class="ri-refresh-line" :class="{ 'ri-spin': isSyncingCoordinators }"></i>
+                  <span>{{ isSyncingCoordinators ? 'Menyelaraskan...' : 'Sinkronkan Koordinator' }}</span>
+                </button>
+
+                <!-- Search Panitia Input -->
+                <div class="position-relative" style="min-width: 260px;">
+                  <input 
+                    v-model="userSearch" 
+                    type="text" 
+                    class="form-control form-control-sm rounded-pill ps-4 pe-3" 
+                    placeholder="Cari nama, NIP, email, atau peran..."
+                  />
+                  <span class="ri-search-line position-absolute top-50 translate-middle-y text-muted" style="left: 12px; font-size: 13px;"></span>
+                </div>
               </div>
             </div>
 
@@ -1657,13 +1737,28 @@ async function handleBulkResetAllUsers() {
                       <span class="text-muted">{{ user.email }}</span>
                     </td>
                     <td>
-                      <span 
-                        class="badge rounded-pill px-2.5 py-1 fs-11 fw-semibold d-inline-flex align-items-center gap-1.5"
-                        :class="getRoleBadgeClass(user.role)"
-                      >
-                        <i :class="getRoleIcon(user.role)"></i>
-                        <span>{{ getRoleLabel(user.role) }}</span>
-                      </span>
+                      <div class="d-flex flex-column align-items-start gap-1">
+                        <span 
+                          class="badge rounded-pill px-2.5 py-1 fs-11 fw-semibold d-inline-flex align-items-center gap-1.5"
+                          :class="getRoleBadgeClass(user.role)"
+                        >
+                          <i :class="getRoleIcon(user.role)"></i>
+                          <span>{{ getRoleLabel(user.role) }}</span>
+                        </span>
+
+                        <!-- Coordinated competitions badge if any -->
+                        <div v-if="user.coordinated_competitions && user.coordinated_competitions.length > 0" class="d-flex flex-wrap gap-1 mt-0.5">
+                          <span 
+                            v-for="comp in user.coordinated_competitions" 
+                            :key="comp.id"
+                            class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fs-10 px-2 py-0.5 d-inline-flex align-items-center gap-1"
+                            :title="`Koordinator Cabang Lomba: ${comp.title}`"
+                          >
+                            <i class="ri-medal-fill text-warning"></i>
+                            <span>{{ comp.title }}</span>
+                          </span>
+                        </div>
+                      </div>
                     </td>
                     <td>
                       <span 
@@ -1846,6 +1941,66 @@ async function handleBulkResetAllUsers() {
 
           <div class="modal-body p-4">
             
+            <!-- Quick Role Adjustment Card inside Modal -->
+            <div class="card border rounded-3 mb-3.5 shadow-xs bg-body">
+              <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                  <div class="d-flex align-items-center gap-1.5">
+                    <i class="ri-shield-user-line text-primary fs-15"></i>
+                    <h6 class="fs-12 fw-bold text-dark-emphasis mb-0">Peran Utama &amp; Penugasan Panitia</h6>
+                  </div>
+                  <span class="fs-11 text-muted">Sesuaikan peran struktural panitia ini</span>
+                </div>
+
+                <div class="row g-2 align-items-end">
+                  <div :class="selectedUserRole === 'koordinator_lomba' ? 'col-md-5' : 'col-md-8'">
+                    <label class="form-label fs-11 fw-semibold mb-1 text-dark-emphasis">Pilih Peran Utama</label>
+                    <CustomSelect
+                      v-model="selectedUserRole"
+                      :options="roleDropdownOptions"
+                      placeholder="Pilih Peran"
+                      size="sm"
+                    />
+                  </div>
+
+                  <div v-if="selectedUserRole === 'koordinator_lomba'" class="col-md-4">
+                    <label class="form-label fs-11 fw-semibold mb-1 text-dark-emphasis">Cabang Lomba yang Dinaungi</label>
+                    <CustomSelect
+                      v-model="selectedUserCompId"
+                      :options="compDropdownOptions"
+                      placeholder="Pilih Lomba"
+                      size="sm"
+                    />
+                  </div>
+
+                  <div :class="selectedUserRole === 'koordinator_lomba' ? 'col-md-3' : 'col-md-4'">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-primary w-100 rounded-pill fw-semibold d-inline-flex align-items-center justify-content-center gap-1"
+                      :disabled="isSavingUserRole || (selectedUserRole === selectedUser.role && (selectedUserRole !== 'koordinator_lomba' || selectedUserCompId === (selectedUser.competition_id || '')))"
+                      @click="saveUserPrimaryRole"
+                    >
+                      <span v-if="isSavingUserRole" class="spinner-border spinner-border-sm"></span>
+                      <i v-else class="ri-check-line"></i>
+                      <span>Simpan Peran</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Coordinated Competitions Info -->
+                <div v-if="selectedUser.coordinated_competitions && selectedUser.coordinated_competitions.length > 0" class="mt-2.5 pt-2 border-top d-flex align-items-center gap-2 flex-wrap fs-11">
+                  <span class="text-muted fw-medium"><i class="ri-medal-fill text-warning me-1"></i>Penugasan Koordinator:</span>
+                  <span 
+                    v-for="c in selectedUser.coordinated_competitions" 
+                    :key="c.id"
+                    class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-0.5"
+                  >
+                    {{ c.title }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <div class="alert alert-info py-2.5 px-3 fs-11 rounded-3 mb-3 d-flex align-items-start gap-2 border border-info-subtle">
               <i class="ri-information-line fs-15 text-primary flex-shrink-0 mt-0.5"></i>
               <div>

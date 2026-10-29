@@ -478,6 +478,10 @@ class AdminPanelController extends Controller
         $cleanCoordinators = array_values(array_filter($coordinators, function($c) {
             return !empty(trim($c['name'] ?? '')) || !empty(trim($c['contact'] ?? ''));
         }));
+        foreach ($cleanCoordinators as &$c) {
+            $c['role'] = 'Koordinator Lomba';
+        }
+        unset($c);
 
         $coordinatorId = $validated['coordinator_id'] ?? null;
         if (!$coordinatorId && !empty($cleanCoordinators)) {
@@ -587,6 +591,8 @@ class AdminPanelController extends Controller
             }
         }
 
+        User::syncAllCoordinatorRoles();
+
         return redirect()->back()->with('success', "Data Cabang Lomba \"{$comp->title}\" berhasil disimpan ke sistem!");
     }
 
@@ -663,6 +669,10 @@ class AdminPanelController extends Controller
         $cleanCoordinators = array_values(array_filter($coordinators, function($c) {
             return !empty(trim($c['name'] ?? '')) || !empty(trim($c['contact'] ?? ''));
         }));
+        foreach ($cleanCoordinators as &$c) {
+            $c['role'] = 'Koordinator Lomba';
+        }
+        unset($c);
 
         $coordinatorId = array_key_exists('coordinator_id', $validated) ? $validated['coordinator_id'] : $comp->coordinator_id;
         if (!$coordinatorId && !empty($cleanCoordinators)) {
@@ -808,6 +818,8 @@ class AdminPanelController extends Controller
         if (Setting::get('package_allin_auto_original_price', '1') === '1') {
             Setting::set('package_allin_original_price', (string)((int)Competition::sum('fee')));
         }
+
+        User::syncAllCoordinatorRoles();
 
         return redirect()->back()->with('success', "Data Cabang Lomba \"{$comp->title}\" berhasil diperbarui!");
     }

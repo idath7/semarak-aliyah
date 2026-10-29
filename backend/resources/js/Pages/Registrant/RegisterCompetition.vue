@@ -1393,7 +1393,7 @@ function handleUnifiedSubmit() {
                         v-model="form.custom_fields[field.name]"
                         :min-date="field.min_date"
                         :max-date="field.max_date"
-                        placeholder="dd/mm/yyyy"
+                        :placeholder="field.placeholder || 'dd/mm/yyyy'"
                         inputClass="form-control reg-input fs-12 py-2"
                         iconClass="ri-calendar-line text-primary"
                       />
@@ -1576,7 +1576,7 @@ function handleUnifiedSubmit() {
                             type="text"
                             v-model="participantsList[pIdx - 1].name"
                             class="form-control reg-input fs-12 py-1.5"
-                            :placeholder="`Nama Lengkap Peserta ${pIdx}`"
+                            :placeholder="repeaterField.sub_fields?.name?.placeholder ? (repeaterField.sub_fields.name.placeholder.includes('#') ? repeaterField.sub_fields.name.placeholder.replace('#', `#${pIdx}`) : `${repeaterField.sub_fields.name.placeholder} #${pIdx}`) : `Nama Lengkap Peserta ${pIdx}`"
                             required
                           />
                         </div>
@@ -1608,7 +1608,7 @@ function handleUnifiedSubmit() {
                             v-model="participantsList[pIdx - 1].grade"
                             :options="gradeOptions"
                             size="sm"
-                            placeholder="Pilih kelas..."
+                            :placeholder="repeaterField.sub_fields?.grade?.placeholder || 'Pilih kelas...'"
                           />
                         </div>
 
@@ -1617,7 +1617,7 @@ function handleUnifiedSubmit() {
                           <label class="form-label fs-12 fw-semibold reg-label mb-0.5">Tanggal Lahir (dd/mm/yyyy)</label>
                           <IndoDatePicker
                             v-model="participantsList[pIdx - 1].birth_date"
-                            placeholder="dd/mm/yyyy"
+                            :placeholder="repeaterField.sub_fields?.birth_date?.placeholder || 'dd/mm/yyyy'"
                             inputClass="form-control reg-input fs-12 py-1.5"
                             iconClass="ri-calendar-line text-primary"
                           />
@@ -1629,7 +1629,7 @@ function handleUnifiedSubmit() {
                             type="text"
                             v-model="participantsList[pIdx - 1].nisn"
                             class="form-control reg-input fs-12 py-1.5"
-                            placeholder="Nomor Induk Siswa Nasional"
+                            :placeholder="repeaterField.sub_fields?.nisn?.placeholder || 'Nomor Induk Siswa Nasional'"
                           />
                         </div>
 
@@ -1649,7 +1649,7 @@ function handleUnifiedSubmit() {
                             <IndoDatePicker
                               v-if="col.type === 'date'"
                               v-model="participantsList[pIdx - 1].custom_columns[col.name || col.id || col.label]"
-                              placeholder="dd/mm/yyyy"
+                              :placeholder="col.placeholder || 'dd/mm/yyyy'"
                               inputClass="form-control reg-input fs-12 py-1.5"
                               iconClass="ri-calendar-line text-primary"
                               :required="col.required"
@@ -1661,7 +1661,7 @@ function handleUnifiedSubmit() {
                               v-model="participantsList[pIdx - 1].custom_columns[col.name || col.id || col.label]"
                               :options="col.options || []"
                               size="sm"
-                              :placeholder="`Pilih ${col.label}...`"
+                              :placeholder="col.placeholder || `Pilih ${col.label}...`"
                               :required="col.required"
                             />
 
@@ -1671,7 +1671,7 @@ function handleUnifiedSubmit() {
                               :type="col.type === 'number' ? 'number' : (col.type === 'email' ? 'email' : 'text')"
                               :inputmode="col.type === 'number' ? 'numeric' : undefined"
                               v-model="participantsList[pIdx - 1].custom_columns[col.name || col.id || col.label]"
-                              :placeholder="`Masukkan ${col.label}...`"
+                              :placeholder="col.placeholder || `Masukkan ${col.label}...`"
                               class="form-control reg-input fs-12 py-1.5"
                               :required="col.required"
                             />

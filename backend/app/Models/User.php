@@ -260,4 +260,210 @@ class User extends Authenticatable
 
         return array_values(array_unique(array_filter($ids)));
     }
+
+    /**
+     * Ambil seluruh data cabang lomba yang dikoordinasikan oleh pengguna ini.
+     *
+     * @return array<array{id: string|int, title: string, category_label: string}>
+     */
+    public function getCoordinatedCompetitions(): array
+    {
+        $ids = $this->getCoordinatedCompetitionIds();
+        if (empty($ids)) {
+            return [];
+        }
+
+        return Competition::whereIn('id', $ids)
+            ->select('id', 'title', 'category_label')
+            ->get()
+            ->map(function ($c) {
+                return [
+                    'id' => $c->id,
+                    'title' => $c->title,
+                    'category_label' => $c->category_label,
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Penyelarasan otomatis peran koordinator lomba antara tabel competitions dan users.
+     * Memastikan setiap pengguna yang ditugaskan sebagai koordinator lomba memiliki peran
+     * 'koordinator_lomba' dan role_id yang benar, serta menyelaraskan struktur data JSON.
+     *
+     * @return array{synced_count: int, updated_users: array}
+     */
+    public static function syncAllCoordinatorRoles(): array
+    {
+        $coordRole = Role::where('name', 'koordinator_lomba')->first();
+        if (!$coordRole) {
+            $coordRole = Role::create([
+                'name' => 'koordinator_lomba',
+                'label' => 'Koordinator Lomba',
+                'badge_color' => 'warning',
+                'description' => 'Penanggung jawab teknis cabang lomba spesifik & TM',
+                'is_system' => true,
+            ]);
+        }
+
+        $competitions = Competition::all();
+        $allUsers = static::all();
+
+        // Indeks nomor telepon dan nama untuk auto-link koordinator tanpa user_id
+        $usersByPhone = [];
+        $usersByName = [];
+        foreach ($allUsers as $u) {
+            if (!empty($u->phone)) {
+                $cleanPhone = preg_replace('/\D/', '', (string)$u->phone);
+                if (!empty($cleanPhone)) {
+                    $usersByPhone[$cleanPhone] = $u;
+                    if (str_starts_with($cleanPhone, '0')) {
+                        $usersByPhone['62' . substr($cleanPhone, 1)] = $u;
+                    } elseif (str_starts_with($cleanPhone, '62')) {
+                        $usersByPhone['0' . substr($cleanPhone, 2)] = $u;
+                    }
+                }
+            }
+            if (!empty($u->name)) {
+                $usersByName[strtolower(trim($u->name))] = $u;
+            }
+        }
+
+        $coordUserMap = []; // userId => [comp_id => comp_title]
+
+        foreach ($competitions as $comp) {
+            $dirtyComp = false;
+            $coords = is_array($comp->coordinators) ? $comp->coordinators : [];
+
+            foreach ($coords as &$c) {
+                // Selalu pastikan role penugasan koordinator adalah 'Koordinator Lomba'
+                if (empty($c['role']) || in_array(strtolower(trim((string)$c['role'])), ['panitia pelaksana', 'panitia', 'koordinator'])) {
+                    $c['role'] = 'Koordinator Lomba';
+                    $dirtyComp = true;
+                }
+
+                // Coba auto-link user_id jika kosong menggunakan nomor telepon atau nama
+                if (empty($c['user_id'])) {
+                    $matchedUser = null;
+                    if (!empty($c['contact'])) {
+                        $cPhone = preg_replace('/\D/', '', (string)$c['contact']);
+                        if (isset($usersByPhone[$cPhone])) {
+                            $matchedUser = $usersByPhone[$cPhone];
+                        }
+                    }
+                    if (!$matchedUser && !empty($c['name'])) {
+                        $cName = strtolower(trim((string)$c['name']));
+                        if (!str_starts_with($cName, 'koordinator ') && isset($usersByName[$cName])) {
+                            $matchedUser = $usersByName[$cName];
+                        }
+                    }
+
+                    if ($matchedUser) {
+                        $c['user_id'] = $matchedUser->id;
+                        $dirtyComp = true;
+                        if (empty($comp->coordinator_id)) {
+                            $comp->coordinator_id = $matchedUser->id;
+                            $dirtyComp = true;
+                        }
+                    }
+                }
+
+                if (!empty($c['user_id']) && is_numeric($c['user_id'])) {
+                    $coordUserMap[(int)$c['user_id']][$comp->id] = $comp->title;
+                }
+            }
+            unset($c);
+
+            if ($dirtyComp) {
+                $comp->coordinators = $coords;
+                $comp->save();
+            }
+
+            if (!empty($comp->coordinator_id)) {
+                $coordUserMap[(int)$comp->coordinator_id][$comp->id] = $comp->title;
+            }
+        }
+
+        // Cek juga pengguna yang memiliki competition_id di tabel users
+        foreach ($allUsers as $u) {
+            if (!empty($u->competition_id)) {
+                $c = $competitions->firstWhere('id', $u->competition_id);
+                if ($c) {
+                    $coordUserMap[(int)$u->id][$c->id] = $c->title;
+
+                    // Pastikan kompetisi juga mencatat user ini di coordinators atau coordinator_id
+                    if (!$c->isUserCoordinator($u->id)) {
+                        $cCoords = is_array($c->coordinators) ? $c->coordinators : [];
+                        $hasEntry = false;
+                        foreach ($cCoords as $item) {
+                            if (!empty($item['user_id']) && (int)$item['user_id'] === (int)$u->id) {
+                                $hasEntry = true;
+                                break;
+                            }
+                        }
+                        if (!$hasEntry) {
+                            $cCoords[] = [
+                                'user_id' => $u->id,
+                                'name' => $u->name,
+                                'contact' => $u->phone ?: '',
+                                'role' => 'Koordinator Lomba',
+                            ];
+                            $c->coordinators = $cCoords;
+                        }
+                        if (empty($c->coordinator_id)) {
+                            $c->coordinator_id = $u->id;
+                        }
+                        $c->save();
+                    }
+                }
+            }
+        }
+
+        $updatedCount = 0;
+        $updatedDetails = [];
+
+        foreach ($coordUserMap as $uId => $comps) {
+            $user = static::find($uId);
+            if (!$user) {
+                continue;
+            }
+
+            $userChanged = false;
+            $primaryCompId = array_key_first($comps);
+
+            // Jika competition_id pengguna masih kosong, isi dengan cabang lomba pertama
+            if (empty($user->competition_id) && $primaryCompId) {
+                $user->competition_id = $primaryCompId;
+                $userChanged = true;
+            }
+
+            // Jika peran saat ini adalah 'panitia' atau kosong, perbarui ke 'koordinator_lomba'
+            if (in_array($user->role, ['panitia', 'koordinator_lomba', null, ''], true)) {
+                if ($user->role !== 'koordinator_lomba') {
+                    $user->role = 'koordinator_lomba';
+                    $userChanged = true;
+                }
+                if ($coordRole && (int)$user->role_id !== (int)$coordRole->id) {
+                    $user->role_id = $coordRole->id;
+                    $userChanged = true;
+                }
+            }
+
+            if ($userChanged) {
+                $user->save();
+                $updatedCount++;
+                $updatedDetails[] = [
+                    'user_id' => $user->id,
+                    'name' => $user->name,
+                    'role' => $user->role,
+                    'competitions' => array_values($comps),
+                ];
+            }
+        }
+
+        return [
+            'synced_count' => $updatedCount,
+            'updated_users' => $updatedDetails,
+        ];
+    }
 }

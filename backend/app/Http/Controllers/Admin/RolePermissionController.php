@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Competition;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -19,6 +20,9 @@ class RolePermissionController extends Controller
      */
     public function index(Request $request)
     {
+        // 0. Penyelarasan otomatis peran koordinator lomba
+        User::syncAllCoordinatorRoles();
+
         // 1. Ambil semua peran beserta relasi permissions dan jumlah anggota panitia
         $roles = Role::with(['permissions:id,name'])
             ->withCount('users')
@@ -43,7 +47,7 @@ class RolePermissionController extends Controller
         $permissionsGrouped = $allPermissions->groupBy('group');
 
         // 3. Ambil daftar panitia untuk modal hak akses khusus pengguna
-        $usersList = User::select('id', 'name', 'email', 'nip', 'role', 'role_id', 'custom_permissions')
+        $usersList = User::select('id', 'name', 'email', 'nip', 'role', 'role_id', 'competition_id', 'custom_permissions')
             ->orderBy('name')
             ->get()
             ->map(function ($u) {
@@ -53,12 +57,20 @@ class RolePermissionController extends Controller
                     'email' => $u->email,
                     'nip' => $u->nip,
                     'role' => $u->role,
+                    'role_id' => $u->role_id,
+                    'competition_id' => $u->competition_id,
+                    'coordinated_competitions' => $u->getCoordinatedCompetitions(),
                     'custom_permissions' => $u->custom_permissions ?: new \stdClass(),
                     'all_permissions' => $u->allPermissions(),
                 ];
             });
 
-        // 4. Ringkasan Statistik
+        // 4. Daftar cabang lomba untuk penugasan koordinator jika peran diubah
+        $competitions = Competition::select('id', 'title', 'category_label')
+            ->orderBy('title')
+            ->get();
+
+        // 5. Ringkasan Statistik
         $metrics = [
             'total_roles' => $roles->count(),
             'total_permissions' => $allPermissions->count(),
@@ -71,6 +83,7 @@ class RolePermissionController extends Controller
             'permissionsGrouped' => $permissionsGrouped,
             'allPermissions' => $allPermissions,
             'usersList' => $usersList,
+            'competitions' => $competitions,
             'metrics' => $metrics,
         ]);
     }
@@ -137,7 +150,7 @@ class RolePermissionController extends Controller
     /**
      * Perbarui data peran (label, badge, deskripsi).
      */
-    public function updateRole(Request $request, $id)
+    public function updateRole(Request $request, string|int $id)
     {
         $role = Role::findOrFail($id);
 
@@ -155,7 +168,7 @@ class RolePermissionController extends Controller
     /**
      * Hapus peran kustom (peran sistem tidak dapat dihapus).
      */
-    public function destroyRole($id)
+    public function destroyRole(string|int $id)
     {
         $role = Role::findOrFail($id);
 
@@ -458,7 +471,7 @@ class RolePermissionController extends Controller
     /**
      * Perbarui hak akses khusus / override untuk pengguna tertentu.
      */
-    public function updateUserPermissions(Request $request, $userId)
+    public function updateUserPermissions(Request $request, string|int $userId)
     {
         $user = User::findOrFail($userId);
 
@@ -483,5 +496,61 @@ class RolePermissionController extends Controller
         $user->save();
 
         return back()->with('success', "Hak akses khusus untuk panitia '{$user->name}' berhasil disimpan.");
+    }
+
+    /**
+     * Ubah peran utama seorang panitia secara langsung dari modul Hak Akses & Peran.
+     */
+    public function updateUserRole(Request $request, string|int $userId)
+    {
+        $user = User::findOrFail($userId);
+
+        $validated = $request->validate([
+            'role' => ['required', 'string', 'exists:roles,name'],
+            'competition_id' => ['nullable', 'string', 'exists:competitions,id'],
+        ], [
+            'role.required' => 'Pilih peran baru untuk panitia ini.',
+            'role.exists' => 'Peran yang dipilih tidak terdaftar dalam sistem.',
+            'competition_id.exists' => 'Cabang lomba tidak ditemukan.',
+        ]);
+
+        $newRole = Role::where('name', $validated['role'])->firstOrFail();
+
+        // Pencegahan super admin terakhir
+        if ($user->role === 'super_admin' && $newRole->name !== 'super_admin') {
+            $superAdminCount = User::where('role', 'super_admin')->count();
+            if ($superAdminCount <= 1) {
+                return back()->with('error', 'Sistem harus memiliki setidaknya satu Super Admin aktif.');
+            }
+        }
+
+        $user->role = $newRole->name;
+        $user->role_id = $newRole->id;
+
+        if (array_key_exists('competition_id', $validated)) {
+            $user->competition_id = $validated['competition_id'];
+        }
+
+        $user->save();
+
+        // Jalankan sinkronisasi koordinator agar relasi kompetisi selalu sinkron
+        User::syncAllCoordinatorRoles();
+
+        return back()->with('success', "Peran panitia '{$user->name}' berhasil diubah menjadi '{$newRole->label}'.");
+    }
+
+    /**
+     * Jalankan sinkronisasi peran koordinator lomba secara manual dari UI.
+     */
+    public function syncCoordinators(Request $request)
+    {
+        $result = User::syncAllCoordinatorRoles();
+        $count = $result['synced_count'] ?? 0;
+
+        if ($count > 0) {
+            return back()->with('success', "Penyelarasan berhasil: {$count} panitia yang ditugaskan di cabang lomba telah disesuaikan sebagai Koordinator Lomba.");
+        }
+
+        return back()->with('success', 'Seluruh peran koordinator lomba sudah selaras dan sesuai dengan penugasan.');
     }
 }

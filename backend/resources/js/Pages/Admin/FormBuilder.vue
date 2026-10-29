@@ -95,14 +95,14 @@ const nextCompetition = computed(() => {
 // Default sub-fields generator for dynamic participant repeater
 function createDefaultSubFields() {
   return {
-    name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+    name: { active: true, required: true, label: 'Nama Lengkap Siswa', placeholder: 'Nama lengkap Siswa' },
     gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
-    grade: { active: true, required: true, label: 'Kelas / Tingkat' },
-    birth_date: { active: true, required: false, label: 'Tanggal Lahir Siswa' },
-    nisn: { active: true, required: false, label: 'Nomor Induk Siswa Nasional (NISN)' },
-    custom_id: { active: false, required: false, label: 'ID Siswa / No. Identitas (Teks)' },
-    wa_number: { active: false, required: false, label: 'Nomor WhatsApp Siswa (Angka)' },
-    captain_option: { active: false, required: false, label: 'Tandai Kapten Tim & Nomor WA Khusus Kapten' },
+    grade: { active: true, required: true, label: 'Kelas / Tingkat', placeholder: 'Pilih Kelas...' },
+    birth_date: { active: true, required: false, label: 'Tanggal Lahir Siswa', placeholder: 'dd/mm/yyyy' },
+    nisn: { active: true, required: false, label: 'Nomor Induk Siswa Nasional (NISN)', placeholder: 'Contoh: 0081234567' },
+    custom_id: { active: false, required: false, label: 'ID Siswa / No. Identitas (Teks)', placeholder: 'Contoh: ID-0912 / User ID Game' },
+    wa_number: { active: false, required: false, label: 'Nomor WhatsApp Siswa (Angka)', placeholder: '08xxxxxxxxxx' },
+    captain_option: { active: false, required: false, label: 'Tandai Kapten Tim & Nomor WA Khusus Kapten', placeholder: 'Contoh: 081234567890 (Untuk koordinasi panitia & kapten)' },
     photo_formal: { active: false, required: false, label: 'Upload Pas Foto Formal Siswa' },
     photo_freestyle: { active: false, required: false, label: 'Upload Foto Pose Gaya Bebas (Bisa >1 Foto)', multiple: true },
     custom_columns: [],
@@ -125,6 +125,7 @@ function normalizeSubFields(sub) {
         active: sub[k].active !== undefined ? !!sub[k].active : defs[k].active,
         required: sub[k].required !== undefined ? !!sub[k].required : defs[k].required,
         label: sub[k].label || defs[k].label,
+        placeholder: sub[k].placeholder !== undefined ? sub[k].placeholder : (defs[k].placeholder || ''),
       };
     } else {
       result[k] = { ...defs[k] };
@@ -142,6 +143,7 @@ function addCustomSubField(field) {
     id: 'col_' + Date.now(),
     label: '',
     type: 'text',
+    placeholder: '',
     required: false,
   });
   isDirty.value = true;
@@ -2563,31 +2565,61 @@ function setParticipantCountDirect(field, val) {
                                 <div class="pt-2 border-top">
                                   <div class="text-muted fs-10 fw-bold text-uppercase tracking-wider mb-1">2. ID & Kontak Komunikasi</div>
                                   <div class="d-flex flex-column gap-1.5">
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11" v-if="field.sub_fields?.custom_id">
-                                      <input type="checkbox" class="form-check-input" v-model="field.sub_fields.custom_id.active" />
-                                      <div class="d-flex flex-column">
-                                        <span class="text-dark fw-medium">Kolom Ketik ID Siswa / No. Peserta / Akun Game</span>
-                                        <span class="text-muted fs-10">Field input teks bebas untuk ID in-game, no punggung, dll.</span>
+                                    <div v-if="field.sub_fields?.custom_id">
+                                      <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                        <input type="checkbox" class="form-check-input" v-model="field.sub_fields.custom_id.active" />
+                                        <div class="d-flex flex-column">
+                                          <span class="text-dark fw-medium">Kolom Ketik ID Siswa / No. Peserta / Akun Game</span>
+                                          <span class="text-muted fs-10">Field input teks bebas untuk ID in-game, no punggung, dll.</span>
+                                        </div>
+                                        <span class="badge bg-secondary-subtle text-secondary fs-9 ms-auto">Field Text</span>
+                                      </label>
+                                      <div v-if="field.sub_fields.custom_id.active" class="mt-1 ps-4">
+                                        <input 
+                                          type="text" 
+                                          v-model="field.sub_fields.custom_id.placeholder" 
+                                          class="form-control form-control-sm fs-11" 
+                                          placeholder="Placeholder ID Siswa (Contoh: ID-0912 / User ID Game)"
+                                        />
                                       </div>
-                                      <span class="badge bg-secondary-subtle text-secondary fs-9 ms-auto">Field Text</span>
-                                    </label>
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11" v-if="field.sub_fields?.wa_number">
-                                      <input type="checkbox" class="form-check-input" v-model="field.sub_fields.wa_number.active" />
-                                      <div class="d-flex flex-column">
-                                        <span class="text-dark fw-medium">Kolom Nomor WhatsApp Siswa</span>
-                                        <span class="text-muted fs-10">Field input angka no. WA untuk seluruh personil/siswa</span>
+                                    </div>
+                                    <div v-if="field.sub_fields?.wa_number">
+                                      <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                        <input type="checkbox" class="form-check-input" v-model="field.sub_fields.wa_number.active" />
+                                        <div class="d-flex flex-column">
+                                          <span class="text-dark fw-medium">Kolom Nomor WhatsApp Siswa</span>
+                                          <span class="text-muted fs-10">Field input angka no. WA untuk seluruh personil/siswa</span>
+                                        </div>
+                                        <span class="badge bg-success-subtle text-success fs-9 ms-auto">Field Angka</span>
+                                      </label>
+                                      <div v-if="field.sub_fields.wa_number.active" class="mt-1 ps-4">
+                                        <input 
+                                          type="text" 
+                                          v-model="field.sub_fields.wa_number.placeholder" 
+                                          class="form-control form-control-sm fs-11" 
+                                          placeholder="Placeholder No WA Siswa (Contoh: 08xxxxxxxxxx)"
+                                        />
                                       </div>
-                                      <span class="badge bg-success-subtle text-success fs-9 ms-auto">Field Angka</span>
-                                    </label>
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-start gap-2 cursor-pointer fs-11 bg-warning-subtle/25 p-1.5 rounded border border-warning-subtle" v-if="field.sub_fields?.captain_option">
-                                      <input type="checkbox" class="form-check-input text-warning mt-0.5" v-model="field.sub_fields.captain_option.active" />
-                                      <div class="d-flex flex-column">
-                                        <span class="text-dark fw-bold d-flex align-items-center gap-1">
-                                          <i class="ri-vip-crown-line text-warning"></i> Tandai Kapten Tim & Nomor WA Khusus Kapten
-                                        </span>
-                                        <span class="text-muted fs-10">Pendaftar dapat menandai 1 siswa sebagai kapten, dan kolom No WA Kapten otomatis muncul pada siswa terpilih.</span>
+                                    </div>
+                                    <div v-if="field.sub_fields?.captain_option">
+                                      <label class="form-check form-check-sm mb-0 d-flex align-items-start gap-2 cursor-pointer fs-11 bg-warning-subtle/25 p-1.5 rounded border border-warning-subtle">
+                                        <input type="checkbox" class="form-check-input text-warning mt-0.5" v-model="field.sub_fields.captain_option.active" />
+                                        <div class="d-flex flex-column">
+                                          <span class="text-dark fw-bold d-flex align-items-center gap-1">
+                                            <i class="ri-vip-crown-line text-warning"></i> Tandai Kapten Tim & Nomor WA Khusus Kapten
+                                          </span>
+                                          <span class="text-muted fs-10">Pendaftar dapat menandai 1 siswa sebagai kapten, dan kolom No WA Kapten otomatis muncul pada siswa terpilih.</span>
+                                        </div>
+                                      </label>
+                                      <div v-if="field.sub_fields.captain_option.active" class="mt-1 ps-4">
+                                        <input 
+                                          type="text" 
+                                          v-model="field.sub_fields.captain_option.placeholder" 
+                                          class="form-control form-control-sm fs-11" 
+                                          placeholder="Placeholder No WA Kapten (Contoh: 081234567890)"
+                                        />
                                       </div>
-                                    </label>
+                                    </div>
                                   </div>
                                 </div>
 
@@ -2645,7 +2677,7 @@ function setParticipantCountDirect(field, val) {
                                     >
                                       <span class="badge bg-secondary-subtle text-secondary font-mono fs-9">#{{ colIdx + 1 }}</span>
                                       <div class="flex-grow-1 row g-2 align-items-center">
-                                        <div class="col-md-5">
+                                        <div class="col-md-4">
                                           <input 
                                             type="text" 
                                             v-model="col.label" 
@@ -2653,7 +2685,7 @@ function setParticipantCountDirect(field, val) {
                                             placeholder="Nama Kolom (contoh: Ukuran Baju)"
                                           />
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                           <CustomSelect 
                                             v-model="col.type" 
                                             :options="columnTypeOptions"
@@ -2661,7 +2693,15 @@ function setParticipantCountDirect(field, val) {
                                             placeholder="Tipe..."
                                           />
                                         </div>
-                                        <div class="col-md-3 d-flex align-items-center gap-2">
+                                        <div class="col-md-3">
+                                          <input 
+                                            type="text" 
+                                            v-model="col.placeholder" 
+                                            class="form-control form-control-sm fs-11" 
+                                            placeholder="Placeholder (opsional)"
+                                          />
+                                        </div>
+                                        <div class="col-md-2 d-flex align-items-center gap-2">
                                           <label class="form-check form-check-sm mb-0 cursor-pointer fs-10 d-flex align-items-center gap-1">
                                             <input type="checkbox" v-model="col.required" class="form-check-input" />
                                             <span>Wajib</span>
@@ -3662,7 +3702,7 @@ function setParticipantCountDirect(field, val) {
                               <CustomSelect 
                                 v-model="previewValues[field.name + '_grade_' + pIdx]"
                                 :options="['Kelas 7 SMP/MTs', 'Kelas 8 SMP/MTs', 'Kelas 9 SMP/MTs']"
-                                placeholder="Kelas 9 SMP/MTs"
+                                :placeholder="field.sub_fields?.grade?.placeholder || 'Kelas 9 SMP/MTs'"
                                 size="sm"
                                 variant="dark-slate"
                               />
@@ -3672,7 +3712,7 @@ function setParticipantCountDirect(field, val) {
                               <label class="block text-[11px] text-slate-400 mb-1">Tanggal Lahir (dd/mm/yyyy)</label>
                               <IndoDatePicker 
                                 v-model="previewValues[field.name + '_birth_' + pIdx]"
-                                placeholder="dd/mm/yyyy"
+                                :placeholder="field.sub_fields?.birth_date?.placeholder || 'dd/mm/yyyy'"
                                 inputClass="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
                                 iconClass="ri-calendar-line text-amber-400 text-sm"
                               />
@@ -3682,7 +3722,7 @@ function setParticipantCountDirect(field, val) {
                               <label class="block text-[11px] text-slate-400 mb-1">NISN</label>
                               <input 
                                 type="text" 
-                                placeholder="0081234567"
+                                :placeholder="field.sub_fields?.nisn?.placeholder || '0081234567'"
                                 class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono"
                               />
                             </div>
@@ -3695,7 +3735,7 @@ function setParticipantCountDirect(field, val) {
                               </label>
                               <input 
                                 type="text" 
-                                placeholder="Contoh: ID-0912 / User ID Game" 
+                                :placeholder="field.sub_fields?.custom_id?.placeholder || 'Contoh: ID-0912 / User ID Game'" 
                                 class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono"
                               />
                             </div>
@@ -3709,7 +3749,7 @@ function setParticipantCountDirect(field, val) {
                               </label>
                               <input 
                                 type="tel" 
-                                placeholder="08xxxxxxxxxx" 
+                                :placeholder="field.sub_fields?.wa_number?.placeholder || '08xxxxxxxxxx'" 
                                 class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono"
                               />
                             </div>
@@ -3722,7 +3762,7 @@ function setParticipantCountDirect(field, val) {
                               </label>
                               <input 
                                 type="tel" 
-                                placeholder="08xxxxxxxxxx (Nomor WA Kapten untuk grup koordinasi panitia)" 
+                                :placeholder="field.sub_fields?.captain_option?.placeholder || '08xxxxxxxxxx (Nomor WA Kapten untuk grup koordinasi panitia)'" 
                                 class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-amber-500/40 text-white text-xs font-mono placeholder-slate-500 focus:outline-none focus:border-amber-400"
                               />
                               <div class="text-[11px] text-amber-300/80 mt-1.5">
@@ -3769,7 +3809,7 @@ function setParticipantCountDirect(field, val) {
                               <IndoDatePicker 
                                 v-if="col.type === 'date'"
                                 v-model="previewValues[field.name + '_' + (col.id || col.label) + '_' + pIdx]"
-                                placeholder="dd/mm/yyyy"
+                                :placeholder="col.placeholder || 'dd/mm/yyyy'"
                                 inputClass="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs"
                                 iconClass="ri-calendar-line text-amber-400 text-sm"
                               />
@@ -3779,13 +3819,13 @@ function setParticipantCountDirect(field, val) {
                                 :options="col.options || ['Opsi 1', 'Opsi 2']"
                                 size="sm"
                                 variant="dark-slate"
-                                placeholder="Pilih opsi..."
+                                :placeholder="col.placeholder || 'Pilih opsi...'"
                               />
                               <input 
                                 v-else
                                 :type="col.type === 'number' ? 'number' : 'text'" 
                                 v-model="previewValues[field.name + '_' + (col.id || col.label) + '_' + pIdx]"
-                                :placeholder="`Masukkan ${col.label || 'data'}...`" 
+                                :placeholder="col.placeholder || `Masukkan ${col.label || 'data'}...`" 
                                 class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono"
                               />
                             </div>

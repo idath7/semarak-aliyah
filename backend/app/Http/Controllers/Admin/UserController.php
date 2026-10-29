@@ -98,9 +98,12 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
+        // 0. Penyelarasan otomatis peran koordinator lomba
+        User::syncAllCoordinatorRoles();
+
         $query = User::with('competition:id,title,category_label')
             ->select(
-                'id', 'name', 'email', 'nip', 'role', 'division', 'phone', 'competition_id', 'is_active', 'must_change_password', 'avatar', 'created_at',
+                'id', 'name', 'email', 'nip', 'role', 'role_id', 'division', 'phone', 'competition_id', 'is_active', 'must_change_password', 'avatar', 'created_at',
                 DB::raw("(CASE WHEN password IS NOT NULL AND password != '' THEN 1 ELSE 0 END) as has_password")
             );
 
@@ -135,13 +138,19 @@ class UserController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        $users->getCollection()->transform(function ($u) {
+            $u->coordinated_competitions = $u->getCoordinatedCompetitions();
+            return $u;
+        });
+
         // Metrik Ringkasan Pengguna
         $metrics = [
-            'total_users'     => User::count(),
-            'total_active'    => User::where('is_active', true)->count(),
-            'total_admin'     => User::whereIn('role', ['super_admin', 'admin'])->count(),
-            'total_panitia'   => User::whereIn('role', ['panitia', 'kesekretariatan', 'bendahara'])->count(),
-            'total_juri_wasit'=> User::whereIn('role', ['juri', 'wasit'])->count(),
+            'total_users'       => User::count(),
+            'total_active'      => User::where('is_active', true)->count(),
+            'total_admin'       => User::whereIn('role', ['super_admin', 'admin'])->count(),
+            'total_panitia'     => User::whereIn('role', ['panitia', 'kesekretariatan', 'bendahara'])->count(),
+            'total_koordinator' => User::where('role', 'koordinator_lomba')->count(),
+            'total_juri_wasit'  => User::whereIn('role', ['juri', 'wasit'])->count(),
         ];
 
         // Daftar lomba untuk penugasan PJ / Juri / Wasit
@@ -197,7 +206,11 @@ class UserController extends Controller
             'competition_id.exists' => 'Cabang lomba tidak ditemukan.',
         ]);
 
-        $roleObj = Role::where('name', $validated['role'])->first();
+        $finalRole = $validated['role'];
+        if (!empty($validated['competition_id']) && in_array($finalRole, ['panitia', 'koordinator_lomba'], true)) {
+            $finalRole = 'koordinator_lomba';
+        }
+        $roleObj = Role::where('name', $finalRole)->first();
 
         $avatarPath = null;
         if ($request->filled('avatar_data')) {
@@ -210,7 +223,7 @@ class UserController extends Controller
             'nip'            => !empty($validated['nip']) ? trim($validated['nip']) : null,
             'password'       => Hash::make($validated['password']),
             'must_change_password' => false,
-            'role'           => $validated['role'],
+            'role'           => $finalRole,
             'role_id'        => $roleObj?->id,
             'division'       => $validated['division'] ?? null,
             'phone'          => $validated['phone'] ?? null,
@@ -219,13 +232,15 @@ class UserController extends Controller
             'avatar'         => $avatarPath,
         ]);
 
+        User::syncAllCoordinatorRoles();
+
         return redirect()->back()->with('success', "Pengguna baru {$user->name} ({$user->role}) berhasil ditambahkan.");
     }
 
     /**
      * Perbarui data pengguna / panitia
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, string|int $id)
     {
         $user = User::findOrFail($id);
 
@@ -260,13 +275,17 @@ class UserController extends Controller
             }
         }
 
-        $roleObj = Role::where('name', $validated['role'])->first();
+        $finalRole = $validated['role'];
+        if (!empty($validated['competition_id']) && in_array($finalRole, ['panitia', 'koordinator_lomba'], true)) {
+            $finalRole = 'koordinator_lomba';
+        }
+        $roleObj = Role::where('name', $finalRole)->first();
 
         $updateData = [
             'name'           => $validated['name'],
             'email'          => strtolower(trim($validated['email'])),
             'nip'            => !empty($validated['nip']) ? trim($validated['nip']) : null,
-            'role'           => $validated['role'],
+            'role'           => $finalRole,
             'role_id'        => $roleObj?->id,
             'division'       => $validated['division'] ?? null,
             'phone'          => $validated['phone'] ?? null,
@@ -291,13 +310,15 @@ class UserController extends Controller
 
         $user->update($updateData);
 
+        User::syncAllCoordinatorRoles();
+
         return redirect()->back()->with('success', "Data pengguna {$user->name} berhasil diperbarui.");
     }
 
     /**
      * Beralih status aktif / non-aktif pengguna secara cepat
      */
-    public function toggleStatus($id)
+    public function toggleStatus(string|int $id)
     {
         $user = User::findOrFail($id);
 
@@ -328,7 +349,7 @@ class UserController extends Controller
     /**
      * Hapus pengguna dari sistem
      */
-    public function destroy($id)
+    public function destroy(string|int $id)
     {
         $user = User::findOrFail($id);
 
@@ -474,6 +495,7 @@ class UserController extends Controller
         ]);
 
         $defaultRole = $validated['default_role'] ?? 'panitia';
+        $defaultRoleObj = Role::where('name', $defaultRole)->first();
         $updateExisting = (bool) ($validated['update_existing'] ?? false);
         $targetIds = $validated['teacher_ids'] ?? [];
 
@@ -576,6 +598,7 @@ class UserController extends Controller
                         'password'             => null,
                         'must_change_password' => true,
                         'role'                 => $defaultRole,
+                        'role_id'              => $defaultRoleObj?->id,
                         'division'             => $division,
                         'phone'                => $phone,
                         'gender'               => $t['gender'] ?? null,
@@ -594,6 +617,8 @@ class UserController extends Controller
             }
 
             DB::commit();
+
+            User::syncAllCoordinatorRoles();
 
             return response()->json([
                 'success'       => true,
@@ -737,7 +762,7 @@ class UserController extends Controller
     /**
      * Ubah foto pengguna lain (oleh Admin / Super Admin)
      */
-    public function updateUserAvatar(Request $request, $id)
+    public function updateUserAvatar(Request $request, string|int $id)
     {
         $user = User::findOrFail($id);
 
@@ -760,7 +785,7 @@ class UserController extends Controller
     /**
      * Hapus foto pengguna lain (oleh Admin / Super Admin)
      */
-    public function removeUserAvatar($id)
+    public function removeUserAvatar(string|int $id)
     {
         $user = User::findOrFail($id);
 

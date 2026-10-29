@@ -140,7 +140,9 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
         Route::delete('/role/{id}', [\App\Http\Controllers\Admin\RolePermissionController::class, 'destroyRole'])->name('destroy');
         Route::post('/reset-defaults', [\App\Http\Controllers\Admin\RolePermissionController::class, 'resetDefaults'])->name('reset-defaults');
         Route::post('/user/{userId}/custom-permissions', [\App\Http\Controllers\Admin\RolePermissionController::class, 'updateUserPermissions'])->name('user-permissions.update');
+        Route::put('/user/{userId}/role', [\App\Http\Controllers\Admin\RolePermissionController::class, 'updateUserRole'])->name('user-role.update');
         Route::post('/bulk-user-permissions', [\App\Http\Controllers\Admin\RolePermissionController::class, 'bulkUpdateUserOverrides'])->name('bulk-user-permissions');
+        Route::post('/sync-coordinators', [\App\Http\Controllers\Admin\RolePermissionController::class, 'syncCoordinators'])->name('sync-coordinators');
     });
 
     // Pintasan Langsung /admin/hak-akses

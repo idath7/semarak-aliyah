@@ -289,9 +289,7 @@ function onCoordinatorChange(form, cIdx, selectedVal) {
     if (user) {
       coord.name = user.name;
       coord.contact = user.phone || '';
-      if (!coord.role || coord.role === 'Koordinator Lomba') {
-        coord.role = user.role === 'koordinator_lomba' ? 'Koordinator Lomba' : (getRoleLabel(user.role) || 'Koordinator Lomba');
-      }
+      coord.role = 'Koordinator Lomba';
     }
   } else if (valStr === 'custom') {
     if (coord.name && getCoordinatorUser(coord.user_id)) {

@@ -145,6 +145,48 @@ const formSettings = computed(() => {
   };
 });
 
+// Field aliases mapping to support customized names & default names from Form Builder
+const IDENTITY_ALIASES = {
+  school_name: ['school_name', 'asal_sekolah', 'nama_sekolah', 'nama_lembaga', 'nama_sekolah_madrasah', 'nama_sekolah_madrasah_pengirim', 'nama_sekolah_madrasah_instansi_pengirim'],
+  school_district: ['school_district', 'kecamatan', 'kecamatan_sekolah', 'kecamatan_asal_sekolah', 'kecamatan_asal_sekolah_madrasah', 'wilayah_kecamatan'],
+  school_npsn: ['school_npsn', 'npsn', 'npsn_sekolah', 'nomor_pokok_sekolah_nasional', 'nomor_pokok_sekolah_nasional_npsn'],
+  school_address: ['school_address', 'alamat_sekolah', 'alamat_lengkap_sekolah', 'alamat_sekolah_madrasah', 'alamat_lengkap_sekolah_madrasah', 'alamat'],
+  mentor_name: ['mentor_name', 'nama_pendamping', 'nama_guru_pendamping', 'nama_pembina', 'nama_guru_pembina_pendamping', 'nama_pelatih_official'],
+  mentor_wa: ['mentor_wa', 'nomor_wa', 'whatsapp', 'nomor_whatsapp', 'nomor_whatsapp_pendamping', 'nomor_whatsapp_kontak', 'nomor_whatsapp_pembina', 'no_whatsapp_pelatih_official', 'no_whatsapp_kapten_kontak_tim'],
+  mentor_email: ['mentor_email', 'contact_email', 'email', 'alamat_email', 'email_pendamping', 'alamat_email_aktif', 'email_kontak', 'alamat_email_resmi_sekolah_pembina'],
+  allin_code: ['allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code', 'all_in_code', 'kode_paket_allin']
+};
+
+function getFieldConfig(canonicalName) {
+  const fields = activeComp.value?.custom_fields || [];
+  const aliases = IDENTITY_ALIASES[canonicalName] || [canonicalName];
+  return fields.find(f => f && (aliases.includes(f.name) || aliases.includes(f.default_name))) || null;
+}
+
+function getFieldPlaceholder(canonicalName, fallback = '') {
+  const f = getFieldConfig(canonicalName);
+  if (f && typeof f.placeholder === 'string' && f.placeholder.trim()) {
+    return f.placeholder.trim();
+  }
+  return fallback;
+}
+
+function getFieldLabel(canonicalName, fallback = '') {
+  const f = getFieldConfig(canonicalName);
+  if (f && typeof f.label === 'string' && f.label.trim()) {
+    return f.label.trim();
+  }
+  return fallback;
+}
+
+function getFieldHelpText(canonicalName, fallback = '') {
+  const f = getFieldConfig(canonicalName);
+  if (f && typeof f.help_text === 'string' && f.help_text.trim()) {
+    return f.help_text.trim();
+  }
+  return fallback;
+}
+
 // Cabang Lomba Options for CustomSelect
 const competitionOptions = computed(() => {
   return (props.competitions || []).map(c => {
@@ -167,16 +209,16 @@ const repeaterField = computed(() => {
 const subFieldsConfig = computed(() => {
   const rf = repeaterField.value;
   const defs = {
-    name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
-    gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
-    grade: { active: true, required: true, label: 'Kelas / Tingkat' },
-    birth_date: { active: true, required: false, label: 'Tanggal Lahir Siswa' },
-    nisn: { active: true, required: false, label: 'Nomor Induk Siswa Nasional (NISN)' },
-    custom_id: { active: false, required: false, label: 'ID Siswa / No. Identitas' },
-    wa_number: { active: false, required: false, label: 'Nomor WhatsApp Siswa' },
-    captain_option: { active: false, required: false, label: 'Tandai Kapten Tim' },
-    photo_formal: { active: false, required: false, label: 'Upload Pas Foto Formal Siswa' },
-    photo_freestyle: { active: false, required: false, label: 'Upload Foto Pose Gaya Bebas', multiple: true },
+    name: { active: true, required: true, label: 'Nama Lengkap Siswa', placeholder: 'Nama lengkap Siswa' },
+    gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)', placeholder: '' },
+    grade: { active: true, required: true, label: 'Kelas / Tingkat', placeholder: 'Pilih Kelas...' },
+    birth_date: { active: true, required: false, label: 'Tanggal Lahir Siswa', placeholder: 'dd/mm/yyyy' },
+    nisn: { active: true, required: false, label: 'Nomor Induk Siswa Nasional (NISN)', placeholder: 'Contoh: 0081234567' },
+    custom_id: { active: false, required: false, label: 'ID Siswa / No. Identitas', placeholder: 'Contoh: ID-0912 / User ID Game' },
+    wa_number: { active: false, required: false, label: 'Nomor WhatsApp Siswa', placeholder: '08xxxxxxxxxx' },
+    captain_option: { active: false, required: false, label: 'Tandai Kapten Tim', placeholder: 'Contoh: 081234567890 (Untuk koordinasi panitia & kapten)' },
+    photo_formal: { active: false, required: false, label: 'Upload Pas Foto Formal Siswa', placeholder: '' },
+    photo_freestyle: { active: false, required: false, label: 'Upload Foto Pose Gaya Bebas', multiple: true, placeholder: '' },
     custom_columns: []
   };
 
@@ -194,7 +236,8 @@ const subFieldsConfig = computed(() => {
         ...rf.sub_fields[k],
         active: rf.sub_fields[k].active !== undefined ? !!rf.sub_fields[k].active : defs[k].active,
         required: rf.sub_fields[k].required !== undefined ? !!rf.sub_fields[k].required : defs[k].required,
-        label: rf.sub_fields[k].label || defs[k].label
+        label: rf.sub_fields[k].label || defs[k].label,
+        placeholder: (rf.sub_fields[k].placeholder !== undefined && rf.sub_fields[k].placeholder !== '') ? rf.sub_fields[k].placeholder : (defs[k].placeholder || '')
       };
     }
   }
@@ -910,7 +953,7 @@ onMounted(() => {
                 <div class="space-y-1.5 md:col-span-2 relative">
                   <label class="form-label-aligned">
                     <i class="ri-school-line text-primary"></i>
-                    <span>Nama Asal Sekolah / Madrasah <span class="text-red-500">*</span></span>
+                    <span>{{ getFieldLabel('school_name', 'Nama Asal Sekolah / Madrasah') }} <span class="text-red-500">*</span></span>
                   </label>
                   <input 
                     id="reg-sekolah"
@@ -920,7 +963,7 @@ onMounted(() => {
                     @blur="onSchoolBlur"
                     class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('school_name') }"
-                    placeholder="Contoh: MTs Unggulan Balung atau SMP Negeri 1 Jember" 
+                    :placeholder="getFieldPlaceholder('school_name', 'Contoh: MTs Negeri 1 Jember / SMPN 1 Balung')" 
                     required 
                     type="text"
                   >
@@ -943,103 +986,110 @@ onMounted(() => {
                     </div>
                   </div>
                   <p v-if="getFieldError('school_name')" class="text-xs text-red-500 font-medium">{{ getFieldError('school_name') }}</p>
+                  <p v-else-if="getFieldHelpText('school_name')" class="text-[11px] text-on-surface-variant">{{ getFieldHelpText('school_name') }}</p>
                 </div>
 
                 <!-- Kecamatan Asal Sekolah (Dropdown Mandatori Standar) -->
                 <div class="space-y-1.5">
                   <label class="form-label-aligned">
                     <i class="ri-map-pin-2-line text-primary"></i>
-                    <span>Kecamatan Asal Sekolah <span class="text-red-500">*</span></span>
+                    <span>{{ getFieldLabel('school_district', 'Kecamatan Asal Sekolah') }} <span class="text-red-500">*</span></span>
                   </label>
                   <CustomSelect
                     v-model="form.custom_fields['school_district']"
                     :options="JEMBER_KECAMATAN_LIST"
-                    placeholder="Pilih Kecamatan Asal Sekolah..."
+                    :placeholder="getFieldPlaceholder('school_district', 'Pilih Kecamatan Asal Sekolah...')"
                     size="md"
                     searchable
                   />
                   <p v-if="getFieldError('school_district')" class="text-xs text-red-500 font-medium">{{ getFieldError('school_district') }}</p>
+                  <p v-else-if="getFieldHelpText('school_district')" class="text-[11px] text-on-surface-variant">{{ getFieldHelpText('school_district') }}</p>
                 </div>
 
                 <!-- NPSN Sekolah (Opsional) -->
                 <div class="space-y-1.5">
                   <label class="form-label-aligned">
                     <i class="ri-hashtag text-primary"></i>
-                    <span>Nomor Pokok Sekolah Nasional (NPSN) <span class="text-xs text-on-surface-variant font-normal">(Opsional)</span></span>
+                    <span>{{ getFieldLabel('school_npsn', 'Nomor Pokok Sekolah Nasional (NPSN)') }} <span class="text-xs text-on-surface-variant font-normal">(Opsional)</span></span>
                   </label>
                   <input 
                     v-model="form.custom_fields['school_npsn']"
                     class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                    placeholder="Contoh: 20524589" 
+                    :placeholder="getFieldPlaceholder('school_npsn', 'Contoh: 20524589 (opsional jika ada)')" 
                     type="text"
                   >
+                  <p v-if="getFieldHelpText('school_npsn')" class="text-[11px] text-on-surface-variant">{{ getFieldHelpText('school_npsn') }}</p>
                 </div>
 
                 <!-- Alamat Lengkap Sekolah / Madrasah -->
                 <div class="space-y-1.5 md:col-span-2">
                   <label class="form-label-aligned">
                     <i class="ri-map-pin-user-line text-primary"></i>
-                    <span>Alamat Lengkap Sekolah / Madrasah <span class="text-red-500">*</span></span>
+                    <span>{{ getFieldLabel('school_address', 'Alamat Lengkap Sekolah / Madrasah') }} <span class="text-red-500">*</span></span>
                   </label>
                   <textarea 
                     rows="2"
                     v-model="form.custom_fields['school_address']"
                     class="w-full p-3 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('school_address') }"
-                    placeholder="Contoh: Jl. Raya Puger No. 20, Balung Kulon, Kec. Balung, Kab. Jember"
+                    :placeholder="getFieldPlaceholder('school_address', 'Contoh: Jl. Raya Puger No. 20, Balung Kulon, Kec. Balung')"
                     required
                   ></textarea>
                   <p v-if="getFieldError('school_address')" class="text-xs text-red-500 font-medium">{{ getFieldError('school_address') }}</p>
+                  <p v-else-if="getFieldHelpText('school_address')" class="text-[11px] text-on-surface-variant">{{ getFieldHelpText('school_address') }}</p>
                 </div>
 
                 <!-- Nama Guru Pembina / Pendamping -->
                 <div class="space-y-1.5" id="reg-pendamping">
                   <label class="form-label-aligned">
                     <i class="ri-user-star-line text-primary"></i>
-                    <span>Nama Guru Pembina / Pendamping <span class="text-red-500">*</span></span>
+                    <span>{{ getFieldLabel('mentor_name', 'Nama Guru Pembina / Pendamping') }} <span class="text-red-500">*</span></span>
                   </label>
                   <input 
                     v-model="form.mentor_name"
                     @input="clearFieldError('mentor_name')"
                     class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('mentor_name') }"
-                    placeholder="Contoh: Ust. Ahmad Hidayat, S.Pd." 
+                    :placeholder="getFieldPlaceholder('mentor_name', 'Contoh: Ustadz Ahmad Fauzi, S.Pd')" 
                     required 
                     type="text"
                   >
                   <p v-if="getFieldError('mentor_name')" class="text-xs text-red-500 font-medium">{{ getFieldError('mentor_name') }}</p>
+                  <p v-else-if="getFieldHelpText('mentor_name')" class="text-[11px] text-on-surface-variant">{{ getFieldHelpText('mentor_name') }}</p>
                 </div>
 
                 <!-- Nomor WhatsApp Aktif Pembina -->
                 <div class="space-y-1.5" id="reg-wa">
                   <label class="form-label-aligned">
                     <i class="ri-whatsapp-line text-emerald-600"></i>
-                    <span>Nomor WhatsApp Aktif Pembina <span class="text-red-500">*</span></span>
+                    <span>{{ getFieldLabel('mentor_wa', 'Nomor WhatsApp Aktif Pembina') }} <span class="text-red-500">*</span></span>
                   </label>
                   <input 
                     v-model="form.mentor_wa"
                     @input="clearFieldError('mentor_wa')"
                     class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('mentor_wa') }"
-                    placeholder="0812-3456-7890 (Untuk Koordinasi & TM)" 
+                    :placeholder="getFieldPlaceholder('mentor_wa', 'Contoh: 081234567890')" 
                     required 
                     type="tel"
                   >
                   <p v-if="getFieldError('mentor_wa')" class="text-xs text-red-500 font-medium">{{ getFieldError('mentor_wa') }}</p>
+                  <p v-else-if="getFieldHelpText('mentor_wa')" class="text-[11px] text-on-surface-variant">{{ getFieldHelpText('mentor_wa') }}</p>
                 </div>
 
                 <!-- Email Aktif Pembina -->
                 <div class="space-y-1.5 md:col-span-2">
                   <label class="form-label-aligned">
                     <i class="ri-mail-line text-primary"></i>
-                    <span>Alamat Email Aktif Pembina <span class="text-xs text-on-surface-variant font-normal">(Untuk Tanda Terima &amp; Juknis)</span></span>
+                    <span>{{ getFieldLabel('mentor_email', 'Alamat Email Aktif Pembina') }} <span class="text-xs text-on-surface-variant font-normal">(Untuk Tanda Terima &amp; Juknis)</span></span>
                   </label>
                   <input 
                     v-model="form.custom_fields['mentor_email']"
                     class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                    placeholder="pembina@sekolah.sch.id / official@gmail.com" 
+                    :placeholder="getFieldPlaceholder('mentor_email', 'Contoh: pendamping@gmail.com / official@sekolah.sch.id')" 
                     type="email"
                   >
+                  <p v-if="getFieldHelpText('mentor_email')" class="text-[11px] text-on-surface-variant">{{ getFieldHelpText('mentor_email') }}</p>
                 </div>
               </div>
 
@@ -1048,7 +1098,7 @@ onMounted(() => {
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                   <label class="form-label-aligned">
                     <i class="ri-vip-crown-line text-primary"></i>
-                    <span>Punya Kode Paket Komplit (All-In)?</span>
+                    <span>{{ getFieldLabel('allin_code', 'Punya Kode Paket Komplit (All-In)?') }}</span>
                   </label>
                   <span class="text-[11px] text-amber-dark font-medium bg-amber-soft px-2 py-0.5 rounded w-fit">Gratis Biaya Cabang (Rp 0)</span>
                 </div>
@@ -1057,7 +1107,7 @@ onMounted(() => {
                     <input 
                       v-model="form.custom_fields['allin_code']"
                       type="text" 
-                      placeholder="Masukkan kode paket dari panitia kontingen (misal: SA26-XXXXXX)" 
+                      :placeholder="getFieldPlaceholder('allin_code', 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)')" 
                       class="w-full h-10 px-3.5 rounded-lg border border-border-subtle bg-white dark:bg-[#111d17] text-xs font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:font-body placeholder:normal-case placeholder:text-gray-400 text-on-surface"
                     >
                   </div>
@@ -1267,8 +1317,8 @@ onMounted(() => {
                         @input="clearFieldError(`p_${pIdx - 1}_name`)"
                         class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                         :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError(`p_${pIdx - 1}_name`) }"
-                        :placeholder="`Nama lengkap Siswa #${pIdx}...`" 
-                        :required="subFieldsConfig.name.required" 
+                        :placeholder="subFieldsConfig.name?.placeholder ? (subFieldsConfig.name.placeholder.includes('#') ? subFieldsConfig.name.placeholder.replace('#', `#${pIdx}`) : `${subFieldsConfig.name.placeholder} #${pIdx}`) : `Nama lengkap Siswa #${pIdx}...`" 
+                        :required="subFieldsConfig.name?.required" 
                         type="text"
                       >
                       <p v-if="getFieldError(`p_${pIdx - 1}_name`)" class="text-xs text-red-500 font-medium">{{ getFieldError(`p_${pIdx - 1}_name`) }}</p>
@@ -1286,7 +1336,7 @@ onMounted(() => {
                       <CustomSelect 
                         v-model="participants[pIdx - 1].grade"
                         :options="gradeOptions"
-                        placeholder="Pilih Kelas..."
+                        :placeholder="subFieldsConfig.grade?.placeholder || 'Pilih Kelas...'"
                         size="md"
                       />
                     </div>
@@ -1331,7 +1381,7 @@ onMounted(() => {
                       </label>
                       <IndoDatePicker 
                         v-model="participants[pIdx - 1].birth_date"
-                        placeholder="dd/mm/yyyy"
+                        :placeholder="subFieldsConfig.birth_date?.placeholder || 'dd/mm/yyyy'"
                         inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
                       />
                     </div>
@@ -1348,7 +1398,7 @@ onMounted(() => {
                       <input 
                         v-model="participants[pIdx - 1].nisn"
                         class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                        placeholder="Contoh: 0081234567" 
+                        :placeholder="subFieldsConfig.nisn?.placeholder || 'Contoh: 0081234567'" 
                         type="text"
                       >
                     </div>
@@ -1365,7 +1415,7 @@ onMounted(() => {
                       <input 
                         v-model="participants[pIdx - 1].custom_id"
                         class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                        placeholder="ID Siswa / Kartu Pelajar" 
+                        :placeholder="subFieldsConfig.custom_id?.placeholder || 'Contoh: ID-0912 / User ID Game'" 
                         type="text"
                       >
                     </div>
@@ -1382,7 +1432,7 @@ onMounted(() => {
                       <input 
                         v-model="participants[pIdx - 1].wa_number"
                         class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                        placeholder="08xxxxxxxxxx" 
+                        :placeholder="subFieldsConfig.wa_number?.placeholder || '08xxxxxxxxxx'" 
                         type="tel"
                       >
                     </div>
@@ -1399,7 +1449,7 @@ onMounted(() => {
                       <input 
                         v-model="participants[pIdx - 1].captain_wa"
                         class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface font-mono"
-                        placeholder="Contoh: 081234567890 (Untuk koordinasi panitia & kapten)"
+                        :placeholder="subFieldsConfig.captain_option?.placeholder || 'Contoh: 081234567890 (Untuk koordinasi panitia & kapten)'"
                         type="tel"
                         required
                       >
@@ -1447,14 +1497,14 @@ onMounted(() => {
                       <IndoDatePicker 
                         v-if="col.type === 'date'"
                         v-model="participants[pIdx - 1].custom_columns[col.id || col.label]"
-                        placeholder="dd/mm/yyyy"
+                        :placeholder="col.placeholder || 'dd/mm/yyyy'"
                         inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
                       />
                       <CustomSelect 
                         v-else-if="col.type === 'select'"
                         v-model="participants[pIdx - 1].custom_columns[col.id || col.label]"
                         :options="col.options || []"
-                        placeholder="Pilih Opsi..."
+                        :placeholder="col.placeholder || 'Pilih Opsi...'"
                         size="md"
                       />
                       <input 
@@ -1462,7 +1512,7 @@ onMounted(() => {
                         :type="col.type === 'number' ? 'number' : 'text'"
                         v-model="participants[pIdx - 1].custom_columns[col.id || col.label]"
                         class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                        :placeholder="`Masukkan ${col.label}...`"
+                        :placeholder="col.placeholder || `Masukkan ${col.label}...`"
                       >
                     </div>
                   </div>
@@ -1606,7 +1656,7 @@ onMounted(() => {
                   <div v-else-if="field.type === 'date'">
                     <IndoDatePicker 
                       v-model="form.custom_fields[field.name]"
-                      placeholder="dd/mm/yyyy"
+                      :placeholder="field.placeholder || 'dd/mm/yyyy'"
                       inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
                     />
                   </div>

@@ -19,6 +19,7 @@ function applyTheme(theme) {
   currentTheme.value = theme;
   if (typeof document !== 'undefined') {
     const isPendaftar = typeof window !== 'undefined' && window.location.pathname.startsWith('/pendaftar');
+    const isFormulir = typeof window !== 'undefined' && window.location.pathname.startsWith('/formulir');
     const isPortalRoute = typeof window !== 'undefined' && 
       (window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/pendaftar') || window.location.pathname.startsWith('/operasional'));
 
@@ -27,7 +28,15 @@ function applyTheme(theme) {
     document.documentElement.setAttribute('data-sidebar', 'dark');
     document.documentElement.style.colorScheme = theme;
 
-    const bg = theme === 'dark' ? '#0b0f19' : (isPendaftar ? '#f8fafc' : (isPortalRoute ? '#f3f3f9' : '#ffffff'));
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+
+    const bg = theme === 'dark' 
+      ? (isFormulir ? '#09110d' : '#0b0f19') 
+      : (isFormulir ? '#f7faf7' : (isPendaftar ? '#f8fafc' : (isPortalRoute ? '#f3f3f9' : '#ffffff')));
     document.documentElement.style.backgroundColor = bg;
     if (document.body) {
       document.body.style.backgroundColor = bg;

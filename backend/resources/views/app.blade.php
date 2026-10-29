@@ -121,8 +121,10 @@
                     document.documentElement.style.colorScheme = t;
                     if (t === 'dark') {
                         document.documentElement.style.backgroundColor = isFormulir ? '#09110d' : '#0b0f19';
+                        document.documentElement.classList.add('dark');
                     } else {
                         document.documentElement.style.backgroundColor = isFormulir ? '#f7faf7' : '#f3f3f9';
+                        document.documentElement.classList.remove('dark');
                     }
                 } catch(e) {}
             })();
@@ -286,92 +288,6 @@
             [data-bs-theme="dark"] .preloader-status-text {
                 color: #cbd5e1;
             }
-
-            @if(request()->is('formulir*'))
-            /* Formulir Pendaftaran Dedicated Emerald Palette */
-            [data-bs-theme="dark"] #public-preloader {
-                background-color: #09110d !important;
-                color: #f1f5f9 !important;
-            }
-            [data-bs-theme="dark"] .preloader-glow-1 {
-                background: radial-gradient(circle, rgba(0, 105, 72, 0.28) 0%, rgba(16, 185, 129, 0.12) 45%, transparent 70%) !important;
-            }
-            [data-bs-theme="dark"] .preloader-glow-2 {
-                background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 65%) !important;
-            }
-            [data-bs-theme="dark"] .preloader-logo-badge {
-                background: #111d17 !important;
-                border: 1.5px solid rgba(0, 105, 72, 0.45) !important;
-                box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(134, 239, 172, 0.15) !important;
-            }
-            [data-bs-theme="dark"] .preloader-badge-tag {
-                background: rgba(0, 105, 72, 0.25) !important;
-                border: 1px solid rgba(134, 239, 172, 0.35) !important;
-                color: #86efac !important;
-            }
-            [data-bs-theme="dark"] .preloader-school-title {
-                color: #f1f5f9 !important;
-            }
-            [data-bs-theme="dark"] .preloader-progress-track {
-                background: rgba(30, 53, 41, 0.85) !important;
-            }
-            [data-bs-theme="dark"] .preloader-status-text {
-                color: #cbd5e1 !important;
-            }
-
-            [data-bs-theme="light"] #public-preloader,
-            :root:not([data-bs-theme="dark"]) #public-preloader {
-                background-color: #f7faf7 !important;
-                color: #171d19 !important;
-            }
-            [data-bs-theme="light"] .preloader-glow-1,
-            :root:not([data-bs-theme="dark"]) .preloader-glow-1 {
-                background: radial-gradient(circle, rgba(0, 105, 72, 0.12) 0%, rgba(16, 185, 129, 0.06) 45%, transparent 70%) !important;
-            }
-            [data-bs-theme="light"] .preloader-glow-2,
-            :root:not([data-bs-theme="dark"]) .preloader-glow-2 {
-                background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 65%) !important;
-            }
-            [data-bs-theme="light"] .preloader-logo-badge,
-            :root:not([data-bs-theme="dark"]) .preloader-logo-badge {
-                background: #ffffff !important;
-                border: 1.5px solid rgba(0, 105, 72, 0.2) !important;
-                box-shadow: 0 16px 36px -10px rgba(0, 105, 72, 0.22), 0 0 0 1px rgba(226, 232, 240, 0.85) !important;
-            }
-            [data-bs-theme="light"] .preloader-badge-tag,
-            :root:not([data-bs-theme="dark"]) .preloader-badge-tag {
-                background: rgba(0, 105, 72, 0.08) !important;
-                border: 1px solid rgba(0, 105, 72, 0.22) !important;
-                color: #006948 !important;
-            }
-            [data-bs-theme="light"] .preloader-school-title,
-            :root:not([data-bs-theme="dark"]) .preloader-school-title {
-                color: #171d19 !important;
-            }
-            [data-bs-theme="light"] .preloader-progress-track,
-            :root:not([data-bs-theme="dark"]) .preloader-progress-track {
-                background: rgba(226, 232, 240, 0.85) !important;
-            }
-            [data-bs-theme="light"] .preloader-status-text,
-            :root:not([data-bs-theme="dark"]) .preloader-status-text {
-                color: #3d4a42 !important;
-            }
-
-            .preloader-orbit-outer {
-                border-top-color: #006948 !important;
-                border-right-color: #10b981 !important;
-                border-bottom-color: #059669 !important;
-            }
-            .preloader-orbit-inner {
-                border: 1.5px dashed rgba(0, 105, 72, 0.4) !important;
-            }
-            .preloader-logo-halo {
-                background: radial-gradient(circle, rgba(0, 105, 72, 0.35) 0%, rgba(16, 185, 129, 0.15) 50%, transparent 70%) !important;
-            }
-            .preloader-progress-bar {
-                background: linear-gradient(90deg, #006948 0%, #00855d 40%, #10b981 80%, #34d399 100%) !important;
-            }
-            @endif
 
                 .preloader-glow-orb {
                     position: absolute;
@@ -582,6 +498,94 @@
                     100% { opacity: 1; transform: translateY(0) scale(1); }
                 }
             </style>
+
+            @if(request()->is('formulir*'))
+                <style id="formulir-preloader-palette">
+                    /* Formulir Pendaftaran Dedicated Emerald Palette */
+                    [data-bs-theme="dark"] #public-preloader {
+                        background-color: #09110d !important;
+                        color: #f1f5f9 !important;
+                    }
+                    [data-bs-theme="dark"] .preloader-glow-1 {
+                        background: radial-gradient(circle, rgba(0, 105, 72, 0.28) 0%, rgba(16, 185, 129, 0.12) 45%, transparent 70%) !important;
+                    }
+                    [data-bs-theme="dark"] .preloader-glow-2 {
+                        background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 65%) !important;
+                    }
+                    [data-bs-theme="dark"] .preloader-logo-badge {
+                        background: #111d17 !important;
+                        border: 1.5px solid rgba(0, 105, 72, 0.45) !important;
+                        box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(134, 239, 172, 0.15) !important;
+                    }
+                    [data-bs-theme="dark"] .preloader-badge-tag {
+                        background: rgba(0, 105, 72, 0.25) !important;
+                        border: 1px solid rgba(134, 239, 172, 0.35) !important;
+                        color: #86efac !important;
+                    }
+                    [data-bs-theme="dark"] .preloader-school-title {
+                        color: #f1f5f9 !important;
+                    }
+                    [data-bs-theme="dark"] .preloader-progress-track {
+                        background: rgba(30, 53, 41, 0.85) !important;
+                    }
+                    [data-bs-theme="dark"] .preloader-status-text {
+                        color: #cbd5e1 !important;
+                    }
+
+                    [data-bs-theme="light"] #public-preloader,
+                    :root:not([data-bs-theme="dark"]) #public-preloader {
+                        background-color: #f7faf7 !important;
+                        color: #171d19 !important;
+                    }
+                    [data-bs-theme="light"] .preloader-glow-1,
+                    :root:not([data-bs-theme="dark"]) .preloader-glow-1 {
+                        background: radial-gradient(circle, rgba(0, 105, 72, 0.12) 0%, rgba(16, 185, 129, 0.06) 45%, transparent 70%) !important;
+                    }
+                    [data-bs-theme="light"] .preloader-glow-2,
+                    :root:not([data-bs-theme="dark"]) .preloader-glow-2 {
+                        background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 65%) !important;
+                    }
+                    [data-bs-theme="light"] .preloader-logo-badge,
+                    :root:not([data-bs-theme="dark"]) .preloader-logo-badge {
+                        background: #ffffff !important;
+                        border: 1.5px solid rgba(0, 105, 72, 0.2) !important;
+                        box-shadow: 0 16px 36px -10px rgba(0, 105, 72, 0.22), 0 0 0 1px rgba(226, 232, 240, 0.85) !important;
+                    }
+                    [data-bs-theme="light"] .preloader-badge-tag,
+                    :root:not([data-bs-theme="dark"]) .preloader-badge-tag {
+                        background: rgba(0, 105, 72, 0.08) !important;
+                        border: 1px solid rgba(0, 105, 72, 0.22) !important;
+                        color: #006948 !important;
+                    }
+                    [data-bs-theme="light"] .preloader-school-title,
+                    :root:not([data-bs-theme="dark"]) .preloader-school-title {
+                        color: #171d19 !important;
+                    }
+                    [data-bs-theme="light"] .preloader-progress-track,
+                    :root:not([data-bs-theme="dark"]) .preloader-progress-track {
+                        background: rgba(226, 232, 240, 0.85) !important;
+                    }
+                    [data-bs-theme="light"] .preloader-status-text,
+                    :root:not([data-bs-theme="dark"]) .preloader-status-text {
+                        color: #3d4a42 !important;
+                    }
+
+                    .preloader-orbit-outer {
+                        border-top-color: #006948 !important;
+                        border-right-color: #10b981 !important;
+                        border-bottom-color: #059669 !important;
+                    }
+                    .preloader-orbit-inner {
+                        border: 1.5px dashed rgba(0, 105, 72, 0.4) !important;
+                    }
+                    .preloader-logo-halo {
+                        background: radial-gradient(circle, rgba(0, 105, 72, 0.35) 0%, rgba(16, 185, 129, 0.15) 50%, transparent 70%) !important;
+                    }
+                    .preloader-progress-bar {
+                        background: linear-gradient(90deg, #006948 0%, #00855d 40%, #10b981 80%, #34d399 100%) !important;
+                    }
+                </style>
+            @endif
         @endif
 
     @inertiaHead

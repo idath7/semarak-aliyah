@@ -32,6 +32,7 @@
 @import '@fontsource/montserrat/800.css';
 @import '@fontsource/libre-barcode-39/400.css';
 @import "tailwindcss";
+@custom-variant dark (&:where([data-bs-theme="dark"], [data-bs-theme="dark"] *, .dark, .dark *));
 
 @theme {
   --color-surface-bright: #f5fbf5;

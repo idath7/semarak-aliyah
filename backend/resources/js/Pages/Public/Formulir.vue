@@ -918,7 +918,7 @@ onMounted(() => {
                     @input="onSchoolInput"
                     @focus="onSchoolInput"
                     @blur="onSchoolBlur"
-                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('school_name') }"
                     placeholder="Contoh: MTs Unggulan Balung atau SMP Negeri 1 Jember" 
                     required 
@@ -969,7 +969,7 @@ onMounted(() => {
                   </label>
                   <input 
                     v-model="form.custom_fields['school_npsn']"
-                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     placeholder="Contoh: 20524589" 
                     type="text"
                   >
@@ -984,7 +984,7 @@ onMounted(() => {
                   <textarea 
                     rows="2"
                     v-model="form.custom_fields['school_address']"
-                    class="w-full p-3 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    class="w-full p-3 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('school_address') }"
                     placeholder="Contoh: Jl. Raya Puger No. 20, Balung Kulon, Kec. Balung, Kab. Jember"
                     required
@@ -1001,7 +1001,7 @@ onMounted(() => {
                   <input 
                     v-model="form.mentor_name"
                     @input="clearFieldError('mentor_name')"
-                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('mentor_name') }"
                     placeholder="Contoh: Ust. Ahmad Hidayat, S.Pd." 
                     required 
@@ -1019,7 +1019,7 @@ onMounted(() => {
                   <input 
                     v-model="form.mentor_wa"
                     @input="clearFieldError('mentor_wa')"
-                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('mentor_wa') }"
                     placeholder="0812-3456-7890 (Untuk Koordinasi & TM)" 
                     required 
@@ -1036,7 +1036,7 @@ onMounted(() => {
                   </label>
                   <input 
                     v-model="form.custom_fields['mentor_email']"
-                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     placeholder="pembina@sekolah.sch.id / official@gmail.com" 
                     type="email"
                   >
@@ -1265,7 +1265,7 @@ onMounted(() => {
                       <input 
                         v-model="participants[pIdx - 1].name"
                         @input="clearFieldError(`p_${pIdx - 1}_name`)"
-                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                         :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError(`p_${pIdx - 1}_name`) }"
                         :placeholder="`Nama lengkap Siswa #${pIdx}...`" 
                         :required="subFieldsConfig.name.required" 
@@ -1302,7 +1302,7 @@ onMounted(() => {
                       </label>
                       <div class="grid grid-cols-2 gap-2 h-11">
                         <label 
-                          class="inline-flex items-center justify-center gap-1.5 border border-border-subtle rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
+                          class="inline-flex items-center justify-center gap-1.5 border border-border-subtle bg-background/40 rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
                           :class="{ 'bg-emerald-light border-primary text-primary': participants[pIdx - 1].gender === 'L' }"
                           @click="participants[pIdx - 1].gender = 'L'"
                         >
@@ -1310,7 +1310,7 @@ onMounted(() => {
                           <span>Laki-Laki</span>
                         </label>
                         <label 
-                          class="inline-flex items-center justify-center gap-1.5 border border-border-subtle rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
+                          class="inline-flex items-center justify-center gap-1.5 border border-border-subtle bg-background/40 rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
                           :class="{ 'bg-emerald-light border-primary text-primary': participants[pIdx - 1].gender === 'P' }"
                           @click="participants[pIdx - 1].gender = 'P'"
                         >
@@ -1332,7 +1332,7 @@ onMounted(() => {
                       <IndoDatePicker 
                         v-model="participants[pIdx - 1].birth_date"
                         placeholder="dd/mm/yyyy"
-                        inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
+                        inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
                       />
                     </div>
 
@@ -1347,7 +1347,7 @@ onMounted(() => {
                       </label>
                       <input 
                         v-model="participants[pIdx - 1].nisn"
-                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                         placeholder="Contoh: 0081234567" 
                         type="text"
                       >
@@ -1364,7 +1364,7 @@ onMounted(() => {
                       </label>
                       <input 
                         v-model="participants[pIdx - 1].custom_id"
-                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                         placeholder="ID Siswa / Kartu Pelajar" 
                         type="text"
                       >
@@ -1381,7 +1381,7 @@ onMounted(() => {
                       </label>
                       <input 
                         v-model="participants[pIdx - 1].wa_number"
-                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                         placeholder="08xxxxxxxxxx" 
                         type="tel"
                       >
@@ -1448,7 +1448,7 @@ onMounted(() => {
                         v-if="col.type === 'date'"
                         v-model="participants[pIdx - 1].custom_columns[col.id || col.label]"
                         placeholder="dd/mm/yyyy"
-                        inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
+                        inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
                       />
                       <CustomSelect 
                         v-else-if="col.type === 'select'"
@@ -1461,7 +1461,7 @@ onMounted(() => {
                         v-else
                         :type="col.type === 'number' ? 'number' : 'text'"
                         v-model="participants[pIdx - 1].custom_columns[col.id || col.label]"
-                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                         :placeholder="`Masukkan ${col.label}...`"
                       >
                     </div>
@@ -1541,7 +1541,7 @@ onMounted(() => {
                         v-if="customFiles[field.name]"
                         type="button" 
                         @click.stop="clearCustomFile(field.name, $refs['file_input_' + field.name]?.[0])" 
-                        class="px-2.5 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 text-xs font-semibold cursor-pointer transition-colors"
+                        class="px-2.5 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/50 border border-red-200 text-xs font-semibold cursor-pointer transition-colors"
                         title="Hapus berkas"
                       >
                         <i class="ri-delete-bin-line leading-none"></i>
@@ -1565,7 +1565,7 @@ onMounted(() => {
                     <textarea 
                       rows="3"
                       v-model="form.custom_fields[field.name]"
-                      class="w-full p-3 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                      class="w-full p-3 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                       :placeholder="field.placeholder || `Tuliskan ${field.label}...`"
                     ></textarea>
                   </div>
@@ -1607,7 +1607,7 @@ onMounted(() => {
                     <IndoDatePicker 
                       v-model="form.custom_fields[field.name]"
                       placeholder="dd/mm/yyyy"
-                      inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
+                      inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
                     />
                   </div>
 
@@ -1617,7 +1617,7 @@ onMounted(() => {
                       :type="field.type === 'number' ? 'tel' : (field.type === 'email' ? 'email' : 'text')"
                       v-model="form.custom_fields[field.name]"
                       @input="field.type === 'number' ? (form.custom_fields[field.name] = String($event.target.value).replace(/\D/g, '')) : null"
-                      class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                      class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                       :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError(field.name) }"
                       :placeholder="field.placeholder || `Masukkan ${field.label}...`"
                     >
@@ -1905,7 +1905,8 @@ onMounted(() => {
   flex-direction: column;
 }
 
-.semarak-root-page.dark {
+.semarak-root-page.dark,
+[data-bs-theme="dark"] .semarak-root-page {
   --color-primary: #10b981;
   --color-primary-container: #059669;
   --color-background: #09110d;
@@ -2027,9 +2028,69 @@ img.brand-logo,
 .bg-background\/40 { background-color: rgba(247, 250, 247, 0.5) !important; }
 .bg-primary\/20 { background-color: rgba(0, 105, 72, 0.2) !important; }
 .bg-primary\/10 { background-color: rgba(0, 105, 72, 0.1) !important; }
+.bg-amber-soft\/40 { background-color: rgba(254, 243, 199, 0.6) !important; }
 .border-primary\/40 { border-color: rgba(0, 105, 72, 0.4) !important; }
 .border-primary\/20 { border-color: rgba(0, 105, 72, 0.2) !important; }
 .border-primary\/10 { border-color: rgba(0, 105, 72, 0.1) !important; }
+
+/* Dark mode overrides for translucent backgrounds and accents */
+.semarak-root-page.dark .bg-emerald-light\/60,
+.semarak-root-page.dark .bg-emerald-light\/50,
+.semarak-root-page.dark .bg-emerald-light\/40,
+.semarak-root-page.dark .bg-emerald-light\/30,
+.semarak-root-page.dark .bg-emerald-light\/20,
+[data-bs-theme="dark"] .semarak-root-page .bg-emerald-light\/60,
+[data-bs-theme="dark"] .semarak-root-page .bg-emerald-light\/50,
+[data-bs-theme="dark"] .semarak-root-page .bg-emerald-light\/40,
+[data-bs-theme="dark"] .semarak-root-page .bg-emerald-light\/30,
+[data-bs-theme="dark"] .semarak-root-page .bg-emerald-light\/20 {
+  background-color: rgba(6, 95, 70, 0.32) !important;
+}
+
+.semarak-root-page.dark .bg-background\/50,
+[data-bs-theme="dark"] .semarak-root-page .bg-background\/50 {
+  background-color: rgba(17, 29, 23, 0.75) !important;
+}
+
+.semarak-root-page.dark .bg-background\/40,
+[data-bs-theme="dark"] .semarak-root-page .bg-background\/40 {
+  background-color: rgba(17, 29, 23, 0.6) !important;
+}
+
+.semarak-root-page.dark .bg-primary\/20,
+[data-bs-theme="dark"] .semarak-root-page .bg-primary\/20 {
+  background-color: rgba(16, 185, 129, 0.22) !important;
+}
+
+.semarak-root-page.dark .bg-primary\/10,
+[data-bs-theme="dark"] .semarak-root-page .bg-primary\/10 {
+  background-color: rgba(16, 185, 129, 0.14) !important;
+}
+
+.semarak-root-page.dark .bg-amber-soft\/40,
+[data-bs-theme="dark"] .semarak-root-page .bg-amber-soft\/40 {
+  background-color: rgba(180, 83, 9, 0.22) !important;
+}
+
+.semarak-root-page.dark .border-primary\/40,
+[data-bs-theme="dark"] .semarak-root-page .border-primary\/40 {
+  border-color: rgba(16, 185, 129, 0.45) !important;
+}
+
+.semarak-root-page.dark .border-primary\/20,
+[data-bs-theme="dark"] .semarak-root-page .border-primary\/20 {
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.semarak-root-page.dark .border-primary\/10,
+[data-bs-theme="dark"] .semarak-root-page .border-primary\/10 {
+  border-color: rgba(16, 185, 129, 0.2) !important;
+}
+
+.semarak-root-page.dark .bg-white,
+[data-bs-theme="dark"] .semarak-root-page .bg-white {
+  background-color: #111d17 !important;
+}
 
 /* Border radius */
 .rounded-2xl { border-radius: 1rem !important; }
@@ -2257,7 +2318,7 @@ div.flex > h4 {
 }
 
 /* Perfect input styling */
-input[type="text"], input[type="tel"], input[type="email"] {
+input[type="text"], input[type="tel"], input[type="email"], input[type="number"], textarea {
   height: 2.75rem !important; /* 44px (h-11) */
   border-radius: 0.75rem !important; /* 12px (rounded-xl) */
   border: 1px solid var(--color-border-subtle, #E2E8F0) !important;
@@ -2272,12 +2333,48 @@ input[type="text"], input[type="tel"], input[type="email"] {
   transition: all 0.15s ease !important;
 }
 
+textarea {
+  height: auto !important;
+  min-height: 5.5rem !important;
+  padding: 0.75rem 0.875rem !important;
+}
+
 .semarak-root-page.dark input[type="text"], 
 .semarak-root-page.dark input[type="tel"], 
-.semarak-root-page.dark input[type="email"] {
-  background-color: rgba(17, 29, 23, 0.6) !important;
+.semarak-root-page.dark input[type="email"],
+.semarak-root-page.dark input[type="number"],
+.semarak-root-page.dark textarea,
+[data-bs-theme="dark"] .semarak-root-page input[type="text"],
+[data-bs-theme="dark"] .semarak-root-page input[type="tel"],
+[data-bs-theme="dark"] .semarak-root-page input[type="email"],
+[data-bs-theme="dark"] .semarak-root-page input[type="number"],
+[data-bs-theme="dark"] .semarak-root-page textarea {
+  background-color: rgba(17, 29, 23, 0.75) !important;
   border-color: #1e3529 !important;
   color: #f8fafc !important;
+}
+
+.semarak-root-page.dark input::placeholder,
+.semarak-root-page.dark textarea::placeholder,
+[data-bs-theme="dark"] .semarak-root-page input::placeholder,
+[data-bs-theme="dark"] .semarak-root-page textarea::placeholder {
+  color: #64748b !important;
+}
+
+input:focus, textarea:focus {
+  background-color: var(--color-surface-card, #FFFFFF) !important;
+  border-color: var(--color-primary, #006948) !important;
+  box-shadow: 0 0 0 2px rgba(0, 105, 72, 0.2) !important;
+}
+
+.semarak-root-page.dark input:focus,
+.semarak-root-page.dark textarea:focus,
+[data-bs-theme="dark"] .semarak-root-page input:focus,
+[data-bs-theme="dark"] .semarak-root-page textarea:focus {
+  background-color: #16241d !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25) !important;
+  color: #ffffff !important;
 }
 
 /* Datepicker position & padding protection */
@@ -2303,12 +2400,6 @@ input[type="text"].pl-10, input[type="tel"].pl-10, input[type="email"].pl-10 {
   padding-left: 2.5rem !important;
 }
 
-input:focus, textarea:focus {
-  background-color: var(--color-surface-card, #FFFFFF) !important;
-  border-color: var(--color-primary, #006948) !important;
-  box-shadow: 0 0 0 2px rgba(0, 105, 72, 0.2) !important;
-}
-
 /* Header & Footer specific */
 .reg-header {
   position: sticky !important;
@@ -2320,9 +2411,21 @@ input:focus, textarea:focus {
   border-bottom: 1px solid var(--color-border-subtle, #E2E8F0) !important;
 }
 
-.semarak-root-page.dark .reg-header {
+.semarak-root-page.dark .reg-header,
+[data-bs-theme="dark"] .semarak-root-page .reg-header {
   background-color: rgba(17, 29, 23, 0.95) !important;
   border-bottom-color: #1e3529 !important;
+}
+
+.reg-footer {
+  background-color: #ffffff !important;
+  border-top: 1px solid var(--color-border-subtle, #E2E8F0) !important;
+}
+
+.semarak-root-page.dark .reg-footer,
+[data-bs-theme="dark"] .semarak-root-page .reg-footer {
+  background-color: #111d17 !important;
+  border-top-color: #1e3529 !important;
 }
 
 /* Pulse Animation */
@@ -2334,7 +2437,7 @@ input:focus, textarea:focus {
   animation: pulseDot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
 }
 
-/* CustomSelect Uniform Height */
+/* CustomSelect Uniform Height & Dark Theme Styling */
 :deep(.custom-select-trigger) {
   height: 2.75rem !important; /* 44px */
   border-radius: 0.75rem !important; /* 12px */
@@ -2344,8 +2447,9 @@ input:focus, textarea:focus {
   color: var(--color-on-surface, #171d19) !important;
 }
 
-.semarak-root-page.dark :deep(.custom-select-trigger) {
-  background-color: rgba(17, 29, 23, 0.6) !important;
+.semarak-root-page.dark :deep(.custom-select-trigger),
+[data-bs-theme="dark"] .semarak-root-page :deep(.custom-select-trigger) {
+  background-color: rgba(17, 29, 23, 0.75) !important;
   border-color: #1e3529 !important;
   color: #f8fafc !important;
 }
@@ -2354,16 +2458,80 @@ input:focus, textarea:focus {
   border-color: rgba(0, 105, 72, 0.6) !important;
 }
 
+.semarak-root-page.dark :deep(.custom-select-trigger:hover),
+[data-bs-theme="dark"] .semarak-root-page :deep(.custom-select-trigger:hover) {
+  border-color: rgba(16, 185, 129, 0.6) !important;
+}
+
 :deep(.custom-select-trigger.is-open) {
   border-color: var(--color-primary, #006948) !important;
   box-shadow: 0 0 0 2px rgba(0, 105, 72, 0.2) !important;
   background-color: var(--color-surface-card, #FFFFFF) !important;
 }
 
-:deep(.custom-select-dropdown) {
+.semarak-root-page.dark :deep(.custom-select-trigger.is-open),
+[data-bs-theme="dark"] .semarak-root-page :deep(.custom-select-trigger.is-open) {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25) !important;
+  background-color: #111d17 !important;
+  color: #ffffff !important;
+}
+
+/* CustomSelect Dropdown Menu styling */
+:deep(.custom-select-menu) {
   border-radius: 0.75rem !important;
   border-color: var(--color-border-subtle, #E2E8F0) !important;
   background-color: var(--color-surface-card, #FFFFFF) !important;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.semarak-root-page.dark :deep(.custom-select-menu),
+[data-bs-theme="dark"] .semarak-root-page :deep(.custom-select-menu) {
+  border-radius: 0.75rem !important;
+  border-color: #1e3529 !important;
+  background-color: #111d17 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
+  color: #f8fafc !important;
+}
+
+.semarak-root-page.dark :deep(.custom-select-menu .search-box-wrapper),
+[data-bs-theme="dark"] .semarak-root-page :deep(.custom-select-menu .search-box-wrapper) {
+  background-color: #111d17 !important;
+  border-bottom-color: #1e3529 !important;
+}
+
+.semarak-root-page.dark :deep(.custom-select-menu .custom-search-input),
+[data-bs-theme="dark"] .semarak-root-page :deep(.custom-select-menu .custom-search-input) {
+  background-color: #0d1511 !important;
+  border-color: #1e3529 !important;
+  color: #f8fafc !important;
+}
+
+.semarak-root-page.dark :deep(.custom-select-menu .custom-select-item),
+[data-bs-theme="dark"] .semarak-root-page :deep(.custom-select-menu .custom-select-item) {
+  color: #cbd5e1 !important;
+}
+
+.semarak-root-page.dark :deep(.custom-select-menu .custom-select-item:hover),
+[data-bs-theme="dark"] .semarak-root-page :deep(.custom-select-menu .custom-select-item:hover) {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #ffffff !important;
+}
+
+.semarak-root-page.dark :deep(.custom-select-menu .custom-select-item.is-selected),
+[data-bs-theme="dark"] .semarak-root-page :deep(.custom-select-menu .custom-select-item.is-selected) {
+  background-color: rgba(16, 185, 129, 0.22) !important;
+  color: #86efac !important;
+  border-left-color: #10b981 !important;
+}
+
+.semarak-root-page.dark :deep(.custom-select-menu .custom-select-item.is-selected .opt-label span),
+[data-bs-theme="dark"] .semarak-root-page :deep(.custom-select-menu .custom-select-item.is-selected .opt-label span) {
+  color: #86efac !important;
+}
+
+.semarak-root-page.dark :deep(.custom-select-menu .custom-select-item.is-selected .check-icon),
+[data-bs-theme="dark"] .semarak-root-page :deep(.custom-select-menu .custom-select-item.is-selected .check-icon) {
+  color: #10b981 !important;
 }
 </style>

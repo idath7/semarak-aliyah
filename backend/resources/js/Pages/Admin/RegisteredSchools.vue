@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
+import IndoDatePicker from '@/Components/IndoDatePicker.vue';
 import { useToast } from '@/Composables/useToast';
 import { useConfirmDialog } from '@/Composables/useConfirmDialog';
 import { getWaChatUrl } from '@/Utils/whatsapp';
@@ -16,6 +17,7 @@ const props = defineProps({
   filters: { type: Object, default: () => ({}) },
 });
 
+const page = usePage();
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirmDialog();
 
@@ -109,11 +111,6 @@ const manualForm = ref({
   competition_ids: [],
   custom_fee: null,
   package_price: props.package_allin_price,
-  students: [
-    { name: '', nisn: '', gender: 'Laki-laki', grade: '7' }
-  ],
-  participants_text: '',
-  input_students_mode: 'list', // 'list' | 'text'
   payment_status: 'Terverifikasi',
   payment_method: 'Tunai di Meja Panitia',
   notes: 'Pendaftaran langsung on-the-spot di Meja Panitia',
@@ -189,11 +186,6 @@ function openManualModal(prefilledSchool = null) {
     competition_ids: prefilledSchool?.competitions ? prefilledSchool.competitions.map(c => c.competition_id) : [],
     custom_fee: null,
     package_price: props.package_allin_price,
-    students: [
-      { name: '', nisn: '', gender: 'Laki-laki', grade: '7' }
-    ],
-    participants_text: '',
-    input_students_mode: 'list',
     payment_status: 'Terverifikasi',
     payment_method: 'Tunai di Meja Panitia',
     notes: 'Pendaftaran langsung on-the-spot di Meja Panitia',
@@ -211,21 +203,6 @@ function openManualModal(prefilledSchool = null) {
   }
 
   showManualModal.value = true;
-}
-
-function addStudentRow() {
-  manualForm.value.students.push({
-    name: '',
-    nisn: '',
-    gender: 'Laki-laki',
-    grade: '7'
-  });
-}
-
-function removeStudentRow(index) {
-  if (manualForm.value.students.length > 1) {
-    manualForm.value.students.splice(index, 1);
-  }
 }
 
 function toggleAllInCompetition(compId) {
@@ -288,24 +265,247 @@ async function submitManualRegistration() {
     competition_ids: manualForm.value.package_type === 'Paket All-In' ? manualForm.value.competition_ids : [],
     custom_fee: manualForm.value.custom_fee,
     package_price: manualForm.value.package_price,
-    students: manualForm.value.input_students_mode === 'list' ? manualForm.value.students : null,
-    participants_text: manualForm.value.input_students_mode === 'text' ? manualForm.value.participants_text : null,
     payment_status: manualForm.value.payment_status,
     payment_method: manualForm.value.payment_method,
     notes: manualForm.value.notes,
   }, {
-    onSuccess: () => {
+    onSuccess: (pageRes) => {
       isSubmittingManual.value = false;
       showManualModal.value = false;
       toast.showToast({
         type: 'success',
-        title: 'Pendaftaran Berhasil',
-        message: 'Data pendaftaran on-the-spot meja panitia berhasil disimpan!'
+        title: 'Pendaftaran Sekolah Berhasil',
+        message: 'Informasi sekolah & pendamping berhasil disimpan!'
       });
+
+      // Buka otomatis modal input peserta delegasi sesuai aturan form builder jika ada registrasi baru
+      const newlyReg = pageRes.props?.flash?.newly_registered || page.props.flash?.newly_registered;
+      if (newlyReg) {
+        openParticipantModal(newlyReg);
+      }
     },
     onError: (errs) => {
       isSubmittingManual.value = false;
       const msg = Object.values(errs)[0] || 'Terjadi kesalahan saat menyimpan pendaftaran.';
+      toast.showToast({ type: 'danger', title: 'Gagal', message: msg });
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
+// MODAL: INPUT / KELOLA PESERTA DELEGASI (ATURAN FORM BUILDER)
+// -----------------------------------------------------------------------------
+const showParticipantModal = ref(false);
+const isSubmittingParticipants = ref(false);
+const activeRegForParticipants = ref(null);
+const activeCompetitionConfig = ref(null);
+const participantForm = ref({
+  delegates: [],
+  additional_fields: {},
+});
+
+// Helper: Extract form builder subfields and rules for active competition
+const activeBuilderRules = computed(() => {
+  if (!activeCompetitionConfig.value) {
+    return {
+      min_items: 1,
+      max_items: 1,
+      sub_fields: {
+        name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+        gender: { active: true, required: true, label: 'Jenis Kelamin' },
+        grade: { active: true, required: true, label: 'Kelas' },
+        nisn: { active: true, required: false, label: 'NISN' },
+        birth_date: { active: false, required: false, label: 'Tanggal Lahir' },
+        custom_id: { active: false, required: false, label: 'ID Siswa / No Dada' },
+        wa_number: { active: false, required: false, label: 'WhatsApp Siswa' },
+        captain_option: { active: false, required: false, label: 'Kapten Tim' },
+        custom_columns: [],
+      },
+      additional_fields: [],
+      participant_type: 'Delegasi Siswa',
+    };
+  }
+
+  const comp = activeCompetitionConfig.value;
+  const customFields = Array.isArray(comp.custom_fields) ? comp.custom_fields : [];
+  
+  // Cari field bertipe participant_repeater dari Form Builder
+  const repeater = customFields.find(f => f.type === 'participant_repeater');
+  
+  const minItems = repeater?.min_items 
+    ? Number(repeater.min_items) 
+    : Math.max(1, Number(comp.min_participants || 1));
+
+  const maxItems = repeater?.max_items 
+    ? Number(repeater.max_items) 
+    : Math.max(minItems, Number(comp.max_participants || comp.max_delegates || 1));
+
+  // Normalisasi sub-fields sesuai Form Builder
+  const rawSubs = repeater?.sub_fields || {};
+  const subFields = {
+    name: { active: true, required: true, label: rawSubs.name?.label || 'Nama Lengkap Siswa', placeholder: rawSubs.name?.placeholder || 'Nama lengkap siswa...' },
+    gender: { active: rawSubs.gender?.active !== false, required: rawSubs.gender?.required !== false, label: rawSubs.gender?.label || 'Jenis Kelamin' },
+    grade: { active: rawSubs.grade?.active !== false, required: rawSubs.grade?.required !== false, label: rawSubs.grade?.label || 'Kelas' },
+    nisn: { active: rawSubs.nisn?.active !== false, required: !!rawSubs.nisn?.required, label: rawSubs.nisn?.label || 'NISN (Opsional)', placeholder: rawSubs.nisn?.placeholder || '0012345678' },
+    birth_date: { active: !!rawSubs.birth_date?.active, required: !!rawSubs.birth_date?.required, label: rawSubs.birth_date?.label || 'Tanggal Lahir (dd/mm/yyyy)' },
+    custom_id: { active: !!rawSubs.custom_id?.active, required: !!rawSubs.custom_id?.required, label: rawSubs.custom_id?.label || 'No. Dada / ID Game', placeholder: rawSubs.custom_id?.placeholder || 'ID Peserta...' },
+    wa_number: { active: !!rawSubs.wa_number?.active, required: !!rawSubs.wa_number?.required, label: rawSubs.wa_number?.label || 'No. WhatsApp Siswa', placeholder: rawSubs.wa_number?.placeholder || '08xxxxxxxxxx' },
+    captain_option: { active: !!rawSubs.captain_option?.active, required: false, label: rawSubs.captain_option?.label || 'Kapten Tim' },
+    custom_columns: Array.isArray(rawSubs.custom_columns) ? rawSubs.custom_columns : [],
+  };
+
+  // Additional custom fields (bukan identity dan bukan repeater)
+  const additionalFields = customFields.filter(f => {
+    if (f.type === 'participant_repeater') return false;
+    if (f.is_mandatory_identity) return false;
+    const standardIdentityNames = ['school_name', 'school_district', 'school_npsn', 'school_address', 'mentor_name', 'mentor_wa', 'mentor_email', 'allin_code'];
+    return !standardIdentityNames.includes(f.name);
+  });
+
+  return {
+    min_items: minItems,
+    max_items: maxItems,
+    sub_fields: subFields,
+    additional_fields: additionalFields,
+    participant_type: comp.participant_type || 'Delegasi Siswa',
+  };
+});
+
+function openParticipantModal(compReg, schoolContext = null) {
+  activeRegForParticipants.value = compReg;
+  
+  // Temukan konfigurasi competition dari props.competitions
+  const foundComp = props.competitions.find(c => String(c.id) === String(compReg.competition_id));
+  activeCompetitionConfig.value = foundComp || {
+    id: compReg.competition_id,
+    title: compReg.competition_title,
+    category: compReg.category_name,
+    min_participants: 1,
+    max_participants: 1,
+    custom_fields: [],
+  };
+
+  // Inisialisasi data delegates
+  const existingStudents = Array.isArray(compReg.students) && compReg.students.length > 0 
+    ? JSON.parse(JSON.stringify(compReg.students))
+    : (Array.isArray(compReg.custom_fields?.delegates) ? JSON.parse(JSON.stringify(compReg.custom_fields.delegates)) : []);
+
+  const minReq = activeBuilderRules.value.min_items || 1;
+  
+  // Bersihkan dan normalkan delegates
+  const normalizedDelegates = [];
+  if (existingStudents.length > 0) {
+    existingStudents.forEach((st) => {
+      normalizedDelegates.push({
+        name: st.name || st.nama_lengkap || '',
+        gender: st.gender || 'Laki-laki',
+        grade: st.grade || '7',
+        nisn: st.nisn && st.nisn !== '-' ? st.nisn : '',
+        birth_date: st.birth_date || '',
+        custom_id: st.custom_id || '',
+        wa_number: st.wa_number || '',
+        is_captain: !!st.is_captain,
+        captain_wa: st.captain_wa || '',
+        custom_columns: st.custom_columns || {},
+      });
+    });
+  }
+
+  // Pastikan minimal delegates terpenuhi
+  while (normalizedDelegates.length < minReq) {
+    normalizedDelegates.push({
+      name: '',
+      gender: 'Laki-laki',
+      grade: '7',
+      nisn: '',
+      birth_date: '',
+      custom_id: '',
+      wa_number: '',
+      is_captain: normalizedDelegates.length === 0 && !!activeBuilderRules.value.sub_fields.captain_option.active,
+      captain_wa: '',
+      custom_columns: {},
+    });
+  }
+
+  // Inisialisasi additional fields
+  const addFields = {};
+  activeBuilderRules.value.additional_fields.forEach(f => {
+    addFields[f.name] = compReg.custom_fields?.[f.name] || '';
+  });
+
+  participantForm.value = {
+    delegates: normalizedDelegates,
+    additional_fields: addFields,
+  };
+
+  showParticipantModal.value = true;
+}
+
+function addDelegateItem() {
+  const max = activeBuilderRules.value.max_items;
+  if (participantForm.value.delegates.length >= max) {
+    toast.showToast({ type: 'warning', title: 'Batas Maksimal', message: `Batas kuota delegasi untuk cabang ini maksimal ${max} orang siswa.` });
+    return;
+  }
+
+  participantForm.value.delegates.push({
+    name: '',
+    gender: 'Laki-laki',
+    grade: '7',
+    nisn: '',
+    birth_date: '',
+    custom_id: '',
+    wa_number: '',
+    is_captain: false,
+    captain_wa: '',
+    custom_columns: {},
+  });
+}
+
+function removeDelegateItem(index) {
+  const min = activeBuilderRules.value.min_items;
+  if (participantForm.value.delegates.length <= min) {
+    toast.showToast({ type: 'warning', title: 'Batas Minimal', message: `Cabang lomba ini mewajibkan minimal ${min} orang siswa delegasi.` });
+    return;
+  }
+  participantForm.value.delegates.splice(index, 1);
+}
+
+function setCaptain(index) {
+  participantForm.value.delegates.forEach((st, idx) => {
+    st.is_captain = (idx === index);
+  });
+}
+
+async function submitParticipants() {
+  if (!activeRegForParticipants.value) return;
+
+  // Validasi nama siswa
+  const emptyName = participantForm.value.delegates.some(d => !d.name || !d.name.trim());
+  if (emptyName) {
+    toast.showToast({ type: 'warning', title: 'Data Belum Lengkap', message: 'Seluruh nama lengkap siswa delegasi wajib diisi!' });
+    return;
+  }
+
+  isSubmittingParticipants.value = true;
+  const regId = activeRegForParticipants.value.registration_id;
+
+  router.post(`/admin/pendaftar/${regId}/update-participants`, {
+    delegates: participantForm.value.delegates,
+    additional_fields: participantForm.value.additional_fields,
+  }, {
+    onSuccess: () => {
+      isSubmittingParticipants.value = false;
+      showParticipantModal.value = false;
+      toast.showToast({
+        type: 'success',
+        title: 'Berhasil Disimpan',
+        message: 'Data peserta delegasi berhasil diperbarui sesuai aturan form builder!'
+      });
+    },
+    onError: (errs) => {
+      isSubmittingParticipants.value = false;
+      const msg = Object.values(errs)[0] || 'Terjadi kesalahan saat menyimpan delegasi.';
       toast.showToast({ type: 'danger', title: 'Gagal', message: msg });
     }
   });
@@ -793,19 +993,21 @@ function printReport() {
                   <div 
                     v-for="(comp, cIdx) in school.competitions" 
                     :key="cIdx"
-                    class="badge rounded-pill border p-1.5 px-2 text-start d-flex align-items-center gap-1.5"
+                    class="badge rounded-pill border p-1.5 px-2 text-start d-flex align-items-center gap-1.5 cursor-pointer hover-shadow-sm transition-all"
                     :class="{
                       'bg-success-subtle text-success border-success-subtle': comp.payment_status === 'Terverifikasi',
                       'bg-warning-subtle text-warning border-warning-subtle': comp.payment_status === 'Menunggu Verifikasi',
                       'bg-light text-dark border-secondary-subtle': comp.payment_status !== 'Terverifikasi' && comp.payment_status !== 'Menunggu Verifikasi'
                     }"
-                    :title="`Kode: ${comp.reg_code} | ${comp.participants_count} Siswa`"
+                    @click="openParticipantModal(comp, school)"
+                    :title="`Klik untuk Input / Kelola Peserta: ${comp.competition_title}`"
                   >
                     <i class="ri-medal-fill text-warning fs-12"></i>
                     <span class="fw-semibold fs-11">{{ comp.competition_title }}</span>
                     <span class="comp-participant-count" :title="`${comp.participants_count} Siswa`">
                       {{ comp.participants_count }}
                     </span>
+                    <i class="ri-edit-line fs-10 ms-0.5 opacity-75"></i>
                   </div>
                 </div>
               </div>
@@ -886,10 +1088,12 @@ function printReport() {
                       <span 
                         v-for="(comp, cI) in school.competitions" 
                         :key="cI"
-                        class="badge rounded-pill border fs-10 px-2 py-0.5"
+                        class="badge rounded-pill border fs-10 px-2 py-0.5 cursor-pointer hover-shadow-sm transition-all"
                         :class="comp.payment_status === 'Terverifikasi' ? 'bg-success-subtle text-success border-success-subtle' : 'bg-light text-dark'"
+                        @click="openParticipantModal(comp, school)"
+                        :title="`Klik untuk Input / Kelola Peserta: ${comp.competition_title}`"
                       >
-                        {{ comp.competition_title }} ({{ comp.participants_count }})
+                        {{ comp.competition_title }} ({{ comp.participants_count }}) <i class="ri-edit-line ms-0.5 opacity-75"></i>
                       </span>
                     </div>
                   </td>
@@ -1098,15 +1302,26 @@ function printReport() {
                     </div>
                   </div>
 
-                  <div class="card-footer bg-light p-2.5 border-top d-flex align-items-center justify-content-between">
+                  <div class="card-footer bg-light p-2.5 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <span class="fs-11 text-muted">Didaftarkan: {{ comp.created_at || '-' }}</span>
-                    <Link 
-                      :href="`/admin/pendaftar/${comp.registration_id}`" 
-                      class="btn btn-sm btn-primary py-1 px-2 fs-11 d-inline-flex align-items-center gap-1"
-                    >
-                      <i class="ri-survey-line"></i>
-                      <span>Verifikasi Detail & Formulir &rarr;</span>
-                    </Link>
+                    <div class="d-flex align-items-center gap-1.5">
+                      <button 
+                        type="button" 
+                        class="btn btn-sm btn-outline-success py-1 px-2.5 fs-11 d-inline-flex align-items-center gap-1 shadow-xs"
+                        @click="openParticipantModal(comp, activeSchool)"
+                        title="Input atau kelola data siswa delegasi sesuai aturan form builder cabang ini"
+                      >
+                        <i class="ri-user-star-line text-success"></i>
+                        <span>Input / Edit Peserta</span>
+                      </button>
+                      <Link 
+                        :href="`/admin/pendaftar/${comp.registration_id}`" 
+                        class="btn btn-sm btn-primary py-1 px-2 fs-11 d-inline-flex align-items-center gap-1"
+                      >
+                        <i class="ri-survey-line"></i>
+                        <span>Verifikasi &rarr;</span>
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1396,241 +1611,29 @@ function printReport() {
                 </div>
               </div>
 
-              <!-- 3. DELEGASI SISWA PESERTA -->
+              <!-- 3. INFORMASI ALUR PENGISIAN DELEGASI PESERTA -->
               <div class="col-12">
-                <div class="card shadow-sm border-0">
-                  <div class="card-header bg-white py-3 px-3 px-md-4 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
-                    <div>
-                      <span class="fw-bold text-dark fs-13 text-uppercase d-flex align-items-center gap-1.5">
-                        <i class="ri-team-line text-success fs-16"></i> 3. Data Delegasi Siswa (Peserta)
-                        <span class="badge bg-success-subtle text-success fs-11 px-2 py-0.5 rounded-pill ms-1">
-                          {{ manualForm.input_students_mode === 'list' ? manualForm.students.length + ' Siswa' : 'Mode Teks' }}
-                        </span>
-                      </span>
-                      <span class="fs-11 text-muted d-block mt-0.5">
-                        Lengkapi identitas delegasi siswa yang didaftarkan secara rinci.
-                      </span>
-                    </div>
-                    <div class="btn-group btn-group-sm" role="group">
-                      <button 
-                        type="button" 
-                        class="btn btn-sm py-1 px-3 fs-12 d-inline-flex align-items-center gap-1.5"
-                        :class="manualForm.input_students_mode === 'list' ? 'btn-primary' : 'btn-light border text-muted'"
-                        @click="manualForm.input_students_mode = 'list'"
-                      >
-                        <i class="ri-list-check"></i> Form Baris Siswa
-                      </button>
-                      <button 
-                        type="button" 
-                        class="btn btn-sm py-1 px-3 fs-12 d-inline-flex align-items-center gap-1.5"
-                        :class="manualForm.input_students_mode === 'text' ? 'btn-primary' : 'btn-light border text-muted'"
-                        @click="manualForm.input_students_mode = 'text'"
-                      >
-                        <i class="ri-file-text-line"></i> Paste Teks Daftar
-                      </button>
-                    </div>
-                  </div>
-
+                <div class="card shadow-sm border-0 border-start border-4 border-primary bg-primary-subtle bg-opacity-10">
                   <div class="card-body p-3 p-md-4">
-                    <!-- MODE 1: FORM LIST BARIS REPEATER (Spacious Responsive Cards/Grid) -->
-                    <div v-if="manualForm.input_students_mode === 'list'">
-                      <!-- Header Kolom untuk Desktop (≥ lg) -->
-                      <div 
-                        class="d-none d-lg-grid gap-3 align-items-center text-muted fs-11 fw-bold text-uppercase px-3 pb-2 border-bottom mb-2.5" 
-                        style="grid-template-columns: 44px 1fr 180px 160px 160px 44px;"
-                      >
-                        <div class="text-center">No</div>
-                        <div>Nama Lengkap Siswa <span class="text-danger">*</span></div>
-                        <div>NISN (Opsional)</div>
-                        <div>Jenis Kelamin</div>
-                        <div>Kelas</div>
-                        <div class="text-center">Aksi</div>
+                    <div class="d-flex align-items-start gap-3">
+                      <div class="avatar-sm flex-shrink-0 rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                        <i class="ri-user-follow-line fs-20"></i>
                       </div>
-
-                      <!-- List Baris Siswa -->
-                      <div class="d-flex flex-column gap-2.5">
-                        <div 
-                          v-for="(student, sIdx) in manualForm.students" 
-                          :key="sIdx"
-                          class="p-2.5 p-md-3 bg-white rounded-3 border shadow-none transition-all hover-shadow-sm position-relative"
-                        >
-                          <!-- Desktop Grid View (≥ lg) -->
-                          <div 
-                            class="d-none d-lg-grid gap-3 align-items-center" 
-                            style="grid-template-columns: 44px 1fr 180px 160px 160px 44px;"
-                          >
-                            <div class="text-center">
-                              <span class="badge bg-light text-dark border font-monospace fs-12 px-2 py-1 rounded-pill">
-                                {{ sIdx + 1 }}
-                              </span>
-                            </div>
-                            <div>
-                              <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light border-end-0 text-muted">
-                                  <i class="ri-user-line"></i>
-                                </span>
-                                <input 
-                                  type="text" 
-                                  v-model="student.name" 
-                                  class="form-control form-control-sm fs-12"
-                                  placeholder="Nama lengkap siswa delegasi..." 
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-light border-end-0 text-muted">
-                                  <i class="ri-barcode-line"></i>
-                                </span>
-                                <input 
-                                  type="text" 
-                                  v-model="student.nisn" 
-                                  class="form-control form-control-sm fs-12 font-monospace"
-                                  placeholder="0012345678" 
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <CustomSelect 
-                                v-model="student.gender" 
-                                :options="genderOptions" 
-                                size="sm"
-                              />
-                            </div>
-                            <div>
-                              <CustomSelect 
-                                v-model="student.grade" 
-                                :options="gradeOptions" 
-                                size="sm"
-                              />
-                            </div>
-                            <div class="text-center">
-                              <button 
-                                type="button" 
-                                class="btn btn-sm btn-outline-danger p-1.5 rounded-2 d-inline-flex align-items-center justify-content-center"
-                                :disabled="manualForm.students.length <= 1"
-                                @click="removeStudentRow(sIdx)"
-                                title="Hapus baris siswa"
-                                style="width: 34px; height: 34px;"
-                              >
-                                <i class="ri-delete-bin-line fs-14"></i>
-                              </button>
-                            </div>
-                          </div>
-
-                          <!-- Mobile & Tablet Responsive Form Card (< lg) -->
-                          <div class="d-block d-lg-none">
-                            <div class="d-flex align-items-center justify-content-between pb-2 mb-2.5 border-bottom">
-                              <div class="d-flex align-items-center gap-2">
-                                <span class="badge bg-primary-subtle text-primary font-monospace fs-11 px-2.5 py-1 rounded-pill fw-bold">
-                                  Siswa #{{ sIdx + 1 }}
-                                </span>
-                                <span class="fw-semibold text-dark fs-12 text-truncate" v-if="student.name">
-                                  {{ student.name }}
-                                </span>
-                              </div>
-                              <button 
-                                type="button" 
-                                class="btn btn-xs btn-outline-danger d-inline-flex align-items-center gap-1 py-1 px-2.5 rounded-pill"
-                                :disabled="manualForm.students.length <= 1"
-                                @click="removeStudentRow(sIdx)"
-                                title="Hapus baris siswa"
-                              >
-                                <i class="ri-delete-bin-line"></i> Hapus
-                              </button>
-                            </div>
-
-                            <div class="row g-2.5">
-                              <div class="col-12">
-                                <label class="form-label fs-11 fw-bold text-muted text-uppercase mb-1">
-                                  Nama Lengkap Siswa <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group input-group-sm">
-                                  <span class="input-group-text bg-light border-end-0 text-muted">
-                                    <i class="ri-user-line"></i>
-                                  </span>
-                                  <input 
-                                    type="text" 
-                                    v-model="student.name" 
-                                    class="form-control form-control-sm fs-12"
-                                    placeholder="Nama lengkap siswa delegasi..." 
-                                  />
-                                </div>
-                              </div>
-
-                              <div class="col-12 col-sm-4">
-                                <label class="form-label fs-11 fw-bold text-muted text-uppercase mb-1">
-                                  NISN (Opsional)
-                                </label>
-                                <div class="input-group input-group-sm">
-                                  <span class="input-group-text bg-light border-end-0 text-muted">
-                                    <i class="ri-barcode-line"></i>
-                                  </span>
-                                  <input 
-                                    type="text" 
-                                    v-model="student.nisn" 
-                                    class="form-control form-control-sm fs-12 font-monospace"
-                                    placeholder="0012345678" 
-                                  />
-                                </div>
-                              </div>
-
-                              <div class="col-6 col-sm-4">
-                                <label class="form-label fs-11 fw-bold text-muted text-uppercase mb-1">
-                                  Jenis Kelamin
-                                </label>
-                                <CustomSelect 
-                                  v-model="student.gender" 
-                                  :options="genderOptions" 
-                                  size="sm"
-                                />
-                              </div>
-
-                              <div class="col-6 col-sm-4">
-                                <label class="form-label fs-11 fw-bold text-muted text-uppercase mb-1">
-                                  Kelas
-                                </label>
-                                <CustomSelect 
-                                  v-model="student.grade" 
-                                  :options="gradeOptions" 
-                                  size="sm"
-                                />
-                              </div>
-                            </div>
-                          </div>
+                      <div class="flex-grow-1">
+                        <h6 class="fs-13 fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                          <span>Tahap 1: Simpan Profil Sekolah, Pendamping & Cabang Lomba</span>
+                          <span class="badge bg-primary text-white fs-10 px-2 py-0.5 rounded-pill">Langkah 1 dari 2</span>
+                        </h6>
+                        <p class="fs-12 text-muted mb-2">
+                          Sesuai alur administrasi, simpan informasi sekolah, narahubung pembina, pilihan cabang lomba, dan transaksi pembayaran terlebih dahulu.
+                        </p>
+                        <div class="p-2.5 rounded-2 bg-white border border-primary-subtle d-flex align-items-center gap-2 text-primary fs-11">
+                          <i class="ri-information-fill fs-15 flex-shrink-0"></i>
+                          <span>
+                            Setelah tombol <strong>"Simpan & Lanjut ke Input Peserta →"</strong> ditekan, modal pengisian peserta delegasi akan otomatis terbuka secara terpisah dengan form dinamis sesuai aturan <strong>Form Builder</strong> cabang lomba terkait.
+                          </span>
                         </div>
                       </div>
-
-                      <!-- Bottom Actions & Summary -->
-                      <div class="mt-3.5 d-flex align-items-center justify-content-between flex-wrap gap-2 pt-2.5 border-top">
-                        <button 
-                          type="button" 
-                          class="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 py-1.5 px-3 rounded-pill shadow-xs"
-                          @click="addStudentRow"
-                        >
-                          <i class="ri-user-add-line fs-14"></i>
-                          <span class="fw-semibold">+ Tambah Baris Siswa</span>
-                        </button>
-                        <span class="text-muted fs-11">
-                          Total: <strong class="text-dark">{{ manualForm.students.length }} siswa</strong> dalam daftar delegasi ini
-                        </span>
-                      </div>
-                    </div>
-
-                    <!-- MODE 2: PASTE MULTILINE TEXT -->
-                    <div v-else class="p-3 bg-white rounded-3 border">
-                      <label class="form-label fs-12 fw-bold text-dark d-flex align-items-center gap-1.5 mb-1.5">
-                        <i class="ri-file-copy-2-line text-primary"></i> Paste Daftar Nama Siswa Delegasi:
-                      </label>
-                      <p class="text-muted fs-11 mb-2">
-                        Format bebas: 1 nama per baris atau dipisahkan dengan tanda koma. Informasi NISN (jika ada dalam tanda kurung) akan tersimpan secara otomatis.
-                      </p>
-                      <textarea 
-                        v-model="manualForm.participants_text" 
-                        class="form-control fs-12 font-monospace p-3"
-                        rows="6"
-                        placeholder="Contoh:&#10;Muhammad Alif (NISN: 0012938192)&#10;Nabila Putri Ayu&#10;Zaidan Rahmat"
-                      ></textarea>
                     </div>
                   </div>
                 </div>
@@ -1647,8 +1650,381 @@ function printReport() {
               :disabled="isSubmittingManual"
               @click="submitManualRegistration"
             >
-              <i class="ri-save-line"></i>
-              <span>{{ isSubmittingManual ? 'Menyimpan...' : 'Simpan Pendaftaran Manual' }}</span>
+              <i class="ri-arrow-right-line" v-if="!isSubmittingManual"></i>
+              <span class="spinner-border spinner-border-sm" v-else></span>
+              <span>{{ isSubmittingManual ? 'Menyimpan...' : 'Simpan & Lanjut ke Input Peserta →' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: KELOLA DELEGASI PESERTA (FORM BUILDER RULES)                  -->
+    <!-- ===================================================================== -->
+    <div v-if="showParticipantModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.65); z-index: 1065;">
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+          <!-- Modal Header -->
+          <div class="modal-header py-3 px-3 px-md-4 border-bottom bg-white d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2.5">
+              <div class="avatar-xs flex-shrink-0 rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                <i class="ri-user-settings-line fs-18"></i>
+              </div>
+              <div>
+                <h6 class="modal-title fw-bold mb-0 text-dark fs-14 d-flex align-items-center gap-2">
+                  <span>Kelola Delegasi Peserta</span>
+                  <span class="badge bg-primary text-white font-monospace fs-11 px-2 py-0.5 rounded-pill" v-if="activeRegForParticipants?.registration_code || activeRegForParticipants?.reg_code">
+                    {{ activeRegForParticipants?.registration_code || activeRegForParticipants?.reg_code }}
+                  </span>
+                </h6>
+                <div class="fs-12 text-muted d-flex align-items-center flex-wrap gap-2 mt-0.5">
+                  <span class="fw-bold text-dark">{{ activeRegForParticipants?.competition_title }}</span>
+                  <span class="text-muted">•</span>
+                  <span>{{ activeRegForParticipants?.school_name }}</span>
+                </div>
+              </div>
+            </div>
+            <button type="button" class="btn-close" @click="showParticipantModal = false"></button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body p-3 p-md-4 bg-light">
+            <!-- Alert Aturan Form Builder -->
+            <div class="card border-0 shadow-xs mb-3 bg-white">
+              <div class="card-body p-3">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                  <div class="d-flex align-items-center gap-2.5">
+                    <div class="p-2 rounded-2 bg-info-subtle text-info d-flex align-items-center justify-content-center">
+                      <i class="ri-settings-4-line fs-18"></i>
+                    </div>
+                    <div>
+                      <span class="fw-bold fs-12 text-dark d-block">Ketentuan Konfigurasi Form Builder Cabang Ini</span>
+                      <span class="fs-11 text-muted">
+                        Kolom formulir di bawah ini otomatis menyesuaikan aturan Form Builder cabang lomba ini.
+                      </span>
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success fs-12 px-2.5 py-1 rounded-pill fw-semibold">
+                      <i class="ri-team-line me-1"></i> Terisi: {{ participantForm.delegates.length }} Delegasi
+                    </span>
+                    <span class="badge bg-secondary-subtle text-secondary fs-12 px-2.5 py-1 rounded-pill">
+                      Kuota: {{ activeBuilderRules.min_items }} s.d {{ activeBuilderRules.max_items }} Siswa
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- List Delegasi Peserta Repeater -->
+            <div class="d-flex flex-column gap-3">
+              <div 
+                v-for="(delegate, dIdx) in participantForm.delegates" 
+                :key="dIdx"
+                class="card border-0 shadow-sm rounded-3 overflow-hidden bg-white"
+              >
+                <!-- Card Header Delegasi -->
+                <div class="card-header bg-white py-2.5 px-3 px-md-4 border-bottom d-flex align-items-center justify-content-between">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary text-white font-monospace fs-11 px-2.5 py-1 rounded-pill">
+                      Siswa #{{ dIdx + 1 }}
+                    </span>
+                    <span class="fw-bold text-dark fs-13 text-truncate" v-if="delegate.name">
+                      {{ delegate.name }}
+                    </span>
+                    <span class="badge bg-warning text-dark fs-10 px-2 py-0.5 rounded-pill fw-bold" v-if="delegate.is_captain">
+                      <i class="ri-vip-crown-fill me-0.5"></i> Kapten Tim
+                    </span>
+                  </div>
+
+                  <div class="d-flex align-items-center gap-2">
+                    <!-- Tombol Set Kapten (Jika captain_option aktif) -->
+                    <button 
+                      v-if="activeBuilderRules.sub_fields.captain_option?.active"
+                      type="button" 
+                      class="btn btn-xs rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1"
+                      :class="delegate.is_captain ? 'btn-warning text-dark fw-bold shadow-xs' : 'btn-outline-secondary'"
+                      @click="setCaptain(dIdx)"
+                      title="Tetapkan siswa ini sebagai kapten tim"
+                    >
+                      <i :class="delegate.is_captain ? 'ri-star-fill text-dark' : 'ri-star-line'"></i>
+                      <span>{{ delegate.is_captain ? 'Kapten Terpilih' : 'Jadikan Kapten' }}</span>
+                    </button>
+
+                    <!-- Tombol Hapus -->
+                    <button 
+                      type="button" 
+                      class="btn btn-xs btn-outline-danger rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1"
+                      :disabled="participantForm.delegates.length <= activeBuilderRules.min_items"
+                      @click="removeDelegateItem(dIdx)"
+                      :title="participantForm.delegates.length <= activeBuilderRules.min_items ? 'Minimal ' + activeBuilderRules.min_items + ' siswa diwajibkan' : 'Hapus siswa ini'"
+                    >
+                      <i class="ri-delete-bin-line"></i>
+                      <span class="d-none d-sm-inline">Hapus</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Card Body Form Delegasi -->
+                <div class="card-body p-3 p-md-4">
+                  <div class="row g-3">
+                    <!-- Nama Lengkap Siswa (Wajib Ada) -->
+                    <div class="col-12 col-md-6">
+                      <label class="form-label fs-11 fw-bold text-dark mb-1">
+                        {{ activeBuilderRules.sub_fields.name.label }} <span class="text-danger">*</span>
+                      </label>
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0 text-muted">
+                          <i class="ri-user-line"></i>
+                        </span>
+                        <input 
+                          type="text" 
+                          v-model="delegate.name" 
+                          class="form-control form-control-sm fs-12 border-start-0 ps-1"
+                          :placeholder="activeBuilderRules.sub_fields.name.placeholder" 
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Jenis Kelamin (Jika Aktif) -->
+                    <div class="col-6 col-md-3" v-if="activeBuilderRules.sub_fields.gender.active">
+                      <label class="form-label fs-11 fw-bold text-dark mb-1">
+                        {{ activeBuilderRules.sub_fields.gender.label }}
+                        <span class="text-danger" v-if="activeBuilderRules.sub_fields.gender.required">*</span>
+                      </label>
+                      <CustomSelect 
+                        v-model="delegate.gender" 
+                        :options="genderOptions" 
+                        size="sm"
+                      />
+                    </div>
+
+                    <!-- Kelas (Jika Aktif) -->
+                    <div class="col-6 col-md-3" v-if="activeBuilderRules.sub_fields.grade.active">
+                      <label class="form-label fs-11 fw-bold text-dark mb-1">
+                        {{ activeBuilderRules.sub_fields.grade.label }}
+                        <span class="text-danger" v-if="activeBuilderRules.sub_fields.grade.required">*</span>
+                      </label>
+                      <CustomSelect 
+                        v-model="delegate.grade" 
+                        :options="gradeOptions" 
+                        size="sm"
+                      />
+                    </div>
+
+                    <!-- NISN (Jika Aktif) -->
+                    <div class="col-12 col-md-4" v-if="activeBuilderRules.sub_fields.nisn.active">
+                      <label class="form-label fs-11 fw-bold text-dark mb-1">
+                        {{ activeBuilderRules.sub_fields.nisn.label }}
+                        <span class="text-danger" v-if="activeBuilderRules.sub_fields.nisn.required">*</span>
+                      </label>
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0 text-muted">
+                          <i class="ri-barcode-line"></i>
+                        </span>
+                        <input 
+                          type="text" 
+                          v-model="delegate.nisn" 
+                          class="form-control form-control-sm fs-12 border-start-0 ps-1 font-monospace"
+                          :placeholder="activeBuilderRules.sub_fields.nisn.placeholder" 
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Tanggal Lahir (Jika Aktif) - Rule 4: IndoDatePicker dd/mm/yyyy -->
+                    <div class="col-12 col-md-4" v-if="activeBuilderRules.sub_fields.birth_date.active">
+                      <label class="form-label fs-11 fw-bold text-dark mb-1">
+                        {{ activeBuilderRules.sub_fields.birth_date.label }}
+                        <span class="text-danger" v-if="activeBuilderRules.sub_fields.birth_date.required">*</span>
+                      </label>
+                      <IndoDatePicker 
+                        v-model="delegate.birth_date" 
+                        placeholder="dd/mm/yyyy"
+                        inputClass="form-control form-control-sm fs-12"
+                      />
+                    </div>
+
+                    <!-- Custom ID / No Dada / Game ID (Jika Aktif) -->
+                    <div class="col-12 col-md-4" v-if="activeBuilderRules.sub_fields.custom_id.active">
+                      <label class="form-label fs-11 fw-bold text-dark mb-1">
+                        {{ activeBuilderRules.sub_fields.custom_id.label }}
+                        <span class="text-danger" v-if="activeBuilderRules.sub_fields.custom_id.required">*</span>
+                      </label>
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0 text-muted">
+                          <i class="ri-gamepad-line"></i>
+                        </span>
+                        <input 
+                          type="text" 
+                          v-model="delegate.custom_id" 
+                          class="form-control form-control-sm fs-12 border-start-0 ps-1 font-monospace"
+                          :placeholder="activeBuilderRules.sub_fields.custom_id.placeholder" 
+                        />
+                      </div>
+                    </div>
+
+                    <!-- WhatsApp Siswa (Jika Aktif) -->
+                    <div class="col-12 col-md-4" v-if="activeBuilderRules.sub_fields.wa_number.active">
+                      <label class="form-label fs-11 fw-bold text-dark mb-1">
+                        {{ activeBuilderRules.sub_fields.wa_number.label }}
+                        <span class="text-danger" v-if="activeBuilderRules.sub_fields.wa_number.required">*</span>
+                      </label>
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white border-end-0 text-muted">
+                          <i class="ri-whatsapp-line text-success"></i>
+                        </span>
+                        <input 
+                          type="text" 
+                          v-model="delegate.wa_number" 
+                          class="form-control form-control-sm fs-12 border-start-0 ps-1"
+                          :placeholder="activeBuilderRules.sub_fields.wa_number.placeholder" 
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Nomor WhatsApp Khusus Kapten (Jika ini kapten & captain_option aktif) -->
+                    <div class="col-12 col-md-4" v-if="activeBuilderRules.sub_fields.captain_option?.active && delegate.is_captain">
+                      <label class="form-label fs-11 fw-bold text-warning-emphasis mb-1">
+                        No. WA Kapten Tim
+                      </label>
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-warning-subtle border-end-0 text-warning-emphasis">
+                          <i class="ri-phone-line"></i>
+                        </span>
+                        <input 
+                          type="text" 
+                          v-model="delegate.captain_wa" 
+                          class="form-control form-control-sm fs-12 border-start-0 ps-1"
+                          placeholder="08xxxxxxxxxx" 
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Custom Columns Tambahan per Siswa -->
+                    <template v-if="activeBuilderRules.sub_fields.custom_columns?.length">
+                      <div 
+                        v-for="(col, cIdx) in activeBuilderRules.sub_fields.custom_columns" 
+                        :key="col.id || col.name || cIdx"
+                        class="col-12 col-md-4"
+                      >
+                        <label class="form-label fs-11 fw-bold text-dark mb-1">
+                          {{ col.label || col.name }}
+                          <span class="text-danger" v-if="col.required">*</span>
+                        </label>
+                        <!-- Jika tipe select -->
+                        <CustomSelect 
+                          v-if="col.type === 'select'"
+                          v-model="delegate.custom_columns[col.name || col.label]"
+                          :options="(col.options || []).map(opt => typeof opt === 'object' ? opt : { value: opt, label: opt })"
+                          size="sm"
+                        />
+                        <!-- Default text input -->
+                        <input 
+                          v-else
+                          type="text" 
+                          v-model="delegate.custom_columns[col.name || col.label]"
+                          class="form-control form-control-sm fs-12"
+                          :placeholder="col.placeholder || col.label" 
+                        />
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tombol Tambah Delegasi -->
+            <div class="mt-3 d-flex align-items-center justify-content-between flex-wrap gap-2 pt-2">
+              <button 
+                type="button" 
+                class="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 py-1.5 px-3 rounded-pill shadow-xs"
+                :disabled="participantForm.delegates.length >= activeBuilderRules.max_items"
+                @click="addDelegateItem"
+              >
+                <i class="ri-user-add-line fs-14"></i>
+                <span class="fw-semibold">+ Tambah Anggota Siswa Delegasi</span>
+              </button>
+              <span class="text-muted fs-11">
+                Tersedia kuota: <strong class="text-dark">{{ participantForm.delegates.length }}</strong> dari maksimal <strong class="text-dark">{{ activeBuilderRules.max_items }} siswa</strong>
+              </span>
+            </div>
+
+            <!-- Form Tambahan Non-Repeater (Jika Dikonfigurasi di Form Builder) -->
+            <div class="card border-0 shadow-sm rounded-3 mt-3.5 bg-white" v-if="activeBuilderRules.additional_fields?.length > 0">
+              <div class="card-header bg-white py-2.5 px-3 px-md-4 border-bottom">
+                <span class="fw-bold text-dark fs-12 text-uppercase d-flex align-items-center gap-1.5">
+                  <i class="ri-survey-line text-info"></i> Formulir Khusus Cabang Lomba
+                </span>
+              </div>
+              <div class="card-body p-3 p-md-4">
+                <div class="row g-3">
+                  <div 
+                    v-for="field in activeBuilderRules.additional_fields" 
+                    :key="field.id || field.name"
+                    class="col-12"
+                    :class="field.type === 'textarea' ? 'col-12' : 'col-md-6'"
+                  >
+                    <label class="form-label fs-11 fw-bold text-dark mb-1">
+                      {{ field.label || field.name }}
+                      <span class="text-danger" v-if="field.required">*</span>
+                    </label>
+                    
+                    <!-- Select -->
+                    <CustomSelect 
+                      v-if="field.type === 'select'"
+                      v-model="participantForm.additional_fields[field.name]"
+                      :options="(field.options || []).map(opt => typeof opt === 'object' ? opt : { value: opt, label: opt })"
+                      size="sm"
+                    />
+
+                    <!-- Date -->
+                    <IndoDatePicker 
+                      v-else-if="field.type === 'date'"
+                      v-model="participantForm.additional_fields[field.name]"
+                      placeholder="dd/mm/yyyy"
+                      inputClass="form-control form-control-sm fs-12"
+                    />
+
+                    <!-- Textarea -->
+                    <textarea 
+                      v-else-if="field.type === 'textarea'"
+                      v-model="participantForm.additional_fields[field.name]"
+                      class="form-control form-control-sm fs-12"
+                      rows="3"
+                      :placeholder="field.placeholder || ''"
+                    ></textarea>
+
+                    <!-- Text / Number default -->
+                    <input 
+                      v-else
+                      :type="field.type === 'number' ? 'number' : 'text'"
+                      v-model="participantForm.additional_fields[field.name]"
+                      class="form-control form-control-sm fs-12"
+                      :placeholder="field.placeholder || ''"
+                    />
+
+                    <span class="text-muted fs-11 mt-1 d-block" v-if="field.help_text">{{ field.help_text }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between">
+            <button type="button" class="btn btn-sm btn-secondary" @click="showParticipantModal = false">
+              Tutup
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+              :disabled="isSubmittingParticipants"
+              @click="submitParticipants"
+            >
+              <i class="ri-check-double-line" v-if="!isSubmittingParticipants"></i>
+              <span class="spinner-border spinner-border-sm" v-else></span>
+              <span>{{ isSubmittingParticipants ? 'Menyimpan Delegasi...' : 'Simpan Data Delegasi Peserta' }}</span>
             </button>
           </div>
         </div>
@@ -1868,6 +2244,47 @@ function printReport() {
   background-color: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.14);
   color: inherit;
+}
+
+/* Dark Mode WCAG AA Compliance for Participant Modal */
+:deep([data-bs-theme="dark"]) .modal-content {
+  background-color: #1a1d21;
+  color: #f8fafc;
+}
+
+:deep([data-bs-theme="dark"]) .modal-header,
+:deep([data-bs-theme="dark"]) .modal-footer,
+:deep([data-bs-theme="dark"]) .modal-body .card-header,
+:deep([data-bs-theme="dark"]) .modal-body .card.bg-white {
+  background-color: #212529 !important;
+  color: #f8fafc !important;
+}
+
+:deep([data-bs-theme="dark"]) .modal-body.bg-light {
+  background-color: #181b1e !important;
+}
+
+:deep([data-bs-theme="dark"]) .modal-body .form-label,
+:deep([data-bs-theme="dark"]) .modal-title {
+  color: #f1f5f9 !important;
+}
+
+:deep([data-bs-theme="dark"]) .modal-body .input-group-text.bg-white {
+  background-color: #2b3035 !important;
+  color: #adb5bd !important;
+  border-color: #373b3e !important;
+}
+
+:deep([data-bs-theme="dark"]) .modal-body .form-control {
+  background-color: #2b3035;
+  color: #f8fafc;
+  border-color: #373b3e;
+}
+
+:deep([data-bs-theme="dark"]) .modal-body .form-control:focus {
+  background-color: #2b3035;
+  color: #ffffff;
+  border-color: #0ab39c;
 }
 
 /* Print Styling */

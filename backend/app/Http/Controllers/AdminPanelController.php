@@ -3721,6 +3721,7 @@ class AdminPanelController extends Controller
                     'participants_count' => $cCount,
                     'students' => $studentsList,
                     'participants_names' => $reg->participants_names,
+                    'custom_fields' => $reg->custom_fields ?? [],
                     'created_at' => $reg->created_at?->format('d/m/Y H:i'),
                 ];
             }
@@ -3889,7 +3890,7 @@ class AdminPanelController extends Controller
             }
         }
 
-        $participantsString = !empty($namesList) ? implode("\n", $namesList) : $validated['mentor_name'];
+        $participantsString = !empty($namesList) ? implode("\n", $namesList) : 'Belum Ada Delegasi (Perlu Input)';
         $createdRegistrations = [];
 
         if ($validated['package_type'] === 'Paket Satuan') {
@@ -3987,7 +3988,90 @@ class AdminPanelController extends Controller
         } catch (\Throwable $e) {}
 
         $count = count($createdRegistrations);
-        return redirect()->back()->with('success', "Pendaftaran on-the-spot di meja panitia berhasil dibuat ({$count} cabang lomba terdata untuk kontingen {$schoolName})!");
+        $firstReg = $createdRegistrations[0] ?? null;
+
+        return redirect()->back()->with([
+            'success' => "Pendaftaran kontingen {$schoolName} berhasil disimpan ({$count} cabang lomba terdata)! Silakan lengkapi data delegasi peserta sesuai aturan form builder.",
+            'newly_registered' => $firstReg ? [
+                'registration_id' => $firstReg->id,
+                'reg_code' => $firstReg->reg_code,
+                'competition_id' => $firstReg->competition_id,
+                'competition_title' => $firstReg->competition_title,
+                'school_name' => $firstReg->school_name,
+                'students' => [],
+                'custom_fields' => $firstReg->custom_fields ?? [],
+            ] : null,
+        ]);
+    }
+
+    /**
+     * Update data peserta delegasi & custom fields khusus cabang lomba (sesuai aturan Form Builder)
+     */
+    public function updateRegistrationParticipants(Request $request, string|int $id)
+    {
+        $registration = Registration::with('competition')->findOrFail($id);
+
+        $validated = $request->validate([
+            'delegates' => 'required|array|min:1',
+            'delegates.*.name' => 'required|string|max:255',
+            'delegates.*.gender' => 'nullable|string|max:50',
+            'delegates.*.grade' => 'nullable|string|max:50',
+            'delegates.*.nisn' => 'nullable|string|max:50',
+            'delegates.*.birth_date' => 'nullable|string|max:50',
+            'delegates.*.custom_id' => 'nullable|string|max:100',
+            'delegates.*.wa_number' => 'nullable|string|max:50',
+            'delegates.*.is_captain' => 'nullable|boolean',
+            'delegates.*.captain_wa' => 'nullable|string|max:50',
+            'delegates.*.custom_columns' => 'nullable|array',
+            'additional_fields' => 'nullable|array',
+        ]);
+
+        $namesList = [];
+        $cleanedDelegates = [];
+        foreach ($validated['delegates'] as $idx => $st) {
+            $name = trim($st['name'] ?? '');
+            if (empty($name)) continue;
+
+            $nisn = !empty($st['nisn']) && $st['nisn'] !== '-' ? " (NISN: {$st['nisn']})" : "";
+            $role = !empty($st['is_captain']) ? " [Kapten]" : "";
+            $namesList[] = ($idx + 1) . ". " . $name . $role . $nisn;
+
+            $cleanedDelegates[] = [
+                'name' => $name,
+                'gender' => $st['gender'] ?? 'Laki-laki',
+                'grade' => $st['grade'] ?? '7',
+                'nisn' => $st['nisn'] ?? '',
+                'birth_date' => $st['birth_date'] ?? '',
+                'custom_id' => $st['custom_id'] ?? '',
+                'wa_number' => $st['wa_number'] ?? '',
+                'is_captain' => !empty($st['is_captain']),
+                'captain_wa' => $st['captain_wa'] ?? '',
+                'custom_columns' => $st['custom_columns'] ?? [],
+            ];
+        }
+
+        if (empty($namesList)) {
+            return redirect()->back()->with('error', 'Minimal harus mengisi 1 nama peserta delegasi yang valid.');
+        }
+
+        $customFields = is_array($registration->custom_fields) ? $registration->custom_fields : [];
+        $customFields['delegates'] = $cleanedDelegates;
+
+        if (!empty($validated['additional_fields'])) {
+            foreach ($validated['additional_fields'] as $k => $v) {
+                $customFields[$k] = $v;
+            }
+        }
+
+        $customFields['participants_updated_by'] = Auth::guard('web')->user()?->name ?? 'Panitia Admin';
+        $customFields['participants_updated_at'] = now()->toIso8601String();
+
+        $registration->update([
+            'participants_names' => implode("\n", $namesList),
+            'custom_fields' => $customFields,
+        ]);
+
+        return redirect()->back()->with('success', "Data peserta delegasi {$registration->competition_title} ({$registration->reg_code}) berhasil diperbarui sesuai aturan form builder!");
     }
 
     /**

@@ -98,6 +98,7 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
     Route::get('/sekolah-terdaftar', [AdminPanelController::class, 'registeredSchoolsIndex'])->name('sekolah-terdaftar.index');
     Route::get('/pendaftar/{id}', [AdminPanelController::class, 'pendaftarDetail'])->name('pendaftar.detail');
     Route::post('/pendaftar/{id}/verify', [AdminPanelController::class, 'verify'])->name('pendaftar.verify');
+    Route::post('/pendaftar/{id}/update-participants', [AdminPanelController::class, 'updateRegistrationParticipants'])->name('pendaftar.update-participants');
     // Manajemen Cabang Lomba & Kuota Delegasi
     Route::get('/lomba', [AdminPanelController::class, 'competitionsIndex'])->middleware(['permission:competitions.view,competitions.manage'])->name('competitions.index');
     Route::middleware(['permission:competitions.manage'])->group(function () {

@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import { Head, useForm, Link, usePage } from '@inertiajs/vue3';
 import CustomSelect from '@/Components/CustomSelect.vue';
+import IndoDatePicker from '@/Components/IndoDatePicker.vue';
 import { useTheme } from '@/Composables/useTheme';
 import { getWaChatUrl } from '@/Utils/whatsapp';
 
@@ -35,6 +36,48 @@ const props = defineProps({
 // Theme Management (Light / Dark)
 const { isDark, initTheme, toggleTheme } = useTheme();
 
+// 31 Kecamatan Resmi Kabupaten Jember + Pilihan Luar Jember
+const JEMBER_KECAMATAN_LIST = [
+  'Ajung',
+  'Ambulu',
+  'Arjasa',
+  'Balung',
+  'Bangsalsari',
+  'Gumukmas',
+  'Jelbuk',
+  'Jenggawah',
+  'Jombang',
+  'Kalisat',
+  'Kaliwates',
+  'Kencong',
+  'Ledokombo',
+  'Mayang',
+  'Mumbulsari',
+  'Pakusari',
+  'Panti',
+  'Patrang',
+  'Puger',
+  'Rambipuji',
+  'Semboro',
+  'Silo',
+  'Sukorambi',
+  'Sukowono',
+  'Sumberbaru',
+  'Sumberjambe',
+  'Sumbersari',
+  'Tanggul',
+  'Tempurejo',
+  'Umbulsari',
+  'Wuluhan',
+  'Luar Kabupaten Jember'
+];
+
+const gradeOptions = [
+  'Kelas 9 SMP / MTs',
+  'Kelas 8 SMP / MTs',
+  'Kelas 7 SMP / MTs'
+];
+
 // -----------------------------------------------------------------------------
 // Core Form & State Management
 // -----------------------------------------------------------------------------
@@ -45,18 +88,12 @@ const validationErrors = ref({});
 
 const form = useForm({
   package_type: 'Paket Satuan', // 'Paket Satuan' | 'Paket All-In'
-  competition_id: props.preselectedLomba || props.competitions?.[0]?.id || 'puisi',
+  competition_id: props.preselectedLomba || props.competitions?.[0]?.id || '',
   school_name: props.authRegistrant?.school_name || '',
   mentor_name: props.authRegistrant?.name || '',
   mentor_wa: props.authRegistrant?.phone || '',
   participants_names: '',
-  custom_fields: {
-    school_district: props.authRegistrant?.school_district || 'Balung',
-    school_address: props.authRegistrant?.school_name || '-',
-    mentor_email: props.authRegistrant?.email || 'pembina@sekolah.sch.id',
-    allin_code: '',
-    biodata_peserta: []
-  },
+  custom_fields: {},
   notes: '',
   payment_method: 'Transfer Bank BSI',
   payment_proof: null
@@ -82,7 +119,18 @@ function showToast(msg, icon = 'ri-checkbox-circle-fill') {
 
 // Active Competition
 const activeComp = computed(() => {
-  return props.competitions?.find(c => c.id === form.competition_id) || props.competitions?.[0] || null;
+  return props.competitions?.find(c => String(c.id) === String(form.competition_id)) || props.competitions?.[0] || null;
+});
+
+// Form Settings from Form Builder
+const formSettings = computed(() => {
+  const s = activeComp.value?.form_settings;
+  return {
+    show_package_type: !!s?.show_package_type,
+    form_title: s?.form_title || '',
+    form_subtitle: s?.form_subtitle || '',
+    submit_text: s?.submit_text || 'Kirim Pendaftaran Delegasi',
+  };
 });
 
 // Cabang Lomba Options for CustomSelect
@@ -96,6 +144,11 @@ const competitionOptions = computed(() => {
     };
   });
 });
+
+// Watch competition change to sync defaults and participant structure
+watch(() => form.competition_id, () => {
+  initCompetitionData();
+}, { immediate: true });
 
 // Help Panitia WA URL
 const helpWaUrl = computed(() => {
@@ -162,27 +215,212 @@ function selectSchool(s) {
 }
 
 // -----------------------------------------------------------------------------
-// Participant Count & Dynamic Repeater
+// Form Builder Custom Fields & Participant Repeater
 // -----------------------------------------------------------------------------
-const participantCount = ref(1);
-
-const participants = ref([
-  { name: '', grade: 'Kelas 9 SMP / MTs', gender: 'L' },
-  { name: '', grade: 'Kelas 9 SMP / MTs', gender: 'L' }
-]);
-
-const gradeOptions = [
-  'Kelas 9 SMP / MTs',
-  'Kelas 8 SMP / MTs',
-  'Kelas 7 SMP / MTs'
+const MANDATORY_NAMES = [
+  'school_name', 'asal_sekolah', 'nama_sekolah', 'nama_lembaga', 'nama_sekolah_madrasah',
+  'school_district', 'kecamatan', 'kecamatan_sekolah', 'kecamatan_asal_sekolah', 'wilayah_kecamatan',
+  'school_npsn', 'npsn', 'npsn_sekolah', 'nomor_pokok_sekolah_nasional',
+  'school_address', 'alamat_sekolah', 'alamat_lengkap_sekolah', 'alamat',
+  'mentor_name', 'nama_pendamping', 'nama_guru_pendamping', 'nama_pembina',
+  'mentor_wa', 'nomor_wa', 'whatsapp', 'nomor_whatsapp', 'nomor_whatsapp_pendamping',
+  'mentor_email', 'contact_email', 'email', 'alamat_email', 'email_pendamping',
+  'allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code'
 ];
 
-function setParticipantCount(count) {
-  participantCount.value = count;
-  if (count === 2) {
-    showToast('Pilihan diubah: 2 Siswa (Maksimal Delegasi)');
-  } else {
-    showToast('Pilihan diubah: 1 Siswa (Tunggal)');
+function isMandatoryIdentity(field) {
+  if (!field) return false;
+  if (field.is_mandatory_identity) return true;
+  return MANDATORY_NAMES.includes(field.name);
+}
+
+// Repeater Field configuration
+const repeaterField = computed(() => {
+  const fields = activeComp.value?.custom_fields || [];
+  return fields.find(f => f.type === 'participant_repeater') || null;
+});
+
+// Normalized Sub-fields for Participant Repeater
+const subFieldsConfig = computed(() => {
+  const rf = repeaterField.value;
+  const defs = {
+    name: { active: true, required: true, label: 'Nama Lengkap Siswa' },
+    gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
+    grade: { active: true, required: true, label: 'Kelas / Tingkat' },
+    birth_date: { active: true, required: false, label: 'Tanggal Lahir Siswa' },
+    nisn: { active: true, required: false, label: 'Nomor Induk Siswa Nasional (NISN)' },
+    custom_id: { active: false, required: false, label: 'ID Siswa / No. Identitas' },
+    wa_number: { active: false, required: false, label: 'Nomor WhatsApp Siswa' },
+    captain_option: { active: false, required: false, label: 'Tandai Kapten Tim' },
+    photo_formal: { active: false, required: false, label: 'Upload Pas Foto Formal Siswa' },
+    photo_freestyle: { active: false, required: false, label: 'Upload Foto Pose Gaya Bebas', multiple: true },
+    custom_columns: []
+  };
+
+  if (!rf || !rf.sub_fields || typeof rf.sub_fields !== 'object') {
+    return defs;
+  }
+
+  const result = { ...defs };
+  for (const k in defs) {
+    if (k === 'custom_columns') {
+      result.custom_columns = Array.isArray(rf.sub_fields.custom_columns) ? [...rf.sub_fields.custom_columns] : [];
+    } else if (rf.sub_fields[k] && typeof rf.sub_fields[k] === 'object') {
+      result[k] = {
+        ...defs[k],
+        ...rf.sub_fields[k],
+        active: rf.sub_fields[k].active !== undefined ? !!rf.sub_fields[k].active : defs[k].active,
+        required: rf.sub_fields[k].required !== undefined ? !!rf.sub_fields[k].required : defs[k].required,
+        label: rf.sub_fields[k].label || defs[k].label
+      };
+    }
+  }
+  return result;
+});
+
+// Additional Custom Fields (non-identity and non-repeater)
+const otherCustomFields = computed(() => {
+  const fields = activeComp.value?.custom_fields || [];
+  return fields.filter(f => !isMandatoryIdentity(f) && f.type !== 'participant_repeater');
+});
+
+// Participant Count Calculation & Bounds
+const minParticipants = computed(() => {
+  if (repeaterField.value && repeaterField.value.min_items) {
+    return Math.max(1, Number(repeaterField.value.min_items));
+  }
+  return Math.max(1, Number(activeComp.value?.min_delegates) || 1);
+});
+
+const maxParticipants = computed(() => {
+  if (repeaterField.value && repeaterField.value.max_items) {
+    return Math.max(minParticipants.value, Number(repeaterField.value.max_items));
+  }
+  return Math.max(minParticipants.value, Number(activeComp.value?.max_delegates) || minParticipants.value);
+});
+
+const participantCount = ref(1);
+
+function createEmptyParticipant(idx = 1) {
+  return {
+    name: '',
+    gender: 'L',
+    grade: 'Kelas 9 SMP / MTs',
+    birth_date: '',
+    nisn: '',
+    custom_id: '',
+    wa_number: '',
+    is_captain: idx === 1 && subFieldsConfig.value.captain_option?.active,
+    captain_wa: '',
+    photo_formal: null,
+    photo_freestyle: [],
+    custom_columns: {}
+  };
+}
+
+const participants = ref([]);
+
+function initParticipantsArray() {
+  const targetLen = Math.max(maxParticipants.value, 15);
+  const current = [...participants.value];
+  while (current.length < targetLen) {
+    current.push(createEmptyParticipant(current.length + 1));
+  }
+  participants.value = current;
+}
+
+function setCaptain(pIdx) {
+  participants.value.forEach((p, idx) => {
+    p.is_captain = (idx === pIdx);
+  });
+  showToast(`Siswa #${pIdx + 1} ditandai sebagai Kapten Tim ⭐`);
+}
+
+function changeParticipantCount(delta) {
+  const next = participantCount.value + delta;
+  if (next >= minParticipants.value && next <= maxParticipants.value) {
+    participantCount.value = next;
+    showToast(`Jumlah peserta: ${next} Siswa`);
+  }
+}
+
+function setParticipantCount(val) {
+  const clamped = Math.max(minParticipants.value, Math.min(maxParticipants.value, Number(val) || minParticipants.value));
+  participantCount.value = clamped;
+  showToast(`Jumlah peserta: ${clamped} Siswa`);
+}
+
+function initCompetitionData() {
+  const min = minParticipants.value;
+  participantCount.value = min;
+  initParticipantsArray();
+
+  if (!form.custom_fields) form.custom_fields = {};
+
+  // Prefill default mandatory identity values
+  if (!form.custom_fields['school_district']) {
+    form.custom_fields['school_district'] = props.authRegistrant?.school_district || 'Balung';
+  }
+  if (!form.custom_fields['school_address']) {
+    form.custom_fields['school_address'] = props.authRegistrant?.school_name || '';
+  }
+  if (!form.custom_fields['mentor_email']) {
+    form.custom_fields['mentor_email'] = props.authRegistrant?.email || '';
+  }
+
+  // Initialize other custom fields default values
+  otherCustomFields.value.forEach(f => {
+    if (form.custom_fields[f.name] === undefined) {
+      if (f.type === 'checkbox') {
+        form.custom_fields[f.name] = [];
+      } else if (f.type === 'select') {
+        form.custom_fields[f.name] = f.options?.[0] || '';
+      } else if (f.type === 'date') {
+        form.custom_fields[f.name] = f.date_default || '';
+      } else {
+        form.custom_fields[f.name] = '';
+      }
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
+// Conditional Logic Evaluator
+// -----------------------------------------------------------------------------
+function evaluateCondition(logic, values) {
+  if (!logic || !logic.enabled || !logic.depend_on_field) {
+    return true; // No active condition: always visible
+  }
+
+  const targetVal = values ? values[logic.depend_on_field] : undefined;
+  const compareVal = logic.value;
+  const op = logic.operator || '==';
+
+  if (targetVal === undefined || targetVal === null || targetVal === '') {
+    return false;
+  }
+
+  const numTarget = Number(targetVal);
+  const numCompare = Number(compareVal);
+  const isNumeric = !isNaN(numTarget) && !isNaN(numCompare) && compareVal !== '';
+
+  switch (op) {
+    case '==':
+      return String(targetVal).trim().toLowerCase() === String(compareVal).trim().toLowerCase();
+    case '!=':
+      return String(targetVal).trim().toLowerCase() !== String(compareVal).trim().toLowerCase();
+    case '>':
+      return isNumeric ? numTarget > numCompare : String(targetVal) > String(compareVal);
+    case '>=':
+      return isNumeric ? numTarget >= numCompare : String(targetVal) >= String(compareVal);
+    case '<':
+      return isNumeric ? numTarget < numCompare : String(targetVal) < String(compareVal);
+    case '<=':
+      return isNumeric ? numTarget <= numCompare : String(targetVal) <= String(compareVal);
+    case 'contains':
+      return String(targetVal).toLowerCase().includes(String(compareVal).toLowerCase());
+    default:
+      return true;
   }
 }
 
@@ -244,13 +482,16 @@ async function verifyPackageCodeManual() {
 // Price & Fee Calculation
 // -----------------------------------------------------------------------------
 const baseCompFee = computed(() => {
-  return Number(activeComp.value?.fee || 50000);
+  return Number(activeComp.value?.fee || 0);
 });
 
 const totalCalculatedFee = computed(() => {
-  if (isAllInFree.value) return 0;
+  if (isAllInFree.value || baseCompFee.value === 0) return 0;
   if (form.package_type === 'Paket All-In') {
     return Number(props.pricingSettings?.allin_price || 250000);
+  }
+  if (activeComp.value?.is_team) {
+    return baseCompFee.value;
   }
   return baseCompFee.value * participantCount.value;
 });
@@ -272,32 +513,36 @@ function copyAccount(accNum) {
 }
 
 // -----------------------------------------------------------------------------
-// File Uploads (Naskah Puisi & Bukti Bayar)
+// File Uploads Handling
 // -----------------------------------------------------------------------------
-const selectedNaskahFile = ref(null);
-const naskahInputRef = ref(null);
+const customFiles = ref({});
 const paymentProofRef = ref(null);
 
-function handleNaskahChange(e) {
+function handleCustomFileChange(fieldName, e) {
   const file = e.target?.files?.[0];
   if (file) {
-    selectedNaskahFile.value = file;
     if (!form.custom_fields) form.custom_fields = {};
-    form.custom_fields['naskah_berkas'] = file;
-    form.custom_fields['scan_kartu_pelajar'] = file;
-    clearFieldError('naskah_berkas');
+    form.custom_fields[fieldName] = file;
+    customFiles.value[fieldName] = file;
+    clearFieldError(fieldName);
     showToast(`Berkas terpilih: ${file.name}`);
   }
 }
 
-function clearNaskahFile(e) {
-  if (e) e.stopPropagation();
-  selectedNaskahFile.value = null;
+function clearCustomFile(fieldName, inputRef) {
   if (form.custom_fields) {
-    form.custom_fields['naskah_berkas'] = null;
-    form.custom_fields['scan_kartu_pelajar'] = null;
+    form.custom_fields[fieldName] = null;
   }
-  if (naskahInputRef.value) naskahInputRef.value.value = '';
+  delete customFiles.value[fieldName];
+  if (inputRef) inputRef.value = '';
+}
+
+function handleParticipantPhoto(pIdx, type, e) {
+  const file = e.target?.files?.[0];
+  if (file && participants.value[pIdx]) {
+    participants.value[pIdx][type] = file;
+    showToast(`Foto peserta #${pIdx + 1} berhasil dipilih`);
+  }
 }
 
 function handlePaymentProofChange(e) {
@@ -324,11 +569,14 @@ function formatFileSize(bytes) {
 // Validation & Field Error Handling
 // -----------------------------------------------------------------------------
 function getFieldError(fieldName) {
-  return validationErrors.value[fieldName] || form.errors[fieldName] || form.errors['cf_' + fieldName] || form.errors['custom_fields.' + fieldName];
+  return validationErrors.value[fieldName] 
+    || form.errors[fieldName] 
+    || form.errors['cf_' + fieldName] 
+    || form.errors['custom_fields.' + fieldName];
 }
 
 function hasFieldError(fieldName) {
-  return !!getFieldError(fieldName);
+  return !getFieldError(fieldName);
 }
 
 function clearFieldError(fieldName) {
@@ -346,6 +594,7 @@ function validateForm() {
   submitAttempted.value = true;
   const errs = {};
 
+  // 1. Identity Fields Validation
   if (!form.school_name || !form.school_name.trim()) {
     errs['school_name'] = 'Nama Asal Sekolah / Madrasah wajib diisi.';
   }
@@ -361,15 +610,72 @@ function validateForm() {
     errs['mentor_wa'] = 'Nomor WhatsApp pembina minimal 10 digit angka valid.';
   }
 
-  // Validate Participant 1
-  if (!participants.value[0]?.name?.trim()) {
-    errs['participant_0_name'] = 'Nama lengkap Siswa #1 wajib diisi.';
+  if (!form.custom_fields?.['school_district']) {
+    errs['school_district'] = 'Kecamatan Asal Sekolah wajib dipilih.';
   }
 
-  // Validate Participant 2 if 2 participants selected
-  if (participantCount.value === 2 && !participants.value[1]?.name?.trim()) {
-    errs['participant_1_name'] = 'Nama lengkap Siswa #2 wajib diisi.';
+  if (!form.custom_fields?.['school_address'] || !form.custom_fields['school_address'].trim()) {
+    errs['school_address'] = 'Alamat Lengkap Sekolah wajib diisi.';
   }
+
+  // 2. Participant Repeater Validation
+  const count = participantCount.value;
+  const sf = subFieldsConfig.value;
+
+  for (let i = 0; i < count; i++) {
+    const p = participants.value[i];
+    if (sf.name?.active !== false && sf.name?.required) {
+      if (!p?.name || !p.name.trim()) {
+        errs[`p_${i}_name`] = `Nama lengkap Siswa #${i + 1} wajib diisi.`;
+      }
+    }
+    if (sf.gender?.active !== false && sf.gender?.required) {
+      if (!p?.gender) {
+        errs[`p_${i}_gender`] = `Jenis kelamin Siswa #${i + 1} wajib dipilih.`;
+      }
+    }
+    if (sf.grade?.active !== false && sf.grade?.required) {
+      if (!p?.grade) {
+        errs[`p_${i}_grade`] = `Kelas / Tingkat Siswa #${i + 1} wajib dipilih.`;
+      }
+    }
+    if (sf.birth_date?.active && sf.birth_date?.required) {
+      if (!p?.birth_date) {
+        errs[`p_${i}_birth_date`] = `Tanggal lahir Siswa #${i + 1} wajib diisi.`;
+      }
+    }
+    if (sf.nisn?.active && sf.nisn?.required) {
+      if (!p?.nisn || !p.nisn.trim()) {
+        errs[`p_${i}_nisn`] = `NISN Siswa #${i + 1} wajib diisi.`;
+      }
+    }
+    if (sf.captain_option?.active && p?.is_captain && !p?.captain_wa) {
+      errs[`p_${i}_captain_wa`] = `Nomor WA Kapten Tim Siswa #${i + 1} wajib diisi.`;
+    }
+    if (sf.photo_formal?.active && sf.photo_formal?.required && !p?.photo_formal) {
+      errs[`p_${i}_photo_formal`] = `Pas foto formal Siswa #${i + 1} wajib diunggah.`;
+    }
+  }
+
+  // 3. Additional Custom Fields Validation
+  otherCustomFields.value.forEach(f => {
+    if (f.required && evaluateCondition(f.conditional_logic, form.custom_fields)) {
+      const val = form.custom_fields?.[f.name];
+      if (f.type === 'file') {
+        if (!val && !customFiles.value[f.name]) {
+          errs[f.name] = `Berkas "${f.label}" wajib diunggah.`;
+        }
+      } else if (f.type === 'checkbox') {
+        if (!val || (Array.isArray(val) && val.length === 0)) {
+          errs[f.name] = `Pilihan "${f.label}" minimal pilih 1 opsi.`;
+        }
+      } else {
+        if (val === undefined || val === null || String(val).trim() === '') {
+          errs[f.name] = `Kolom "${f.label}" wajib diisi.`;
+        }
+      }
+    }
+  });
 
   validationErrors.value = errs;
   return Object.keys(errs).length === 0;
@@ -386,21 +692,30 @@ function handleSubmit() {
     return;
   }
 
-  // Prepare participants text
+  // Prepare participants array and text
   const activeParticipants = participants.value.slice(0, participantCount.value);
   form.participants_names = activeParticipants
-    .map((p, idx) => `${idx + 1}. ${p.name} (${p.grade}, ${p.gender === 'L' ? 'Laki-Laki' : 'Perempuan'})`)
+    .map((p, idx) => {
+      const details = [];
+      if (p.is_captain) details.push('KAPTEN TIM');
+      if (p.captain_wa) details.push(`WA Kapten: ${p.captain_wa}`);
+      if (p.grade) details.push(p.grade);
+      if (p.gender) details.push(p.gender === 'L' ? 'L' : 'P');
+      if (p.birth_date) details.push(p.birth_date);
+      if (p.nisn) details.push(`NISN: ${p.nisn}`);
+      if (p.custom_id) details.push(`ID: ${p.custom_id}`);
+      const detStr = details.length > 0 ? ` (${details.join(', ')})` : '';
+      return `${idx + 1}. ${p.name || '-'}${detStr}`;
+    })
     .join('\n');
 
   // Sync custom_fields
   if (!form.custom_fields) form.custom_fields = {};
-  form.custom_fields.biodata_peserta = activeParticipants;
+  const repeaterKey = repeaterField.value?.name || 'biodata_peserta';
+  form.custom_fields[repeaterKey] = activeParticipants;
   form.custom_fields['school_name'] = form.school_name;
   form.custom_fields['mentor_name'] = form.mentor_name;
   form.custom_fields['mentor_wa'] = form.mentor_wa;
-  if (!form.custom_fields['school_district']) form.custom_fields['school_district'] = 'Balung';
-  if (!form.custom_fields['school_address']) form.custom_fields['school_address'] = form.school_name;
-  if (!form.custom_fields['mentor_email']) form.custom_fields['mentor_email'] = 'pembina@sekolah.sch.id';
 
   form.post('/formulir-pendaftaran', {
     preserveScroll: true,
@@ -421,20 +736,21 @@ function handleSubmit() {
 onMounted(() => {
   initTheme();
   if (props.preselectedLomba) {
-    const matched = props.competitions?.find(c => c.id === props.preselectedLomba);
+    const matched = props.competitions?.find(c => String(c.id) === String(props.preselectedLomba));
     if (matched) form.competition_id = matched.id;
   }
   if (props.authRegistrant?.school_name) form.school_name = props.authRegistrant.school_name;
   if (props.authRegistrant?.name) form.mentor_name = props.authRegistrant.name;
   if (props.authRegistrant?.phone) form.mentor_wa = props.authRegistrant.phone;
-  if (props.authRegistrant?.email) form.custom_fields['mentor_email'] = props.authRegistrant.email;
-  if (props.authRegistrant?.school_district) form.custom_fields['school_district'] = props.authRegistrant.school_district;
+  if (props.authRegistrant?.email && form.custom_fields) form.custom_fields['mentor_email'] = props.authRegistrant.email;
+  if (props.authRegistrant?.school_district && form.custom_fields) form.custom_fields['school_district'] = props.authRegistrant.school_district;
+  initCompetitionData();
 });
 </script>
 
 <template>
   <div class="semarak-root-page" :class="{ 'dark': isDark }">
-    <Head :title="activeComp ? `Pendaftaran Lomba ${activeComp.title} - Semarak Aliyah XIV 2026 | MAS Wahid Hasyim Balung` : 'Pendaftaran Semarak Aliyah XIV 2026 | MAS Wahid Hasyim Balung'" />
+    <Head :title="activeComp ? `${formSettings.form_title || 'Pendaftaran Lomba ' + activeComp.title} - Semarak Aliyah XIV 2026 | MAS Wahid Hasyim Balung` : 'Pendaftaran Semarak Aliyah XIV 2026 | MAS Wahid Hasyim Balung'" />
 
     <!-- ======================================================================
          HEADER PUBLIK (EXACT TO USER MOCKUP)
@@ -539,21 +855,22 @@ onMounted(() => {
 
         <!-- FORM CARD SECTION -->
         <div v-else>
-          <!-- HERO HEADER ELEGAN & RINGKAS -->
+          <!-- HERO HEADER ELEGAN & RINGKAS (DYNAMIC DARI FORM BUILDER) -->
           <div class="text-center mb-8 sm:mb-10 space-y-3">
             <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-light text-emerald-dark text-xs sm:text-sm font-semibold border border-primary/20 shadow-xs">
               <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-              Pendaftaran Resmi • Jenjang SMP / MTs Sederajat
+              Pendaftaran Resmi • {{ activeComp?.category_label || 'Jenjang SMP / MTs Sederajat' }}
             </div>
             <h1 class="font-headline font-extrabold text-2xl sm:text-4xl text-on-surface tracking-tight">
-              Formulir Pendaftaran Cabang {{ activeComp?.title || 'Baca Puisi' }}
+              {{ formSettings.form_title || (`Formulir Pendaftaran Cabang ${activeComp?.title || 'Lomba'}`) }}
             </h1>
+            
             <!-- Inline Switcher if multiple competitions exist -->
             <div v-if="props.competitions && props.competitions.length > 1" class="flex items-center justify-center pt-1">
               <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] text-xs text-on-surface shadow-xs">
                 <i class="ri-arrow-left-right-line text-primary"></i>
                 <span class="text-on-surface-variant font-medium">Ganti Cabang:</span>
-                <div class="w-48 sm:w-60">
+                <div class="w-48 sm:w-64">
                   <CustomSelect
                     v-model="form.competition_id"
                     :options="competitionOptions"
@@ -564,8 +881,9 @@ onMounted(() => {
                 </div>
               </div>
             </div>
+
             <p class="text-on-surface-variant text-sm sm:text-base max-w-2xl mx-auto leading-relaxed pt-1">
-              Silakan lengkapi data delegasi sekolah, peserta, serta berkas naskah Anda. Proses cepat, mudah, dan langsung terverifikasi oleh panitia.
+              {{ formSettings.form_subtitle || 'Silakan lengkapi data delegasi sekolah, peserta, serta berkas Anda. Proses cepat, mudah, dan langsung terverifikasi oleh panitia.' }}
             </p>
           </div>
 
@@ -576,7 +894,9 @@ onMounted(() => {
             novalidate 
             @submit.prevent="handleSubmit"
           >
-            <!-- SECTION 1: Informasi Asal Sekolah & Guru Pembina -->
+            <!-- ============================================================== -->
+            <!-- SECTION 1: Informasi Asal Sekolah & Guru Pembina (Identitas)   -->
+            <!-- ============================================================== -->
             <div class="space-y-4">
               <div class="flex items-center gap-2.5 pb-2 border-b border-border-subtle">
                 <i class="ri-bank-line text-primary text-[22px] leading-none"></i>
@@ -595,7 +915,7 @@ onMounted(() => {
                     @focus="onSchoolInput"
                     @blur="onSchoolBlur"
                     class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                    :class="{ 'border-red-500 ring-2 ring-red-500/20': hasFieldError('school_name') }"
+                    :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('school_name') }"
                     placeholder="Contoh: MTs Unggulan Balung atau SMP Negeri 1 Jember" 
                     required 
                     type="text"
@@ -621,6 +941,50 @@ onMounted(() => {
                   <p v-if="getFieldError('school_name')" class="text-xs text-red-500 font-medium">{{ getFieldError('school_name') }}</p>
                 </div>
 
+                <!-- Kecamatan Asal Sekolah (Dropdown Mandatori Standar) -->
+                <div class="space-y-1.5">
+                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
+                    Kecamatan Asal Sekolah <span class="text-red-500">*</span>
+                  </label>
+                  <CustomSelect
+                    v-model="form.custom_fields['school_district']"
+                    :options="JEMBER_KECAMATAN_LIST"
+                    placeholder="Pilih Kecamatan Asal Sekolah..."
+                    size="md"
+                    searchable
+                  />
+                  <p v-if="getFieldError('school_district')" class="text-xs text-red-500 font-medium">{{ getFieldError('school_district') }}</p>
+                </div>
+
+                <!-- NPSN Sekolah (Opsional) -->
+                <div class="space-y-1.5">
+                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
+                    Nomor Pokok Sekolah Nasional (NPSN) <span class="text-xs text-on-surface-variant font-normal">(Opsional)</span>
+                  </label>
+                  <input 
+                    v-model="form.custom_fields['school_npsn']"
+                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    placeholder="Contoh: 20524589" 
+                    type="text"
+                  >
+                </div>
+
+                <!-- Alamat Lengkap Sekolah / Madrasah -->
+                <div class="space-y-1.5 md:col-span-2">
+                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
+                    Alamat Lengkap Sekolah / Madrasah <span class="text-red-500">*</span>
+                  </label>
+                  <textarea 
+                    rows="2"
+                    v-model="form.custom_fields['school_address']"
+                    class="w-full p-3 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('school_address') }"
+                    placeholder="Contoh: Jl. Raya Puger No. 20, Balung Kulon, Kec. Balung, Kab. Jember"
+                    required
+                  ></textarea>
+                  <p v-if="getFieldError('school_address')" class="text-xs text-red-500 font-medium">{{ getFieldError('school_address') }}</p>
+                </div>
+
                 <!-- Nama Guru Pembina / Pendamping -->
                 <div class="space-y-1.5" id="reg-pendamping">
                   <label class="block text-xs sm:text-sm font-semibold text-on-surface">
@@ -628,13 +992,13 @@ onMounted(() => {
                   </label>
                   <div class="relative flex items-center">
                     <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                      <i class="ri-user-line text-[18px] leading-none"></i>
+                      <i class="ri-user-star-line text-[18px] leading-none"></i>
                     </div>
                     <input 
                       v-model="form.mentor_name"
                       @input="clearFieldError('mentor_name')"
                       class="w-full h-11 pl-10 pr-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                      :class="{ 'border-red-500 ring-2 ring-red-500/20': hasFieldError('mentor_name') }"
+                      :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('mentor_name') }"
                       placeholder="Ust. Ahmad Hidayat, S.Pd." 
                       required 
                       type="text"
@@ -656,29 +1020,94 @@ onMounted(() => {
                       v-model="form.mentor_wa"
                       @input="clearFieldError('mentor_wa')"
                       class="w-full h-11 pl-10 pr-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                      :class="{ 'border-red-500 ring-2 ring-red-500/20': hasFieldError('mentor_wa') }"
-                      placeholder="0812-3456-7890 (Untuk Grup TM)" 
+                      :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('mentor_wa') }"
+                      placeholder="0812-3456-7890 (Untuk Koordinasi & TM)" 
                       required 
                       type="tel"
                     >
                   </div>
                   <p v-if="getFieldError('mentor_wa')" class="text-xs text-red-500 font-medium">{{ getFieldError('mentor_wa') }}</p>
                 </div>
+
+                <!-- Email Aktif Pembina -->
+                <div class="space-y-1.5 md:col-span-2">
+                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
+                    Alamat Email Aktif Pembina <span class="text-xs text-on-surface-variant font-normal">(Untuk Tanda Terima &amp; Juknis)</span>
+                  </label>
+                  <div class="relative flex items-center">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                      <i class="ri-mail-line text-[18px] leading-none"></i>
+                    </div>
+                    <input 
+                      v-model="form.custom_fields['mentor_email']"
+                      class="w-full h-11 pl-10 pr-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                      placeholder="pembina@sekolah.sch.id / official@gmail.com" 
+                      type="email"
+                    >
+                  </div>
+                </div>
+              </div>
+
+              <!-- Input & Verifikasi Kode Paket Komplit (All-In) -->
+              <div class="p-3.5 sm:p-4 rounded-xl border border-dashed border-primary/40 bg-emerald-light/30 space-y-2.5">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                  <label class="block text-xs font-semibold text-on-surface flex items-center gap-1.5">
+                    <i class="ri-vip-crown-line text-primary text-[18px] leading-none"></i>
+                    <span>Punya Kode Paket Komplit (All-In)?</span>
+                  </label>
+                  <span class="text-[11px] text-amber-dark font-medium bg-amber-soft px-2 py-0.5 rounded w-fit">Gratis Biaya Cabang (Rp 0)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="relative flex-1">
+                    <input 
+                      v-model="form.custom_fields['allin_code']"
+                      type="text" 
+                      placeholder="Masukkan kode paket dari panitia kontingen (misal: SA26-XXXXXX)" 
+                      class="w-full h-10 px-3.5 rounded-lg border border-border-subtle bg-white dark:bg-[#111d17] text-xs font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:font-body placeholder:normal-case placeholder:text-gray-400 text-on-surface"
+                    >
+                  </div>
+                  <button 
+                    type="button" 
+                    @click="verifyPackageCodeManual" 
+                    :disabled="isCheckingPackageCode"
+                    class="h-10 px-4 rounded-lg bg-primary hover:bg-primary-container text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-colors shadow-xs cursor-pointer border-none"
+                  >
+                    <i v-if="isCheckingPackageCode" class="ri-loader-4-line animate-spin text-[16px]"></i>
+                    <i v-else class="ri-checkbox-circle-line text-[16px]"></i>
+                    <span>Cek Kode</span>
+                  </button>
+                </div>
+                <p v-if="codeVerificationError" class="text-xs text-red-500 font-medium">{{ codeVerificationError }}</p>
+                <div v-else-if="isAllInFree" class="text-xs text-emerald-dark font-bold flex items-center gap-1.5">
+                  <i class="ri-checkbox-circle-fill text-primary text-[16px]"></i>
+                  <span>Kode Paket Komplit terverifikasi! Biaya pendaftaran cabang ini menjadi Rp 0 (Bebas Biaya).</span>
+                </div>
+                <p v-else class="text-[11px] text-on-surface-variant flex items-center gap-1">
+                  <i class="ri-information-line text-[14px] text-primary leading-none"></i>
+                  <span>Jika sekolah Anda telah mendaftar Paket Komplit, masukkan kode paket agar pendaftaran cabang ini bebas biaya.</span>
+                </p>
               </div>
             </div>
 
-            <!-- SECTION 2: Data Peserta Lomba -->
+            <!-- ============================================================== -->
+            <!-- SECTION 2: Data Peserta & Skema Paket (Dinamis Form Builder)    -->
+            <!-- ============================================================== -->
             <div class="space-y-4" id="sectionDataPeserta">
               <div class="flex items-center justify-between pb-2 border-b border-border-subtle flex-wrap gap-2">
                 <div class="flex items-center gap-2.5">
-                  <i class="ri-shield-user-line text-primary text-[22px] leading-none"></i>
-                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface">2. Data Peserta &amp; Skema Paket</h2>
+                  <i class="ri-group-line text-primary text-[22px] leading-none"></i>
+                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface">
+                    2. {{ repeaterField?.label || 'Biodata Peserta & Delegasi' }}
+                  </h2>
                 </div>
-                <span class="text-xs text-on-surface-variant font-medium">Maksimal 2 peserta per delegasi cabang puisi</span>
+                <span class="text-xs text-on-surface-variant font-medium">
+                  <span v-if="minParticipants === maxParticipants">Format: {{ minParticipants }} Siswa</span>
+                  <span v-else>Kuota: {{ minParticipants }} s.d. {{ maxParticipants }} Peserta</span>
+                </span>
               </div>
 
-              <!-- Pilihan Skema Paket Pendaftaran -->
-              <div class="p-4 rounded-xl bg-background/50 border border-border-subtle space-y-2.5">
+              <!-- Pilihan Skema Paket Pendaftaran (Hanya jika diaktifkan di Form Builder) -->
+              <div v-if="formSettings.show_package_type" class="p-4 rounded-xl bg-background/50 border border-border-subtle space-y-2.5">
                 <div class="flex items-center justify-between">
                   <label class="block text-xs sm:text-sm font-semibold text-on-surface">
                     Pilihan Skema Paket Pendaftaran <span class="text-red-500">*</span>
@@ -700,7 +1129,7 @@ onMounted(() => {
                           <span class="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded">Cabang Ini</span>
                         </div>
                         <p class="text-xs font-semibold text-primary mt-0.5">Rp {{ baseCompFee.toLocaleString('id-ID') }}</p>
-                        <p class="text-[11px] text-on-surface-variant">Khusus pendaftaran cabang {{ activeComp?.title || 'Baca Puisi' }}</p>
+                        <p class="text-[11px] text-on-surface-variant">Khusus pendaftaran cabang {{ activeComp?.title || 'ini' }}</p>
                       </div>
                     </div>
                     <i class="ri-price-tag-3-line text-primary text-[20px] shrink-0"></i>
@@ -726,390 +1155,627 @@ onMounted(() => {
                     <i class="ri-verified-badge-line text-primary text-[20px] shrink-0"></i>
                   </label>
                 </div>
-
-                <!-- Input Kode Paket All-In Komplit -->
-                <div class="mt-3 p-3.5 rounded-xl border border-dashed border-primary/40 bg-emerald-light/30 space-y-2">
-                  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                    <label class="block text-xs font-semibold text-on-surface flex items-center gap-1.5">
-                      <i class="ri-key-line text-primary text-[18px] leading-none"></i>
-                      <span>Kode Paket Komplit (All-In) <span class="text-red-500">*</span></span>
-                    </label>
-                    <span class="text-[11px] text-amber-dark font-medium bg-amber-soft px-2 py-0.5 rounded">Khusus Paket All-In</span>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <div class="relative flex-1">
-                      <input 
-                        v-model="form.custom_fields['allin_code']"
-                        type="text" 
-                        placeholder="Masukkan kode verifikasi paket dari panitia kontingen (misal: PKT-ALLIN-XXXX)" 
-                        class="w-full h-10 px-3.5 rounded-lg border border-border-subtle bg-white dark:bg-[#111d17] text-xs font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:font-body placeholder:normal-case placeholder:text-gray-400 text-on-surface"
-                      >
-                    </div>
-                    <button 
-                      type="button" 
-                      @click="verifyPackageCodeManual" 
-                      :disabled="isCheckingPackageCode"
-                      class="h-10 px-4 rounded-lg bg-primary hover:bg-primary-container text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-colors shadow-xs cursor-pointer border-none"
-                    >
-                      <i v-if="isCheckingPackageCode" class="ri-loader-4-line animate-spin text-[16px]"></i>
-                      <i v-else class="ri-checkbox-circle-line text-[16px]"></i>
-                      <span>Cek Kode</span>
-                    </button>
-                  </div>
-                  <p v-if="codeVerificationError" class="text-xs text-red-500 font-medium">{{ codeVerificationError }}</p>
-                  <p v-else class="text-[11px] text-on-surface-variant flex items-center gap-1">
-                    <i class="ri-information-line text-[14px] text-primary leading-none"></i>
-                    <span>Wajib diisi jika sekolah Anda telah mendaftarkan paket kolektif/all-in cabang lomba</span>
-                  </p>
-                </div>
               </div>
 
-              <!-- Selector Jumlah Peserta (Tanpa Biaya Perkalian) -->
-              <div class="p-4 rounded-xl bg-background/50 border border-border-subtle space-y-3">
+              <!-- Selector Jumlah Peserta (Jika Min < Max) -->
+              <div v-if="minParticipants < maxParticipants" class="p-4 rounded-xl bg-background/50 border border-border-subtle space-y-3">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
                   <div class="flex items-center gap-2">
-                    <i class="ri-group-line text-primary text-[18px] leading-none"></i>
-                    <label class="block text-xs sm:text-sm font-semibold text-on-surface">Jumlah Delegasi Peserta</label>
+                    <i class="ri-user-follow-line text-primary text-[18px] leading-none"></i>
+                    <label class="block text-xs sm:text-sm font-semibold text-on-surface">Jumlah Delegasi Peserta yang Didaftarkan</label>
                   </div>
                   <span class="text-[11px] font-medium text-emerald-dark bg-emerald-light border border-primary/20 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 w-fit">
                     <i class="ri-information-line text-[14px] leading-none"></i>
-                    Maks. 2 Peserta per Sekolah/Madrasah
+                    Batas Maksimal: {{ maxParticipants }} Peserta
                   </span>
                 </div>
-                <div class="grid grid-cols-2 p-1 bg-white dark:bg-[#111d17] border border-border-subtle rounded-xl gap-1 shadow-xs">
-                  <label 
-                    class="flex items-center justify-center gap-2 py-2 px-3 rounded-lg cursor-pointer text-xs sm:text-sm font-semibold text-on-surface-variant transition-all hover:text-primary"
-                    :class="{ 'bg-emerald-light text-primary shadow-xs border border-primary/20': participantCount === 1 }"
-                    @click="setParticipantCount(1)"
-                  >
-                    <input type="radio" name="jumlah_peserta" value="1" :checked="participantCount === 1" class="hidden">
-                    <i class="ri-user-line text-[18px] leading-none"></i>
-                    <span>1 Peserta (Tunggal)</span>
-                  </label>
-                  <label 
-                    class="flex items-center justify-center gap-2 py-2 px-3 rounded-lg cursor-pointer text-xs sm:text-sm font-semibold text-on-surface-variant transition-all hover:text-primary"
-                    :class="{ 'bg-emerald-light text-primary shadow-xs border border-primary/20': participantCount === 2 }"
-                    @click="setParticipantCount(2)"
-                  >
-                    <input type="radio" name="jumlah_peserta" value="2" :checked="participantCount === 2" class="hidden">
-                    <i class="ri-group-line text-[18px] leading-none"></i>
-                    <span>2 Peserta (Maksimal)</span>
-                  </label>
+
+                <!-- Stepper Buttons -->
+                <div class="flex items-center gap-3">
+                  <div class="flex items-center gap-1.5 p-1 bg-white dark:bg-[#111d17] border border-border-subtle rounded-xl shadow-xs">
+                    <button 
+                      type="button" 
+                      class="w-9 h-9 rounded-lg border border-border-subtle bg-background/50 text-on-surface flex items-center justify-center hover:bg-emerald-light hover:text-primary transition-colors cursor-pointer"
+                      :disabled="participantCount <= minParticipants"
+                      @click="changeParticipantCount(-1)"
+                      title="Kurangi Peserta"
+                    >
+                      <i class="ri-subtract-line text-[16px]"></i>
+                    </button>
+                    <span class="px-4 font-headline font-bold text-sm text-primary">
+                      {{ participantCount }} Peserta
+                    </span>
+                    <button 
+                      type="button" 
+                      class="w-9 h-9 rounded-lg border border-border-subtle bg-background/50 text-on-surface flex items-center justify-center hover:bg-emerald-light hover:text-primary transition-colors cursor-pointer"
+                      :disabled="participantCount >= maxParticipants"
+                      @click="changeParticipantCount(1)"
+                      title="Tambah Peserta"
+                    >
+                      <i class="ri-add-line text-[16px]"></i>
+                    </button>
+                  </div>
+
+                  <!-- Quick Select Pills if max <= 4 -->
+                  <div v-if="maxParticipants <= 4" class="hidden sm:flex items-center gap-2">
+                    <button 
+                      v-for="countNum in (maxParticipants - minParticipants + 1)" 
+                      :key="countNum"
+                      type="button"
+                      class="px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer"
+                      :class="participantCount === (minParticipants + countNum - 1) ? 'bg-emerald-light border-primary text-primary shadow-xs' : 'bg-white dark:bg-[#111d17] border-border-subtle text-on-surface-variant hover:border-primary/50'"
+                      @click="setParticipantCount(minParticipants + countNum - 1)"
+                    >
+                      {{ minParticipants + countNum - 1 }} Siswa {{ (minParticipants + countNum - 1) === maxParticipants ? '(Maksimal)' : '' }}
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <!-- Kartu Peserta 1 -->
-              <div class="p-4 sm:p-5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] space-y-3.5 shadow-xs">
-                <div class="flex items-center justify-between border-b border-border-subtle pb-2">
-                  <div class="flex items-center gap-2">
-                    <span class="w-6 h-6 rounded-full bg-emerald-light text-emerald-dark font-headline text-xs font-bold flex items-center justify-center">1</span>
-                    <h3 class="font-headline font-bold text-sm text-on-surface">Data Peserta 1</h3>
-                  </div>
-                  <span class="text-[11px] font-semibold text-emerald-dark bg-emerald-light px-2 py-0.5 rounded-full">Peserta Utama</span>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-12 gap-3.5">
-                  <div class="space-y-1.5 md:col-span-6" id="reg-siswa-1">
-                    <label class="block text-xs font-semibold text-on-surface">
-                      Nama Lengkap Siswa <span class="text-red-500">*</span>
-                    </label>
-                    <input 
-                      v-model="participants[0].name"
-                      @input="clearFieldError('participant_0_name')"
-                      class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                      :class="{ 'border-red-500 ring-2 ring-red-500/20': hasFieldError('participant_0_name') }"
-                      placeholder="Sesuai rapor / akta kelahiran" 
-                      required 
-                      type="text"
-                    >
-                    <p v-if="getFieldError('participant_0_name')" class="text-xs text-red-500 font-medium">{{ getFieldError('participant_0_name') }}</p>
-                  </div>
-                  <div class="space-y-1.5 md:col-span-3">
-                    <label class="block text-xs font-semibold text-on-surface">
-                      Kelas / Tingkat <span class="text-red-500">*</span>
-                    </label>
-                    <CustomSelect 
-                      v-model="participants[0].grade"
-                      :options="gradeOptions"
-                      placeholder="Pilih Kelas..."
-                      size="md"
-                    />
-                  </div>
-                  <div class="space-y-1.5 md:col-span-3">
-                    <label class="block text-xs font-semibold text-on-surface">
-                      Jenis Kelamin <span class="text-red-500">*</span>
-                    </label>
-                    <div class="grid grid-cols-2 gap-2 h-11">
-                      <label 
-                        class="flex items-center justify-center gap-1 border border-border-subtle rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
-                        :class="{ 'bg-emerald-light border-primary text-primary': participants[0].gender === 'L' }"
-                        @click="participants[0].gender = 'L'"
+              <!-- Kartu Biodata Peserta (1 s.d. N Sesuai Jumlah Terpilih) -->
+              <div class="space-y-4">
+                <div 
+                  v-for="pIdx in participantCount" 
+                  :key="pIdx"
+                  class="p-4 sm:p-5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] space-y-4 shadow-xs"
+                >
+                  <!-- Header Kartu Peserta -->
+                  <div class="flex items-center justify-between border-b border-border-subtle pb-2.5 flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-emerald-light text-emerald-dark font-headline text-xs font-bold flex items-center justify-center">
+                        {{ pIdx }}
+                      </span>
+                      <h3 class="font-headline font-bold text-sm text-on-surface">
+                        Biodata Siswa Peserta #{{ pIdx }}
+                      </h3>
+
+                      <!-- Badge Inti vs Cadangan jika main_members dikonfigurasi -->
+                      <span 
+                        v-if="repeaterField?.main_members" 
+                        class="text-[10px] font-bold px-2 py-0.5 rounded-full border inline-flex items-center gap-1"
+                        :class="pIdx <= (repeaterField.main_members || 1) ? 'bg-emerald-light text-emerald-dark border-primary/20' : 'bg-amber-soft text-amber-dark border-amber-500/20'"
                       >
-                        <input type="radio" name="gender_1" value="L" :checked="participants[0].gender === 'L'" class="hidden">
-                        <span>Laki-Laki</span>
-                      </label>
+                        <i :class="pIdx <= (repeaterField.main_members || 1) ? 'ri-shield-user-line' : 'ri-user-shared-line'"></i>
+                        {{ pIdx <= (repeaterField.main_members || 1) ? `Pemain Inti #${pIdx}` : `Cadangan #${pIdx - (repeaterField.main_members || 1)}` }}
+                      </span>
+                    </div>
+
+                    <!-- Pilihan Kapten Tim (Jika diaktifkan di Form Builder) -->
+                    <div v-if="subFieldsConfig.captain_option?.active" class="flex items-center gap-2">
                       <label 
-                        class="flex items-center justify-center gap-1 border border-border-subtle rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
-                        :class="{ 'bg-emerald-light border-primary text-primary': participants[0].gender === 'P' }"
-                        @click="participants[0].gender = 'P'"
+                        class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold cursor-pointer transition-all"
+                        :class="participants[pIdx - 1]?.is_captain ? 'bg-amber-soft text-amber-dark border-amber-500 font-bold' : 'bg-background/50 border-border-subtle text-on-surface-variant hover:border-primary/40'"
+                        @click="setCaptain(pIdx - 1)"
                       >
-                        <input type="radio" name="gender_1" value="P" :checked="participants[0].gender === 'P'" class="hidden">
-                        <span>Perempuan</span>
+                        <input type="radio" name="kapten_tim" :checked="participants[pIdx - 1]?.is_captain" class="w-3.5 h-3.5 text-amber-500">
+                        <span>⭐ Kapten Tim</span>
                       </label>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              <!-- Kartu Peserta 2 (Dinamis / Opsional) -->
-              <div 
-                v-if="participantCount === 2" 
-                class="p-4 sm:p-5 rounded-xl border border-dashed border-primary/40 bg-white dark:bg-[#111d17] space-y-3.5 shadow-xs"
-              >
-                <div class="flex items-center justify-between border-b border-border-subtle pb-2">
-                  <div class="flex items-center gap-2">
-                    <span class="w-6 h-6 rounded-full bg-emerald-light text-emerald-dark font-headline text-xs font-bold flex items-center justify-center">2</span>
-                    <h3 class="font-headline font-bold text-sm text-on-surface">Data Peserta 2</h3>
-                  </div>
-                  <span class="text-[11px] font-semibold text-primary bg-emerald-light px-2 py-0.5 rounded-full">Peserta 2 (Tambahan)</span>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-12 gap-3.5">
-                  <div class="space-y-1.5 md:col-span-6" id="reg-siswa-2">
-                    <label class="block text-xs font-semibold text-on-surface">
-                      Nama Lengkap Siswa <span class="text-red-500">*</span>
-                    </label>
-                    <input 
-                      v-model="participants[1].name"
-                      @input="clearFieldError('participant_1_name')"
-                      class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
-                      :class="{ 'border-red-500 ring-2 ring-red-500/20': hasFieldError('participant_1_name') }"
-                      placeholder="Sesuai rapor / akta kelahiran" 
-                      required 
-                      type="text"
+                  <!-- Sub-fields Grid -->
+                  <div class="grid grid-cols-1 md:grid-cols-12 gap-3.5">
+                    <!-- Nama Siswa -->
+                    <div 
+                      v-if="subFieldsConfig.name?.active !== false"
+                      class="space-y-1.5"
+                      :class="(subFieldsConfig.grade?.active !== false || subFieldsConfig.gender?.active !== false) ? 'md:col-span-6' : 'md:col-span-12'"
                     >
-                    <p v-if="getFieldError('participant_1_name')" class="text-xs text-red-500 font-medium">{{ getFieldError('participant_1_name') }}</p>
-                  </div>
-                  <div class="space-y-1.5 md:col-span-3">
-                    <label class="block text-xs font-semibold text-on-surface">
-                      Kelas / Tingkat <span class="text-red-500">*</span>
-                    </label>
-                    <CustomSelect 
-                      v-model="participants[1].grade"
-                      :options="gradeOptions"
-                      placeholder="Pilih Kelas..."
-                      size="md"
-                    />
-                  </div>
-                  <div class="space-y-1.5 md:col-span-3">
-                    <label class="block text-xs font-semibold text-on-surface">
-                      Jenis Kelamin <span class="text-red-500">*</span>
-                    </label>
-                    <div class="grid grid-cols-2 gap-2 h-11">
-                      <label 
-                        class="flex items-center justify-center gap-1 border border-border-subtle rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
-                        :class="{ 'bg-emerald-light border-primary text-primary': participants[1].gender === 'L' }"
-                        @click="participants[1].gender = 'L'"
-                      >
-                        <input type="radio" name="gender_2" value="L" :checked="participants[1].gender === 'L'" class="hidden">
-                        <span>Laki-Laki</span>
+                      <label class="block text-xs font-semibold text-on-surface">
+                        {{ subFieldsConfig.name.label || 'Nama Lengkap Siswa' }}
+                        <span v-if="subFieldsConfig.name.required" class="text-red-500">*</span>
                       </label>
-                      <label 
-                        class="flex items-center justify-center gap-1 border border-border-subtle rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
-                        :class="{ 'bg-emerald-light border-primary text-primary': participants[1].gender === 'P' }"
-                        @click="participants[1].gender = 'P'"
+                      <input 
+                        v-model="participants[pIdx - 1].name"
+                        @input="clearFieldError(`p_${pIdx - 1}_name`)"
+                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError(`p_${pIdx - 1}_name`) }"
+                        :placeholder="`Nama lengkap Siswa #${pIdx}...`" 
+                        :required="subFieldsConfig.name.required" 
+                        type="text"
                       >
-                        <input type="radio" name="gender_2" value="P" :checked="participants[1].gender === 'P'" class="hidden">
-                        <span>Perempuan</span>
+                      <p v-if="getFieldError(`p_${pIdx - 1}_name`)" class="text-xs text-red-500 font-medium">{{ getFieldError(`p_${pIdx - 1}_name`) }}</p>
+                    </div>
+
+                    <!-- Kelas / Tingkat -->
+                    <div 
+                      v-if="subFieldsConfig.grade?.active !== false"
+                      class="space-y-1.5 md:col-span-3"
+                    >
+                      <label class="block text-xs font-semibold text-on-surface">
+                        {{ subFieldsConfig.grade.label || 'Kelas / Tingkat' }}
+                        <span v-if="subFieldsConfig.grade.required" class="text-red-500">*</span>
                       </label>
+                      <CustomSelect 
+                        v-model="participants[pIdx - 1].grade"
+                        :options="gradeOptions"
+                        placeholder="Pilih Kelas..."
+                        size="md"
+                      />
+                    </div>
+
+                    <!-- Jenis Kelamin -->
+                    <div 
+                      v-if="subFieldsConfig.gender?.active !== false"
+                      class="space-y-1.5 md:col-span-3"
+                    >
+                      <label class="block text-xs font-semibold text-on-surface">
+                        {{ subFieldsConfig.gender.label || 'Jenis Kelamin' }}
+                        <span v-if="subFieldsConfig.gender.required" class="text-red-500">*</span>
+                      </label>
+                      <div class="grid grid-cols-2 gap-2 h-11">
+                        <label 
+                          class="flex items-center justify-center gap-1 border border-border-subtle rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
+                          :class="{ 'bg-emerald-light border-primary text-primary': participants[pIdx - 1].gender === 'L' }"
+                          @click="participants[pIdx - 1].gender = 'L'"
+                        >
+                          <input type="radio" :name="`gender_${pIdx}`" value="L" :checked="participants[pIdx - 1].gender === 'L'" class="hidden">
+                          <span>Laki-Laki</span>
+                        </label>
+                        <label 
+                          class="flex items-center justify-center gap-1 border border-border-subtle rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
+                          :class="{ 'bg-emerald-light border-primary text-primary': participants[pIdx - 1].gender === 'P' }"
+                          @click="participants[pIdx - 1].gender = 'P'"
+                        >
+                          <input type="radio" :name="`gender_${pIdx}`" value="P" :checked="participants[pIdx - 1].gender === 'P'" class="hidden">
+                          <span>Perempuan</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- Tanggal Lahir (dd/mm/yyyy Flatpickr) -->
+                    <div 
+                      v-if="subFieldsConfig.birth_date?.active"
+                      class="space-y-1.5 md:col-span-6"
+                    >
+                      <label class="block text-xs font-semibold text-on-surface">
+                        {{ subFieldsConfig.birth_date.label || 'Tanggal Lahir Siswa' }}
+                        <span v-if="subFieldsConfig.birth_date.required" class="text-red-500">*</span>
+                      </label>
+                      <IndoDatePicker 
+                        v-model="participants[pIdx - 1].birth_date"
+                        placeholder="dd/mm/yyyy"
+                        inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
+                      />
+                    </div>
+
+                    <!-- NISN -->
+                    <div 
+                      v-if="subFieldsConfig.nisn?.active"
+                      class="space-y-1.5 md:col-span-6"
+                    >
+                      <label class="block text-xs font-semibold text-on-surface">
+                        {{ subFieldsConfig.nisn.label || 'NISN Siswa' }}
+                        <span v-if="subFieldsConfig.nisn.required" class="text-red-500">*</span>
+                      </label>
+                      <input 
+                        v-model="participants[pIdx - 1].nisn"
+                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        placeholder="Contoh: 0081234567" 
+                        type="text"
+                      >
+                    </div>
+
+                    <!-- ID Siswa / No Identitas Khusus -->
+                    <div 
+                      v-if="subFieldsConfig.custom_id?.active"
+                      class="space-y-1.5 md:col-span-6"
+                    >
+                      <label class="block text-xs font-semibold text-on-surface">
+                        {{ subFieldsConfig.custom_id.label || 'ID Siswa / No. Identitas' }}
+                      </label>
+                      <input 
+                        v-model="participants[pIdx - 1].custom_id"
+                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        placeholder="ID Siswa / Kartu Pelajar" 
+                        type="text"
+                      >
+                    </div>
+
+                    <!-- Nomor WhatsApp Siswa -->
+                    <div 
+                      v-if="subFieldsConfig.wa_number?.active"
+                      class="space-y-1.5 md:col-span-6"
+                    >
+                      <label class="block text-xs font-semibold text-on-surface">
+                        {{ subFieldsConfig.wa_number.label || 'Nomor WhatsApp Siswa' }}
+                      </label>
+                      <input 
+                        v-model="participants[pIdx - 1].wa_number"
+                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        placeholder="08xxxxxxxxxx" 
+                        type="tel"
+                      >
+                    </div>
+
+                    <!-- Nomor WA Khusus Kapten Tim (Jika siswa ini kapten) -->
+                    <div 
+                      v-if="subFieldsConfig.captain_option?.active && participants[pIdx - 1]?.is_captain"
+                      class="space-y-1.5 md:col-span-12 p-3 rounded-xl bg-amber-soft/40 border border-amber-500/30"
+                    >
+                      <label class="block text-xs font-bold text-amber-dark flex items-center gap-1.5">
+                        <i class="ri-whatsapp-fill text-emerald-dark text-[18px]"></i>
+                        <span>Nomor WhatsApp Khusus Kapten Tim *</span>
+                      </label>
+                      <input 
+                        v-model="participants[pIdx - 1].captain_wa"
+                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface font-mono"
+                        placeholder="Contoh: 081234567890 (Untuk koordinasi panitia & kapten)"
+                        type="tel"
+                        required
+                      >
+                    </div>
+
+                    <!-- Upload Pas Foto Formal Siswa -->
+                    <div 
+                      v-if="subFieldsConfig.photo_formal?.active"
+                      class="space-y-1.5 md:col-span-6"
+                    >
+                      <label class="block text-xs font-semibold text-on-surface flex items-center justify-between">
+                        <span>{{ subFieldsConfig.photo_formal.label || 'Upload Pas Foto Formal' }}</span>
+                        <span class="text-[11px] text-on-surface-variant font-normal">Maks. 3 MB</span>
+                      </label>
+                      <div class="border border-dashed border-border-subtle hover:border-primary rounded-xl p-3 bg-background/50 text-center cursor-pointer transition-colors">
+                        <input 
+                          type="file" 
+                          class="hidden" 
+                          :id="`photo_formal_${pIdx}`"
+                          accept="image/*"
+                          @change="handleParticipantPhoto(pIdx - 1, 'photo_formal', $event)"
+                        >
+                        <label :for="`photo_formal_${pIdx}`" class="cursor-pointer block">
+                          <i class="ri-image-add-line text-primary text-[20px]"></i>
+                          <p class="text-xs text-on-surface font-semibold mt-1">
+                            {{ participants[pIdx - 1].photo_formal ? participants[pIdx - 1].photo_formal.name : 'Pilih Foto Formal Siswa' }}
+                          </p>
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- Custom Columns Tambahan per Siswa (Jika dikonfigurasi di Form Builder) -->
+                    <div 
+                      v-for="col in (subFieldsConfig.custom_columns || [])" 
+                      :key="col.id || col.label"
+                      class="space-y-1.5 md:col-span-6"
+                    >
+                      <label class="block text-xs font-semibold text-on-surface">
+                        {{ col.label || 'Kolom Tambahan' }}
+                        <span v-if="col.required" class="text-red-500">*</span>
+                      </label>
+                      <IndoDatePicker 
+                        v-if="col.type === 'date'"
+                        v-model="participants[pIdx - 1].custom_columns[col.id || col.label]"
+                        placeholder="dd/mm/yyyy"
+                        inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
+                      />
+                      <CustomSelect 
+                        v-else-if="col.type === 'select'"
+                        v-model="participants[pIdx - 1].custom_columns[col.id || col.label]"
+                        :options="col.options || []"
+                        placeholder="Pilih Opsi..."
+                        size="md"
+                      />
+                      <input 
+                        v-else
+                        :type="col.type === 'number' ? 'number' : 'text'"
+                        v-model="participants[pIdx - 1].custom_columns[col.id || col.label]"
+                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        :placeholder="`Masukkan ${col.label}...`"
+                      >
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- SECTION 3: Lampiran Berkas Naskah & Kartu Pelajar -->
-            <div class="space-y-4">
+            <!-- ============================================================== -->
+            <!-- SECTION 3: Pertanyaan & Berkas Khusus Cabang (Dinamis Form)    -->
+            <!-- ============================================================== -->
+            <div v-if="otherCustomFields.length > 0" class="space-y-5">
               <div class="flex items-center justify-between pb-2 border-b border-border-subtle">
                 <div class="flex items-center gap-2.5">
                   <i class="ri-file-upload-line text-primary text-[22px] leading-none"></i>
-                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface">3. Naskah Puisi &amp; Berkas</h2>
+                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface">
+                    3. Berkas &amp; Informasi Khusus Cabang
+                  </h2>
                 </div>
-                <span class="text-xs text-on-surface-variant">PDF/ZIP (Maks 10 MB)</span>
+                <span class="text-xs text-on-surface-variant">Sesuai Juknis Panitia</span>
               </div>
-              <div 
-                class="border-2 border-dashed border-border-subtle hover:border-primary/60 rounded-xl p-5 bg-background/50 hover:bg-emerald-light/20 transition-all flex flex-col sm:flex-row items-center justify-between gap-4 cursor-pointer relative"
-                @click="naskahInputRef?.click()"
-              >
-                <input 
-                  ref="naskahInputRef"
-                  type="file" 
-                  class="hidden" 
-                  accept=".pdf,.zip,.rar,.doc,.docx"
-                  @change="handleNaskahChange"
+
+              <!-- Loop Dynamic Fields -->
+              <template v-for="field in otherCustomFields" :key="field.id || field.name">
+                <div 
+                  v-if="evaluateCondition(field.conditional_logic, form.custom_fields)" 
+                  class="space-y-1.5 transition-all"
                 >
-                <div class="flex items-center gap-3.5">
-                  <div class="w-11 h-11 rounded-xl bg-emerald-light text-primary flex items-center justify-center shrink-0">
-                    <i class="ri-file-text-line text-[24px] leading-none"></i>
-                  </div>
-                  <div class="text-left">
-                    <p class="text-sm font-semibold text-on-surface">
-                      {{ selectedNaskahFile ? selectedNaskahFile.name : 'Upload Naskah Puisi & Kartu Pelajar' }}
-                    </p>
-                    <p class="text-xs text-on-surface-variant">
-                      {{ selectedNaskahFile ? `${formatFileSize(selectedNaskahFile.size)} • Berkas siap dikirim` : 'Klik untuk memilih berkas lampiran (Bisa disusulkan saat TM)' }}
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <button 
-                    class="px-4 py-2 rounded-lg bg-white dark:bg-[#111d17] border border-border-subtle shadow-xs text-xs font-semibold text-on-surface hover:text-primary shrink-0 transition-colors cursor-pointer" 
-                    type="button"
+                  <label class="block text-xs sm:text-sm font-semibold text-on-surface flex items-center justify-between">
+                    <span>
+                      {{ field.label }}
+                      <span v-if="field.required" class="text-red-500">*</span>
+                      <span v-else class="text-xs text-on-surface-variant font-normal"> (Opsional)</span>
+                    </span>
+                    <span v-if="field.type === 'file'" class="text-[11px] text-on-surface-variant font-normal">
+                      Maks. {{ field.max_size_mb || 5 }} MB
+                    </span>
+                  </label>
+
+                  <!-- Type: FILE UPLOAD DROPZONE -->
+                  <div 
+                    v-if="field.type === 'file'"
+                    class="border-2 border-dashed border-border-subtle hover:border-primary/60 rounded-xl p-5 bg-background/50 hover:bg-emerald-light/20 transition-all flex flex-col sm:flex-row items-center justify-between gap-4 cursor-pointer relative"
+                    @click="$refs['file_input_' + field.name]?.[0]?.click?.()"
                   >
-                    {{ selectedNaskahFile ? 'Ganti Dokumen' : 'Pilih Dokumen' }}
-                  </button>
-                  <button 
-                    v-if="selectedNaskahFile"
-                    type="button" 
-                    @click.stop="clearNaskahFile" 
-                    class="px-2.5 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 text-xs font-semibold cursor-pointer transition-colors"
-                    title="Hapus berkas"
-                  >
-                    <i class="ri-delete-bin-line leading-none"></i>
-                  </button>
+                    <input 
+                      :ref="'file_input_' + field.name"
+                      type="file" 
+                      class="hidden" 
+                      :accept="field.allowed_extensions && field.allowed_extensions.length ? field.allowed_extensions.map(e => '.' + e).join(',') : '*'"
+                      @change="handleCustomFileChange(field.name, $event)"
+                    >
+                    <div class="flex items-center gap-3.5">
+                      <div class="w-11 h-11 rounded-xl bg-emerald-light text-primary flex items-center justify-center shrink-0">
+                        <i class="ri-file-text-line text-[24px] leading-none"></i>
+                      </div>
+                      <div class="text-left">
+                        <p class="text-sm font-semibold text-on-surface">
+                          {{ customFiles[field.name] ? customFiles[field.name].name : (field.placeholder || `Upload ${field.label}`) }}
+                        </p>
+                        <p class="text-xs text-on-surface-variant">
+                          {{ customFiles[field.name] ? `${formatFileSize(customFiles[field.name].size)} • Berkas siap dikirim` : (field.help_text || 'Klik untuk memilih dokumen berkas') }}
+                        </p>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button 
+                        class="px-4 py-2 rounded-lg bg-white dark:bg-[#111d17] border border-border-subtle shadow-xs text-xs font-semibold text-on-surface hover:text-primary shrink-0 transition-colors cursor-pointer" 
+                        type="button"
+                      >
+                        {{ customFiles[field.name] ? 'Ganti Dokumen' : 'Pilih Dokumen' }}
+                      </button>
+                      <button 
+                        v-if="customFiles[field.name]"
+                        type="button" 
+                        @click.stop="clearCustomFile(field.name, $refs['file_input_' + field.name]?.[0])" 
+                        class="px-2.5 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 text-xs font-semibold cursor-pointer transition-colors"
+                        title="Hapus berkas"
+                      >
+                        <i class="ri-delete-bin-line leading-none"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Type: SELECT (Wajib CustomSelect) -->
+                  <div v-else-if="field.type === 'select'">
+                    <CustomSelect 
+                      v-model="form.custom_fields[field.name]"
+                      :options="field.options || []"
+                      :placeholder="field.placeholder || `-- Pilih ${field.label} --`"
+                      size="md"
+                      searchable
+                    />
+                  </div>
+
+                  <!-- Type: TEXTAREA -->
+                  <div v-else-if="field.type === 'textarea'">
+                    <textarea 
+                      rows="3"
+                      v-model="form.custom_fields[field.name]"
+                      class="w-full p-3 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                      :placeholder="field.placeholder || `Tuliskan ${field.label}...`"
+                    ></textarea>
+                  </div>
+
+                  <!-- Type: RADIO -->
+                  <div v-else-if="field.type === 'radio'" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <label 
+                      v-for="(opt, optIdx) in (field.options || [])" 
+                      :key="optIdx"
+                      class="flex items-center gap-2.5 p-3 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/50 transition-all text-xs font-semibold text-on-surface"
+                      :class="{ 'border-primary bg-emerald-light/40 text-primary shadow-xs': form.custom_fields[field.name] === opt }"
+                      @click="form.custom_fields[field.name] = opt"
+                    >
+                      <input type="radio" :name="`radio_${field.name}`" :value="opt" :checked="form.custom_fields[field.name] === opt" class="w-4 h-4 text-primary focus:ring-primary">
+                      <span>{{ opt }}</span>
+                    </label>
+                  </div>
+
+                  <!-- Type: CHECKBOX -->
+                  <div v-else-if="field.type === 'checkbox'" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <label 
+                      v-for="(opt, optIdx) in (field.options || [])" 
+                      :key="optIdx"
+                      class="flex items-center gap-2.5 p-3 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/50 transition-all text-xs font-semibold text-on-surface"
+                      :class="{ 'border-primary bg-emerald-light/40 text-primary shadow-xs': Array.isArray(form.custom_fields[field.name]) && form.custom_fields[field.name].includes(opt) }"
+                    >
+                      <input 
+                        type="checkbox" 
+                        :value="opt" 
+                        v-model="form.custom_fields[field.name]" 
+                        class="w-4 h-4 text-primary rounded focus:ring-primary"
+                      >
+                      <span>{{ opt }}</span>
+                    </label>
+                  </div>
+
+                  <!-- Type: DATE (Flatpickr dd/mm/yyyy) -->
+                  <div v-else-if="field.type === 'date'">
+                    <IndoDatePicker 
+                      v-model="form.custom_fields[field.name]"
+                      placeholder="dd/mm/yyyy"
+                      inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
+                    />
+                  </div>
+
+                  <!-- Type: STANDARD INPUTS (text, number, email, url) -->
+                  <div v-else>
+                    <input 
+                      :type="field.type === 'number' ? 'tel' : (field.type === 'email' ? 'email' : 'text')"
+                      v-model="form.custom_fields[field.name]"
+                      @input="field.type === 'number' ? (form.custom_fields[field.name] = String($event.target.value).replace(/\D/g, '')) : null"
+                      class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                      :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError(field.name) }"
+                      :placeholder="field.placeholder || `Masukkan ${field.label}...`"
+                    >
+                  </div>
+
+                  <!-- Error message -->
+                  <p v-if="getFieldError(field.name)" class="text-xs text-red-500 font-medium">{{ getFieldError(field.name) }}</p>
+                  <!-- Help text -->
+                  <p v-else-if="field.help_text" class="text-[11px] text-on-surface-variant">{{ field.help_text }}</p>
                 </div>
-              </div>
+              </template>
             </div>
 
-            <!-- SECTION 4: Pembayaran Ringkas -->
+            <!-- ============================================================== -->
+            <!-- SECTION 4: Metode Pembayaran & Biaya                           -->
+            <!-- ============================================================== -->
             <div class="space-y-4" id="sectionPembayaran">
               <div class="flex items-center justify-between pb-2 border-b border-border-subtle flex-wrap gap-2">
                 <div class="flex items-center gap-2.5">
                   <i class="ri-wallet-3-line text-primary text-[22px] leading-none"></i>
-                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface">4. Metode Pembayaran &amp; Biaya</h2>
+                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface">
+                    {{ otherCustomFields.length > 0 ? '4.' : '3.' }} Metode Pembayaran &amp; Biaya
+                  </h2>
                 </div>
                 <span class="text-xs font-bold text-primary bg-emerald-light px-2.5 py-1 rounded-full">
-                  Biaya: Rp {{ totalCalculatedFee.toLocaleString('id-ID') }} ({{ form.package_type }})
+                  Biaya: Rp {{ totalCalculatedFee.toLocaleString('id-ID') }}
                 </span>
               </div>
 
-              <!-- Pilihan Saluran Pembayaran (3 Cards) -->
-              <div class="space-y-2.5">
-                <label class="block text-xs sm:text-sm font-semibold text-on-surface">
-                  Pilih Saluran Pembayaran <span class="text-red-500">*</span>
-                </label>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <!-- Pilihan 1: BSI -->
-                  <label 
-                    class="p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
-                    :class="{ 'border-primary bg-emerald-light/40 ring-1 ring-primary': form.payment_method === 'Transfer Bank BSI' }"
-                    @click="selectPaymentMethod('Transfer Bank BSI')"
-                  >
-                    <div class="flex items-center justify-between w-full">
-                      <div class="flex items-center gap-2">
-                        <input type="radio" name="payment_method" value="Transfer Bank BSI" :checked="form.payment_method === 'Transfer Bank BSI'" class="w-4 h-4 text-primary focus:ring-primary">
-                        <span class="text-xs font-bold text-primary uppercase">Transfer BSI</span>
-                      </div>
-                      <i class="ri-bank-line text-primary text-[18px] leading-none"></i>
-                    </div>
-                    <div>
-                      <div class="flex items-center justify-between">
-                        <p class="font-mono text-sm font-bold text-on-surface">7124686746</p>
-                        <button type="button" @click.stop="copyAccount('7124686746')" class="p-1 text-on-surface-variant hover:text-primary cursor-pointer border-none bg-transparent" title="Salin No. Rekening">
-                          <i class="ri-file-copy-line text-[16px] leading-none"></i>
-                        </button>
-                      </div>
-                      <p class="text-[11px] text-on-surface-variant">a.n. MARIATUL AWALIYAH</p>
-                    </div>
+              <!-- JIKA BIAYA > 0 (PILIHAN SALURAN PEMBAYARAN) -->
+              <div v-if="totalCalculatedFee > 0" class="space-y-4">
+                <div class="space-y-2.5">
+                  <label class="block text-xs sm:text-sm font-semibold text-on-surface">
+                    Pilih Saluran Pembayaran <span class="text-red-500">*</span>
                   </label>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <!-- Pilihan 1: BSI -->
+                    <label 
+                      class="p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
+                      :class="{ 'border-primary bg-emerald-light/40 ring-1 ring-primary': form.payment_method === 'Transfer Bank BSI' }"
+                      @click="selectPaymentMethod('Transfer Bank BSI')"
+                    >
+                      <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center gap-2">
+                          <input type="radio" name="payment_method" value="Transfer Bank BSI" :checked="form.payment_method === 'Transfer Bank BSI'" class="w-4 h-4 text-primary focus:ring-primary">
+                          <span class="text-xs font-bold text-primary uppercase">Transfer BSI</span>
+                        </div>
+                        <i class="ri-bank-line text-primary text-[18px] leading-none"></i>
+                      </div>
+                      <div>
+                        <div class="flex items-center justify-between">
+                          <p class="font-mono text-sm font-bold text-on-surface">7124686746</p>
+                          <button type="button" @click.stop="copyAccount('7124686746')" class="p-1 text-on-surface-variant hover:text-primary cursor-pointer border-none bg-transparent" title="Salin No. Rekening">
+                            <i class="ri-file-copy-line text-[16px] leading-none"></i>
+                          </button>
+                        </div>
+                        <p class="text-[11px] text-on-surface-variant">a.n. MARIATUL AWALIYAH</p>
+                      </div>
+                    </label>
 
-                  <!-- Pilihan 2: BRI -->
-                  <label 
-                    class="p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
-                    :class="{ 'border-primary bg-emerald-light/40 ring-1 ring-primary': form.payment_method === 'Transfer Bank BRI' }"
-                    @click="selectPaymentMethod('Transfer Bank BRI')"
-                  >
-                    <div class="flex items-center justify-between w-full">
-                      <div class="flex items-center gap-2">
-                        <input type="radio" name="payment_method" value="Transfer Bank BRI" :checked="form.payment_method === 'Transfer Bank BRI'" class="w-4 h-4 text-primary focus:ring-primary">
-                        <span class="text-xs font-bold text-amber-dark uppercase">Transfer BRI</span>
+                    <!-- Pilihan 2: BRI -->
+                    <label 
+                      class="p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
+                      :class="{ 'border-primary bg-emerald-light/40 ring-1 ring-primary': form.payment_method === 'Transfer Bank BRI' }"
+                      @click="selectPaymentMethod('Transfer Bank BRI')"
+                    >
+                      <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center gap-2">
+                          <input type="radio" name="payment_method" value="Transfer Bank BRI" :checked="form.payment_method === 'Transfer Bank BRI'" class="w-4 h-4 text-primary focus:ring-primary">
+                          <span class="text-xs font-bold text-amber-dark uppercase">Transfer BRI</span>
+                        </div>
+                        <i class="ri-bank-line text-amber-dark text-[18px] leading-none"></i>
                       </div>
-                      <i class="ri-bank-line text-amber-dark text-[18px] leading-none"></i>
-                    </div>
-                    <div>
-                      <div class="flex items-center justify-between">
-                        <p class="font-mono text-sm font-bold text-on-surface">6221 0102 2421 537</p>
-                        <button type="button" @click.stop="copyAccount('622101022421537')" class="p-1 text-on-surface-variant hover:text-primary cursor-pointer border-none bg-transparent" title="Salin No. Rekening">
-                          <i class="ri-file-copy-line text-[16px] leading-none"></i>
-                        </button>
+                      <div>
+                        <div class="flex items-center justify-between">
+                          <p class="font-mono text-sm font-bold text-on-surface">6221 0102 2421 537</p>
+                          <button type="button" @click.stop="copyAccount('622101022421537')" class="p-1 text-on-surface-variant hover:text-primary cursor-pointer border-none bg-transparent" title="Salin No. Rekening">
+                            <i class="ri-file-copy-line text-[16px] leading-none"></i>
+                          </button>
+                        </div>
+                        <p class="text-[11px] text-on-surface-variant">a.n. MARIATUL AWALIYAH</p>
                       </div>
-                      <p class="text-[11px] text-on-surface-variant">a.n. MARIATUL AWALIYAH</p>
-                    </div>
-                  </label>
+                    </label>
 
-                  <!-- Pilihan 3: Cash / Tunai -->
-                  <label 
-                    class="p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
-                    :class="{ 'border-primary bg-emerald-light/40 ring-1 ring-primary': form.payment_method === 'Tunai di Sekretariat' }"
-                    @click="selectPaymentMethod('Tunai di Sekretariat')"
-                  >
-                    <div class="flex items-center justify-between w-full">
-                      <div class="flex items-center gap-2">
-                        <input type="radio" name="payment_method" value="Tunai di Sekretariat" :checked="form.payment_method === 'Tunai di Sekretariat'" class="w-4 h-4 text-primary focus:ring-primary">
-                        <span class="text-xs font-bold text-emerald-dark uppercase">Tunai / Cash</span>
+                    <!-- Pilihan 3: Cash / Tunai -->
+                    <label 
+                      class="p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
+                      :class="{ 'border-primary bg-emerald-light/40 ring-1 ring-primary': form.payment_method === 'Tunai di Sekretariat' }"
+                      @click="selectPaymentMethod('Tunai di Sekretariat')"
+                    >
+                      <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center gap-2">
+                          <input type="radio" name="payment_method" value="Tunai di Sekretariat" :checked="form.payment_method === 'Tunai di Sekretariat'" class="w-4 h-4 text-primary focus:ring-primary">
+                          <span class="text-xs font-bold text-emerald-dark uppercase">Tunai / Cash</span>
+                        </div>
+                        <i class="ri-money-dollar-circle-line text-emerald-dark text-[18px] leading-none"></i>
                       </div>
-                      <i class="ri-money-dollar-circle-line text-emerald-dark text-[18px] leading-none"></i>
+                      <div>
+                        <p class="text-xs font-bold text-on-surface">Sekretariat Panitia</p>
+                        <p class="text-[11px] text-on-surface-variant">MAS Wahid Hasyim Balung</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Upload Bukti Transfer -->
+                <div class="p-4 rounded-xl border border-border-subtle bg-background/50 space-y-2.5">
+                  <div class="flex items-center justify-between">
+                    <label class="block text-xs font-semibold text-on-surface flex items-center gap-1.5">
+                      <i class="ri-bill-line text-primary text-[18px] leading-none"></i>
+                      <span>Upload Bukti Pembayaran / Transfer</span>
+                    </label>
+                    <span class="text-[11px] text-on-surface-variant font-medium">Bisa disusulkan ke WhatsApp Panitia</span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <input 
+                      ref="paymentProofRef"
+                      type="file" 
+                      class="hidden" 
+                      accept="image/*,.pdf"
+                      @change="handlePaymentProofChange"
+                    >
+                    <button 
+                      type="button" 
+                      @click="paymentProofRef?.click()" 
+                      class="px-3.5 py-2 rounded-lg bg-white dark:bg-[#111d17] border border-border-subtle hover:border-primary text-xs font-semibold text-on-surface flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <i class="ri-image-add-line text-[18px] text-primary leading-none"></i>
+                      <span>{{ form.payment_proof ? 'Ganti Bukti' : 'Pilih Bukti Transfer' }}</span>
+                    </button>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs text-on-surface-variant truncate max-w-xs">
+                        {{ form.payment_proof ? `${form.payment_proof.name} (${formatFileSize(form.payment_proof.size)})` : 'Format: JPG, PNG, atau PDF (Maks 5 MB)' }}
+                      </span>
+                      <button 
+                        v-if="form.payment_proof"
+                        type="button" 
+                        @click.stop="clearPaymentProof" 
+                        class="text-xs text-red-500 hover:text-red-700 p-1 cursor-pointer border-none bg-transparent"
+                        title="Hapus Bukti"
+                      >
+                        <i class="ri-close-circle-line text-base leading-none"></i>
+                      </button>
                     </div>
-                    <div>
-                      <p class="text-xs font-bold text-on-surface">Sekretariat Panitia</p>
-                      <p class="text-[11px] text-on-surface-variant">MAS Wahid Hasyim Balung</p>
-                    </div>
-                  </label>
+                  </div>
                 </div>
               </div>
 
-              <!-- Upload Bukti Transfer -->
-              <div class="p-4 rounded-xl border border-border-subtle bg-background/50 space-y-2.5">
-                <div class="flex items-center justify-between">
-                  <label class="block text-xs font-semibold text-on-surface flex items-center gap-1.5">
-                    <i class="ri-bill-line text-primary text-[18px] leading-none"></i>
-                    <span>Upload Bukti Pembayaran / Transfer</span>
-                  </label>
-                  <span class="text-[11px] text-on-surface-variant font-medium">Bisa disusulkan ke WhatsApp</span>
-                </div>
-                <div class="flex items-center gap-3">
-                  <input 
-                    ref="paymentProofRef"
-                    type="file" 
-                    class="hidden" 
-                    accept="image/*,.pdf"
-                    @change="handlePaymentProofChange"
-                  >
-                  <button 
-                    type="button" 
-                    @click="paymentProofRef?.click()" 
-                    class="px-3.5 py-2 rounded-lg bg-white dark:bg-[#111d17] border border-border-subtle hover:border-primary text-xs font-semibold text-on-surface flex items-center gap-2 transition-colors cursor-pointer"
-                  >
-                    <i class="ri-image-add-line text-[18px] text-primary leading-none"></i>
-                    <span>{{ form.payment_proof ? 'Ganti Bukti' : 'Pilih Bukti Transfer' }}</span>
-                  </button>
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs text-on-surface-variant truncate max-w-xs">
-                      {{ form.payment_proof ? `${form.payment_proof.name} (${formatFileSize(form.payment_proof.size)})` : 'Format: JPG, PNG, atau PDF (Maks 5 MB)' }}
-                    </span>
-                    <button 
-                      v-if="form.payment_proof"
-                      type="button" 
-                      @click.stop="clearPaymentProof" 
-                      class="text-xs text-red-500 hover:text-red-700 p-1 cursor-pointer border-none bg-transparent"
-                      title="Hapus Bukti"
-                    >
-                      <i class="ri-close-circle-line text-base leading-none"></i>
-                    </button>
-                  </div>
+              <!-- JIKA BIAYA == 0 (BEBAS BIAYA) -->
+              <div v-else class="p-4 rounded-xl border border-emerald-500/30 bg-emerald-light/40 flex items-center gap-3 text-emerald-dark">
+                <i class="ri-checkbox-circle-fill text-[24px] text-primary shrink-0"></i>
+                <div class="text-xs">
+                  <p class="font-bold text-sm text-primary">Pendaftaran Ini Bebas Biaya (Rp 0)</p>
+                  <p class="text-on-surface-variant mt-0.5">
+                    {{ isAllInFree ? 'Sekolah Anda telah terverifikasi dalam Paket Komplit (All-In).' : 'Cabang lomba ini diselenggarakan tanpa pungutan biaya pendaftaran.' }}
+                  </p>
                 </div>
               </div>
             </div>
 
-            <!-- SECTION 5: Ringkasan Delegasi & Skema Biaya -->
+            <!-- ============================================================== -->
+            <!-- SECTION 5: Ringkasan Delegasi & Submit Action CTA              -->
+            <!-- ============================================================== -->
             <div class="space-y-6 pt-4 border-t border-border-subtle">
               <div class="rounded-xl border border-primary/20 bg-emerald-light/30 p-5 space-y-3.5 shadow-xs">
                 <div class="flex items-center justify-between pb-2 border-b border-primary/10 flex-wrap gap-2">
@@ -1122,7 +1788,7 @@ onMounted(() => {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div class="flex justify-between py-1 border-b border-dashed border-primary/10">
                     <span class="text-on-surface-variant">Cabang Lomba:</span>
-                    <span class="font-semibold text-on-surface">{{ activeComp?.title || 'Baca Puisi' }} (SMP/MTs)</span>
+                    <span class="font-semibold text-on-surface">{{ activeComp?.title || 'Lomba' }} ({{ activeComp?.category_label || 'SMP/MTs' }})</span>
                   </div>
                   <div class="flex justify-between py-1 border-b border-dashed border-primary/10">
                     <span class="text-on-surface-variant">Skema Paket:</span>
@@ -1134,7 +1800,7 @@ onMounted(() => {
                   </div>
                   <div class="flex justify-between py-1 border-b border-dashed border-primary/10 sm:border-b-0">
                     <span class="text-on-surface-variant">Metode Bayar:</span>
-                    <span class="font-semibold text-on-surface">{{ form.payment_method }}</span>
+                    <span class="font-semibold text-on-surface">{{ totalCalculatedFee > 0 ? form.payment_method : 'Bebas Biaya (Rp 0)' }}</span>
                   </div>
                 </div>
                 <div class="pt-3 border-t border-primary/20 flex items-center justify-between flex-wrap gap-2">
@@ -1152,7 +1818,7 @@ onMounted(() => {
                 </div>
               </div>
 
-              <!-- SUBMIT ACTION CTA BUTTON -->
+              <!-- SUBMIT ACTION CTA BUTTON (LABEL DARI FORM BUILDER) -->
               <div class="space-y-3">
                 <button 
                   id="submitBtnCta" 
@@ -1162,7 +1828,7 @@ onMounted(() => {
                 >
                   <i v-if="form.processing" class="ri-loader-4-line animate-spin text-[22px] leading-none"></i>
                   <i v-else class="ri-send-plane-fill text-[22px] leading-none"></i>
-                  <span>{{ form.processing ? 'Mengirim Formulir...' : `Kirim Formulir & Bayar • Rp ${totalCalculatedFee.toLocaleString('id-ID')}` }}</span>
+                  <span>{{ form.processing ? 'Mengirim Formulir...' : (formSettings.submit_text || 'Kirim Pendaftaran Delegasi') }}</span>
                 </button>
                 <div class="flex items-center justify-center gap-2 text-xs text-on-surface-variant text-center">
                   <i class="ri-checkbox-circle-fill text-primary text-[16px] leading-none"></i>
@@ -1296,12 +1962,18 @@ onMounted(() => {
 .w-12 { width: 3rem !important; }
 .h-11 { height: 2.75rem !important; }
 .h-10 { height: 2.5rem !important; }
+.h-9 { height: 2.25rem !important; }
+.w-9 { width: 2.25rem !important; }
 .h-8 { height: 2rem !important; }
 .w-8 { width: 2rem !important; }
 .w-16 { width: 4rem !important; }
 .h-16 { height: 4rem !important; }
 .w-6 { width: 1.5rem !important; }
 .h-6 { height: 1.5rem !important; }
+.w-4 { width: 1rem !important; }
+.h-4 { height: 1rem !important; }
+.w-3\.5 { width: 0.875rem !important; }
+.h-3\.5 { height: 0.875rem !important; }
 .w-2 { width: 0.5rem !important; }
 .h-2 { height: 0.5rem !important; }
 
@@ -1377,6 +2049,7 @@ img.brand-logo,
 .p-3 { padding: 0.75rem !important; }
 .p-2\.5 { padding: 0.625rem !important; }
 .p-2 { padding: 0.5rem !important; }
+.p-1\.5 { padding: 0.375rem !important; }
 .p-1 { padding: 0.25rem !important; }
 .px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
 .px-3\.5 { padding-left: 0.875rem !important; padding-right: 0.875rem !important; }
@@ -1385,11 +2058,13 @@ img.brand-logo,
 .px-2 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
 .py-8 { padding-top: 2rem !important; padding-bottom: 2rem !important; }
 .py-4 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+.py-3 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
 .py-2\.5 { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
 .py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
 .py-1\.5 { padding-top: 0.375rem !important; padding-bottom: 0.375rem !important; }
 .py-1 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
 .py-0\.5 { padding-top: 0.125rem !important; padding-bottom: 0.125rem !important; }
+.pb-2\.5 { padding-bottom: 0.625rem !important; }
 .pb-2 { padding-bottom: 0.5rem !important; }
 .pt-4 { padding-top: 1rem !important; }
 .pt-3 { padding-top: 0.75rem !important; }
@@ -1413,6 +2088,7 @@ img.brand-logo,
 
 .space-y-8 > * + * { margin-top: 2rem !important; }
 .space-y-6 > * + * { margin-top: 1.5rem !important; }
+.space-y-5 > * + * { margin-top: 1.25rem !important; }
 .space-y-4 > * + * { margin-top: 1rem !important; }
 .space-y-3\.5 > * + * { margin-top: 0.875rem !important; }
 .space-y-3 > * + * { margin-top: 0.75rem !important; }
@@ -1428,6 +2104,7 @@ img.brand-logo,
   .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .sm\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
   .sm\:flex-row { flex-direction: row !important; }
+  .sm\:flex { display: flex !important; }
   .sm\:p-10 { padding: 2.5rem !important; }
   .sm\:p-5 { padding: 1.25rem !important; }
   .sm\:py-12 { padding-top: 3rem !important; padding-bottom: 3rem !important; }
@@ -1501,7 +2178,7 @@ input[type="text"].pl-10, input[type="tel"].pl-10, input[type="email"].pl-10 {
   padding-left: 2.5rem !important;
 }
 
-input:focus {
+input:focus, textarea:focus {
   background-color: var(--color-surface-card, #FFFFFF) !important;
   border-color: var(--color-primary, #006948) !important;
   box-shadow: 0 0 0 2px rgba(0, 105, 72, 0.2) !important;

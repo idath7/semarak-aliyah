@@ -33,6 +33,28 @@
 @import '@fontsource/libre-barcode-39/400.css';
 @import "tailwindcss";
 
+@theme {
+  --color-surface-bright: #f5fbf5;
+  --color-primary: #006948;
+  --color-outline: #6d7a72;
+  --color-on-surface-variant: #3d4a42;
+  --color-surface-variant: #dee4de;
+  --color-primary-container: #00855d;
+  --color-background: #f7faf7;
+  --color-text-primary: #0F172A;
+  --color-emerald-light: #ECFDF5;
+  --color-emerald-dark: #065F46;
+  --color-surface-card: #FFFFFF;
+  --color-on-surface: #171d19;
+  --color-surface: #f5fbf5;
+  --color-border-subtle: #E2E8F0;
+  --color-amber-soft: #FEF3C7;
+  --color-amber-dark: #B45309;
+
+  --font-headline: "Plus Jakarta Sans", sans-serif;
+  --font-body: "Inter", sans-serif;
+}
+
 /* ==========================================================================
    Semarak Aliyah XII 2026 Admin Dashboard & Operational Center
    Laravel + Vite + Inertia.js + Vue 3 + Tailwind CSS

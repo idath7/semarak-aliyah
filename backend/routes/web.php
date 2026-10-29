@@ -15,6 +15,11 @@ Route::get('/', [PublicPortalController::class, 'home'])->name('public.home');
 Route::get('/layanan-registrasi/{competition?}', [PublicPortalController::class, 'register'])->name('public.register');
 Route::post('/layanan-registrasi', [PublicPortalController::class, 'storeRegistration'])->middleware('throttle:15,1')->name('public.register.store');
 
+// Halaman Khusus Formulir Pendaftaran (Clean & Focused Registration Form)
+Route::get('/formulir-pendaftaran/{competition?}', [PublicPortalController::class, 'formulir'])->name('public.formulir');
+Route::get('/formulir/{competition?}', [PublicPortalController::class, 'formulir']);
+Route::post('/formulir-pendaftaran', [PublicPortalController::class, 'storeRegistration'])->middleware('throttle:15,1')->name('public.formulir.store');
+
 // Public Stage Live Scoreboard (Accessible for stage projector)
 Route::get('/scoreboard', [LiveScoreboardController::class, 'index'])->name('public.scoreboard');
 Route::get('/portal/live-scoreboard', [LiveScoreboardController::class, 'index'])->name('portal.scoreboard');

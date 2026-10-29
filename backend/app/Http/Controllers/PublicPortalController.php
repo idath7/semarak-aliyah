@@ -328,6 +328,85 @@ class PublicPortalController extends Controller
         ));
     }
 
+    public function formulir(?string $competition = null, Request $request = null)
+    {
+        $request = $request ?: request();
+        $isLoginRequired = Setting::get('registration_login_required', '0') === '1';
+        $lomba = $competition ?: $request->query('lomba');
+        /** @var \App\Models\Registrant|\App\Models\User|null $user */
+        $user = Auth::guard('pendaftar')->user() ?? Auth::user();
+        $isRegistrantLoggedIn = Auth::guard('pendaftar')->check() || ($user instanceof \App\Models\Registrant) || ($user instanceof \App\Models\User && $user->isRegistrant());
+
+        if ($isLoginRequired && !$isRegistrantLoggedIn) {
+            $params = [
+                'redirect_to' => 'formulir',
+                'notice' => 'required',
+            ];
+            if ($lomba) {
+                $params['lomba'] = $lomba;
+            }
+            return redirect()->route('pendaftar.login', $params)
+                ->with('info', 'Pendaftaran mewajibkan login akun pendaftar terlebih dahulu. Silakan masuk atau daftar akun baru.');
+        }
+
+        $competitions = Competition::orderBy('id')->get();
+        $preselectedLomba = $lomba;
+
+        $sumCompFees = (int)Competition::sum('fee');
+        $isAutoOriginalPrice = Setting::get('package_allin_auto_original_price', '1') === '1';
+        $allinOriginalPrice = $isAutoOriginalPrice ? $sumCompFees : (int)Setting::get('package_allin_original_price', $sumCompFees);
+        if ($allinOriginalPrice <= 0) {
+            $allinOriginalPrice = $sumCompFees ?: 400000;
+        }
+
+        $bankAccounts = Setting::getBankAccounts();
+        $primaryAccount = collect($bankAccounts)->firstWhere('is_primary', true) ?? ($bankAccounts[0] ?? null);
+
+        $pricingSettings = [
+            'allin_is_active' => Setting::get('package_allin_is_active', '1') === '1',
+            'allin_name' => Setting::get('package_allin_name', 'Paket All-In Komplit'),
+            'allin_price' => (int)Setting::get('package_allin_price', 200000),
+            'allin_original_price' => $allinOriginalPrice,
+            'allin_tag' => Setting::get('package_allin_tag', 'Paling Hemat • Rekomendasi'),
+            'allin_desc' => Setting::get('package_allin_desc', 'Pilihan terbaik & paling hemat! Daftarkan kontingen sekolah Anda ke seluruh 8 cabang lomba sekaligus hanya dengan setengah harga.'),
+            'allin_features' => json_decode(Setting::get('package_allin_features', '[]'), true) ?: [],
+            'bank_name' => $primaryAccount['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'),
+            'account_number' => $primaryAccount['account_number'] ?? Setting::get('payment_account_number', '7123456789'),
+            'account_holder' => $primaryAccount['account_holder'] ?? Setting::get('payment_account_holder', 'Semarak Aliyah'),
+            'bank_accounts' => $bankAccounts,
+            'confirmation_wa' => Setting::get('payment_confirmation_wa', '0838 5007 0767'),
+            'instructions' => Setting::get('payment_instructions', ''),
+            'cash_enabled' => Setting::get('payment_cash_enabled', '1') === '1',
+        ];
+
+        $schools = \App\Models\School::active()->orderBy('name', 'asc')->get();
+
+        $authRegistrant = null;
+        if ($isRegistrantLoggedIn) {
+            $u = Auth::user();
+            $authRegistrant = [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+                'phone' => $u->phone,
+                'role' => $u->role,
+                'registrant_role' => $u->registrant_role,
+                'gender' => $u->gender,
+                'school_name' => $u->school_name,
+                'school_district' => $u->school_district,
+            ];
+        }
+
+        return Inertia::render('Public/Formulir', compact(
+            'competitions',
+            'preselectedLomba',
+            'pricingSettings',
+            'schools',
+            'isLoginRequired',
+            'authRegistrant'
+        ));
+    }
+
     public function storeRegistration(Request $request)
     {
         $isLoginRequired = Setting::get('registration_login_required', '0') === '1';

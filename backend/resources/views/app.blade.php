@@ -100,48 +100,65 @@
     <link rel="stylesheet" href="/assets/vendor/remixicon/remixicon.css">
     <link rel="stylesheet" href="/assets/vendor/boxicons/css/boxicons.min.css">
 
-    @if(request()->is('admin*') || request()->is('operasional*') || request()->is('login*') || request()->is('pendaftar*') || request()->is('layanan-registrasi*'))
-        <!-- Admin, Operasional & Pendaftar Portal Fonts & Assets (Synchronous Theme Restorer) -->
+    @if(request()->is('admin*') || request()->is('operasional*') || request()->is('login*') || request()->is('pendaftar*') || request()->is('formulir*'))
+        <!-- Admin, Operasional, Pendaftar & Formulir Pendaftaran Assets (Synchronous Theme Restorer) -->
         <script>
             (function() {
                 try {
                     var isPendaftar = window.location.pathname.startsWith('/pendaftar');
-                    var isRegister = window.location.pathname.startsWith('/layanan-registrasi');
-                    var t = isRegister
+                    var isFormulir = window.location.pathname.startsWith('/formulir');
+                    var t = isFormulir
                         ? (localStorage.getItem('semarak_theme') || 'light')
                         : (isPendaftar 
                             ? (localStorage.getItem('semarak_theme') || localStorage.getItem('velzon_theme_v2') || 'dark')
                             : (localStorage.getItem('velzon_theme_v2') || localStorage.getItem('semarak_theme') || 'dark'));
                     if (t !== 'dark' && t !== 'light') {
-                        t = isRegister ? 'light' : 'dark';
+                        t = isFormulir ? 'light' : 'dark';
                     }
                     document.documentElement.setAttribute('data-bs-theme', t);
                     document.documentElement.setAttribute('data-topbar', t === 'dark' ? 'dark' : 'light');
                     document.documentElement.setAttribute('data-sidebar', 'dark');
                     document.documentElement.style.colorScheme = t;
                     if (t === 'dark') {
-                        document.documentElement.style.backgroundColor = isRegister ? '#09110d' : '#0b0f19';
+                        document.documentElement.style.backgroundColor = isFormulir ? '#09110d' : '#0b0f19';
                     } else {
-                        document.documentElement.style.backgroundColor = isRegister ? '#f7faf7' : '#f3f3f9';
+                        document.documentElement.style.backgroundColor = isFormulir ? '#f7faf7' : '#f3f3f9';
                     }
                 } catch(e) {}
             })();
         </script>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
-        <style>
-            [data-bs-theme="dark"] body {
-                background-color: {{ request()->is('layanan-registrasi*') ? '#09110d' : '#0b0f19' }} !important;
-                color: #f1f5f9 !important;
-            }
-            [data-bs-theme="dark"] body::before,
-            [data-bs-theme="dark"] body::after {
-                display: none !important;
-            }
-            [data-bs-theme="light"] body {
-                background-color: {{ request()->is('layanan-registrasi*') ? '#f7faf7' : '#f3f3f9' }} !important;
-                color: #212529 !important;
-            }
-        </style>
+        @if(request()->is('formulir*'))
+            <style>
+                [data-bs-theme="dark"] body {
+                    background-color: #09110d !important;
+                    color: #f1f5f9 !important;
+                }
+                [data-bs-theme="dark"] body::before,
+                [data-bs-theme="dark"] body::after {
+                    display: none !important;
+                }
+                [data-bs-theme="light"] body {
+                    background-color: #f7faf7 !important;
+                    color: #212529 !important;
+                }
+            </style>
+        @else
+            <style>
+                [data-bs-theme="dark"] body {
+                    background-color: #0b0f19 !important;
+                    color: #f1f5f9 !important;
+                }
+                [data-bs-theme="dark"] body::before,
+                [data-bs-theme="dark"] body::after {
+                    display: none !important;
+                }
+                [data-bs-theme="light"] body {
+                    background-color: #f3f3f9 !important;
+                    color: #212529 !important;
+                }
+            </style>
+        @endif
     @else
         <!-- Public Portal Fonts & Stylesheets (Synchronous in head to eliminate FOUC and page transition flash) -->
         <script>

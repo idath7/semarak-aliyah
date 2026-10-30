@@ -12,6 +12,7 @@ const props = defineProps({
   schools: { type: Array, default: () => [] },
   competitions: { type: Array, default: () => [] },
   master_schools: { type: Array, default: () => [] },
+  districts: { type: Array, default: () => [] },
   all_registered_school_names: { type: Array, default: () => [] },
   package_allin_price: { type: Number, default: 200000 },
   stats: { type: Object, default: () => ({}) },
@@ -178,6 +179,7 @@ const manualForm = ref({
   school_name: '',
   jenjang: 'SMP',
   kecamatan: '',
+  custom_kecamatan: '',
   mentor_name: '',
   mentor_wa: '',
   mentor_email: '',
@@ -197,6 +199,70 @@ const jenjangOptions = [
   { value: 'MTs', label: 'MTs (Madrasah Tsanawiyah)' },
   { value: 'Lainnya', label: 'Lainnya / Sederajat' },
 ];
+
+// Opsi Kecamatan dari Database Master
+const kecamatanOptions = computed(() => {
+  let dbDistricts = props.districts && props.districts.length > 0
+    ? [...props.districts]
+    : [...new Set(props.master_schools.map(s => s.kecamatan).filter(Boolean))].sort();
+
+  if (dbDistricts.length === 0) {
+    dbDistricts = [
+      'Ajung', 'Ambulu', 'Arjasa', 'Balung', 'Bangsalsari', 'Gumukmas', 'Jelbuk',
+      'Jenggawah', 'Jombang', 'Kalisat', 'Kaliwates', 'Kencong', 'Ledokombo',
+      'Mayang', 'Mumbulsari', 'Pakusari', 'Panti', 'Patrang', 'Puger',
+      'Rambipuji', 'Semboro', 'Silo', 'Sukorambi', 'Sukowono', 'Sumberbaru',
+      'Sumberjambe', 'Sumbersari', 'Tanggul', 'Tempurejo', 'Umbulsari', 'Wuluhan'
+    ];
+  }
+
+  const opts = dbDistricts.map(k => ({
+    value: k,
+    label: `Kec. ${k}`
+  }));
+
+  // Opsi Luar Jember jika belum ada
+  if (!dbDistricts.some(k => k.toLowerCase().includes('luar'))) {
+    opts.push({
+      value: 'Luar Jember (Lainnya)',
+      label: '🌐 Luar Jember (Lainnya)'
+    });
+  }
+
+  // Jika nilai manualForm.kecamatan saat ini belum terdaftar di list, sisipkan dinamis
+  if (manualForm.value.kecamatan && !opts.some(o => o.value.toLowerCase() === manualForm.value.kecamatan.toLowerCase())) {
+    opts.unshift({
+      value: manualForm.value.kecamatan,
+      label: `Kec. ${manualForm.value.kecamatan}`
+    });
+  }
+
+  return opts;
+});
+
+function onSchoolNameInput() {
+  if (manualForm.value.school_selection_mode === 'custom' && manualForm.value.school_name) {
+    const nameUpper = manualForm.value.school_name.toUpperCase();
+    if (nameUpper.includes('MTS') || nameUpper.includes('MADRASAH')) {
+      manualForm.value.jenjang = 'MTs';
+    } else if (nameUpper.includes('SMP')) {
+      manualForm.value.jenjang = 'SMP';
+    }
+
+    // Auto-detect kecamatan jika belum terpilih
+    if (!manualForm.value.kecamatan) {
+      const candidates = props.districts && props.districts.length > 0
+        ? props.districts
+        : props.master_schools.map(s => s.kecamatan).filter(Boolean);
+      for (const k of candidates) {
+        if (new RegExp('\\b' + k + '\\b', 'i').test(manualForm.value.school_name)) {
+          manualForm.value.kecamatan = k;
+          break;
+        }
+      }
+    }
+  }
+}
 
 const manualPaymentStatusOptions = [
   { value: 'Terverifikasi', label: 'Terverifikasi (Lunas Langsung di Tempat)' },
@@ -253,6 +319,7 @@ function openManualModal(prefilledSchool = null) {
     school_name: prefilledSchool ? prefilledSchool.school_name : '',
     jenjang: prefilledSchool?.jenjang && prefilledSchool.jenjang !== '-' ? prefilledSchool.jenjang : 'SMP',
     kecamatan: prefilledSchool?.kecamatan && prefilledSchool.kecamatan !== '-' ? prefilledSchool.kecamatan : '',
+    custom_kecamatan: '',
     mentor_name: prefilledSchool?.mentor_name && prefilledSchool.mentor_name !== '-' ? prefilledSchool.mentor_name : '',
     mentor_wa: prefilledSchool?.mentor_wa && prefilledSchool.mentor_wa !== '-' ? prefilledSchool.mentor_wa : '',
     mentor_email: '',
@@ -272,6 +339,9 @@ function openManualModal(prefilledSchool = null) {
     const found = props.master_schools.find(ms => ms.name.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
     if (found) {
       manualForm.value.selected_master_id = String(found.id);
+      if (!manualForm.value.kecamatan && found.kecamatan) {
+        manualForm.value.kecamatan = found.kecamatan;
+      }
     } else {
       manualForm.value.school_selection_mode = 'custom';
     }
@@ -302,6 +372,10 @@ async function submitManualRegistration() {
     toast.showToast({ type: 'warning', title: 'Perhatian', message: 'Nama sekolah / madrasah wajib diisi!' });
     return;
   }
+  if (!manualForm.value.kecamatan) {
+    toast.showToast({ type: 'warning', title: 'Perhatian', message: 'Kecamatan asal sekolah wajib dipilih dari database!' });
+    return;
+  }
   if (!manualForm.value.mentor_name.trim() || !manualForm.value.mentor_wa.trim()) {
     toast.showToast({ type: 'warning', title: 'Perhatian', message: 'Nama pembina/pendamping dan nomor WhatsApp wajib diisi!' });
     return;
@@ -317,6 +391,10 @@ async function submitManualRegistration() {
     return;
   }
 
+  const finalKecamatan = (manualForm.value.kecamatan === 'Luar Jember (Lainnya)' && manualForm.value.custom_kecamatan?.trim())
+    ? manualForm.value.custom_kecamatan.trim()
+    : manualForm.value.kecamatan;
+
   const confirmed = await confirmDialog({
     title: 'Konfirmasi Pendaftaran Manual',
     message: `Daftarkan kontingen ${manualForm.value.school_name} (${manualForm.value.package_type}) dengan status pembayaran [${manualForm.value.payment_status}]?`,
@@ -331,7 +409,7 @@ async function submitManualRegistration() {
   router.post('/admin/pendaftar/manual-store', {
     school_name: manualForm.value.school_name,
     jenjang: manualForm.value.jenjang,
-    kecamatan: manualForm.value.kecamatan,
+    kecamatan: finalKecamatan,
     mentor_name: manualForm.value.mentor_name,
     mentor_wa: manualForm.value.mentor_wa,
     mentor_email: manualForm.value.mentor_email,
@@ -1532,6 +1610,7 @@ function printReport() {
                         v-model="manualForm.school_name" 
                         class="form-control form-control-sm fs-12"
                         placeholder="Contoh: MTs Negeri 1 Jember" 
+                        @input="onSchoolNameInput"
                         required
                       />
                     </div>
@@ -1546,12 +1625,25 @@ function printReport() {
                         />
                       </div>
                       <div class="col-6">
-                        <label class="form-label fs-11 fw-bold text-dark">Kecamatan</label>
+                        <label class="form-label fs-11 fw-bold text-dark">
+                          Kecamatan Asal <span class="text-danger">*</span>
+                        </label>
+                        <CustomSelect 
+                          v-model="manualForm.kecamatan" 
+                          :options="kecamatanOptions" 
+                          size="sm"
+                          searchable
+                          search-placeholder="Ketik nama kecamatan..."
+                          placeholder="Pilih Kecamatan..."
+                        />
+                      </div>
+                      <div v-if="manualForm.kecamatan === 'Luar Jember (Lainnya)'" class="col-12 mt-1">
+                        <label class="form-label fs-10 text-muted fw-semibold">Nama Kecamatan / Wilayah (Luar Jember)</label>
                         <input 
                           type="text" 
-                          v-model="manualForm.kecamatan" 
-                          class="form-control form-control-sm fs-12"
-                          placeholder="Contoh: Balung / Kaliwates" 
+                          v-model="manualForm.custom_kecamatan" 
+                          class="form-control form-control-sm fs-11 text-dark"
+                          placeholder="Contoh: Kec. Lumajang / Kab. Banyuwangi" 
                         />
                       </div>
                     </div>

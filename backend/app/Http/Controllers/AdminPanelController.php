@@ -3616,6 +3616,13 @@ class AdminPanelController extends Controller
     {
         $allCompetitions = Competition::orderBy('id', 'asc')->get();
         $masterSchools = \App\Models\School::orderBy('name', 'asc')->get(['id', 'npsn', 'name', 'jenjang', 'kecamatan']);
+        $districts = \App\Models\School::distinct()
+            ->whereNotNull('kecamatan')
+            ->where('kecamatan', '!=', '')
+            ->orderBy('kecamatan', 'asc')
+            ->pluck('kecamatan')
+            ->values()
+            ->toArray();
         $packageAllinPrice = (int)Setting::get('package_allin_price', 200000);
 
         // Ambil semua pendaftaran dengan relasi competition
@@ -3836,6 +3843,7 @@ class AdminPanelController extends Controller
             'schools' => $schoolsData,
             'competitions' => $allCompetitions,
             'master_schools' => $masterSchools,
+            'districts' => $districts,
             'all_registered_school_names' => $allRegisteredSchoolNames,
             'package_allin_price' => $packageAllinPrice,
             'stats' => [

@@ -3788,13 +3788,16 @@ function setParticipantCountDirect(field, val) {
                                   <div v-if="field.sub_fields?.gender?.active !== false">
                                     <label class="block text-[10px] text-slate-400 mb-0.5">Jenis Kelamin</label>
                                     <div class="flex gap-1.5">
-                                      <label class="flex items-center gap-1 p-1.5 rounded bg-slate-900 border border-slate-800 cursor-pointer text-[10px] flex-1">
-                                        <input type="radio" :name="`p_gender_${field.name}_${pIdx}`" value="L" checked class="text-amber-500" />
-                                        <span class="text-slate-300">L</span>
+                                      <label class="flex items-center justify-center gap-1 p-1.5 rounded-lg border border-blue-500/50 bg-blue-500/15 cursor-pointer text-[10px] flex-1 font-semibold text-blue-300">
+                                        <input type="radio" :name="`p_gender_${field.name}_${pIdx}`" value="L" checked class="hidden" />
+                                        <i class="ri-men-line text-blue-400"></i>
+                                        <span>Laki-Laki</span>
+                                        <i class="ri-checkbox-circle-fill text-blue-400 text-xs"></i>
                                       </label>
-                                      <label class="flex items-center gap-1 p-1.5 rounded bg-slate-900 border border-slate-800 cursor-pointer text-[10px] flex-1">
-                                        <input type="radio" :name="`p_gender_${field.name}_${pIdx}`" value="P" class="text-amber-500" />
-                                        <span class="text-slate-300">P</span>
+                                      <label class="flex items-center justify-center gap-1 p-1.5 rounded-lg border border-pink-500/30 bg-pink-500/10 cursor-pointer text-[10px] flex-1 font-medium text-pink-300">
+                                        <input type="radio" :name="`p_gender_${field.name}_${pIdx}`" value="P" class="hidden" />
+                                        <i class="ri-women-line text-pink-400"></i>
+                                        <span>Perempuan</span>
                                       </label>
                                     </div>
                                   </div>
@@ -4256,13 +4259,16 @@ function setParticipantCountDirect(field, val) {
                             <div v-if="field.sub_fields?.gender?.active !== false">
                               <label class="block text-[11px] text-slate-400 mb-1">Jenis Kelamin *</label>
                               <div class="flex gap-2">
-                                <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-800 bg-slate-900 cursor-pointer text-xs flex-1">
-                                  <input type="radio" :name="`full_p_gender_${field.name}_${pIdx}`" value="L" checked class="text-amber-500" />
-                                  <span class="text-slate-300">Laki-laki</span>
+                                <label class="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-500 bg-blue-500/15 text-blue-300 cursor-pointer text-xs flex-1 font-bold">
+                                  <input type="radio" :name="`full_p_gender_${field.name}_${pIdx}`" value="L" checked class="hidden" />
+                                  <i class="ri-men-line text-blue-400 text-sm"></i>
+                                  <span>Laki-Laki</span>
+                                  <i class="ri-checkbox-circle-fill text-blue-400 text-xs ms-1"></i>
                                 </label>
-                                <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-800 bg-slate-900 cursor-pointer text-xs flex-1">
-                                  <input type="radio" :name="`full_p_gender_${field.name}_${pIdx}`" value="P" class="text-amber-500" />
-                                  <span class="text-slate-300">Perempuan</span>
+                                <label class="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-pink-500/40 bg-pink-500/10 text-pink-300 cursor-pointer text-xs flex-1 font-medium">
+                                  <input type="radio" :name="`full_p_gender_${field.name}_${pIdx}`" value="P" class="hidden" />
+                                  <i class="ri-women-line text-pink-400 text-sm"></i>
+                                  <span>Perempuan</span>
                                 </label>
                               </div>
                             </div>

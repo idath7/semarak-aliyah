@@ -83,10 +83,35 @@ function findCompetition(idOrSlug) {
 }
 
 function resolveInitialCompId() {
+  // 1. Cek parameter URL (?lomba=... atau ?cabang=...)
+  if (typeof window !== 'undefined') {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const fromUrl = urlParams.get('lomba') || urlParams.get('cabang');
+      if (fromUrl) {
+        const matched = findCompetition(fromUrl);
+        if (matched) return matched.id;
+      }
+    } catch (e) {}
+  }
+
+  // 2. Cek Inertia prop preselectedLomba
   if (props.preselectedLomba) {
     const matched = findCompetition(props.preselectedLomba);
     if (matched) return matched.id;
   }
+
+  // 3. Cek Session / Local Storage (Session Last View pemulihan otomatis saat refresh)
+  if (typeof window !== 'undefined') {
+    try {
+      const savedId = sessionStorage.getItem('semarak_last_competition_id') || localStorage.getItem('semarak_last_competition_id');
+      if (savedId) {
+        const matched = findCompetition(savedId);
+        if (matched) return matched.id;
+      }
+    } catch (e) {}
+  }
+
   return props.competitions?.[0]?.id || '';
 }
 
@@ -376,10 +401,200 @@ function initCompetitionData() {
 // Run initial competition setup safely once all computed/state are initialized
 initCompetitionData();
 
-// Watch competition switcher for dynamic changes
-watch(() => form.competition_id, () => {
+// -----------------------------------------------------------------------------
+// Auto-Draft & Session Last View Persistence
+// -----------------------------------------------------------------------------
+const hasDraftRestored = ref(false);
+const draftRestoredTime = ref('');
+let draftSaveTimer = null;
+let isRestoringDraft = false;
+
+function saveFormDraft() {
+  if (typeof window === 'undefined' || isRestoringDraft || isSuccess.value) return;
+  if (!form.competition_id) return;
+
+  if (draftSaveTimer) clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(() => {
+    try {
+      // 1. Simpan identitas global asal sekolah & pembina agar tidak hilang saat beralih cabang
+      const schoolDraft = {
+        school_name: form.school_name || '',
+        mentor_name: form.mentor_name || '',
+        mentor_wa: form.mentor_wa || '',
+        school_district: form.custom_fields?.['school_district'] || '',
+        school_npsn: form.custom_fields?.['school_npsn'] || '',
+        school_address: form.custom_fields?.['school_address'] || '',
+        mentor_email: form.custom_fields?.['mentor_email'] || '',
+        updated_at: new Date().toISOString()
+      };
+      localStorage.setItem('semarak_school_identity_draft', JSON.stringify(schoolDraft));
+
+      // 2. Simpan isian delegasi siswa & field kustom cabang lomba
+      const sanitizedParticipants = (participants.value || []).slice(0, participantCount.value).map(p => {
+        const cp = { ...p };
+        delete cp.photo_formal;
+        delete cp.photo_formal_preview;
+        delete cp.photo_freestyle;
+        delete cp.photo_freestyle_previews;
+        return cp;
+      });
+
+      // Filter out File objects from custom_fields
+      const cleanCustomFields = {};
+      if (form.custom_fields && typeof form.custom_fields === 'object') {
+        Object.entries(form.custom_fields).forEach(([k, v]) => {
+          if (!(v instanceof File) && !(Array.isArray(v) && v[0] instanceof File)) {
+            cleanCustomFields[k] = v;
+          }
+        });
+      }
+
+      const compDraft = {
+        competition_id: form.competition_id,
+        package_type: form.package_type,
+        participantCount: participantCount.value,
+        participants: sanitizedParticipants,
+        custom_fields: cleanCustomFields,
+        notes: form.notes || '',
+        payment_method: form.payment_method || 'Transfer Bank BSI',
+        saved_at: new Date().toISOString()
+      };
+
+      localStorage.setItem(`semarak_form_draft_${form.competition_id}`, JSON.stringify(compDraft));
+    } catch (e) {
+      // Storage unavailable or quota limit
+    }
+  }, 400);
+}
+
+function restoreFormDraft(compId) {
+  if (typeof window === 'undefined') return;
+  const targetId = compId || form.competition_id;
+  if (!targetId) return;
+
+  isRestoringDraft = true;
+
+  try {
+    // 1. Pulihkan identitas sekolah
+    const savedSchool = localStorage.getItem('semarak_school_identity_draft');
+    if (savedSchool) {
+      try {
+        const sData = JSON.parse(savedSchool);
+        if (!form.school_name && sData.school_name) form.school_name = sData.school_name;
+        if (!form.mentor_name && sData.mentor_name) form.mentor_name = sData.mentor_name;
+        if (!form.mentor_wa && sData.mentor_wa) form.mentor_wa = sData.mentor_wa;
+        if (!form.custom_fields) form.custom_fields = {};
+        if (!form.custom_fields['school_district'] && sData.school_district) form.custom_fields['school_district'] = sData.school_district;
+        if (!form.custom_fields['school_npsn'] && sData.school_npsn) form.custom_fields['school_npsn'] = sData.school_npsn;
+        if (!form.custom_fields['school_address'] && sData.school_address) form.custom_fields['school_address'] = sData.school_address;
+        if (!form.custom_fields['mentor_email'] && sData.mentor_email) form.custom_fields['mentor_email'] = sData.mentor_email;
+      } catch (e) {}
+    }
+
+    // 2. Pulihkan draf cabang lomba
+    const raw = localStorage.getItem(`semarak_form_draft_${targetId}`);
+    if (raw) {
+      const draft = JSON.parse(raw);
+      if (draft && typeof draft === 'object') {
+        if (draft.package_type) form.package_type = draft.package_type;
+        if (draft.notes) form.notes = draft.notes;
+        if (draft.payment_method) form.payment_method = draft.payment_method;
+
+        if (draft.custom_fields && typeof draft.custom_fields === 'object') {
+          form.custom_fields = {
+            ...(form.custom_fields || {}),
+            ...draft.custom_fields
+          };
+        }
+
+        if (Array.isArray(draft.participants) && draft.participants.length > 0) {
+          draft.participants.forEach((p, idx) => {
+            if (!participants.value[idx]) {
+              participants.value[idx] = createEmptyParticipant(idx + 1);
+            }
+            participants.value[idx] = {
+              ...participants.value[idx],
+              ...p
+            };
+          });
+          if (draft.participantCount) {
+            participantCount.value = Math.max(minParticipants.value, Math.min(draft.participantCount, maxParticipants.value));
+          }
+        }
+
+        hasDraftRestored.value = true;
+        if (draft.saved_at) {
+          const d = new Date(draft.saved_at);
+          draftRestoredTime.value = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Gagal memulihkan draf formulir:', e);
+  } finally {
+    setTimeout(() => {
+      isRestoringDraft = false;
+    }, 120);
+  }
+}
+
+function clearFormDraft(compId) {
+  if (typeof window === 'undefined') return;
+  try {
+    const targetId = compId || form.competition_id;
+    localStorage.removeItem(`semarak_form_draft_${targetId}`);
+    hasDraftRestored.value = false;
+  } catch (e) {}
+}
+
+function resetDraftAndForm() {
+  clearFormDraft(form.competition_id);
+  form.reset();
   initCompetitionData();
+  hasDraftRestored.value = false;
+  showToast('Draf isian formulir berhasil dihapus. Formulir di-reset bersih.', 'ri-refresh-line');
+}
+
+// Sinkronkan pergantian cabang lomba & pemulihan draf (Session Last View)
+watch(() => form.competition_id, (newId) => {
+  if (!newId) return;
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.setItem('semarak_last_competition_id', String(newId));
+      localStorage.setItem('semarak_last_competition_id', String(newId));
+
+      const comp = findCompetition(newId);
+      const slugOrId = comp?.slug || newId;
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('lomba') !== String(slugOrId)) {
+        url.searchParams.set('lomba', String(slugOrId));
+        window.history.replaceState({}, '', url.toString());
+      }
+    } catch (e) {}
+  }
+
+  initCompetitionData();
+  restoreFormDraft(newId);
 });
+
+// Watcher untuk auto-save draf secara berkala saat pengguna mengetik/memilih
+watch(
+  [
+    () => form.school_name,
+    () => form.mentor_name,
+    () => form.mentor_wa,
+    () => form.package_type,
+    () => form.notes,
+    () => form.payment_method,
+    () => form.custom_fields,
+    () => participantCount.value,
+    () => participants.value
+  ],
+  () => {
+    saveFormDraft();
+  },
+  { deep: true }
+);
 
 // Help Panitia WA URL
 const helpWaUrl = computed(() => {
@@ -978,6 +1193,8 @@ function handleSubmit() {
       registeredData.value = pageRes.props.flash?.registered;
       validationErrors.value = {};
       submitAttempted.value = false;
+      // Bersihkan draf setelah berhasil terkirim
+      clearFormDraft(form.competition_id);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     onError: (errors) => {
@@ -988,16 +1205,39 @@ function handleSubmit() {
 
 onMounted(() => {
   initTheme();
-  if (props.preselectedLomba) {
-    const matched = findCompetition(props.preselectedLomba);
-    if (matched) form.competition_id = matched.id;
+
+  // Pastikan form.competition_id selaras dengan URL parameter / session last view
+  const initialId = resolveInitialCompId();
+  if (initialId && form.competition_id !== initialId) {
+    form.competition_id = initialId;
   }
+
+  // Simpan ke session & perbarui parameter URL tanpa reload
+  if (typeof window !== 'undefined' && form.competition_id) {
+    try {
+      sessionStorage.setItem('semarak_last_competition_id', String(form.competition_id));
+      localStorage.setItem('semarak_last_competition_id', String(form.competition_id));
+      const comp = findCompetition(form.competition_id);
+      const slugOrId = comp?.slug || form.competition_id;
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('lomba') !== String(slugOrId)) {
+        url.searchParams.set('lomba', String(slugOrId));
+        window.history.replaceState({}, '', url.toString());
+      }
+    } catch (e) {}
+  }
+
   if (props.authRegistrant?.school_name) form.school_name = props.authRegistrant.school_name;
   if (props.authRegistrant?.name) form.mentor_name = props.authRegistrant.name;
   if (props.authRegistrant?.phone) form.mentor_wa = props.authRegistrant.phone;
   if (props.authRegistrant?.email && form.custom_fields) form.custom_fields['mentor_email'] = props.authRegistrant.email;
   if (props.authRegistrant?.school_district && form.custom_fields) form.custom_fields['school_district'] = props.authRegistrant.school_district;
+
   initCompetitionData();
+
+  // Pulihkan draf tersimpan saat halaman dimuat ulang (refresh browser)
+  restoreFormDraft(form.competition_id);
+
   nextTick(() => {
     try {
       window.dispatchEvent(new CustomEvent('semarak:page-ready'));
@@ -1152,6 +1392,43 @@ onMounted(() => {
             novalidate 
             @submit.prevent="handleSubmit"
           >
+            <!-- BANNER PEMULIHAN DRAF ISIAN OTOMATIS -->
+            <div 
+              v-if="hasDraftRestored" 
+              class="p-4 rounded-xl bg-emerald-light/60 border border-primary/30 flex items-center justify-between flex-wrap gap-3 animate__animated animate__fadeIn"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <i class="ri-history-line text-lg"></i>
+                </div>
+                <div>
+                  <p class="text-xs sm:text-sm font-bold text-emerald-dark m-0">
+                    Draf Isian Formulir Berhasil Dipulihkan Otomatis
+                  </p>
+                  <p class="text-[11px] text-on-surface-variant m-0">
+                    Data sementara Anda tidak hilang saat browser dimuat ulang{{ draftRestoredTime ? ` (tersimpan pukul ${draftRestoredTime})` : '' }}.
+                  </p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button 
+                  type="button" 
+                  @click="hasDraftRestored = false" 
+                  class="px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-dark bg-white dark:bg-[#111d17] border border-primary/25 hover:border-primary transition-all cursor-pointer shadow-xs"
+                >
+                  Lanjutkan Mengisi
+                </button>
+                <button 
+                  type="button" 
+                  @click="resetDraftAndForm" 
+                  class="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-white dark:bg-[#111d17] border border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                  title="Hapus draf dan kosongkan isian formulir ini"
+                >
+                  <i class="ri-delete-bin-line"></i>
+                  <span>Hapus Draf</span>
+                </button>
+              </div>
+            </div>
             <!-- ============================================================== -->
             <!-- SECTION 1: Informasi Asal Sekolah & Guru Pembina (Identitas)   -->
             <!-- ============================================================== -->
@@ -1595,21 +1872,32 @@ onMounted(() => {
                         <span>{{ subFieldsConfig.gender.label || 'Jenis Kelamin' }} <span v-if="subFieldsConfig.gender.required" class="text-red-500">*</span></span>
                       </label>
                       <div class="grid grid-cols-2 gap-2 h-11">
+                        <!-- Pilihan Laki-laki (Warna Biru Kontras + Ikon Centang) -->
                         <label 
-                          class="inline-flex items-center justify-center gap-1.5 border border-border-subtle bg-background/40 rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
-                          :class="{ 'bg-emerald-light border-primary text-primary': participants[pIdx - 1].gender === 'L' }"
+                          class="inline-flex items-center justify-center gap-1.5 px-2 border rounded-xl cursor-pointer text-xs transition-all user-select-none"
+                          :class="participants[pIdx - 1].gender === 'L' 
+                            ? 'border-blue-500 bg-blue-500/15 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/30 font-bold shadow-xs' 
+                            : 'border-border-subtle bg-background/40 text-on-surface-variant hover:border-blue-300 hover:bg-blue-50/20 font-medium'"
                           @click="participants[pIdx - 1].gender = 'L'"
                         >
                           <input type="radio" :name="`gender_${pIdx}`" value="L" :checked="participants[pIdx - 1].gender === 'L'" class="hidden">
+                          <i class="ri-men-line text-sm" :class="participants[pIdx - 1].gender === 'L' ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-gray-400'"></i>
                           <span>Laki-Laki</span>
+                          <i v-if="participants[pIdx - 1].gender === 'L'" class="ri-checkbox-circle-fill text-blue-600 dark:text-blue-400 text-sm ms-0.5"></i>
                         </label>
+
+                        <!-- Pilihan Perempuan (Warna Pink/Rose Kontras + Ikon Centang) -->
                         <label 
-                          class="inline-flex items-center justify-center gap-1.5 border border-border-subtle bg-background/40 rounded-xl cursor-pointer text-xs font-semibold text-on-surface-variant hover:bg-emerald-light/40 transition-colors"
-                          :class="{ 'bg-emerald-light border-primary text-primary': participants[pIdx - 1].gender === 'P' }"
+                          class="inline-flex items-center justify-center gap-1.5 px-2 border rounded-xl cursor-pointer text-xs transition-all user-select-none"
+                          :class="participants[pIdx - 1].gender === 'P' 
+                            ? 'border-pink-500 bg-pink-500/15 text-pink-700 dark:text-pink-300 ring-2 ring-pink-500/30 font-bold shadow-xs' 
+                            : 'border-border-subtle bg-background/40 text-on-surface-variant hover:border-pink-300 hover:bg-pink-50/20 font-medium'"
                           @click="participants[pIdx - 1].gender = 'P'"
                         >
                           <input type="radio" :name="`gender_${pIdx}`" value="P" :checked="participants[pIdx - 1].gender === 'P'" class="hidden">
+                          <i class="ri-women-line text-sm" :class="participants[pIdx - 1].gender === 'P' ? 'text-pink-600 dark:text-pink-400 font-bold' : 'text-gray-400'"></i>
                           <span>Perempuan</span>
+                          <i v-if="participants[pIdx - 1].gender === 'P'" class="ri-checkbox-circle-fill text-pink-600 dark:text-pink-400 text-sm ms-0.5"></i>
                         </label>
                       </div>
                     </div>

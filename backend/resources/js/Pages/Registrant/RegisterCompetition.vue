@@ -91,10 +91,29 @@ const kecamatanOptions = [
   { value: 'Wuluhan', label: 'Kec. Wuluhan' },
 ];
 
+function resolveInitialRegCompId() {
+  if (typeof window !== 'undefined') {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const fromUrl = urlParams.get('lomba') || urlParams.get('cabang');
+      if (fromUrl) {
+        const matched = (props.competitions || []).find(c => String(c.id) === String(fromUrl) || c.slug === fromUrl);
+        if (matched) return matched.id;
+      }
+      const saved = sessionStorage.getItem('semarak_reg_last_competition_id') || localStorage.getItem('semarak_reg_last_competition_id');
+      if (saved) {
+        const matched = (props.competitions || []).find(c => String(c.id) === String(saved) || c.slug === saved);
+        if (matched) return matched.id;
+      }
+    } catch (e) {}
+  }
+  return props.competitions?.[0]?.id || '';
+}
+
 // Form state untuk PAKET SATUAN (Per Cabang Lomba)
 const form = useForm({
   package_type: 'Paket Satuan',
-  competition_id: '',
+  competition_id: resolveInitialRegCompId(),
   participants_names: '',
   notes: '',
   payment_method: 'Transfer Bank BSI',
@@ -532,14 +551,148 @@ function syncParticipantsCount(count) {
   }
 }
 
-// Watch competition selection to initialize repeater & custom fields
-watch(() => form.competition_id, () => {
+// Draft auto-save & restoration (Registrant Portal)
+const hasRegDraftRestored = ref(false);
+const lastSavedRegDraftAt = ref(null);
+let regDraftDebounceTimer = null;
+
+function getRegDraftStorageKey(compId) {
+  return `semarak_reg_draft_${compId || form.competition_id || 'general'}`;
+}
+
+function saveRegDraft() {
+  if (typeof window === 'undefined' || !form.competition_id) return;
+  try {
+    const key = getRegDraftStorageKey(form.competition_id);
+    // Sanitize participantsList (remove File/Blob instances, keep textual fields)
+    const sanitizedParticipants = participantsList.value.map(p => {
+      const copy = { ...p };
+      delete copy.photo_formal;
+      delete copy.photo_formal_preview;
+      delete copy.photo_freestyle;
+      delete copy.photo_freestyle_previews;
+      return copy;
+    });
+
+    const draftData = {
+      savedAt: new Date().toISOString(),
+      competition_id: form.competition_id,
+      notes: form.notes || '',
+      payment_method: form.payment_method || 'Transfer Bank BSI',
+      allin_code: form.allin_code || '',
+      custom_fields: { ...(form.custom_fields || {}) },
+      participantCount: participantCount.value,
+      participantsList: sanitizedParticipants,
+    };
+
+    localStorage.setItem(key, JSON.stringify(draftData));
+    lastSavedRegDraftAt.value = new Date();
+  } catch (err) {
+    console.warn('[Semarak Reg Draft] Failed to auto-save:', err);
+  }
+}
+
+function restoreRegDraft(compId) {
+  if (typeof window === 'undefined') return false;
+  const targetId = compId || form.competition_id;
+  if (!targetId) return false;
+  try {
+    const key = getRegDraftStorageKey(targetId);
+    const raw = localStorage.getItem(key);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || !data.savedAt) return false;
+
+    if (data.notes !== undefined && !form.notes) form.notes = data.notes;
+    if (data.payment_method) form.payment_method = data.payment_method;
+    if (data.allin_code !== undefined && !form.allin_code) form.allin_code = data.allin_code;
+    if (data.custom_fields && typeof data.custom_fields === 'object') {
+      form.custom_fields = { ...form.custom_fields, ...data.custom_fields };
+    }
+    if (Array.isArray(data.participantsList) && data.participantsList.length > 0) {
+      participantCount.value = data.participantCount || data.participantsList.length;
+      participantsList.value = data.participantsList.map(p => ({
+        name: p.name || '',
+        gender: p.gender || 'L',
+        grade: p.grade || 'Kelas 9 SMP/MTs',
+        birth_date: p.birth_date || '',
+        nisn: p.nisn || '',
+        custom_id: p.custom_id || '',
+        wa_number: p.wa_number || '',
+        is_captain: !!p.is_captain,
+        photo_formal: null,
+        photo_formal_preview: null,
+        photo_freestyle: [],
+        photo_freestyle_previews: [],
+        custom_columns: p.custom_columns ? { ...p.custom_columns } : {},
+      }));
+    }
+    hasRegDraftRestored.value = true;
+    lastSavedRegDraftAt.value = new Date(data.savedAt);
+    return true;
+  } catch (err) {
+    console.warn('[Semarak Reg Draft] Failed to restore draft:', err);
+    return false;
+  }
+}
+
+function clearRegDraft(compId) {
+  if (typeof window === 'undefined') return;
+  const targetId = compId || form.competition_id;
+  try {
+    localStorage.removeItem(getRegDraftStorageKey(targetId));
+  } catch (e) {}
+}
+
+function resetRegDraftAndForm() {
+  clearRegDraft(form.competition_id);
+  hasRegDraftRestored.value = false;
+  form.notes = '';
+  form.custom_fields = {};
+  const info = teamInfo.value;
+  const count = info.isTeam ? Math.max(info.min, info.main || info.min) : 1;
+  syncParticipantsCount(count);
+  toast.info('Draf isian untuk cabang lomba ini telah dihapus.');
+}
+
+// Watch competition selection to initialize repeater, persist session last view & restore draft
+watch(() => form.competition_id, (newId) => {
+  if (typeof window !== 'undefined' && newId) {
+    try {
+      sessionStorage.setItem('semarak_reg_last_competition_id', String(newId));
+      localStorage.setItem('semarak_reg_last_competition_id', String(newId));
+      const comp = (props.competitions || []).find(c => String(c.id) === String(newId));
+      const url = new URL(window.location.href);
+      url.searchParams.set('lomba', comp?.slug || newId);
+      window.history.replaceState({}, '', url.toString());
+    } catch (e) {}
+  }
+
   if (repeaterField.value) {
     const info = teamInfo.value;
     const initialCount = info.isTeam ? Math.max(info.min, info.main || info.min) : 1;
     syncParticipantsCount(initialCount);
   }
+
+  if (newId) {
+    restoreRegDraft(newId);
+  }
 }, { immediate: true });
+
+// Auto-save debounced watcher
+watch([
+  () => form.notes,
+  () => form.payment_method,
+  () => form.allin_code,
+  () => form.custom_fields,
+  () => participantCount.value,
+  () => participantsList.value,
+], () => {
+  if (regDraftDebounceTimer) clearTimeout(regDraftDebounceTimer);
+  regDraftDebounceTimer = setTimeout(() => {
+    saveRegDraft();
+  }, 600);
+}, { deep: true });
 
 // Checkbox multi-select helpers
 function isCheckboxSelected(fieldName, opt) {
@@ -900,6 +1053,8 @@ function submitRegistration() {
     preserveScroll: true,
     forceFormData: true,
     onSuccess: () => {
+      clearRegDraft(form.competition_id);
+      hasRegDraftRestored.value = false;
       toast.success('Pendaftaran delegasi lomba berhasil disimpan!');
     },
     onError: (errs) => {
@@ -1454,6 +1609,43 @@ function handleUnifiedSubmit() {
             <!-- JIKA PAKET SATUAN: FORM BUILDER DYNAMIC FIELDS, DATA PESERTA, BERKAS UMUM -->
             <!-- ========================================================================= -->
             <template v-if="selectedPackageType === 'Paket Satuan'">
+              <!-- Draf Restoration Notification Banner (Rule 2 & 3: High Contrast in Dark/Light) -->
+              <div 
+                v-if="hasRegDraftRestored" 
+                class="alert alert-info border-info-subtle d-flex align-items-center justify-content-between flex-wrap gap-2 py-2.5 px-3.5 rounded-4 shadow-sm mb-3.5"
+                style="background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.25);"
+              >
+                <div class="d-flex align-items-center gap-2.5">
+                  <div class="rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center fs-16 flex-shrink-0" style="width: 32px; height: 32px;">
+                    <i class="ri-history-line"></i>
+                  </div>
+                  <div>
+                    <div class="fs-12 fw-bold text-dark" :class="{ 'text-white': isDark }">Draf Isian Formulir Terpulihkan!</div>
+                    <div class="text-muted fs-11">
+                      Data yang Anda ketik sebelumnya pada cabang ini berhasil dipulihkan secara otomatis.
+                    </div>
+                  </div>
+                </div>
+                <div class="d-flex align-items-center gap-1.5 ms-auto">
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-outline-info d-inline-flex align-items-center gap-1 fs-11 px-2.5 py-1 rounded-2"
+                    @click="hasRegDraftRestored = false"
+                    title="Tutup pemberitahuan"
+                  >
+                    <i class="ri-check-line"></i> Lanjutkan
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-outline-danger d-inline-flex align-items-center gap-1 fs-11 px-2.5 py-1 rounded-2"
+                    @click="resetRegDraftAndForm"
+                    title="Hapus draf dan kosongkan isian form"
+                  >
+                    <i class="ri-delete-bin-line"></i> Reset Draf
+                  </button>
+                </div>
+              </div>
+
               <!-- Card 2: Form Builder Dynamic Fields (Jika Cabang Lomba Memiliki Custom Fields) -->
               <div v-if="dynamicFields.length > 0" class="card border-0 shadow-sm rounded-4 overflow-hidden reg-card">
                 <div class="card-header border-bottom reg-card-header p-3.5">
@@ -1803,18 +1995,22 @@ function handleUnifiedSubmit() {
                           <label class="form-label fs-12 fw-semibold reg-label mb-0.5">Jenis Kelamin</label>
                           <div class="d-flex gap-2">
                             <label
-                              class="flex-grow-1 p-1.5 rounded-2 border cursor-pointer text-center fs-12 reg-radio-card"
-                              :class="participantsList[pIdx - 1].gender === 'L' ? 'is-selected' : ''"
+                              class="flex-grow-1 p-1.5 rounded-2 border cursor-pointer text-center fs-12 reg-gender-btn"
+                              :class="participantsList[pIdx - 1].gender === 'L' ? 'reg-gender-male-selected' : 'reg-gender-unselected'"
                             >
                               <input type="radio" :name="`reg_gender_${pIdx}`" value="L" v-model="participantsList[pIdx - 1].gender" class="d-none" />
-                              <span class="reg-title">Laki-laki</span>
+                              <i class="ri-men-line me-1" :class="participantsList[pIdx - 1].gender === 'L' ? 'text-primary fw-bold' : 'text-muted'"></i>
+                              <span>Laki-laki</span>
+                              <i v-if="participantsList[pIdx - 1].gender === 'L'" class="ri-checkbox-circle-fill text-primary ms-1"></i>
                             </label>
                             <label
-                              class="flex-grow-1 p-1.5 rounded-2 border cursor-pointer text-center fs-12 reg-radio-card"
-                              :class="participantsList[pIdx - 1].gender === 'P' ? 'is-selected' : ''"
+                              class="flex-grow-1 p-1.5 rounded-2 border cursor-pointer text-center fs-12 reg-gender-btn"
+                              :class="participantsList[pIdx - 1].gender === 'P' ? 'reg-gender-female-selected' : 'reg-gender-unselected'"
                             >
                               <input type="radio" :name="`reg_gender_${pIdx}`" value="P" v-model="participantsList[pIdx - 1].gender" class="d-none" />
-                              <span class="reg-title">Perempuan</span>
+                              <i class="ri-women-line me-1" :class="participantsList[pIdx - 1].gender === 'P' ? 'gender-pink-icon fw-bold' : 'text-muted'"></i>
+                              <span>Perempuan</span>
+                              <i v-if="participantsList[pIdx - 1].gender === 'P'" class="ri-checkbox-circle-fill gender-pink-icon ms-1"></i>
                             </label>
                           </div>
                         </div>
@@ -2808,6 +3004,76 @@ function handleUnifiedSubmit() {
 [data-bs-theme="dark"] .reg-radio-card.is-selected {
   background: rgba(59, 130, 246, 0.2);
   border-color: #60a5fa !important;
+}
+
+/* Gender Selector High-Contrast Styling (User Request & Rule 2) */
+.reg-gender-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  border: 1.5px solid transparent;
+  user-select: none;
+}
+.reg-gender-unselected {
+  background: #f8fafc;
+  border-color: #cbd5e1 !important;
+  color: #475569;
+}
+[data-bs-theme="dark"] .reg-gender-unselected {
+  background: rgba(30, 41, 59, 0.6);
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #94a3b8;
+}
+.reg-gender-unselected:hover {
+  border-color: #94a3b8 !important;
+  background: #f1f5f9;
+}
+[data-bs-theme="dark"] .reg-gender-unselected:hover {
+  background: rgba(51, 65, 85, 0.7);
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Laki-laki Selected: High Contrast Blue */
+.reg-gender-male-selected {
+  background: rgba(37, 99, 235, 0.12) !important;
+  border-color: #2563eb !important;
+  color: #1d4ed8 !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+  font-weight: 700;
+}
+[data-bs-theme="dark"] .reg-gender-male-selected {
+  background: rgba(59, 130, 246, 0.22) !important;
+  border-color: #60a5fa !important;
+  color: #93c5fd !important;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3);
+}
+
+/* Perempuan Selected: High Contrast Pink/Rose */
+.reg-gender-female-selected {
+  background: rgba(236, 72, 153, 0.12) !important;
+  border-color: #ec4899 !important;
+  color: #be185d !important;
+  box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.25);
+  font-weight: 700;
+}
+[data-bs-theme="dark"] .reg-gender-female-selected {
+  background: rgba(244, 114, 182, 0.22) !important;
+  border-color: #f472b6 !important;
+  color: #fbcfe8 !important;
+  box-shadow: 0 0 0 2px rgba(244, 114, 182, 0.3);
+}
+
+.gender-pink-icon {
+  color: #ec4899 !important;
+}
+[data-bs-theme="dark"] .gender-pink-icon {
+  color: #f472b6 !important;
 }
 
 .reg-allin-badge {

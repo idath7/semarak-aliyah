@@ -1264,32 +1264,42 @@ onMounted(() => {
          HEADER PUBLIK (EXACT TO USER MOCKUP)
          ====================================================================== -->
     <header class="reg-header">
-      <div class="header-inner max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+      <div class="header-inner max-w-6xl mx-auto px-3 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
         <!-- Logo Resmi & Branding -->
-        <a class="brand-group flex items-center gap-3.5 group text-decoration-none" href="/">
-          <img alt="Logo Resmi Semarak Aliyah XIV 2026" class="brand-logo h-12 w-12 object-contain transition-transform group-hover:scale-105" src="/assets/img/logo.webp">
-          <div class="flex flex-col">
-            <span class="font-headline font-extrabold text-base sm:text-lg text-primary tracking-tight leading-tight uppercase">
+        <a class="brand-group flex items-center gap-2 sm:gap-3.5 group text-decoration-none min-w-0" href="/">
+          <img alt="Logo Resmi Semarak Aliyah XIV 2026" class="brand-logo h-9 w-9 sm:h-12 sm:w-12 object-contain transition-transform group-hover:scale-105 shrink-0" src="/assets/img/logo.webp">
+          <div class="flex flex-col min-w-0">
+            <span class="font-headline font-extrabold text-xs sm:text-base md:text-lg text-primary tracking-tight leading-tight uppercase truncate">
               SEMARAK ALIYAH XIV
             </span>
-            <span class="font-headline text-xs sm:text-sm text-on-surface-variant font-medium">
+            <span class="font-headline text-[10px] sm:text-xs md:text-sm text-on-surface-variant font-medium truncate">
               MAS Wahid Hasyim Balung • 2026
             </span>
           </div>
         </a>
 
         <!-- Navigasi Ringkas Publik -->
-        <nav class="flex items-center gap-2 sm:gap-4">
+        <nav class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           <a class="hidden md:inline-flex text-sm font-medium text-on-surface-variant hover:text-primary transition-colors text-decoration-none" href="/#tentang">
             Tentang Lomba
           </a>
-          <a class="inline-flex items-center gap-1.5 text-sm font-medium text-on-surface-variant hover:text-primary transition-colors px-3 py-1.5 rounded-lg hover:bg-emerald-light/60 text-decoration-none" :href="juknisUrl" target="_blank">
-            <i class="ri-download-line text-[18px] leading-none"></i>
-            <span>Juknis Lomba</span>
+          <a 
+            class="inline-flex items-center justify-center gap-1 text-xs sm:text-sm font-medium text-on-surface-variant hover:text-primary transition-colors p-2 sm:px-3 sm:py-1.5 rounded-lg hover:bg-emerald-light/60 text-decoration-none" 
+            :href="juknisUrl" 
+            target="_blank"
+            title="Unduh Juknis Lomba"
+          >
+            <i class="ri-download-line text-[16px] sm:text-[18px] leading-none"></i>
+            <span class="hidden sm:inline">Juknis</span>
           </a>
-          <a class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-light hover:bg-primary text-emerald-dark hover:text-white font-semibold text-xs sm:text-sm transition-all border border-primary/20 hover:border-transparent text-decoration-none" :href="helpWaUrl" target="_blank">
-            <i class="ri-customer-service-2-line text-[18px] leading-none"></i>
-            <span>Bantuan Panitia</span>
+          <a 
+            class="inline-flex items-center justify-center gap-1 p-2 sm:px-3 sm:py-1.5 rounded-lg bg-emerald-light hover:bg-primary text-emerald-dark hover:text-white font-semibold text-xs sm:text-sm transition-all border border-primary/20 hover:border-transparent text-decoration-none" 
+            :href="helpWaUrl" 
+            target="_blank"
+            title="Hubungi Bantuan Panitia via WhatsApp"
+          >
+            <i class="ri-customer-service-2-line text-[16px] sm:text-[18px] leading-none"></i>
+            <span class="hidden sm:inline">Bantuan</span>
           </a>
           <!-- Dark Mode Toggle Button -->
           <button 
@@ -1298,7 +1308,7 @@ onMounted(() => {
             class="p-2 rounded-lg border border-border-subtle text-on-surface-variant hover:text-primary transition-colors cursor-pointer bg-transparent"
             :title="isDark ? 'Mode Terang' : 'Mode Gelap'"
           >
-            <i :class="isDark ? 'ri-sun-line text-amber-400' : 'ri-moon-line text-slate-600'" class="text-[18px] leading-none"></i>
+            <i :class="isDark ? 'ri-sun-line text-amber-400' : 'ri-moon-line text-slate-600'" class="text-[16px] sm:text-[18px] leading-none"></i>
           </button>
         </nav>
       </div>
@@ -1307,7 +1317,7 @@ onMounted(() => {
     <!-- ======================================================================
          MAIN REGISTRATION SECTION
          ====================================================================== -->
-    <main class="flex-1 py-8 sm:py-12 px-4 sm:px-6">
+    <main class="flex-1 py-5 sm:py-8 md:py-12 px-2.5 sm:px-6">
       <div class="max-w-4xl mx-auto">
 
         <!-- SUCCESS STATE CONFIRMATION RECEIPT -->
@@ -1364,21 +1374,23 @@ onMounted(() => {
         <!-- FORM CARD SECTION -->
         <div v-else>
           <!-- HERO HEADER ELEGAN & RINGKAS (DYNAMIC DARI FORM BUILDER) -->
-          <div class="text-center mb-8 sm:mb-10 space-y-3">
-            <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-light text-emerald-dark text-xs sm:text-sm font-semibold border border-primary/20 shadow-xs">
+          <div class="text-center mb-6 sm:mb-10 space-y-2.5 sm:space-y-3">
+            <div class="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 rounded-full bg-emerald-light text-emerald-dark text-xs sm:text-sm font-semibold border border-primary/20 shadow-xs">
               <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
               Pendaftaran Resmi Delegasi • Semarak Aliyah XIV
             </div>
-            <h1 class="font-headline font-extrabold text-2xl sm:text-4xl text-on-surface tracking-tight m-0">
+            <h1 class="font-headline font-extrabold text-xl sm:text-3xl md:text-4xl text-on-surface tracking-tight m-0 leading-tight">
               {{ formSettings.form_title || (`Formulir Pendaftaran ${activeComp?.title || 'Lomba'}`) }}
             </h1>
             
             <!-- Inline Switcher if multiple competitions exist -->
-            <div v-if="props.competitions && props.competitions.length > 1" class="flex items-center justify-center pt-1">
-              <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] text-xs text-on-surface shadow-xs">
-                <i class="ri-arrow-left-right-line text-primary"></i>
-                <span class="text-on-surface-variant font-medium">Ganti Cabang:</span>
-                <div class="w-48 sm:w-64">
+            <div v-if="props.competitions && props.competitions.length > 1" class="flex items-center justify-center pt-1 w-full px-1">
+              <div class="inline-flex flex-nowrap items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] text-xs text-on-surface shadow-xs max-w-full w-full sm:w-auto">
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <i class="ri-arrow-left-right-line text-primary"></i>
+                  <span class="text-on-surface-variant font-medium whitespace-nowrap">Ganti Cabang:</span>
+                </div>
+                <div class="flex-1 sm:w-60 max-w-full min-w-0">
                   <CustomSelect
                     v-model="form.competition_id"
                     :options="competitionOptions"
@@ -1390,7 +1402,7 @@ onMounted(() => {
               </div>
             </div>
 
-            <p class="text-on-surface-variant text-sm sm:text-base max-w-2xl mx-auto leading-relaxed pt-1">
+            <p class="text-on-surface-variant text-xs sm:text-sm md:text-base max-w-2xl mx-auto leading-relaxed pt-1 px-1">
               {{ formSettings.form_subtitle || 'Silakan lengkapi data delegasi sekolah, peserta, serta berkas Anda. Proses cepat, mudah, dan langsung terverifikasi oleh panitia.' }}
             </p>
           </div>
@@ -1398,40 +1410,40 @@ onMounted(() => {
           <!-- FORMULIR TERPUSAT (CLEAN & TO-THE-POINT) -->
           <form 
             id="publicRegisterForm" 
-            class="bg-surface-card rounded-2xl border border-border-subtle shadow-xl shadow-primary/5 p-6 sm:p-10 space-y-8" 
+            class="bg-surface-card rounded-2xl border border-border-subtle shadow-xl shadow-primary/5 p-3.5 sm:p-8 md:p-10 space-y-6 sm:space-y-8" 
             novalidate 
             @submit.prevent="handleSubmit"
           >
             <!-- BANNER PEMULIHAN DRAF ISIAN OTOMATIS -->
             <div 
               v-if="hasDraftRestored" 
-              class="p-4 rounded-xl bg-emerald-light/60 border border-primary/30 flex items-center justify-between flex-wrap gap-3 animate__animated animate__fadeIn"
+              class="p-3 sm:p-4 rounded-xl bg-emerald-light/60 border border-primary/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate__animated animate__fadeIn"
             >
-              <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <i class="ri-history-line text-lg"></i>
+              <div class="flex items-center gap-2.5 sm:gap-3">
+                <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <i class="ri-history-line text-base sm:text-lg"></i>
                 </div>
                 <div>
                   <p class="text-xs sm:text-sm font-bold text-emerald-dark m-0">
                     Draf Isian Formulir Berhasil Dipulihkan Otomatis
                   </p>
-                  <p class="text-[11px] text-on-surface-variant m-0">
+                  <p class="text-[10px] sm:text-[11px] text-on-surface-variant m-0">
                     Data sementara Anda tidak hilang saat browser dimuat ulang{{ draftRestoredTime ? ` (tersimpan pukul ${draftRestoredTime})` : '' }}.
                   </p>
                 </div>
               </div>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <button 
                   type="button" 
                   @click="hasDraftRestored = false" 
-                  class="px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-dark bg-white dark:bg-[#111d17] border border-primary/25 hover:border-primary transition-all cursor-pointer shadow-xs"
+                  class="flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-dark bg-white dark:bg-[#111d17] border border-primary/25 hover:border-primary transition-all cursor-pointer shadow-xs text-center"
                 >
                   Lanjutkan Mengisi
                 </button>
                 <button 
                   type="button" 
                   @click="resetDraftAndForm" 
-                  class="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-white dark:bg-[#111d17] border border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all cursor-pointer inline-flex items-center gap-1 shadow-xs"
+                  class="flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-white dark:bg-[#111d17] border border-red-200 dark:border-red-900/40 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all cursor-pointer inline-flex items-center justify-center gap-1 shadow-xs text-center"
                   title="Hapus draf dan kosongkan isian formulir ini"
                 >
                   <i class="ri-delete-bin-line"></i>
@@ -1442,12 +1454,12 @@ onMounted(() => {
             <!-- ============================================================== -->
             <!-- SECTION 1: Informasi Asal Sekolah & Guru Pembina (Identitas)   -->
             <!-- ============================================================== -->
-            <div class="space-y-4">
-              <div class="flex items-center gap-2.5 pb-2 border-b border-border-subtle form-section-header">
+            <div class="space-y-3.5 sm:space-y-4">
+              <div class="flex items-center gap-2 sm:gap-2.5 pb-2 border-b border-border-subtle form-section-header">
                 <i class="ri-bank-line text-primary form-section-icon"></i>
-                <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface m-0 form-section-title">1. Delegasi &amp; Asal Sekolah</h2>
+                <h2 class="font-headline font-bold text-sm sm:text-base md:text-lg text-on-surface m-0 form-section-title">1. Delegasi &amp; Asal Sekolah</h2>
               </div>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-5">
                 <!-- Nama Asal Sekolah with Autocomplete -->
                 <div class="space-y-1.5 md:col-span-2 relative">
                   <label class="form-label-aligned">
@@ -1460,7 +1472,7 @@ onMounted(() => {
                     @input="onSchoolInput"
                     @focus="onSchoolInput"
                     @blur="onSchoolBlur"
-                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/50 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('school_name') }"
                     :placeholder="getFieldPlaceholder('school_name', 'Contoh: MTs Negeri 1 Jember / SMPN 1 Balung')" 
                     required 
@@ -1513,7 +1525,7 @@ onMounted(() => {
                   </label>
                   <input 
                     v-model="form.custom_fields['school_npsn']"
-                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/50 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :placeholder="getFieldPlaceholder('school_npsn', 'Contoh: 20524589 (opsional jika ada)')" 
                     type="text"
                   >
@@ -1529,7 +1541,7 @@ onMounted(() => {
                   <textarea 
                     rows="2"
                     v-model="form.custom_fields['school_address']"
-                    class="w-full p-3 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    class="w-full p-2.5 sm:p-3 rounded-xl border border-border-subtle bg-background/50 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('school_address') }"
                     :placeholder="getFieldPlaceholder('school_address', 'Contoh: Jl. Raya Puger No. 20, Balung Kulon, Kec. Balung')"
                     required
@@ -1547,7 +1559,7 @@ onMounted(() => {
                   <input 
                     v-model="form.mentor_name"
                     @input="clearFieldError('mentor_name')"
-                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/50 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('mentor_name') }"
                     :placeholder="getFieldPlaceholder('mentor_name', 'Contoh: Ustadz Ahmad Fauzi, S.Pd')" 
                     required 
@@ -1566,7 +1578,7 @@ onMounted(() => {
                   <input 
                     v-model="form.mentor_wa"
                     @input="clearFieldError('mentor_wa')"
-                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/50 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError('mentor_wa') }"
                     :placeholder="getFieldPlaceholder('mentor_wa', 'Contoh: 081234567890')" 
                     required 
@@ -1584,7 +1596,7 @@ onMounted(() => {
                   </label>
                   <input 
                     v-model="form.custom_fields['mentor_email']"
-                    class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                    class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/50 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                     :placeholder="getFieldPlaceholder('mentor_email', 'Contoh: pendamping@gmail.com / official@sekolah.sch.id')" 
                     type="email"
                   >
@@ -1593,7 +1605,7 @@ onMounted(() => {
               </div>
 
               <!-- Input & Verifikasi Kode Paket Komplit (All-In) -->
-              <div class="p-3.5 sm:p-4 rounded-xl border border-dashed border-primary/40 bg-emerald-light/30 space-y-2.5">
+              <div class="p-3 sm:p-4 rounded-xl border border-dashed border-primary/40 bg-emerald-light/30 space-y-2 sm:space-y-2.5">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                   <label class="form-label-aligned">
                     <i class="ri-vip-crown-line text-primary"></i>
@@ -1607,14 +1619,14 @@ onMounted(() => {
                       v-model="form.custom_fields['allin_code']"
                       type="text" 
                       :placeholder="getFieldPlaceholder('allin_code', 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)')" 
-                      class="w-full h-10 px-3.5 rounded-lg border border-border-subtle bg-white dark:bg-[#111d17] text-xs font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:font-body placeholder:normal-case placeholder:text-gray-400 text-on-surface"
+                      class="w-full h-10 px-3 sm:px-3.5 rounded-lg border border-border-subtle bg-white dark:bg-[#111d17] text-xs font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:font-body placeholder:normal-case placeholder:text-gray-400 text-on-surface"
                     >
                   </div>
                   <button 
                     type="button" 
                     @click="verifyPackageCodeManual" 
                     :disabled="isCheckingPackageCode"
-                    class="h-10 px-4 rounded-lg bg-primary hover:bg-primary-container text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-colors shadow-xs cursor-pointer border-none"
+                    class="h-10 px-3.5 sm:px-4 rounded-lg bg-primary hover:bg-primary-container text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-colors shadow-xs cursor-pointer border-none"
                   >
                     <i v-if="isCheckingPackageCode" class="ri-loader-4-line animate-spin text-[16px]"></i>
                     <i v-else class="ri-checkbox-circle-line text-[16px]"></i>
@@ -1636,22 +1648,22 @@ onMounted(() => {
             <!-- ============================================================== -->
             <!-- SECTION 2: Data Peserta & Skema Paket (Dinamis Form Builder)    -->
             <!-- ============================================================== -->
-            <div class="space-y-4" id="sectionDataPeserta">
+            <div class="space-y-3.5 sm:space-y-4" id="sectionDataPeserta">
               <div class="flex items-center justify-between pb-2 border-b border-border-subtle flex-wrap gap-2">
-                <div class="flex items-center gap-2.5 form-section-header">
+                <div class="flex items-center gap-2 sm:gap-2.5 form-section-header">
                   <i class="ri-group-line text-primary form-section-icon"></i>
-                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface m-0 form-section-title">
+                  <h2 class="font-headline font-bold text-sm sm:text-base md:text-lg text-on-surface m-0 form-section-title">
                     2. {{ repeaterField?.label || 'Biodata Peserta & Delegasi' }}
                   </h2>
                 </div>
-                <span class="text-xs text-on-surface-variant font-medium">
+                <span class="text-[11px] sm:text-xs text-on-surface-variant font-medium">
                   <span v-if="minParticipants === maxParticipants">Format: {{ minParticipants }} Siswa</span>
                   <span v-else>Kuota: {{ minParticipants }} s.d. {{ maxParticipants }} Peserta</span>
                 </span>
               </div>
 
               <!-- Pilihan Skema Paket Pendaftaran (Hanya jika diaktifkan di Form Builder) -->
-              <div v-if="formSettings.show_package_type" class="p-4 rounded-xl bg-background/50 border border-border-subtle space-y-2.5">
+              <div v-if="formSettings.show_package_type" class="p-3.5 sm:p-4 rounded-xl bg-background/50 border border-border-subtle space-y-2 sm:space-y-2.5">
                 <div class="flex items-center justify-between">
                   <label class="form-label-aligned">
                     <i class="ri-price-tag-3-line text-primary"></i>
@@ -1659,15 +1671,15 @@ onMounted(() => {
                   </label>
                   <span class="text-[11px] text-primary font-semibold bg-emerald-light px-2 py-0.5 rounded-full">Biaya Fleksibel</span>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                   <!-- Paket Satuan -->
                   <label 
-                    class="flex items-center justify-between p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all"
+                    class="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all"
                     :class="{ 'border-primary bg-emerald-light/50 shadow-xs ring-1 ring-primary': form.package_type === 'Paket Satuan' }"
                     @click="setPackageType('Paket Satuan')"
                   >
                     <div class="flex items-center gap-2.5">
-                      <input type="radio" name="skema_paket" value="Paket Satuan" :checked="form.package_type === 'Paket Satuan'" class="w-4 h-4 text-primary focus:ring-primary">
+                      <input type="radio" name="skema_paket" value="Paket Satuan" :checked="form.package_type === 'Paket Satuan'" class="w-4 h-4 text-primary focus:ring-primary shrink-0">
                       <div class="text-left">
                         <div class="flex items-center gap-1.5">
                           <p class="text-xs sm:text-sm font-bold text-on-surface">Paket Satuan</p>
@@ -1682,12 +1694,12 @@ onMounted(() => {
 
                   <!-- Paket All-In Komplit -->
                   <label 
-                    class="flex items-center justify-between p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all"
+                    class="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all"
                     :class="{ 'border-primary bg-emerald-light/50 shadow-xs ring-1 ring-primary': form.package_type === 'Paket All-In' }"
                     @click="setPackageType('Paket All-In')"
                   >
                     <div class="flex items-center gap-2.5">
-                      <input type="radio" name="skema_paket" value="Paket All-In" :checked="form.package_type === 'Paket All-In'" class="w-4 h-4 text-primary focus:ring-primary">
+                      <input type="radio" name="skema_paket" value="Paket All-In" :checked="form.package_type === 'Paket All-In'" class="w-4 h-4 text-primary focus:ring-primary shrink-0">
                       <div class="text-left">
                         <div class="flex items-center gap-1.5">
                           <p class="text-xs sm:text-sm font-bold text-on-surface">Paket All-In Komplit</p>
@@ -1705,7 +1717,7 @@ onMounted(() => {
               <!-- Kolom Nama Tim / Skuad (Jika Aktif, Ditampilkan SEBELUM Data Siswa) -->
               <div 
                 v-if="teamFieldConfig" 
-                class="p-4 sm:p-5 rounded-xl border border-primary/30 bg-emerald-light/10 space-y-2 shadow-xs transition-all"
+                class="p-3.5 sm:p-5 rounded-xl border border-primary/30 bg-emerald-light/10 space-y-1.5 sm:space-y-2 shadow-xs transition-all"
                 :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError(teamFieldConfig.name) }"
               >
                 <div class="flex items-center justify-between flex-wrap gap-2">
@@ -1723,7 +1735,7 @@ onMounted(() => {
                   type="text" 
                   v-model="form.custom_fields[teamFieldConfig.name]"
                   :placeholder="teamFieldConfig.placeholder"
-                  class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                  class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/50 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                   :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError(teamFieldConfig.name) }"
                 />
                 <p v-if="getFieldError(teamFieldConfig.name)" class="text-xs text-red-500 font-medium m-0">
@@ -1735,7 +1747,7 @@ onMounted(() => {
               </div>
 
               <!-- Selector Jumlah Peserta (Jika Min < Max) -->
-              <div v-if="minParticipants < maxParticipants" class="p-4 rounded-xl bg-background/50 border border-border-subtle space-y-3">
+              <div v-if="minParticipants < maxParticipants" class="p-3 sm:p-4 rounded-xl bg-background/50 border border-border-subtle space-y-2.5 sm:space-y-3">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 flex-wrap">
                   <label class="form-label-aligned">
                     <i class="ri-user-follow-line text-primary"></i>
@@ -1748,23 +1760,23 @@ onMounted(() => {
                 </div>
 
                 <!-- Stepper Buttons -->
-                <div class="flex items-center gap-3">
-                  <div class="flex items-center gap-1.5 p-1 bg-white dark:bg-[#111d17] border border-border-subtle rounded-xl shadow-xs">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                  <div class="flex items-center justify-between sm:justify-start gap-1.5 p-1 bg-white dark:bg-[#111d17] border border-border-subtle rounded-xl shadow-xs w-full sm:w-auto">
                     <button 
                       type="button" 
-                      class="w-9 h-9 rounded-lg border border-border-subtle bg-background/50 text-on-surface flex items-center justify-center hover:bg-emerald-light hover:text-primary transition-colors cursor-pointer"
+                      class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg border border-border-subtle bg-background/50 text-on-surface flex items-center justify-center hover:bg-emerald-light hover:text-primary transition-colors cursor-pointer"
                       :disabled="participantCount <= minParticipants"
                       @click="changeParticipantCount(-1)"
                       title="Kurangi Peserta"
                     >
                       <i class="ri-subtract-line text-[16px]"></i>
                     </button>
-                    <span class="px-4 font-headline font-bold text-sm text-primary">
+                    <span class="px-3 sm:px-4 font-headline font-bold text-xs sm:text-sm text-primary">
                       {{ participantCount }} Peserta
                     </span>
                     <button 
                       type="button" 
-                      class="w-9 h-9 rounded-lg border border-border-subtle bg-background/50 text-on-surface flex items-center justify-center hover:bg-emerald-light hover:text-primary transition-colors cursor-pointer"
+                      class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg border border-border-subtle bg-background/50 text-on-surface flex items-center justify-center hover:bg-emerald-light hover:text-primary transition-colors cursor-pointer"
                       :disabled="participantCount >= maxParticipants"
                       @click="changeParticipantCount(1)"
                       title="Tambah Peserta"
@@ -1779,7 +1791,7 @@ onMounted(() => {
                       v-for="countNum in (maxParticipants - minParticipants + 1)" 
                       :key="countNum"
                       type="button"
-                      class="px-3 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer"
+                      class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer"
                       :class="participantCount === (minParticipants + countNum - 1) ? 'bg-emerald-light border-primary text-primary shadow-xs' : 'bg-white dark:bg-[#111d17] border-border-subtle text-on-surface-variant hover:border-primary/50'"
                       @click="setParticipantCount(minParticipants + countNum - 1)"
                     >
@@ -1790,26 +1802,26 @@ onMounted(() => {
               </div>
 
               <!-- Kartu Biodata Peserta (1 s.d. N Sesuai Jumlah Terpilih) -->
-              <div class="space-y-4">
+              <div class="space-y-3.5 sm:space-y-4">
                 <div 
                   v-for="pIdx in participantCount" 
                   :key="pIdx"
-                  class="p-4 sm:p-5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] space-y-4 shadow-xs"
+                  class="p-3.5 sm:p-5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] space-y-3.5 sm:space-y-4 shadow-xs"
                 >
                   <!-- Header Kartu Peserta -->
                   <div class="flex items-center justify-between border-b border-border-subtle pb-2.5 flex-wrap gap-2">
-                    <div class="flex items-center gap-2">
-                      <span class="w-6 h-6 rounded-full bg-emerald-light text-emerald-dark font-headline text-xs font-bold inline-flex items-center justify-center">
+                    <div class="flex items-center flex-wrap gap-1.5 sm:gap-2">
+                      <span class="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-light text-emerald-dark font-headline text-[11px] sm:text-xs font-bold inline-flex items-center justify-center shrink-0">
                         {{ pIdx }}
                       </span>
-                      <h3 class="font-headline font-bold text-sm text-on-surface m-0 inline-flex items-center">
+                      <h3 class="font-headline font-bold text-xs sm:text-sm text-on-surface m-0 inline-flex items-center">
                         Biodata Siswa Peserta #{{ pIdx }}
                       </h3>
 
                       <!-- Badge Inti vs Cadangan jika main_members dikonfigurasi -->
                       <span 
                         v-if="repeaterField?.main_members" 
-                        class="text-[10px] font-bold px-2 py-0.5 rounded-full border inline-flex items-center gap-1"
+                        class="text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full border inline-flex items-center gap-1 shrink-0"
                         :class="pIdx <= (repeaterField.main_members || 1) ? 'bg-emerald-light text-emerald-dark border-primary/20' : 'bg-amber-soft text-amber-dark border-amber-500/20'"
                       >
                         <i :class="pIdx <= (repeaterField.main_members || 1) ? 'ri-shield-user-line' : 'ri-user-shared-line'"></i>
@@ -1820,7 +1832,7 @@ onMounted(() => {
                     <!-- Pilihan Kapten Tim (Jika diaktifkan di Form Builder) -->
                     <div v-if="subFieldsConfig.captain_option?.active" class="flex items-center gap-2">
                       <label 
-                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold cursor-pointer transition-all"
+                        class="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border text-[11px] sm:text-xs font-semibold cursor-pointer transition-all"
                         :class="participants[pIdx - 1]?.is_captain ? 'bg-amber-soft text-amber-dark border-amber-500 font-bold' : 'bg-background/50 border-border-subtle text-on-surface-variant hover:border-primary/40'"
                         @click="setCaptain(pIdx - 1)"
                       >
@@ -1831,8 +1843,8 @@ onMounted(() => {
                     </div>
                   </div>
 
-                  <!-- Sub-fields Grid -->
-                  <div class="grid grid-cols-1 md:grid-cols-12 gap-3.5">
+                  <!-- Sub-fields Grid (Uniform 12-Column Responsive Layout) -->
+                  <div class="grid grid-cols-12 gap-3 sm:gap-3.5">
                     <!-- Nama Siswa -->
                     <div 
                       v-if="subFieldsConfig.name?.active !== false"
@@ -1846,7 +1858,7 @@ onMounted(() => {
                       <input 
                         v-model="participants[pIdx - 1].name"
                         @input="clearFieldError(`p_${pIdx - 1}_name`)"
-                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/40 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                         :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError(`p_${pIdx - 1}_name`) }"
                         :placeholder="subFieldsConfig.name?.placeholder ? (subFieldsConfig.name.placeholder.includes('#') ? subFieldsConfig.name.placeholder.replace('#', `#${pIdx}`) : `${subFieldsConfig.name.placeholder} #${pIdx}`) : `Nama lengkap Siswa #${pIdx}...`" 
                         :required="subFieldsConfig.name?.required" 
@@ -1883,33 +1895,33 @@ onMounted(() => {
                         <i class="ri-men-line text-primary"></i>
                         <span>{{ subFieldsConfig.gender.label || 'Jenis Kelamin' }} <span v-if="subFieldsConfig.gender.required" class="text-red-500">*</span></span>
                       </label>
-                      <div class="grid grid-cols-2 gap-2 h-11">
+                      <div class="grid grid-cols-2 gap-1.5 sm:gap-2 h-10 sm:h-11">
                         <!-- Pilihan Laki-laki (Warna Biru Kontras + Ikon Centang) -->
                         <label 
-                          class="inline-flex items-center justify-center gap-1.5 px-2.5 border rounded-xl cursor-pointer text-xs transition-all user-select-none"
+                          class="inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 border rounded-xl cursor-pointer text-xs transition-all user-select-none"
                           :class="participants[pIdx - 1].gender === 'L' 
                             ? 'border-blue-500 bg-blue-500/15 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/30 font-bold shadow-xs' 
                             : 'border-border-subtle bg-background/40 text-on-surface-variant hover:border-blue-300 hover:bg-blue-50/20 font-medium'"
                           @click="participants[pIdx - 1].gender = 'L'"
                         >
                           <input type="radio" :name="`gender_${pIdx}`" value="L" :checked="participants[pIdx - 1].gender === 'L'" class="hidden">
-                          <i class="ri-men-line text-sm flex-shrink-0" :class="participants[pIdx - 1].gender === 'L' ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-gray-400'"></i>
+                          <i class="ri-men-line text-xs sm:text-sm flex-shrink-0" :class="participants[pIdx - 1].gender === 'L' ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-gray-400'"></i>
                           <span class="whitespace-nowrap">Laki-Laki</span>
-                          <i v-if="participants[pIdx - 1].gender === 'L'" class="ri-checkbox-circle-fill text-blue-600 dark:text-blue-400 text-sm ms-0.5 flex-shrink-0"></i>
+                          <i v-if="participants[pIdx - 1].gender === 'L'" class="ri-checkbox-circle-fill text-blue-600 dark:text-blue-400 text-xs sm:text-sm ms-0.5 flex-shrink-0"></i>
                         </label>
 
                         <!-- Pilihan Perempuan (Warna Pink/Rose Kontras + Ikon Centang) -->
                         <label 
-                          class="inline-flex items-center justify-center gap-1.5 px-2.5 border rounded-xl cursor-pointer text-xs transition-all user-select-none"
+                          class="inline-flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 border rounded-xl cursor-pointer text-xs transition-all user-select-none"
                           :class="participants[pIdx - 1].gender === 'P' 
                             ? 'border-pink-500 bg-pink-500/15 text-pink-700 dark:text-pink-300 ring-2 ring-pink-500/30 font-bold shadow-xs' 
                             : 'border-border-subtle bg-background/40 text-on-surface-variant hover:border-pink-300 hover:bg-pink-50/20 font-medium'"
                           @click="participants[pIdx - 1].gender = 'P'"
                         >
                           <input type="radio" :name="`gender_${pIdx}`" value="P" :checked="participants[pIdx - 1].gender === 'P'" class="hidden">
-                          <i class="ri-women-line text-sm flex-shrink-0" :class="participants[pIdx - 1].gender === 'P' ? 'text-pink-600 dark:text-pink-400 font-bold' : 'text-gray-400'"></i>
+                          <i class="ri-women-line text-xs sm:text-sm flex-shrink-0" :class="participants[pIdx - 1].gender === 'P' ? 'text-pink-600 dark:text-pink-400 font-bold' : 'text-gray-400'"></i>
                           <span class="whitespace-nowrap">Perempuan</span>
-                          <i v-if="participants[pIdx - 1].gender === 'P'" class="ri-checkbox-circle-fill text-pink-600 dark:text-pink-400 text-sm ms-0.5 flex-shrink-0"></i>
+                          <i v-if="participants[pIdx - 1].gender === 'P'" class="ri-checkbox-circle-fill text-pink-600 dark:text-pink-400 text-xs sm:text-sm ms-0.5 flex-shrink-0"></i>
                         </label>
                       </div>
                     </div>
@@ -1917,7 +1929,7 @@ onMounted(() => {
                     <!-- Tanggal Lahir (dd/mm/yyyy Flatpickr) -->
                     <div 
                       v-if="subFieldsConfig.birth_date?.active"
-                      class="space-y-1.5 md:col-span-6"
+                      class="space-y-1.5 col-span-12 md:col-span-6"
                     >
                       <label class="form-label-aligned">
                         <i class="ri-calendar-event-line text-primary"></i>
@@ -1926,14 +1938,14 @@ onMounted(() => {
                       <IndoDatePicker 
                         v-model="participants[pIdx - 1].birth_date"
                         :placeholder="subFieldsConfig.birth_date?.placeholder || 'dd/mm/yyyy'"
-                        inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
+                        inputClass="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/40 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
                       />
                     </div>
 
                     <!-- NISN -->
                     <div 
                       v-if="subFieldsConfig.nisn?.active"
-                      class="space-y-1.5 md:col-span-6"
+                      class="space-y-1.5 col-span-12 md:col-span-6"
                     >
                       <label class="form-label-aligned">
                         <i class="ri-id-card-line text-primary"></i>
@@ -1941,7 +1953,7 @@ onMounted(() => {
                       </label>
                       <input 
                         v-model="participants[pIdx - 1].nisn"
-                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/40 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                         :placeholder="subFieldsConfig.nisn?.placeholder || 'Contoh: 0081234567'" 
                         type="text"
                       >
@@ -1950,7 +1962,7 @@ onMounted(() => {
                     <!-- ID Siswa / No Identitas Khusus -->
                     <div 
                       v-if="subFieldsConfig.custom_id?.active"
-                      class="space-y-1.5 md:col-span-6"
+                      class="space-y-1.5 col-span-12 md:col-span-6"
                     >
                       <label class="form-label-aligned">
                         <i class="ri-shield-keyhole-line text-primary"></i>
@@ -1958,7 +1970,7 @@ onMounted(() => {
                       </label>
                       <input 
                         v-model="participants[pIdx - 1].custom_id"
-                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/40 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                         :placeholder="subFieldsConfig.custom_id?.placeholder || 'Contoh: ID-0912 / User ID Game'" 
                         type="text"
                       >
@@ -1967,7 +1979,7 @@ onMounted(() => {
                     <!-- Nomor WhatsApp Siswa -->
                     <div 
                       v-if="subFieldsConfig.wa_number?.active"
-                      class="space-y-1.5 md:col-span-6"
+                      class="space-y-1.5 col-span-12 md:col-span-6"
                     >
                       <label class="form-label-aligned">
                         <i class="ri-phone-line text-primary"></i>
@@ -1975,7 +1987,7 @@ onMounted(() => {
                       </label>
                       <input 
                         v-model="participants[pIdx - 1].wa_number"
-                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/40 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                         :placeholder="subFieldsConfig.wa_number?.placeholder || '08xxxxxxxxxx'" 
                         type="tel"
                       >
@@ -1984,7 +1996,7 @@ onMounted(() => {
                     <!-- Nomor WA Khusus Kapten Tim (Jika siswa ini kapten) -->
                     <div 
                       v-if="subFieldsConfig.captain_option?.active && participants[pIdx - 1]?.is_captain"
-                      class="space-y-1.5 md:col-span-12 p-3 rounded-xl bg-amber-soft/40 border border-amber-500/30"
+                      class="space-y-1.5 col-span-12 p-2.5 sm:p-3 rounded-xl bg-amber-soft/40 border border-amber-500/30"
                     >
                       <label class="form-label-aligned text-amber-dark font-bold">
                         <i class="ri-whatsapp-fill text-emerald-dark"></i>
@@ -1992,7 +2004,7 @@ onMounted(() => {
                       </label>
                       <input 
                         v-model="participants[pIdx - 1].captain_wa"
-                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface font-mono"
+                        class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface font-mono"
                         :placeholder="subFieldsConfig.captain_option?.placeholder || 'Contoh: 081234567890 (Untuk koordinasi panitia & kapten)'"
                         type="tel"
                         required
@@ -2002,24 +2014,24 @@ onMounted(() => {
                     <!-- Upload Pas Foto Formal Siswa (1 File) -->
                     <div 
                       v-if="subFieldsConfig.photo_formal?.active"
-                      class="space-y-1.5 md:col-span-6"
+                      class="space-y-1.5 col-span-12 md:col-span-6"
                     >
                       <div class="flex items-center justify-between">
                         <label class="form-label-aligned">
                           <i class="ri-camera-line text-primary"></i>
                           <span>{{ subFieldsConfig.photo_formal.label || 'Upload Pas Foto Formal Siswa' }} <span v-if="subFieldsConfig.photo_formal.required" class="text-red-500">*</span></span>
                         </label>
-                        <span class="text-[11px] text-on-surface-variant font-normal">Maks. 5 MB (1 File)</span>
+                        <span class="text-[10px] sm:text-[11px] text-on-surface-variant font-normal">Maks. 5 MB</span>
                       </div>
 
                       <!-- Preview jika sudah ada foto -->
                       <div 
                         v-if="participants[pIdx - 1].photo_formal"
-                        class="p-2.5 rounded-xl border border-border-subtle bg-background/50 flex items-center justify-between gap-3 transition-all"
+                        class="p-2 sm:p-2.5 rounded-xl border border-border-subtle bg-background/50 flex items-center justify-between gap-2 sm:gap-3 transition-all"
                         :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError(`p_${pIdx - 1}_photo_formal`) }"
                       >
-                        <div class="flex items-center gap-2.5 min-w-0">
-                          <div class="w-12 h-14 rounded-lg overflow-hidden border border-border-subtle bg-gray-100 dark:bg-gray-800 shrink-0">
+                        <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                          <div class="w-10 h-12 sm:w-12 sm:h-14 rounded-lg overflow-hidden border border-border-subtle bg-gray-100 dark:bg-gray-800 shrink-0">
                             <img 
                               v-if="participants[pIdx - 1].photo_formal_preview" 
                               :src="participants[pIdx - 1].photo_formal_preview" 
@@ -2034,13 +2046,13 @@ onMounted(() => {
                             <p class="text-xs font-semibold text-on-surface truncate m-0">
                               {{ participants[pIdx - 1].photo_formal.name }}
                             </p>
-                            <p class="text-[11px] text-on-surface-variant m-0 mt-0.5">
+                            <p class="text-[10px] sm:text-[11px] text-on-surface-variant m-0 mt-0.5">
                               {{ formatFileSize(participants[pIdx - 1].photo_formal.size) }} • Pas Foto
                             </p>
                           </div>
                         </div>
 
-                        <div class="flex items-center gap-1.5 shrink-0">
+                        <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
                           <input 
                             type="file" 
                             class="hidden" 
@@ -2050,7 +2062,7 @@ onMounted(() => {
                           >
                           <label 
                             :for="`photo_formal_${pIdx}`" 
-                            class="px-2.5 py-1.5 rounded-lg border border-border-subtle bg-white dark:bg-[#111d17] text-xs font-medium text-on-surface hover:border-primary transition-all cursor-pointer m-0 inline-flex items-center gap-1"
+                            class="px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg border border-border-subtle bg-white dark:bg-[#111d17] text-xs font-medium text-on-surface hover:border-primary transition-all cursor-pointer m-0 inline-flex items-center gap-1"
                             title="Ganti Foto"
                           >
                             <i class="ri-refresh-line"></i>
@@ -2058,7 +2070,7 @@ onMounted(() => {
                           </label>
                           <button 
                             type="button" 
-                            class="p-1.5 rounded-lg border border-red-200 dark:border-red-900/40 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all cursor-pointer bg-transparent"
+                            class="p-1 sm:p-1.5 rounded-lg border border-red-200 dark:border-red-900/40 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all cursor-pointer bg-transparent"
                             @click="removeParticipantPhotoFormal(pIdx - 1)"
                             title="Hapus Foto"
                           >
@@ -2070,7 +2082,7 @@ onMounted(() => {
                       <!-- Dropzone jika belum ada foto -->
                       <div 
                         v-else
-                        class="border-2 border-dashed border-border-subtle hover:border-primary rounded-xl p-3 bg-background/40 text-center cursor-pointer transition-all hover:bg-emerald-light/20"
+                        class="border-2 border-dashed border-border-subtle hover:border-primary rounded-xl p-2.5 sm:p-3 bg-background/40 text-center cursor-pointer transition-all hover:bg-emerald-light/20"
                         :class="{ 'border-red-500 bg-red-50/20': getFieldError(`p_${pIdx - 1}_photo_formal`) }"
                       >
                         <input 
@@ -2081,11 +2093,11 @@ onMounted(() => {
                           @change="handleParticipantPhotoFormal(pIdx - 1, $event)"
                         >
                         <label :for="`photo_formal_${pIdx}`" class="cursor-pointer block m-0">
-                          <i class="ri-camera-line text-primary text-2xl"></i>
+                          <i class="ri-camera-line text-primary text-xl sm:text-2xl"></i>
                           <p class="text-xs text-on-surface font-semibold mt-1 mb-0.5">
                             {{ subFieldsConfig.photo_formal.placeholder || 'Pilih Pas Foto Formal Siswa' }}
                           </p>
-                          <p class="text-[11px] text-on-surface-variant m-0">
+                          <p class="text-[10px] sm:text-[11px] text-on-surface-variant m-0">
                             Format JPG, PNG, WEBP (Maks. 5 MB)
                           </p>
                         </label>
@@ -2098,7 +2110,7 @@ onMounted(() => {
                     <!-- Upload Foto Siswa Pose Gaya Bebas (Bisa >1 File) -->
                     <div 
                       v-if="subFieldsConfig.photo_freestyle?.active"
-                      class="space-y-1.5 md:col-span-6"
+                      class="space-y-1.5 col-span-12 md:col-span-6"
                     >
                       <div class="flex items-center justify-between">
                         <label class="form-label-aligned">
@@ -2111,10 +2123,10 @@ onMounted(() => {
                       <!-- Galeri Preview jika sudah ada foto -->
                       <div 
                         v-if="participants[pIdx - 1].photo_freestyle?.length"
-                        class="p-2.5 rounded-xl border border-border-subtle bg-background/50 space-y-2"
+                        class="p-2 sm:p-2.5 rounded-xl border border-border-subtle bg-background/50 space-y-2"
                         :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError(`p_${pIdx - 1}_photo_freestyle`) }"
                       >
-                        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                        <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1.5 sm:gap-2">
                           <div 
                             v-for="(f, fIdx) in participants[pIdx - 1].photo_freestyle" 
                             :key="fIdx"
@@ -2140,8 +2152,8 @@ onMounted(() => {
                           </div>
                         </div>
 
-                        <div class="flex items-center justify-between pt-1 border-t border-border-subtle/60 text-xs">
-                          <span class="text-[11px] text-on-surface-variant font-medium">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pt-1 border-t border-border-subtle/60 text-xs">
+                          <span class="text-[10px] sm:text-[11px] text-on-surface-variant font-medium">
                             {{ participants[pIdx - 1].photo_freestyle.length }} foto terpilih
                           </span>
                           <input 
@@ -2154,7 +2166,7 @@ onMounted(() => {
                           >
                           <label 
                             :for="`photo_freestyle_add_${pIdx}`" 
-                            class="px-2.5 py-1 rounded-lg border border-primary/30 bg-emerald-light text-primary hover:bg-primary hover:text-white transition-all text-xs font-semibold cursor-pointer m-0 inline-flex items-center gap-1"
+                            class="px-2.5 py-1 rounded-lg border border-primary/30 bg-emerald-light text-primary hover:bg-primary hover:text-white transition-all text-xs font-semibold cursor-pointer m-0 inline-flex items-center justify-center gap-1"
                           >
                             <i class="ri-add-line"></i>
                             <span>Tambah Foto Lain</span>
@@ -2165,7 +2177,7 @@ onMounted(() => {
                       <!-- Dropzone jika belum ada foto -->
                       <div 
                         v-else
-                        class="border-2 border-dashed border-border-subtle hover:border-emerald-500 rounded-xl p-3 bg-background/40 text-center cursor-pointer transition-all hover:bg-emerald-light/20"
+                        class="border-2 border-dashed border-border-subtle hover:border-emerald-500 rounded-xl p-2.5 sm:p-3 bg-background/40 text-center cursor-pointer transition-all hover:bg-emerald-light/20"
                         :class="{ 'border-red-500 bg-red-50/20': getFieldError(`p_${pIdx - 1}_photo_freestyle`) }"
                       >
                         <input 
@@ -2177,12 +2189,12 @@ onMounted(() => {
                           @change="handleParticipantPhotoFreestyle(pIdx - 1, $event)"
                         >
                         <label :for="`photo_freestyle_${pIdx}`" class="cursor-pointer block m-0">
-                          <i class="ri-images-line text-emerald-600 text-2xl"></i>
+                          <i class="ri-images-line text-emerald-600 text-xl sm:text-2xl"></i>
                           <p class="text-xs text-on-surface font-semibold mt-1 mb-0.5">
                             {{ subFieldsConfig.photo_freestyle.placeholder || 'Pilih Satu atau Beberapa Foto Pose Bebas' }}
                           </p>
-                          <p class="text-[11px] text-on-surface-variant m-0">
-                            Bisa pilih >1 file sekaligus (JPG, PNG, WEBP, Maks. 5 MB)
+                          <p class="text-[10px] sm:text-[11px] text-on-surface-variant m-0">
+                            Bisa pilih >1 file (JPG, PNG, WEBP, Maks. 5 MB)
                           </p>
                         </label>
                       </div>
@@ -2195,7 +2207,7 @@ onMounted(() => {
                     <div 
                       v-for="col in (subFieldsConfig.custom_columns || [])" 
                       :key="col.id || col.label"
-                      class="space-y-1.5 md:col-span-6"
+                      class="space-y-1.5 col-span-12 md:col-span-6"
                     >
                       <label class="form-label-aligned">
                         <i class="ri-edit-line text-primary"></i>
@@ -2205,7 +2217,7 @@ onMounted(() => {
                         v-if="col.type === 'date'"
                         v-model="participants[pIdx - 1].custom_columns[col.id || col.label]"
                         :placeholder="col.placeholder || 'dd/mm/yyyy'"
-                        inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
+                        inputClass="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/40 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
                       />
                       <CustomSelect 
                         v-else-if="col.type === 'select'"
@@ -2218,7 +2230,7 @@ onMounted(() => {
                         v-else
                         :type="col.type === 'number' ? 'number' : 'text'"
                         v-model="participants[pIdx - 1].custom_columns[col.id || col.label]"
-                        class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/40 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                        class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/40 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                         :placeholder="col.placeholder || `Masukkan ${col.label}...`"
                       >
                     </div>
@@ -2264,7 +2276,7 @@ onMounted(() => {
                   <!-- Type: FILE UPLOAD (Single File Mode: max_files <= 1) -->
                   <div 
                     v-if="field.type === 'file' && Number(field.max_files || 1) <= 1"
-                    class="border-2 border-dashed border-border-subtle hover:border-primary/60 rounded-xl p-5 bg-background/50 hover:bg-emerald-light/20 transition-all flex flex-col sm:flex-row items-center justify-between gap-4 cursor-pointer relative"
+                    class="border-2 border-dashed border-border-subtle hover:border-primary/60 rounded-xl p-3.5 sm:p-5 bg-background/50 hover:bg-emerald-light/20 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 cursor-pointer relative"
                     @click="$refs['file_input_' + field.name]?.[0]?.click?.()"
                   >
                     <input 
@@ -2274,22 +2286,22 @@ onMounted(() => {
                       :accept="field.allowed_extensions && field.allowed_extensions.length ? field.allowed_extensions.map(e => '.' + e).join(',') : '*'"
                       @change="handleCustomFileChange(field.name, $event, 1)"
                     >
-                    <div class="flex items-center gap-3.5">
-                      <div class="w-11 h-11 rounded-xl bg-emerald-light text-primary flex items-center justify-center shrink-0">
-                        <i class="ri-file-text-line text-[24px] leading-none"></i>
+                    <div class="flex items-center gap-3 w-full sm:w-auto min-w-0">
+                      <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-light text-primary flex items-center justify-center shrink-0">
+                        <i class="ri-file-text-line text-[20px] sm:text-[24px] leading-none"></i>
                       </div>
-                      <div class="text-left">
-                        <p class="text-sm font-semibold text-on-surface">
+                      <div class="text-left min-w-0">
+                        <p class="text-xs sm:text-sm font-semibold text-on-surface truncate m-0">
                           {{ customFiles[field.name] ? (customFiles[field.name].name || customFiles[field.name]) : (field.placeholder || `Upload ${field.label}`) }}
                         </p>
-                        <p class="text-xs text-on-surface-variant">
+                        <p class="text-[11px] sm:text-xs text-on-surface-variant m-0 mt-0.5">
                           {{ customFiles[field.name] ? `${formatFileSize(customFiles[field.name].size)} • Berkas siap dikirim` : (field.help_text || 'Klik untuk memilih dokumen berkas') }}
                         </p>
                       </div>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-end sm:justify-start shrink-0">
                       <button 
-                        class="px-4 py-2 rounded-lg bg-white dark:bg-[#111d17] border border-border-subtle shadow-xs text-xs font-semibold text-on-surface hover:text-primary shrink-0 transition-colors cursor-pointer" 
+                        class="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-white dark:bg-[#111d17] border border-border-subtle shadow-xs text-xs font-semibold text-on-surface hover:text-primary transition-colors cursor-pointer" 
                         type="button"
                       >
                         {{ customFiles[field.name] ? 'Ganti Dokumen' : 'Pilih Dokumen' }}
@@ -2298,7 +2310,7 @@ onMounted(() => {
                         v-if="customFiles[field.name]"
                         type="button" 
                         @click.stop="clearCustomFile(field.name, $refs['file_input_' + field.name]?.[0])" 
-                        class="px-2.5 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/50 border border-red-200 text-xs font-semibold cursor-pointer transition-colors"
+                        class="px-2.5 py-1.5 sm:py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900/50 border border-red-200 text-xs font-semibold cursor-pointer transition-colors"
                         title="Hapus berkas"
                       >
                         <i class="ri-delete-bin-line leading-none"></i>
@@ -2309,7 +2321,7 @@ onMounted(() => {
                   <!-- Type: FILE UPLOAD (Multi File Mode: max_files > 1) -->
                   <div 
                     v-else-if="field.type === 'file' && Number(field.max_files || 1) > 1"
-                    class="border-2 border-dashed border-border-subtle rounded-xl p-4 sm:p-5 bg-background/50 transition-all"
+                    class="border-2 border-dashed border-border-subtle rounded-xl p-3.5 sm:p-5 bg-background/50 transition-all"
                   >
                     <input 
                       :ref="'file_input_' + field.name"
@@ -2323,21 +2335,21 @@ onMounted(() => {
                     <!-- State 1: Belum Ada Berkas Terpilih -->
                     <div 
                       v-if="getCustomFileList(field.name).length === 0"
-                      class="flex flex-col items-center justify-center py-6 px-4 text-center cursor-pointer hover:bg-emerald-light/20 rounded-lg transition-colors group"
+                      class="flex flex-col items-center justify-center py-5 sm:py-6 px-3 sm:px-4 text-center cursor-pointer hover:bg-emerald-light/20 rounded-lg transition-colors group"
                       @click="$refs['file_input_' + field.name]?.[0]?.click?.()"
                     >
-                      <div class="w-12 h-12 rounded-2xl bg-emerald-light text-primary flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                        <i class="ri-folders-line text-2xl leading-none"></i>
+                      <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-light text-primary flex items-center justify-center mb-2.5 sm:mb-3 group-hover:scale-105 transition-transform">
+                        <i class="ri-folders-line text-xl sm:text-2xl leading-none"></i>
                       </div>
-                      <p class="text-sm font-semibold text-on-surface mb-1">
+                      <p class="text-xs sm:text-sm font-semibold text-on-surface mb-1">
                         {{ field.placeholder || `Unggah Dokumen ${field.label}` }}
                       </p>
-                      <p class="text-xs text-on-surface-variant max-w-md">
+                      <p class="text-[11px] sm:text-xs text-on-surface-variant max-w-md">
                         {{ field.help_text || `Bisa memilih hingga ${field.max_files} berkas sekaligus atau bertahap. Format: ${(field.allowed_extensions && field.allowed_extensions.length) ? field.allowed_extensions.join(', ').toUpperCase() : 'PDF, JPG, PNG'} • Maks. ${field.max_size_mb || 5} MB per berkas` }}
                       </p>
                       <button 
                         type="button" 
-                        class="mt-3.5 px-4 py-2 rounded-lg bg-emerald-light text-primary font-semibold text-xs hover:bg-primary hover:text-white transition-all cursor-pointer shadow-xs inline-flex items-center gap-1.5"
+                        class="mt-3 px-3.5 sm:px-4 py-2 rounded-lg bg-emerald-light text-primary font-semibold text-xs hover:bg-primary hover:text-white transition-all cursor-pointer shadow-xs inline-flex items-center gap-1.5"
                       >
                         <i class="ri-upload-2-line"></i>
                         <span>Pilih Berkas (Hingga {{ field.max_files }} File)</span>
@@ -2360,7 +2372,7 @@ onMounted(() => {
                             v-if="getCustomFileList(field.name).length < Number(field.max_files || 1)"
                             type="button"
                             @click="$refs['file_input_' + field.name]?.[0]?.click?.()"
-                            class="px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white text-xs font-semibold transition-all inline-flex items-center gap-1 cursor-pointer"
+                            class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white text-xs font-semibold transition-all inline-flex items-center gap-1 cursor-pointer"
                           >
                             <i class="ri-add-line"></i>
                             <span>Tambah Berkas</span>
@@ -2378,24 +2390,24 @@ onMounted(() => {
                       </div>
 
                       <!-- List Kartu File -->
-                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
                         <div 
                           v-for="(fItem, fIdx) in getCustomFileList(field.name)" 
                           :key="fIdx"
-                          class="p-2.5 rounded-xl bg-white dark:bg-[#111d17] border border-border-subtle flex items-center justify-between gap-2 shadow-xs hover:border-primary/50 transition-colors"
+                          class="p-2 sm:p-2.5 rounded-xl bg-white dark:bg-[#111d17] border border-border-subtle flex items-center justify-between gap-2 shadow-xs hover:border-primary/50 transition-colors"
                         >
-                          <div class="flex items-center gap-2.5 min-w-0">
+                          <div class="flex items-center gap-2 sm:gap-2.5 min-w-0">
                             <span class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center text-[10px] font-bold shrink-0">
                               #{{ fIdx + 1 }}
                             </span>
-                            <div class="w-8 h-8 rounded-lg bg-emerald-light/60 text-primary flex items-center justify-center shrink-0">
-                              <i class="ri-file-text-line text-base"></i>
+                            <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-light/60 text-primary flex items-center justify-center shrink-0">
+                              <i class="ri-file-text-line text-sm sm:text-base"></i>
                             </div>
                             <div class="min-w-0 text-left">
-                              <p class="text-xs font-semibold text-on-surface truncate" :title="fItem.name">
+                              <p class="text-xs font-semibold text-on-surface truncate m-0" :title="fItem.name">
                                 {{ fItem.name }}
                               </p>
-                              <p class="text-[10px] text-on-surface-variant font-mono">
+                              <p class="text-[10px] text-on-surface-variant font-mono m-0">
                                 {{ formatFileSize(fItem.size) }}
                               </p>
                             </div>
@@ -2403,7 +2415,7 @@ onMounted(() => {
                           <button 
                             type="button"
                             @click="removeCustomFileIndex(field.name, fIdx)"
-                            class="p-1.5 rounded-lg text-on-surface-variant hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors cursor-pointer shrink-0"
+                            class="p-1 sm:p-1.5 rounded-lg text-on-surface-variant hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors cursor-pointer shrink-0"
                             title="Hapus berkas ini"
                           >
                             <i class="ri-close-line text-base leading-none"></i>
@@ -2429,13 +2441,13 @@ onMounted(() => {
                     <textarea 
                       rows="3"
                       v-model="form.custom_fields[field.name]"
-                      class="w-full p-3 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                      class="w-full p-2.5 sm:p-3 rounded-xl border border-border-subtle bg-background/50 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                       :placeholder="field.placeholder || `Tuliskan ${field.label}...`"
                     ></textarea>
                   </div>
 
                   <!-- Type: RADIO -->
-                  <div v-else-if="field.type === 'radio'" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  <div v-else-if="field.type === 'radio'" class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 pt-1">
                     <label 
                       v-for="(opt, optIdx) in (field.options || [])" 
                       :key="optIdx"
@@ -2443,13 +2455,13 @@ onMounted(() => {
                       :class="{ 'border-primary bg-emerald-light/40 text-primary shadow-xs': form.custom_fields[field.name] === opt }"
                       @click="form.custom_fields[field.name] = opt"
                     >
-                      <input type="radio" :name="`radio_${field.name}`" :value="opt" :checked="form.custom_fields[field.name] === opt" class="w-4 h-4 text-primary focus:ring-primary">
+                      <input type="radio" :name="`radio_${field.name}`" :value="opt" :checked="form.custom_fields[field.name] === opt" class="w-4 h-4 text-primary focus:ring-primary shrink-0">
                       <span>{{ opt }}</span>
                     </label>
                   </div>
 
                   <!-- Type: CHECKBOX -->
-                  <div v-else-if="field.type === 'checkbox'" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                  <div v-else-if="field.type === 'checkbox'" class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 pt-1">
                     <label 
                       v-for="(opt, optIdx) in (field.options || [])" 
                       :key="optIdx"
@@ -2460,7 +2472,7 @@ onMounted(() => {
                         type="checkbox" 
                         :value="opt" 
                         v-model="form.custom_fields[field.name]" 
-                        class="w-4 h-4 text-primary rounded focus:ring-primary"
+                        class="w-4 h-4 text-primary rounded focus:ring-primary shrink-0"
                       >
                       <span>{{ opt }}</span>
                     </label>
@@ -2471,7 +2483,7 @@ onMounted(() => {
                     <IndoDatePicker 
                       v-model="form.custom_fields[field.name]"
                       :placeholder="field.placeholder || 'dd/mm/yyyy'"
-                      inputClass="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
+                      inputClass="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/50 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all text-on-surface"
                     />
                   </div>
 
@@ -2481,7 +2493,7 @@ onMounted(() => {
                       :type="field.type === 'number' ? 'tel' : (field.type === 'email' ? 'email' : 'text')"
                       v-model="form.custom_fields[field.name]"
                       @input="field.type === 'number' ? (form.custom_fields[field.name] = String($event.target.value).replace(/\D/g, '')) : null"
-                      class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                      class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/50 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
                       :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError(field.name) }"
                       :placeholder="field.placeholder || `Masukkan ${field.label}...`"
                     >
@@ -2498,11 +2510,11 @@ onMounted(() => {
             <!-- ============================================================== -->
             <!-- SECTION 4: Metode Pembayaran & Biaya                           -->
             <!-- ============================================================== -->
-            <div class="space-y-4" id="sectionPembayaran">
+            <div class="space-y-3.5 sm:space-y-4" id="sectionPembayaran">
               <div class="flex items-center justify-between pb-2 border-b border-border-subtle flex-wrap gap-2">
-                <div class="flex items-center gap-2.5 form-section-header">
+                <div class="flex items-center gap-2 sm:gap-2.5 form-section-header">
                   <i class="ri-wallet-3-line text-primary form-section-icon"></i>
-                  <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface m-0 form-section-title">
+                  <h2 class="font-headline font-bold text-sm sm:text-base md:text-lg text-on-surface m-0 form-section-title">
                     {{ otherCustomFields.length > 0 ? '4.' : '3.' }} Metode Pembayaran &amp; Biaya
                   </h2>
                 </div>
@@ -2512,92 +2524,92 @@ onMounted(() => {
               </div>
 
               <!-- JIKA BIAYA > 0 (PILIHAN SALURAN PEMBAYARAN) -->
-              <div v-if="totalCalculatedFee > 0" class="space-y-4">
-                <div class="space-y-2.5">
+              <div v-if="totalCalculatedFee > 0" class="space-y-3.5 sm:space-y-4">
+                <div class="space-y-2 sm:space-y-2.5">
                   <label class="form-label-aligned">
                     <i class="ri-bank-card-line text-primary"></i>
                     <span>Pilih Saluran Pembayaran <span class="text-red-500">*</span></span>
                   </label>
-                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                     <!-- Pilihan 1: BSI -->
                     <label 
-                      class="p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
+                      class="p-3 sm:p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
                       :class="{ 'border-primary bg-emerald-light/40 ring-1 ring-primary': form.payment_method === 'Transfer Bank BSI' }"
                       @click="selectPaymentMethod('Transfer Bank BSI')"
                     >
                       <div class="flex items-center justify-between w-full">
                         <div class="flex items-center gap-2">
-                          <input type="radio" name="payment_method" value="Transfer Bank BSI" :checked="form.payment_method === 'Transfer Bank BSI'" class="w-4 h-4 text-primary focus:ring-primary">
+                          <input type="radio" name="payment_method" value="Transfer Bank BSI" :checked="form.payment_method === 'Transfer Bank BSI'" class="w-4 h-4 text-primary focus:ring-primary shrink-0">
                           <span class="text-xs font-bold text-primary uppercase">Transfer BSI</span>
                         </div>
-                        <i class="ri-bank-line text-primary text-[18px] leading-none"></i>
+                        <i class="ri-bank-line text-primary text-[18px] leading-none shrink-0"></i>
                       </div>
                       <div>
                         <div class="flex items-center justify-between">
-                          <p class="font-mono text-sm font-bold text-on-surface">7124686746</p>
+                          <p class="font-mono text-sm font-bold text-on-surface m-0">7124686746</p>
                           <button type="button" @click.stop="copyAccount('7124686746')" class="p-1 text-on-surface-variant hover:text-primary cursor-pointer border-none bg-transparent" title="Salin No. Rekening">
                             <i class="ri-file-copy-line text-[16px] leading-none"></i>
                           </button>
                         </div>
-                        <p class="text-[11px] text-on-surface-variant">a.n. MARIATUL AWALIYAH</p>
+                        <p class="text-[11px] text-on-surface-variant m-0 mt-0.5">a.n. MARIATUL AWALIYAH</p>
                       </div>
                     </label>
 
                     <!-- Pilihan 2: BRI -->
                     <label 
-                      class="p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
+                      class="p-3 sm:p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
                       :class="{ 'border-primary bg-emerald-light/40 ring-1 ring-primary': form.payment_method === 'Transfer Bank BRI' }"
                       @click="selectPaymentMethod('Transfer Bank BRI')"
                     >
                       <div class="flex items-center justify-between w-full">
                         <div class="flex items-center gap-2">
-                          <input type="radio" name="payment_method" value="Transfer Bank BRI" :checked="form.payment_method === 'Transfer Bank BRI'" class="w-4 h-4 text-primary focus:ring-primary">
+                          <input type="radio" name="payment_method" value="Transfer Bank BRI" :checked="form.payment_method === 'Transfer Bank BRI'" class="w-4 h-4 text-primary focus:ring-primary shrink-0">
                           <span class="text-xs font-bold text-amber-dark uppercase">Transfer BRI</span>
                         </div>
-                        <i class="ri-bank-line text-amber-dark text-[18px] leading-none"></i>
+                        <i class="ri-bank-line text-amber-dark text-[18px] leading-none shrink-0"></i>
                       </div>
                       <div>
                         <div class="flex items-center justify-between">
-                          <p class="font-mono text-sm font-bold text-on-surface">6221 0102 2421 537</p>
+                          <p class="font-mono text-sm font-bold text-on-surface m-0">6221 0102 2421 537</p>
                           <button type="button" @click.stop="copyAccount('622101022421537')" class="p-1 text-on-surface-variant hover:text-primary cursor-pointer border-none bg-transparent" title="Salin No. Rekening">
                             <i class="ri-file-copy-line text-[16px] leading-none"></i>
                           </button>
                         </div>
-                        <p class="text-[11px] text-on-surface-variant">a.n. MARIATUL AWALIYAH</p>
+                        <p class="text-[11px] text-on-surface-variant m-0 mt-0.5">a.n. MARIATUL AWALIYAH</p>
                       </div>
                     </label>
 
                     <!-- Pilihan 3: Cash / Tunai -->
                     <label 
-                      class="p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
+                      class="p-3 sm:p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
                       :class="{ 'border-primary bg-emerald-light/40 ring-1 ring-primary': form.payment_method === 'Tunai di Sekretariat' }"
                       @click="selectPaymentMethod('Tunai di Sekretariat')"
                     >
                       <div class="flex items-center justify-between w-full">
                         <div class="flex items-center gap-2">
-                          <input type="radio" name="payment_method" value="Tunai di Sekretariat" :checked="form.payment_method === 'Tunai di Sekretariat'" class="w-4 h-4 text-primary focus:ring-primary">
+                          <input type="radio" name="payment_method" value="Tunai di Sekretariat" :checked="form.payment_method === 'Tunai di Sekretariat'" class="w-4 h-4 text-primary focus:ring-primary shrink-0">
                           <span class="text-xs font-bold text-emerald-dark uppercase">Tunai / Cash</span>
                         </div>
-                        <i class="ri-money-dollar-circle-line text-emerald-dark text-[18px] leading-none"></i>
+                        <i class="ri-money-dollar-circle-line text-emerald-dark text-[18px] leading-none shrink-0"></i>
                       </div>
                       <div>
-                        <p class="text-xs font-bold text-on-surface">Sekretariat Panitia</p>
-                        <p class="text-[11px] text-on-surface-variant">MAS Wahid Hasyim Balung</p>
+                        <p class="text-xs font-bold text-on-surface m-0">Sekretariat Panitia</p>
+                        <p class="text-[11px] text-on-surface-variant m-0 mt-0.5">MAS Wahid Hasyim Balung</p>
                       </div>
                     </label>
                   </div>
                 </div>
 
                 <!-- Upload Bukti Transfer -->
-                <div class="p-4 rounded-xl border border-border-subtle bg-background/50 space-y-2.5">
-                  <div class="flex items-center justify-between">
+                <div class="p-3 sm:p-4 rounded-xl border border-border-subtle bg-background/50 space-y-2 sm:space-y-2.5">
+                  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                     <label class="form-label-aligned">
                       <i class="ri-bill-line text-primary"></i>
                       <span>Upload Bukti Pembayaran / Transfer</span>
                     </label>
-                    <span class="text-[11px] text-on-surface-variant font-medium">Bisa disusulkan ke WhatsApp Panitia</span>
+                    <span class="text-[10px] sm:text-[11px] text-on-surface-variant font-medium">Bisa disusulkan ke WhatsApp Panitia</span>
                   </div>
-                  <div class="flex items-center gap-3">
+                  <div class="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3">
                     <input 
                       ref="paymentProofRef"
                       type="file" 
@@ -2608,20 +2620,20 @@ onMounted(() => {
                     <button 
                       type="button" 
                       @click="paymentProofRef?.click()" 
-                      class="px-3.5 py-2 rounded-lg bg-white dark:bg-[#111d17] border border-border-subtle hover:border-primary text-xs font-semibold text-on-surface flex items-center gap-2 transition-colors cursor-pointer"
+                      class="w-full sm:w-auto px-3.5 py-2 rounded-lg bg-white dark:bg-[#111d17] border border-border-subtle hover:border-primary text-xs font-semibold text-on-surface flex items-center justify-center gap-2 transition-colors cursor-pointer shrink-0"
                     >
                       <i class="ri-image-add-line text-[18px] text-primary leading-none"></i>
                       <span>{{ form.payment_proof ? 'Ganti Bukti' : 'Pilih Bukti Transfer' }}</span>
                     </button>
-                    <div class="flex items-center gap-2">
-                      <span class="text-xs text-on-surface-variant truncate max-w-xs">
+                    <div class="flex items-center justify-between sm:justify-start gap-2 min-w-0">
+                      <span class="text-xs text-on-surface-variant truncate max-w-full sm:max-w-xs">
                         {{ form.payment_proof ? `${form.payment_proof.name} (${formatFileSize(form.payment_proof.size)})` : 'Format: JPG, PNG, atau PDF (Maks 5 MB)' }}
                       </span>
                       <button 
                         v-if="form.payment_proof"
                         type="button" 
                         @click.stop="clearPaymentProof" 
-                        class="text-xs text-red-500 hover:text-red-700 p-1 cursor-pointer border-none bg-transparent"
+                        class="text-xs text-red-500 hover:text-red-700 p-1 cursor-pointer border-none bg-transparent shrink-0"
                         title="Hapus Bukti"
                       >
                         <i class="ri-close-circle-line text-base leading-none"></i>
@@ -2632,11 +2644,11 @@ onMounted(() => {
               </div>
 
               <!-- JIKA BIAYA == 0 (BEBAS BIAYA) -->
-              <div v-else class="p-4 rounded-xl border border-emerald-500/30 bg-emerald-light/40 flex items-center gap-3 text-emerald-dark">
-                <i class="ri-checkbox-circle-fill text-[24px] text-primary shrink-0"></i>
+              <div v-else class="p-3.5 sm:p-4 rounded-xl border border-emerald-500/30 bg-emerald-light/40 flex items-center gap-3 text-emerald-dark">
+                <i class="ri-checkbox-circle-fill text-[22px] sm:text-[24px] text-primary shrink-0"></i>
                 <div class="text-xs">
-                  <p class="font-bold text-sm text-primary">Pendaftaran Ini Bebas Biaya (Rp 0)</p>
-                  <p class="text-on-surface-variant mt-0.5">
+                  <p class="font-bold text-xs sm:text-sm text-primary m-0">Pendaftaran Ini Bebas Biaya (Rp 0)</p>
+                  <p class="text-on-surface-variant mt-0.5 m-0">
                     {{ isAllInFree ? 'Sekolah Anda telah terverifikasi dalam Paket Komplit (All-In).' : 'Cabang lomba ini diselenggarakan tanpa pungutan biaya pendaftaran.' }}
                   </p>
                 </div>
@@ -2646,16 +2658,16 @@ onMounted(() => {
             <!-- ============================================================== -->
             <!-- SECTION 5: Ringkasan Delegasi & Submit Action CTA              -->
             <!-- ============================================================== -->
-            <div class="space-y-6 pt-4 border-t border-border-subtle">
-              <div class="rounded-xl border border-primary/20 bg-emerald-light/30 p-5 space-y-3.5 shadow-xs">
+            <div class="space-y-4 sm:space-y-6 pt-3.5 sm:pt-4 border-t border-border-subtle">
+              <div class="rounded-xl border border-primary/20 bg-emerald-light/30 p-3.5 sm:p-5 space-y-3 sm:space-y-3.5 shadow-xs">
                 <div class="flex items-center justify-between pb-2 border-b border-primary/10 flex-wrap gap-2">
                   <div class="flex items-center gap-2 form-section-header">
                     <i class="ri-file-list-3-line text-primary form-section-icon !w-5 !h-5 !text-[20px]"></i>
-                    <h3 class="font-headline font-bold text-sm sm:text-base text-on-surface m-0 form-section-title">Ringkasan Delegasi &amp; Pendaftaran</h3>
+                    <h3 class="font-headline font-bold text-xs sm:text-base text-on-surface m-0 form-section-title">Ringkasan Delegasi &amp; Pendaftaran</h3>
                   </div>
-                  <span class="text-[11px] font-bold text-emerald-dark bg-emerald-light px-2.5 py-0.5 rounded-full border border-primary/20">Resmi Panitia</span>
+                  <span class="text-[10px] sm:text-[11px] font-bold text-emerald-dark bg-emerald-light px-2.5 py-0.5 rounded-full border border-primary/20">Resmi Panitia</span>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-xs">
                   <div class="flex justify-between py-1 border-b border-dashed border-primary/10">
                     <span class="text-on-surface-variant">Cabang Lomba:</span>
                     <span class="font-semibold text-on-surface">{{ activeComp?.title || 'Lomba' }}</span>
@@ -2673,15 +2685,15 @@ onMounted(() => {
                     <span class="font-semibold text-on-surface">{{ totalCalculatedFee > 0 ? form.payment_method : 'Bebas Biaya (Rp 0)' }}</span>
                   </div>
                 </div>
-                <div class="pt-3 border-t border-primary/20 flex items-center justify-between flex-wrap gap-2">
+                <div class="pt-2.5 sm:pt-3 border-t border-primary/20 flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <p class="text-xs text-on-surface-variant font-medium">Total Biaya Pendaftaran</p>
-                    <p class="font-headline font-extrabold text-xl sm:text-2xl text-primary tracking-tight">
+                    <p class="text-[11px] sm:text-xs text-on-surface-variant font-medium m-0">Total Biaya Pendaftaran</p>
+                    <p class="font-headline font-extrabold text-lg sm:text-2xl text-primary tracking-tight m-0">
                       Rp {{ totalCalculatedFee.toLocaleString('id-ID') }}
                     </p>
                   </div>
                   <div class="text-right">
-                    <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-on-surface-variant bg-white dark:bg-[#111d17] px-2.5 py-1 rounded-lg border border-border-subtle">
+                    <span class="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-on-surface-variant bg-white dark:bg-[#111d17] px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg border border-border-subtle">
                       <i class="ri-checkbox-circle-fill text-primary text-[14px] leading-none"></i> Bebas Biaya Admin
                     </span>
                   </div>
@@ -2689,19 +2701,19 @@ onMounted(() => {
               </div>
 
               <!-- SUBMIT ACTION CTA BUTTON (LABEL DARI FORM BUILDER) -->
-              <div class="space-y-3">
+              <div class="space-y-2.5 sm:space-y-3">
                 <button 
                   id="submitBtnCta" 
-                  class="w-full py-4 rounded-xl bg-primary hover:bg-primary-container text-white font-headline font-bold text-base sm:text-lg flex items-center justify-center gap-2.5 shadow-lg shadow-primary/20 hover:shadow-xl transition-all active:scale-[0.99] cursor-pointer border-none" 
+                  class="w-full py-3.5 sm:py-4 px-4 rounded-xl bg-primary hover:bg-primary-container text-white font-headline font-bold text-sm sm:text-lg flex items-center justify-center gap-2 sm:gap-2.5 shadow-lg shadow-primary/20 hover:shadow-xl transition-all active:scale-[0.99] cursor-pointer border-none" 
                   type="submit"
                   :disabled="form.processing"
                 >
-                  <i v-if="form.processing" class="ri-loader-4-line animate-spin text-[22px] leading-none"></i>
-                  <i v-else class="ri-send-plane-fill text-[22px] leading-none"></i>
+                  <i v-if="form.processing" class="ri-loader-4-line animate-spin text-[20px] sm:text-[22px] leading-none"></i>
+                  <i v-else class="ri-send-plane-fill text-[20px] sm:text-[22px] leading-none"></i>
                   <span>{{ form.processing ? 'Mengirim Formulir...' : (formSettings.submit_text || 'Kirim Pendaftaran Delegasi') }}</span>
                 </button>
-                <div class="flex items-center justify-center gap-2 text-xs text-on-surface-variant text-center">
-                  <i class="ri-checkbox-circle-fill text-primary text-[16px] leading-none"></i>
+                <div class="flex items-center justify-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-on-surface-variant text-center">
+                  <i class="ri-checkbox-circle-fill text-primary text-[14px] sm:text-[16px] leading-none shrink-0"></i>
                   <span>Data pendaftaran resmi terintegrasi dengan Panitia Semarak Aliyah XIV 2026.</span>
                 </div>
               </div>
@@ -2714,16 +2726,16 @@ onMounted(() => {
     <!-- ======================================================================
          FOOTER PUBLIK SEDERHANA (EXACT TO USER MOCKUP)
          ====================================================================== -->
-    <footer class="reg-footer w-full bg-white dark:bg-[#111d17] border-t border-border-subtle dark:border-[#1e3529] py-8 px-4 sm:px-6 mt-12">
-      <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-        <div class="flex items-center gap-3">
-          <img alt="Logo MAS Wahid Hasyim" class="h-8 w-8 object-contain" src="/assets/img/logo.webp">
+    <footer class="reg-footer w-full bg-white dark:bg-[#111d17] border-t border-border-subtle dark:border-[#1e3529] py-6 sm:py-8 px-3 sm:px-6 mt-8 sm:mt-12">
+      <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 text-center sm:text-left">
+        <div class="flex items-center gap-2.5 sm:gap-3">
+          <img alt="Logo MAS Wahid Hasyim" class="h-7 w-7 sm:h-8 sm:w-8 object-contain shrink-0" src="/assets/img/logo.webp">
           <div>
-            <p class="font-headline font-bold text-sm text-on-surface">SEMARAK ALIYAH XIV 2026</p>
-            <p class="text-xs text-on-surface-variant">Madrasah Aliyah Unggulan Wahid Hasyim Balung, Jember</p>
+            <p class="font-headline font-bold text-xs sm:text-sm text-on-surface m-0">SEMARAK ALIYAH XIV 2026</p>
+            <p class="text-[11px] sm:text-xs text-on-surface-variant m-0">Madrasah Aliyah Unggulan Wahid Hasyim Balung, Jember</p>
           </div>
         </div>
-        <p class="text-xs text-on-surface-variant">
+        <p class="text-[11px] sm:text-xs text-on-surface-variant m-0">
           © 2026 MAS Wahid Hasyim Balung. Hak Cipta Dilindungi.
         </p>
       </div>
@@ -2829,18 +2841,23 @@ onMounted(() => {
 
 /* Heights & Sizes */
 .h-20 { height: 5rem !important; }
+.h-16 { height: 4rem !important; }
+.w-16 { width: 4rem !important; }
 .h-12 { height: 3rem !important; }
 .w-12 { width: 3rem !important; }
 .h-11 { height: 2.75rem !important; }
 .h-10 { height: 2.5rem !important; }
+.w-10 { width: 2.5rem !important; }
 .h-9 { height: 2.25rem !important; }
 .w-9 { width: 2.25rem !important; }
 .h-8 { height: 2rem !important; }
 .w-8 { width: 2rem !important; }
-.w-16 { width: 4rem !important; }
-.h-16 { height: 4rem !important; }
+.h-7 { height: 1.75rem !important; }
+.w-7 { width: 1.75rem !important; }
 .w-6 { width: 1.5rem !important; }
 .h-6 { height: 1.5rem !important; }
+.w-5 { width: 1.25rem !important; }
+.h-5 { height: 1.25rem !important; }
 .w-4 { width: 1rem !important; }
 .h-4 { height: 1rem !important; }
 .w-3\.5 { width: 0.875rem !important; }
@@ -2848,16 +2865,38 @@ onMounted(() => {
 .w-2 { width: 0.5rem !important; }
 .h-2 { height: 0.5rem !important; }
 
+/* Custom Widths */
+.w-44 { width: 11rem !important; }
+.w-48 { width: 12rem !important; }
+.w-60 { width: 15rem !important; }
+.w-64 { width: 16rem !important; }
+.max-w-full { max-width: 100% !important; }
+.min-w-0 { min-width: 0 !important; }
+.flex-wrap { flex-wrap: wrap !important; }
+.flex-nowrap { flex-wrap: nowrap !important; }
+.items-start { align-items: flex-start !important; }
+.justify-end { justify-content: flex-end !important; }
+
 /* Image scaling & containment */
 img.brand-logo,
-.brand-group img,
-.h-12.w-12 {
-  width: 3rem !important;
-  height: 3rem !important;
-  max-width: 3rem !important;
-  max-height: 3rem !important;
+.brand-group img {
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  max-width: 2.25rem !important;
+  max-height: 2.25rem !important;
   object-fit: contain !important;
   flex-shrink: 0 !important;
+}
+
+@media (min-width: 640px) {
+  img.brand-logo,
+  .brand-group img,
+  .sm\:h-12.sm\:w-12 {
+    width: 3rem !important;
+    height: 3rem !important;
+    max-width: 3rem !important;
+    max-height: 3rem !important;
+  }
 }
 
 /* Colors */
@@ -2988,7 +3027,10 @@ img.brand-logo,
 .px-2\.5 { padding-left: 0.625rem !important; padding-right: 0.625rem !important; }
 .px-2 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
 .py-8 { padding-top: 2rem !important; padding-bottom: 2rem !important; }
+.py-6 { padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; }
+.py-5 { padding-top: 1.25rem !important; padding-bottom: 1.25rem !important; }
 .py-4 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+.py-3\.5 { padding-top: 0.875rem !important; padding-bottom: 0.875rem !important; }
 .py-3 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
 .py-2\.5 { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
 .py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
@@ -2998,14 +3040,19 @@ img.brand-logo,
 .pb-2\.5 { padding-bottom: 0.625rem !important; }
 .pb-2 { padding-bottom: 0.5rem !important; }
 .pt-4 { padding-top: 1rem !important; }
+.pt-3\.5 { padding-top: 0.875rem !important; }
 .pt-3 { padding-top: 0.75rem !important; }
+.pt-2\.5 { padding-top: 0.625rem !important; }
 .pt-2 { padding-top: 0.5rem !important; }
 .pt-1 { padding-top: 0.25rem !important; }
 .mt-12 { margin-top: 3rem !important; }
+.mt-8 { margin-top: 2rem !important; }
 .mt-3 { margin-top: 0.75rem !important; }
+.mt-2\.5 { margin-top: 0.625rem !important; }
 .mt-1 { margin-top: 0.25rem !important; }
 .mt-0\.5 { margin-top: 0.125rem !important; }
 .mb-8 { margin-bottom: 2rem !important; }
+.mb-6 { margin-bottom: 1.5rem !important; }
 
 /* Gap & Spacing */
 .gap-5 { gap: 1.25rem !important; }
@@ -3030,34 +3077,102 @@ img.brand-logo,
 /* Grid columns */
 .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)) !important; }
 .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+.grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)) !important; }
+.col-span-12 { grid-column: span 12 / span 12 !important; }
+.col-span-6 { grid-column: span 6 / span 6 !important; }
+.col-span-1 { grid-column: span 1 / span 1 !important; }
 
 @media (min-width: 640px) {
+  .sm\:h-20 { height: 5rem !important; }
+  .sm\:h-12 { height: 3rem !important; }
+  .sm\:w-12 { width: 3rem !important; }
+  .sm\:h-11 { height: 2.75rem !important; }
+  .sm\:h-9 { height: 2.25rem !important; }
+  .sm\:w-9 { width: 2.25rem !important; }
+  .sm\:h-8 { height: 2rem !important; }
+  .sm\:w-8 { width: 2rem !important; }
+  .sm\:h-6 { height: 1.5rem !important; }
+  .sm\:w-6 { width: 1.5rem !important; }
+  .sm\:w-auto { width: auto !important; }
+  .sm\:w-64 { width: 16rem !important; }
+  .sm\:w-60 { width: 15rem !important; }
+  .sm\:max-w-xs { max-width: 20rem !important; }
   .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .sm\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .sm\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
   .sm\:flex-row { flex-direction: row !important; }
+  .sm\:flex-nowrap { flex-wrap: nowrap !important; }
   .sm\:flex { display: flex !important; }
+  .sm\:inline { display: inline !important; }
   .sm\:p-10 { padding: 2.5rem !important; }
+  .sm\:p-8 { padding: 2rem !important; }
+  .sm\:p-6 { padding: 1.5rem !important; }
   .sm\:p-5 { padding: 1.25rem !important; }
-  .sm\:py-12 { padding-top: 3rem !important; padding-bottom: 3rem !important; }
+  .sm\:p-4 { padding: 1rem !important; }
+  .sm\:p-3\.5 { padding: 0.875rem !important; }
   .sm\:px-6 { padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
+  .sm\:px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
+  .sm\:px-3\.5 { padding-left: 0.875rem !important; padding-right: 0.875rem !important; }
+  .sm\:px-3 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+  .sm\:px-2\.5 { padding-left: 0.625rem !important; padding-right: 0.625rem !important; }
+  .sm\:py-12 { padding-top: 3rem !important; padding-bottom: 3rem !important; }
+  .sm\:py-8 { padding-top: 2rem !important; padding-bottom: 2rem !important; }
+  .sm\:py-4 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+  .sm\:py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+  .sm\:py-1\.5 { padding-top: 0.375rem !important; padding-bottom: 0.375rem !important; }
+  .sm\:pt-4 { padding-top: 1rem !important; }
+  .sm\:pt-3 { padding-top: 0.75rem !important; }
+  .sm\:gap-5 { gap: 1.25rem !important; }
+  .sm\:gap-4 { gap: 1rem !important; }
+  .sm\:gap-3\.5 { gap: 0.875rem !important; }
+  .sm\:gap-3 { gap: 0.75rem !important; }
+  .sm\:gap-2\.5 { gap: 0.625rem !important; }
+  .sm\:gap-2 { gap: 0.5rem !important; }
+  .sm\:justify-start { justify-content: flex-start !important; }
+  .sm\:justify-end { justify-content: flex-end !important; }
+  .sm\:items-center { align-items: center !important; }
+  .sm\:space-y-8 > * + * { margin-top: 2rem !important; }
+  .sm\:space-y-4 > * + * { margin-top: 1rem !important; }
+  .sm\:space-y-3 { gap: 0.75rem !important; }
+  .sm\:space-y-2\.5 > * + * { margin-top: 0.625rem !important; }
+  .sm\:space-y-2 > * + * { margin-top: 0.5rem !important; }
   .sm\:mb-10 { margin-bottom: 2.5rem !important; }
+  .sm\:mt-12 { margin-top: 3rem !important; }
   .sm\:text-4xl { font-size: 2.25rem !important; line-height: 2.5rem !important; }
   .sm\:text-3xl { font-size: 1.875rem !important; line-height: 2.25rem !important; }
   .sm\:text-2xl { font-size: 1.5rem !important; line-height: 2rem !important; }
+  .sm\:text-xl { font-size: 1.25rem !important; line-height: 1.75rem !important; }
   .sm\:text-lg { font-size: 1.125rem !important; line-height: 1.75rem !important; }
   .sm\:text-base { font-size: 1rem !important; line-height: 1.5rem !important; }
   .sm\:text-sm { font-size: 0.875rem !important; }
   .sm\:text-left { text-align: left !important; }
+  .sm\:col-span-4 { grid-column: span 4 / span 4 !important; }
+  .sm\:col-span-5 { grid-column: span 5 / span 5 !important; }
+  .sm\:col-span-7 { grid-column: span 7 / span 7 !important; }
+  .sm\:col-span-8 { grid-column: span 8 / span 8 !important; }
+  .sm\:col-span-12 { grid-column: span 12 / span 12 !important; }
+  .sm\:grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)) !important; }
+  .sm\:border-b-0 { border-bottom-width: 0 !important; }
 }
 
 @media (min-width: 768px) {
   .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .md\:grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
   .md\:grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)) !important; }
   .md\:col-span-2 { grid-column: span 2 / span 2 !important; }
   .md\:col-span-3 { grid-column: span 3 / span 3 !important; }
+  .md\:col-span-5 { grid-column: span 5 / span 5 !important; }
   .md\:col-span-6 { grid-column: span 6 / span 6 !important; }
+  .md\:col-span-7 { grid-column: span 7 / span 7 !important; }
   .md\:col-span-12 { grid-column: span 12 / span 12 !important; }
   .md\:inline-flex { display: inline-flex !important; }
+  .md\:p-10 { padding: 2.5rem !important; }
+  .md\:py-12 { padding-top: 3rem !important; padding-bottom: 3rem !important; }
+  .md\:text-4xl { font-size: 2.25rem !important; line-height: 2.5rem !important; }
+  .md\:text-lg { font-size: 1.125rem !important; line-height: 1.75rem !important; }
+  .md\:text-base { font-size: 1rem !important; line-height: 1.5rem !important; }
+  .md\:text-sm { font-size: 0.875rem !important; }
 }
 
 /* Typography */
@@ -3182,14 +3297,14 @@ div.flex > h4 {
 }
 
 /* Perfect input styling */
-input[type="text"], input[type="tel"], input[type="email"], input[type="number"], textarea {
-  height: 2.75rem !important; /* 44px (h-11) */
+input[type="text"], input[type="tel"], input[type="email"], input[type="number"] {
+  height: 2.5rem !important; /* 40px default / mobile */
   border-radius: 0.75rem !important; /* 12px (rounded-xl) */
   border: 1px solid var(--color-border-subtle, #E2E8F0) !important;
   background-color: rgba(247, 250, 247, 0.5) !important;
-  padding-left: 0.875rem !important;
-  padding-right: 0.875rem !important;
-  font-size: 0.875rem !important;
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+  font-size: 0.8125rem !important;
   outline: none !important;
   width: 100% !important;
   color: var(--color-on-surface, #171d19) !important;
@@ -3197,10 +3312,43 @@ input[type="text"], input[type="tel"], input[type="email"], input[type="number"]
   transition: all 0.15s ease !important;
 }
 
+@media (min-width: 640px) {
+  input[type="text"], input[type="tel"], input[type="email"], input[type="number"] {
+    height: 2.75rem !important; /* 44px on desktop */
+    padding-left: 0.875rem !important;
+    padding-right: 0.875rem !important;
+    font-size: 0.875rem !important;
+  }
+}
+
+input.h-10 {
+  height: 2.5rem !important;
+}
+input.h-11 {
+  height: 2.75rem !important;
+}
+
 textarea {
   height: auto !important;
-  min-height: 5.5rem !important;
-  padding: 0.75rem 0.875rem !important;
+  min-height: 5rem !important;
+  border-radius: 0.75rem !important;
+  border: 1px solid var(--color-border-subtle, #E2E8F0) !important;
+  background-color: rgba(247, 250, 247, 0.5) !important;
+  padding: 0.625rem 0.75rem !important;
+  font-size: 0.8125rem !important;
+  outline: none !important;
+  width: 100% !important;
+  color: var(--color-on-surface, #171d19) !important;
+  box-sizing: border-box !important;
+  transition: all 0.15s ease !important;
+}
+
+@media (min-width: 640px) {
+  textarea {
+    min-height: 5.5rem !important;
+    padding: 0.75rem 0.875rem !important;
+    font-size: 0.875rem !important;
+  }
 }
 
 .semarak-root-page.dark input[type="text"], 
@@ -3303,12 +3451,27 @@ input[type="text"].pl-10, input[type="tel"].pl-10, input[type="email"].pl-10 {
 
 /* CustomSelect Uniform Height & Dark Theme Styling */
 :deep(.custom-select-trigger) {
-  height: 2.75rem !important; /* 44px */
+  height: 2.5rem !important; /* 40px on mobile */
   border-radius: 0.75rem !important; /* 12px */
   background-color: rgba(247, 250, 247, 0.5) !important;
   border-color: var(--color-border-subtle, #E2E8F0) !important;
-  font-size: 0.875rem !important;
+  font-size: 0.8125rem !important;
   color: var(--color-on-surface, #171d19) !important;
+}
+
+:deep(.custom-select-trigger.size-sm) {
+  height: 2.125rem !important;
+  min-height: 2.125rem !important;
+  padding: 0.25rem 0.625rem !important;
+  font-size: 0.75rem !important;
+  border-radius: 0.625rem !important;
+}
+
+@media (min-width: 640px) {
+  :deep(.custom-select-trigger:not(.size-sm)) {
+    height: 2.75rem !important; /* 44px on desktop */
+    font-size: 0.875rem !important;
+  }
 }
 
 .semarak-root-page.dark :deep(.custom-select-trigger),

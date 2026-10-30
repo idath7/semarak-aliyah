@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { Head, useForm, Link, usePage } from '@inertiajs/vue3';
 import CustomSelect from '@/Components/CustomSelect.vue';
 import IndoDatePicker from '@/Components/IndoDatePicker.vue';
@@ -135,6 +135,29 @@ const form = useForm({
   notes: '',
   payment_method: 'Transfer Bank BSI',
   payment_proof: null
+});
+
+// Mobile Hamburger Menu State (Drawer Responsive Menu)
+const mobileMenuOpen = ref(false);
+
+function closeMobileMenu() {
+  mobileMenuOpen.value = false;
+}
+
+watch(mobileMenuOpen, (isOpen) => {
+  if (typeof document !== 'undefined') {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+  }
+});
+
+onUnmounted(() => {
+  if (typeof document !== 'undefined') {
+    document.body.style.overflow = '';
+  }
 });
 
 // Toast Notification
@@ -1278,41 +1301,254 @@ onMounted(() => {
           </div>
         </a>
 
-        <!-- Navigasi Ringkas Publik -->
-        <nav class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          <a class="hidden md:inline-flex text-sm font-medium text-on-surface-variant hover:text-primary transition-colors text-decoration-none" href="/#tentang">
+        <!-- Desktop Navigation (md and up) -->
+        <nav class="hidden md:flex items-center gap-2 sm:gap-3 shrink-0">
+          <a class="inline-flex text-sm font-medium text-on-surface-variant hover:text-primary transition-colors text-decoration-none px-2.5 py-1.5 rounded-lg hover:bg-emerald-light/60" href="/#tentang">
             Tentang Lomba
           </a>
           <a 
-            class="inline-flex items-center justify-center gap-1 text-xs sm:text-sm font-medium text-on-surface-variant hover:text-primary transition-colors p-2 sm:px-3 sm:py-1.5 rounded-lg hover:bg-emerald-light/60 text-decoration-none" 
+            class="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-on-surface-variant hover:text-primary transition-colors px-3 py-1.5 rounded-lg hover:bg-emerald-light/60 text-decoration-none" 
             :href="juknisUrl" 
             target="_blank"
             title="Unduh Juknis Lomba"
           >
-            <i class="ri-download-line text-[16px] sm:text-[18px] leading-none"></i>
-            <span class="hidden sm:inline">Juknis</span>
+            <i class="ri-download-line text-[18px] leading-none"></i>
+            <span>Juknis Lomba</span>
           </a>
           <a 
-            class="inline-flex items-center justify-center gap-1 p-2 sm:px-3 sm:py-1.5 rounded-lg bg-emerald-light hover:bg-primary text-emerald-dark hover:text-white font-semibold text-xs sm:text-sm transition-all border border-primary/20 hover:border-transparent text-decoration-none" 
+            class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-light hover:bg-primary text-emerald-dark hover:text-white font-semibold text-sm transition-all border border-primary/20 hover:border-transparent text-decoration-none" 
             :href="helpWaUrl" 
             target="_blank"
             title="Hubungi Bantuan Panitia via WhatsApp"
           >
-            <i class="ri-customer-service-2-line text-[16px] sm:text-[18px] leading-none"></i>
-            <span class="hidden sm:inline">Bantuan</span>
+            <i class="ri-customer-service-2-line text-[18px] leading-none"></i>
+            <span>Bantuan Panitia</span>
           </a>
-          <!-- Dark Mode Toggle Button -->
+          <!-- Dark Mode Toggle Button (Desktop) -->
           <button 
             type="button" 
             @click="toggleTheme" 
             class="p-2 rounded-lg border border-border-subtle text-on-surface-variant hover:text-primary transition-colors cursor-pointer bg-transparent"
             :title="isDark ? 'Mode Terang' : 'Mode Gelap'"
+            aria-label="Toggle Tema Gelap/Terang"
           >
-            <i :class="isDark ? 'ri-sun-line text-amber-400' : 'ri-moon-line text-slate-600'" class="text-[16px] sm:text-[18px] leading-none"></i>
+            <i :class="isDark ? 'ri-sun-line text-amber-400' : 'ri-moon-line text-slate-600'" class="text-[18px] leading-none"></i>
           </button>
         </nav>
+
+        <!-- Mobile Action Controls: Theme Toggle & Hamburger (< md) -->
+        <div class="flex md:hidden items-center gap-1.5 shrink-0">
+          <!-- Dark Mode Toggle Button (Mobile) -->
+          <button 
+            type="button" 
+            @click="toggleTheme" 
+            class="p-2 rounded-lg border border-border-subtle text-on-surface-variant hover:text-primary transition-colors cursor-pointer bg-transparent"
+            :title="isDark ? 'Mode Terang' : 'Mode Gelap'"
+            aria-label="Toggle Tema Gelap/Terang"
+          >
+            <i :class="isDark ? 'ri-sun-line text-amber-400' : 'ri-moon-line text-slate-600'" class="text-[17px] leading-none"></i>
+          </button>
+
+          <!-- Hamburger Button (Mobile) -->
+          <button 
+            type="button" 
+            @click="mobileMenuOpen = !mobileMenuOpen"
+            class="p-2 rounded-lg border border-border-subtle text-on-surface hover:text-primary hover:border-primary transition-all cursor-pointer bg-white dark:bg-[#111d17] inline-flex items-center justify-center"
+            :class="{ 'border-primary ring-2 ring-primary/25 bg-emerald-light/40 text-primary': mobileMenuOpen }"
+            aria-label="Buka Menu Navigasi"
+            :title="mobileMenuOpen ? 'Tutup Menu' : 'Buka Menu'"
+          >
+            <i :class="mobileMenuOpen ? 'ri-close-line' : 'ri-menu-line'" class="text-[20px] leading-none"></i>
+          </button>
+        </div>
       </div>
     </header>
+
+    <!-- ======================================================================
+         MOBILE SLIDE-OVER DRAWER & BACKDROP OVERLAY
+         ====================================================================== -->
+    <Teleport to="body">
+      <!-- Backdrop Overlay -->
+      <Transition name="form-fade">
+        <div 
+          v-if="mobileMenuOpen" 
+          class="mobile-nav-backdrop"
+          @click="closeMobileMenu"
+          aria-hidden="true"
+        ></div>
+      </Transition>
+
+      <!-- Slide-in Mobile Drawer -->
+      <Transition name="form-slide">
+        <div 
+          v-if="mobileMenuOpen" 
+          class="mobile-nav-drawer"
+          :class="{ 'dark': isDark }"
+          role="dialog"
+          aria-label="Menu Navigasi Mobile"
+        >
+          <!-- Drawer Head -->
+          <div class="drawer-head">
+            <a href="/" class="drawer-brand" @click="closeMobileMenu">
+              <img src="/assets/img/logo.webp" alt="Logo Semarak" class="drawer-logo" />
+              <div class="drawer-brand-text">
+                <span class="drawer-title">SEMARAK ALIYAH XIV</span>
+                <span class="drawer-subtitle">MAS Wahid Hasyim Balung • 2026</span>
+              </div>
+            </a>
+            <button 
+              type="button" 
+              class="drawer-close-btn" 
+              @click="closeMobileMenu" 
+              aria-label="Tutup Menu"
+              title="Tutup Menu"
+            >
+              <i class="ri-close-line"></i>
+            </button>
+          </div>
+
+          <!-- Drawer Navigation Links -->
+          <nav class="drawer-nav">
+            <a 
+              href="/" 
+              class="drawer-link"
+              @click="closeMobileMenu"
+            >
+              <span class="drawer-icon-wrap icon-emerald">
+                <i class="ri-home-4-line"></i>
+              </span>
+              <div class="drawer-link-content">
+                <span class="drawer-link-title">Beranda Utama</span>
+                <span class="drawer-link-sub">Halaman depan portal Semarak</span>
+              </div>
+              <i class="ri-arrow-right-s-line drawer-chevron"></i>
+            </a>
+
+            <a 
+              href="/#tentang" 
+              class="drawer-link"
+              @click="closeMobileMenu"
+            >
+              <span class="drawer-icon-wrap icon-amber">
+                <i class="ri-information-line"></i>
+              </span>
+              <div class="drawer-link-content">
+                <span class="drawer-link-title">Tentang Lomba</span>
+                <span class="drawer-link-sub">Agenda &amp; ketentuan umum agenda</span>
+              </div>
+              <i class="ri-arrow-right-s-line drawer-chevron"></i>
+            </a>
+
+            <a 
+              :href="juknisUrl" 
+              target="_blank"
+              class="drawer-link"
+              @click="closeMobileMenu"
+            >
+              <span class="drawer-icon-wrap icon-blue">
+                <i class="ri-download-cloud-2-line"></i>
+              </span>
+              <div class="drawer-link-content">
+                <div class="flex items-center gap-1.5">
+                  <span class="drawer-link-title">Juknis Lomba</span>
+                  <span class="drawer-badge-mini badge-pdf">PDF</span>
+                </div>
+                <span class="drawer-link-sub">Unduh pedoman teknis perlombaan</span>
+              </div>
+              <i class="ri-external-link-line drawer-chevron"></i>
+            </a>
+
+            <a 
+              :href="helpWaUrl" 
+              target="_blank"
+              class="drawer-link"
+              @click="closeMobileMenu"
+            >
+              <span class="drawer-icon-wrap icon-green">
+                <i class="ri-customer-service-2-line"></i>
+              </span>
+              <div class="drawer-link-content">
+                <div class="flex items-center gap-1.5">
+                  <span class="drawer-link-title">Bantuan Panitia</span>
+                  <span class="drawer-badge-mini badge-online">WhatsApp</span>
+                </div>
+                <span class="drawer-link-sub">Konsultasi langsung narahubung panitia</span>
+              </div>
+              <i class="ri-external-link-line drawer-chevron"></i>
+            </a>
+
+            <a 
+              href="/scoreboard" 
+              class="drawer-link"
+              @click="closeMobileMenu"
+            >
+              <span class="drawer-icon-wrap icon-sky">
+                <i class="ri-broadcast-line"></i>
+              </span>
+              <div class="drawer-link-content">
+                <div class="flex items-center gap-1.5">
+                  <span class="drawer-link-title">Live Scoreboard</span>
+                  <span class="drawer-badge-mini badge-live">LIVE</span>
+                </div>
+                <span class="drawer-link-sub">Klasemen perolehan medali &amp; juara</span>
+              </div>
+              <i class="ri-arrow-right-s-line drawer-chevron"></i>
+            </a>
+
+            <a 
+              href="/pendaftar/login" 
+              class="drawer-link"
+              @click="closeMobileMenu"
+            >
+              <span class="drawer-icon-wrap icon-purple">
+                <i class="ri-shield-user-line"></i>
+              </span>
+              <div class="drawer-link-content">
+                <span class="drawer-link-title">Portal Akun Pendaftar</span>
+                <span class="drawer-link-sub">Akses bukti &amp; status verifikasi berkas</span>
+              </div>
+              <i class="ri-arrow-right-s-line drawer-chevron"></i>
+            </a>
+
+            <!-- Quick Theme Switcher Card inside Drawer -->
+            <div 
+              class="drawer-theme-card"
+              @click="toggleTheme"
+              role="button"
+              tabindex="0"
+            >
+              <div class="flex items-center gap-2.5">
+                <span class="drawer-icon-wrap" :class="isDark ? 'icon-amber' : 'icon-slate'">
+                  <i :class="isDark ? 'ri-sun-line text-amber-400' : 'ri-moon-line text-slate-600'"></i>
+                </span>
+                <div class="flex flex-col text-left">
+                  <span class="drawer-link-title">Tema Tampilan</span>
+                  <span class="drawer-link-sub">{{ isDark ? 'Mode Gelap Aktif' : 'Mode Terang Aktif' }}</span>
+                </div>
+              </div>
+              <span class="drawer-theme-badge">
+                {{ isDark ? '🌙 Gelap' : '☀️ Terang' }}
+              </span>
+            </div>
+          </nav>
+
+          <!-- Drawer Footer Action -->
+          <div class="drawer-footer">
+            <a 
+              href="/" 
+              class="w-full py-2.5 px-3 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] text-on-surface font-semibold text-xs flex items-center justify-center gap-2 hover:border-primary transition-all text-decoration-none shadow-xs"
+              @click="closeMobileMenu"
+            >
+              <i class="ri-arrow-left-line"></i>
+              <span>Kembali ke Beranda Utama</span>
+            </a>
+            <p class="text-[10px] text-on-surface-variant text-center m-0 mt-2">
+              © 2026 MAS Wahid Hasyim Balung • Hak Cipta Dilindungi
+            </p>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- ======================================================================
          MAIN REGISTRATION SECTION
@@ -3560,5 +3796,475 @@ input[type="text"].pl-10, input[type="tel"].pl-10, input[type="email"].pl-10 {
 .semarak-root-page.dark :deep(.custom-select-menu .custom-select-item.is-selected .check-icon),
 [data-bs-theme="dark"] .semarak-root-page :deep(.custom-select-menu .custom-select-item.is-selected .check-icon) {
   color: #10b981 !important;
+}
+</style>
+
+<style>
+/* =============================================================================
+   Mobile Hamburger Drawer Navigation (Teleported to Body)
+   ============================================================================= */
+.form-fade-enter-active,
+.form-fade-leave-active {
+  transition: opacity 0.25s ease !important;
+}
+.form-fade-enter-from,
+.form-fade-leave-to {
+  opacity: 0 !important;
+}
+
+.form-slide-enter-active,
+.form-slide-leave-active {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.form-slide-enter-from,
+.form-slide-leave-to {
+  transform: translateX(100%) !important;
+}
+
+.mobile-nav-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  background-color: rgba(15, 23, 42, 0.55) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+  z-index: 1040 !important;
+}
+
+.mobile-nav-drawer {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  width: 310px !important;
+  max-width: 86vw !important;
+  height: 100% !important;
+  height: 100dvh !important;
+  background-color: #ffffff !important;
+  border-left: 1px solid #e2e8f0 !important;
+  box-shadow: -10px 0 35px rgba(0, 0, 0, 0.18) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  z-index: 1050 !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  font-family: var(--font-body, "Inter", sans-serif) !important;
+}
+
+.mobile-nav-drawer.dark,
+.dark .mobile-nav-drawer,
+[data-bs-theme="dark"] .mobile-nav-drawer {
+  background-color: #111d17 !important;
+  border-left-color: #1e3529 !important;
+  box-shadow: -10px 0 35px rgba(0, 0, 0, 0.6) !important;
+  color: #f8fafc !important;
+}
+
+.drawer-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 1rem 1.125rem !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  background-color: #f8fafc !important;
+}
+
+.mobile-nav-drawer.dark .drawer-head,
+.dark .drawer-head,
+[data-bs-theme="dark"] .drawer-head {
+  background-color: #0d1612 !important;
+  border-bottom-color: #1e3529 !important;
+}
+
+.drawer-brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.625rem !important;
+  text-decoration: none !important;
+  min-width: 0 !important;
+}
+
+.drawer-logo {
+  width: 2.25rem !important;
+  height: 2.25rem !important;
+  object-fit: contain !important;
+  flex-shrink: 0 !important;
+}
+
+.drawer-brand-text {
+  display: flex !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+}
+
+.drawer-title {
+  font-family: var(--font-headline, "Plus Jakarta Sans", sans-serif) !important;
+  font-weight: 800 !important;
+  font-size: 0.8125rem !important;
+  color: #006948 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  text-transform: uppercase !important;
+}
+
+.mobile-nav-drawer.dark .drawer-title,
+.dark .drawer-title,
+[data-bs-theme="dark"] .drawer-title {
+  color: #10b981 !important;
+}
+
+.drawer-subtitle {
+  font-size: 0.6875rem !important;
+  color: #475569 !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.mobile-nav-drawer.dark .drawer-subtitle,
+.dark .drawer-subtitle,
+[data-bs-theme="dark"] .drawer-subtitle {
+  color: #94a3b8 !important;
+}
+
+.drawer-close-btn {
+  width: 2rem !important;
+  height: 2rem !important;
+  border-radius: 0.5rem !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1.25rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  flex-shrink: 0 !important;
+}
+
+.drawer-close-btn:hover {
+  background-color: #fee2e2 !important;
+  color: #ef4444 !important;
+  border-color: #fca5a5 !important;
+}
+
+.mobile-nav-drawer.dark .drawer-close-btn,
+.dark .drawer-close-btn,
+[data-bs-theme="dark"] .drawer-close-btn {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  border-color: #1e3529 !important;
+  color: #cbd5e1 !important;
+}
+
+.mobile-nav-drawer.dark .drawer-close-btn:hover,
+.dark .drawer-close-btn:hover,
+[data-bs-theme="dark"] .drawer-close-btn:hover {
+  background-color: rgba(239, 68, 68, 0.25) !important;
+  color: #fca5a5 !important;
+  border-color: #ef4444 !important;
+}
+
+.drawer-nav {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.375rem !important;
+  padding: 0.875rem 0.75rem !important;
+  flex-grow: 1 !important;
+}
+
+.drawer-link {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  padding: 0.625rem 0.75rem !important;
+  border-radius: 0.75rem !important;
+  text-decoration: none !important;
+  color: #0f172a !important;
+  transition: all 0.15s ease !important;
+  border: 1px solid transparent !important;
+}
+
+.drawer-link:hover {
+  background-color: rgba(236, 253, 245, 0.7) !important;
+  border-color: rgba(0, 105, 72, 0.2) !important;
+  transform: translateX(2px) !important;
+}
+
+.mobile-nav-drawer.dark .drawer-link,
+.dark .drawer-link,
+[data-bs-theme="dark"] .drawer-link {
+  color: #f8fafc !important;
+}
+
+.mobile-nav-drawer.dark .drawer-link:hover,
+.dark .drawer-link:hover,
+[data-bs-theme="dark"] .drawer-link:hover {
+  background-color: rgba(16, 185, 129, 0.14) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.drawer-icon-wrap {
+  width: 2rem !important;
+  height: 2rem !important;
+  border-radius: 0.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1rem !important;
+  flex-shrink: 0 !important;
+}
+
+.icon-emerald {
+  background-color: #ecfdf5 !important;
+  color: #059669 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+.mobile-nav-drawer.dark .icon-emerald,
+.dark .icon-emerald,
+[data-bs-theme="dark"] .icon-emerald {
+  background-color: rgba(5, 150, 105, 0.25) !important;
+  color: #86efac !important;
+  border-color: rgba(5, 150, 105, 0.4) !important;
+}
+
+.icon-amber {
+  background-color: #fffbeb !important;
+  color: #d97706 !important;
+  border: 1px solid #fde68a !important;
+}
+.mobile-nav-drawer.dark .icon-amber,
+.dark .icon-amber,
+[data-bs-theme="dark"] .icon-amber {
+  background-color: rgba(217, 119, 6, 0.22) !important;
+  color: #fde047 !important;
+  border-color: rgba(217, 119, 6, 0.4) !important;
+}
+
+.icon-blue {
+  background-color: #eff6ff !important;
+  color: #2563eb !important;
+  border: 1px solid #bfdbfe !important;
+}
+.mobile-nav-drawer.dark .icon-blue,
+.dark .icon-blue,
+[data-bs-theme="dark"] .icon-blue {
+  background-color: rgba(37, 99, 235, 0.22) !important;
+  color: #93c5fd !important;
+  border-color: rgba(37, 99, 235, 0.4) !important;
+}
+
+.icon-green {
+  background-color: #f0fdf4 !important;
+  color: #16a34a !important;
+  border: 1px solid #bbf7d0 !important;
+}
+.mobile-nav-drawer.dark .icon-green,
+.dark .icon-green,
+[data-bs-theme="dark"] .icon-green {
+  background-color: rgba(22, 163, 74, 0.22) !important;
+  color: #86efac !important;
+  border-color: rgba(22, 163, 74, 0.4) !important;
+}
+
+.icon-sky {
+  background-color: #f0f9ff !important;
+  color: #0284c7 !important;
+  border: 1px solid #bae6fd !important;
+}
+.mobile-nav-drawer.dark .icon-sky,
+.dark .icon-sky,
+[data-bs-theme="dark"] .icon-sky {
+  background-color: rgba(2, 132, 199, 0.22) !important;
+  color: #7dd3fc !important;
+  border-color: rgba(2, 132, 199, 0.4) !important;
+}
+
+.icon-purple {
+  background-color: #faf5ff !important;
+  color: #9333ea !important;
+  border: 1px solid #e9d5ff !important;
+}
+.mobile-nav-drawer.dark .icon-purple,
+.dark .icon-purple,
+[data-bs-theme="dark"] .icon-purple {
+  background-color: rgba(147, 51, 234, 0.22) !important;
+  color: #d8b4fe !important;
+  border-color: rgba(147, 51, 234, 0.4) !important;
+}
+
+.icon-slate {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+.mobile-nav-drawer.dark .icon-slate,
+.dark .icon-slate,
+[data-bs-theme="dark"] .icon-slate {
+  background-color: rgba(71, 85, 105, 0.25) !important;
+  color: #cbd5e1 !important;
+  border-color: rgba(71, 85, 105, 0.4) !important;
+}
+
+.drawer-link-content {
+  display: flex !important;
+  flex-direction: column !important;
+  flex-grow: 1 !important;
+  min-width: 0 !important;
+  text-align: left !important;
+}
+
+.drawer-link-title {
+  font-weight: 700 !important;
+  font-size: 0.8125rem !important;
+  color: #0f172a !important;
+  line-height: 1.25 !important;
+}
+
+.mobile-nav-drawer.dark .drawer-link-title,
+.dark .drawer-link-title,
+[data-bs-theme="dark"] .drawer-link-title {
+  color: #f8fafc !important;
+}
+
+.drawer-link-sub {
+  font-size: 0.6875rem !important;
+  color: #475569 !important;
+  line-height: 1.2 !important;
+  margin-top: 2px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.mobile-nav-drawer.dark .drawer-link-sub,
+.dark .drawer-link-sub,
+[data-bs-theme="dark"] .drawer-link-sub {
+  color: #cbd5e1 !important;
+}
+
+.drawer-chevron {
+  font-size: 1.125rem !important;
+  color: #94a3b8 !important;
+  flex-shrink: 0 !important;
+  transition: transform 0.15s ease !important;
+}
+
+.drawer-link:hover .drawer-chevron {
+  color: #006948 !important;
+  transform: translateX(2px) !important;
+}
+
+.mobile-nav-drawer.dark .drawer-link:hover .drawer-chevron,
+.dark .drawer-link:hover .drawer-chevron,
+[data-bs-theme="dark"] .drawer-link:hover .drawer-chevron {
+  color: #10b981 !important;
+}
+
+.drawer-badge-mini {
+  font-size: 0.5625rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+  padding: 0.125rem 0.375rem !important;
+  border-radius: 9999px !important;
+  text-transform: uppercase !important;
+}
+
+.badge-pdf {
+  background-color: #fee2e2 !important;
+  color: #b91c1c !important;
+}
+.mobile-nav-drawer.dark .badge-pdf,
+.dark .badge-pdf,
+[data-bs-theme="dark"] .badge-pdf {
+  background-color: rgba(220, 38, 38, 0.25) !important;
+  color: #fca5a5 !important;
+}
+
+.badge-online {
+  background-color: #dcfce7 !important;
+  color: #15803d !important;
+}
+.mobile-nav-drawer.dark .badge-online,
+.dark .badge-online,
+[data-bs-theme="dark"] .badge-online {
+  background-color: rgba(21, 128, 61, 0.25) !important;
+  color: #86efac !important;
+}
+
+.badge-live {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  animation: pulseDot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+.mobile-nav-drawer.dark .badge-live,
+.dark .badge-live,
+[data-bs-theme="dark"] .badge-live {
+  background-color: rgba(3, 105, 161, 0.28) !important;
+  color: #7dd3fc !important;
+}
+
+.drawer-theme-card {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0.625rem 0.75rem !important;
+  border-radius: 0.75rem !important;
+  border: 1px solid #e2e8f0 !important;
+  background-color: #f8fafc !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  margin-top: 0.25rem !important;
+}
+
+.drawer-theme-card:hover {
+  background-color: rgba(236, 253, 245, 0.7) !important;
+  border-color: rgba(0, 105, 72, 0.25) !important;
+}
+
+.mobile-nav-drawer.dark .drawer-theme-card,
+.dark .drawer-theme-card,
+[data-bs-theme="dark"] .drawer-theme-card {
+  background-color: #0d1612 !important;
+  border-color: #1e3529 !important;
+}
+
+.mobile-nav-drawer.dark .drawer-theme-card:hover,
+.dark .drawer-theme-card:hover,
+[data-bs-theme="dark"] .drawer-theme-card:hover {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.drawer-theme-badge {
+  font-size: 0.6875rem !important;
+  font-weight: 700 !important;
+  padding: 0.25rem 0.5rem !important;
+  border-radius: 0.5rem !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.mobile-nav-drawer.dark .drawer-theme-badge,
+.dark .drawer-theme-badge,
+[data-bs-theme="dark"] .drawer-theme-badge {
+  background-color: #111d17 !important;
+  border-color: #1e3529 !important;
+  color: #f8fafc !important;
+}
+
+.drawer-footer {
+  padding: 0.875rem 1rem 1rem !important;
+  border-top: 1px solid #e2e8f0 !important;
+  background-color: #f8fafc !important;
+}
+
+.mobile-nav-drawer.dark .drawer-footer,
+.dark .drawer-footer,
+[data-bs-theme="dark"] .drawer-footer {
+  background-color: #0d1612 !important;
+  border-top-color: #1e3529 !important;
 }
 </style>

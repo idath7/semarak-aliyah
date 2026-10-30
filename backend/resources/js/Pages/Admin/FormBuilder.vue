@@ -38,6 +38,14 @@ const formSettings = ref({
   form_title: '',
   form_subtitle: '',
   submit_text: 'Kirim Pendaftaran Delegasi',
+  section_1_title: '',
+  section_1_subtitle: '',
+  section_2_title: '',
+  section_2_subtitle: '',
+  section_3_title: '',
+  section_3_subtitle: '',
+  section_4_title: '',
+  section_4_subtitle: '',
 });
 const isDirty = ref(false);
 const isSaving = ref(false);
@@ -546,6 +554,14 @@ function initializeData() {
       form_title: s.form_title || '',
       form_subtitle: s.form_subtitle || '',
       submit_text: s.submit_text || 'Kirim Pendaftaran Delegasi',
+      section_1_title: s.section_1_title || '',
+      section_1_subtitle: s.section_1_subtitle || '',
+      section_2_title: s.section_2_title || '',
+      section_2_subtitle: s.section_2_subtitle || '',
+      section_3_title: s.section_3_title || '',
+      section_3_subtitle: s.section_3_subtitle || '',
+      section_4_title: s.section_4_title || '',
+      section_4_subtitle: s.section_4_subtitle || '',
     };
   } else {
     formSettings.value = {
@@ -554,6 +570,14 @@ function initializeData() {
       form_title: '',
       form_subtitle: '',
       submit_text: 'Kirim Pendaftaran Delegasi',
+      section_1_title: '',
+      section_1_subtitle: '',
+      section_2_title: '',
+      section_2_subtitle: '',
+      section_3_title: '',
+      section_3_subtitle: '',
+      section_4_title: '',
+      section_4_subtitle: '',
     };
   }
 
@@ -1389,8 +1413,8 @@ async function applyHeadlineToAll() {
   }
 
   const confirmed = await confirmDialog({
-    title: 'Terapkan Headline ke Semua Cabang Lomba?',
-    message: `Apakah Anda yakin ingin menerapkan Headline ("${formSettings.value.form_title || 'Default'}"), Subtitle, dan Teks Tombol Kirim ini ke SEMUA (${props.competitions.length}) cabang lomba? Perubahan ini akan menyeragamkan judul formulir pendaftaran di seluruh cabang lomba.`,
+    title: 'Terapkan Seluruh Headline ke Semua Cabang Lomba?',
+    message: `Apakah Anda yakin ingin menerapkan Headline Utama ("${formSettings.value.form_title || 'Default'}"), Subtitle, Teks Tombol Kirim, serta ke-4 Headline Pemisah Bagian formulir ini ke SEMUA (${props.competitions.length}) cabang lomba? Perubahan ini akan menyeragamkan struktur judul formulir pendaftaran di seluruh cabang lomba.`,
     confirmText: 'Ya, Terapkan ke Semua Cabang',
     cancelText: 'Batal',
     variant: 'primary',
@@ -1403,11 +1427,19 @@ async function applyHeadlineToAll() {
     form_title: formSettings.value.form_title || '',
     form_subtitle: formSettings.value.form_subtitle || '',
     submit_text: formSettings.value.submit_text || 'Kirim Pendaftaran Delegasi',
+    section_1_title: formSettings.value.section_1_title || '',
+    section_1_subtitle: formSettings.value.section_1_subtitle || '',
+    section_2_title: formSettings.value.section_2_title || '',
+    section_2_subtitle: formSettings.value.section_2_subtitle || '',
+    section_3_title: formSettings.value.section_3_title || '',
+    section_3_subtitle: formSettings.value.section_3_subtitle || '',
+    section_4_title: formSettings.value.section_4_title || '',
+    section_4_subtitle: formSettings.value.section_4_subtitle || '',
   }, {
     preserveScroll: true,
     onSuccess: () => {
       isApplyingHeadlineAll.value = false;
-      toast.success('Headline formulir berhasil diterapkan ke seluruh cabang lomba!');
+      toast.success('Seluruh headline formulir berhasil diterapkan ke seluruh cabang lomba!');
     },
     onError: () => {
       isApplyingHeadlineAll.value = false;
@@ -2387,8 +2419,8 @@ function setParticipantCountDirect(field, val) {
                     </span>
                     <div>
                       <div class="fs-12 fw-bold text-dark d-flex align-items-center gap-1.5">
-                        <span>Headline &amp; Header Formulir Pendaftaran</span>
-                        <span class="badge bg-primary-subtle text-primary fs-10 px-1.5 py-0.5">Tampilan Header</span>
+                        <span>Kustomisasi Headline Formulir &amp; Pemisah 4 Bagian</span>
+                        <span class="badge bg-primary-subtle text-primary fs-10 px-1.5 py-0.5">Header &amp; 4 Bagian</span>
                       </div>
                       <div class="fs-10 text-muted">
                         {{ formSettings.form_title ? `"${formSettings.form_title}"` : 'Menggunakan judul bawaan sistem' }}
@@ -2465,6 +2497,174 @@ function setParticipantCountDirect(field, val) {
                         placeholder="Contoh: Silakan isi data delegasi sekolah dan peserta di bawah ini dengan lengkap dan valid..."
                       />
                       <div class="fs-10 text-muted mt-0.5">Instruksi ringkas tepat di bawah judul utama formulir.</div>
+                    </div>
+
+                    <!-- KUSTOMISASI 4 HEADLINE PEMISAH BAGIAN FORMULIR -->
+                    <div class="col-12">
+                      <div class="p-3 rounded-3 bg-light-subtle dark:bg-slate-900/60 border border-primary/20">
+                        <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom flex-wrap gap-2">
+                          <div class="d-flex align-items-center gap-2">
+                            <span class="avatar-xs rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center fs-12">
+                              <i class="ri-node-tree"></i>
+                            </span>
+                            <div>
+                              <h6 class="fs-12 fw-bold text-dark dark:text-white mb-0">Headline Pemisah 4 Bagian Formulir Pendaftaran</h6>
+                              <p class="fs-10 text-muted dark:text-slate-400 mb-0">Sesuaikan judul pemisah dan teks keterangan pada masing-masing langkah/bagian formulir siswa.</p>
+                            </div>
+                          </div>
+                          <span class="badge bg-primary-subtle text-primary fs-10 px-2 py-0.5 rounded-pill">4 Langkah Formulir</span>
+                        </div>
+
+                        <div class="row g-2.5 pt-1">
+                          <!-- Bagian 1: Identitas Delegasi & Sekolah -->
+                          <div class="col-lg-6 col-12">
+                            <div class="p-2.5 rounded-2 bg-white dark:bg-slate-900 border border-light-subtle dark:border-slate-800 shadow-xs h-100">
+                              <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                <span class="fs-11 fw-bold text-dark dark:text-slate-200 d-flex align-items-center gap-1">
+                                  <i class="ri-bank-line text-primary"></i>
+                                  <span>Bagian 1: Identitas Sekolah &amp; Pembina</span>
+                                </span>
+                                <span class="badge bg-info-subtle text-info fs-9 px-1.5 py-0.5">Langkah 1</span>
+                              </div>
+                              <div class="row g-2">
+                                <div class="col-12">
+                                  <label class="form-label fs-10 fw-semibold text-muted dark:text-slate-400 mb-0.5">Judul Headline:</label>
+                                  <input 
+                                    type="text" 
+                                    v-model="formSettings.section_1_title"
+                                    @input="isDirty = true"
+                                    :disabled="!canManageForm"
+                                    class="form-control form-control-sm fs-11"
+                                    placeholder="1. Delegasi & Asal Sekolah"
+                                  />
+                                </div>
+                                <div class="col-12">
+                                  <label class="form-label fs-10 fw-semibold text-muted dark:text-slate-400 mb-0.5">Subjudul / Keterangan Kanan:</label>
+                                  <input 
+                                    type="text" 
+                                    v-model="formSettings.section_1_subtitle"
+                                    @input="isDirty = true"
+                                    :disabled="!canManageForm"
+                                    class="form-control form-control-sm fs-11"
+                                    placeholder="Identitas Lembaga Resmi"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Bagian 2: Biodata Peserta & Delegasi -->
+                          <div class="col-lg-6 col-12">
+                            <div class="p-2.5 rounded-2 bg-white dark:bg-slate-900 border border-light-subtle dark:border-slate-800 shadow-xs h-100">
+                              <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                <span class="fs-11 fw-bold text-dark dark:text-slate-200 d-flex align-items-center gap-1">
+                                  <i class="ri-group-line text-success"></i>
+                                  <span>Bagian 2: Biodata Peserta &amp; Delegasi</span>
+                                </span>
+                                <span class="badge bg-success-subtle text-success fs-9 px-1.5 py-0.5">Langkah 2</span>
+                              </div>
+                              <div class="row g-2">
+                                <div class="col-12">
+                                  <label class="form-label fs-10 fw-semibold text-muted dark:text-slate-400 mb-0.5">Judul Headline:</label>
+                                  <input 
+                                    type="text" 
+                                    v-model="formSettings.section_2_title"
+                                    @input="isDirty = true"
+                                    :disabled="!canManageForm"
+                                    class="form-control form-control-sm fs-11"
+                                    placeholder="2. Biodata Peserta & Delegasi"
+                                  />
+                                </div>
+                                <div class="col-12">
+                                  <label class="form-label fs-10 fw-semibold text-muted dark:text-slate-400 mb-0.5">Subjudul / Keterangan Kanan:</label>
+                                  <input 
+                                    type="text" 
+                                    v-model="formSettings.section_2_subtitle"
+                                    @input="isDirty = true"
+                                    :disabled="!canManageForm"
+                                    class="form-control form-control-sm fs-11"
+                                    placeholder="Kosongkan untuk Format / Kuota Siswa otomatis"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Bagian 3: Berkas & Dokumen Khusus Cabang -->
+                          <div class="col-lg-6 col-12">
+                            <div class="p-2.5 rounded-2 bg-white dark:bg-slate-900 border border-light-subtle dark:border-slate-800 shadow-xs h-100">
+                              <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                <span class="fs-11 fw-bold text-dark dark:text-slate-200 d-flex align-items-center gap-1">
+                                  <i class="ri-file-upload-line text-danger"></i>
+                                  <span>Bagian 3: Berkas &amp; Informasi Khusus Cabang</span>
+                                </span>
+                                <span class="badge bg-danger-subtle text-danger fs-9 px-1.5 py-0.5">Langkah 3</span>
+                              </div>
+                              <div class="row g-2">
+                                <div class="col-12">
+                                  <label class="form-label fs-10 fw-semibold text-muted dark:text-slate-400 mb-0.5">Judul Headline:</label>
+                                  <input 
+                                    type="text" 
+                                    v-model="formSettings.section_3_title"
+                                    @input="isDirty = true"
+                                    :disabled="!canManageForm"
+                                    class="form-control form-control-sm fs-11"
+                                    placeholder="3. Berkas & Informasi Khusus Cabang"
+                                  />
+                                </div>
+                                <div class="col-12">
+                                  <label class="form-label fs-10 fw-semibold text-muted dark:text-slate-400 mb-0.5">Subjudul / Keterangan Kanan:</label>
+                                  <input 
+                                    type="text" 
+                                    v-model="formSettings.section_3_subtitle"
+                                    @input="isDirty = true"
+                                    :disabled="!canManageForm"
+                                    class="form-control form-control-sm fs-11"
+                                    placeholder="Sesuai Juknis Panitia"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Bagian 4: Skema Paket & Metode Pembayaran -->
+                          <div class="col-lg-6 col-12">
+                            <div class="p-2.5 rounded-2 bg-white dark:bg-slate-900 border border-light-subtle dark:border-slate-800 shadow-xs h-100">
+                              <div class="d-flex align-items-center justify-content-between mb-1.5">
+                                <span class="fs-11 fw-bold text-dark dark:text-slate-200 d-flex align-items-center gap-1">
+                                  <i class="ri-wallet-3-line text-warning"></i>
+                                  <span>Bagian 4: Skema Paket &amp; Metode Pembayaran</span>
+                                </span>
+                                <span class="badge bg-warning-subtle text-warning fs-9 px-1.5 py-0.5">Langkah 4</span>
+                              </div>
+                              <div class="row g-2">
+                                <div class="col-12">
+                                  <label class="form-label fs-10 fw-semibold text-muted dark:text-slate-400 mb-0.5">Judul Headline:</label>
+                                  <input 
+                                    type="text" 
+                                    v-model="formSettings.section_4_title"
+                                    @input="isDirty = true"
+                                    :disabled="!canManageForm"
+                                    class="form-control form-control-sm fs-11"
+                                    placeholder="Skema Paket & Metode Pembayaran"
+                                  />
+                                </div>
+                                <div class="col-12">
+                                  <label class="form-label fs-10 fw-semibold text-muted dark:text-slate-400 mb-0.5">Subjudul / Keterangan Kanan:</label>
+                                  <input 
+                                    type="text" 
+                                    v-model="formSettings.section_4_subtitle"
+                                    @input="isDirty = true"
+                                    :disabled="!canManageForm"
+                                    class="form-control form-control-sm fs-11"
+                                    placeholder="Kosongkan untuk Nominal Biaya otomatis"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <!-- Quick toggles & Apply All Button -->
@@ -4695,7 +4895,7 @@ function setParticipantCountDirect(field, val) {
               <div class="fs-11 text-muted mt-1">Penjelasan atau instruksi ringkas di bawah judul formulir.</div>
             </div>
 
-            <div class="mb-2">
+            <div class="mb-3">
               <label class="form-label fs-12 fw-semibold text-dark mb-1">Teks Tombol Kirim (Submit):</label>
               <input 
                 type="text" 
@@ -4704,6 +4904,89 @@ function setParticipantCountDirect(field, val) {
                 placeholder="Contoh: Kirim Pendaftaran Delegasi"
               />
               <div class="fs-11 text-muted mt-1">Label teks pada tombol pengiriman di akhir formulir.</div>
+            </div>
+
+            <!-- Headline Pemisah 4 Bagian Formulir -->
+            <div class="p-3 bg-light rounded-3 border mb-2">
+              <h6 class="fs-12 fw-bold text-dark mb-1 d-flex align-items-center gap-1.5">
+                <i class="ri-node-tree text-primary"></i>
+                <span>Headline Pemisah 4 Bagian Formulir Pendaftaran:</span>
+              </h6>
+              <p class="fs-11 text-muted mb-3">Atur judul dan keterangan pemisah untuk masing-masing bagian pada lembar formulir pendaftaran.</p>
+
+              <div class="space-y-3">
+                <!-- Bagian 1 -->
+                <div class="p-2.5 bg-white dark:bg-slate-900 rounded-2 border">
+                  <div class="fs-11 fw-bold text-dark mb-1.5 d-flex align-items-center gap-1">
+                    <i class="ri-bank-line text-primary"></i>
+                    <span>Bagian 1: Identitas Sekolah &amp; Pembina</span>
+                  </div>
+                  <div class="row g-2">
+                    <div class="col-sm-6 col-12">
+                      <label class="form-label fs-10 text-muted mb-0.5">Judul Headline:</label>
+                      <input type="text" v-model="formSettings.section_1_title" class="form-control form-control-sm fs-11" placeholder="1. Delegasi & Asal Sekolah" />
+                    </div>
+                    <div class="col-sm-6 col-12">
+                      <label class="form-label fs-10 text-muted mb-0.5">Subjudul / Keterangan Kanan:</label>
+                      <input type="text" v-model="formSettings.section_1_subtitle" class="form-control form-control-sm fs-11" placeholder="Identitas Lembaga Resmi" />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bagian 2 -->
+                <div class="p-2.5 bg-white dark:bg-slate-900 rounded-2 border">
+                  <div class="fs-11 fw-bold text-dark mb-1.5 d-flex align-items-center gap-1">
+                    <i class="ri-group-line text-success"></i>
+                    <span>Bagian 2: Biodata Peserta &amp; Delegasi</span>
+                  </div>
+                  <div class="row g-2">
+                    <div class="col-sm-6 col-12">
+                      <label class="form-label fs-10 text-muted mb-0.5">Judul Headline:</label>
+                      <input type="text" v-model="formSettings.section_2_title" class="form-control form-control-sm fs-11" placeholder="2. Biodata Peserta & Delegasi" />
+                    </div>
+                    <div class="col-sm-6 col-12">
+                      <label class="form-label fs-10 text-muted mb-0.5">Subjudul / Keterangan Kanan:</label>
+                      <input type="text" v-model="formSettings.section_2_subtitle" class="form-control form-control-sm fs-11" placeholder="Kosongkan untuk Format/Kuota otomatis" />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bagian 3 -->
+                <div class="p-2.5 bg-white dark:bg-slate-900 rounded-2 border">
+                  <div class="fs-11 fw-bold text-dark mb-1.5 d-flex align-items-center gap-1">
+                    <i class="ri-file-upload-line text-danger"></i>
+                    <span>Bagian 3: Berkas &amp; Informasi Khusus Cabang</span>
+                  </div>
+                  <div class="row g-2">
+                    <div class="col-sm-6 col-12">
+                      <label class="form-label fs-10 text-muted mb-0.5">Judul Headline:</label>
+                      <input type="text" v-model="formSettings.section_3_title" class="form-control form-control-sm fs-11" placeholder="3. Berkas & Informasi Khusus Cabang" />
+                    </div>
+                    <div class="col-sm-6 col-12">
+                      <label class="form-label fs-10 text-muted mb-0.5">Subjudul / Keterangan Kanan:</label>
+                      <input type="text" v-model="formSettings.section_3_subtitle" class="form-control form-control-sm fs-11" placeholder="Sesuai Juknis Panitia" />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bagian 4 -->
+                <div class="p-2.5 bg-white dark:bg-slate-900 rounded-2 border">
+                  <div class="fs-11 fw-bold text-dark mb-1.5 d-flex align-items-center gap-1">
+                    <i class="ri-wallet-3-line text-warning"></i>
+                    <span>Bagian 4: Skema Paket &amp; Metode Pembayaran</span>
+                  </div>
+                  <div class="row g-2">
+                    <div class="col-sm-6 col-12">
+                      <label class="form-label fs-10 text-muted mb-0.5">Judul Headline:</label>
+                      <input type="text" v-model="formSettings.section_4_title" class="form-control form-control-sm fs-11" placeholder="Skema Paket & Metode Pembayaran" />
+                    </div>
+                    <div class="col-sm-6 col-12">
+                      <label class="form-label fs-10 text-muted mb-0.5">Subjudul / Keterangan Kanan:</label>
+                      <input type="text" v-model="formSettings.section_4_subtitle" class="form-control form-control-sm fs-11" placeholder="Kosongkan untuk Nominal Biaya otomatis" />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             </fieldset>
           </div>

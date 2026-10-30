@@ -216,7 +216,42 @@ const formSettings = computed(() => {
     form_title: s?.form_title || '',
     form_subtitle: s?.form_subtitle || '',
     submit_text: s?.submit_text || 'Kirim Pendaftaran Delegasi',
+    section_1_title: s?.section_1_title || '',
+    section_1_subtitle: s?.section_1_subtitle || '',
+    section_2_title: s?.section_2_title || '',
+    section_2_subtitle: s?.section_2_subtitle || '',
+    section_3_title: s?.section_3_title || '',
+    section_3_subtitle: s?.section_3_subtitle || '',
+    section_4_title: s?.section_4_title || '',
+    section_4_subtitle: s?.section_4_subtitle || '',
   };
+});
+
+function formatSectionTitle(custom, defaultNum, fallbackText) {
+  const trimmed = custom?.trim();
+  if (!trimmed) return `${defaultNum}. ${fallbackText}`;
+  if (/^(\d+|[a-zA-Z]|bagian\s*\d+|langkah\s*\d+)[\.\-\:\)]\s*/i.test(trimmed)) {
+    return trimmed;
+  }
+  return `${defaultNum}. ${trimmed}`;
+}
+
+const section1DisplayTitle = computed(() => {
+  return formatSectionTitle(formSettings.value.section_1_title, 1, 'Delegasi & Asal Sekolah');
+});
+
+const section2DisplayTitle = computed(() => {
+  const fallback = repeaterField.value?.label || 'Biodata Peserta & Delegasi';
+  return formatSectionTitle(formSettings.value.section_2_title, 2, fallback);
+});
+
+const section3DisplayTitle = computed(() => {
+  return formatSectionTitle(formSettings.value.section_3_title, 3, 'Berkas & Informasi Khusus Cabang');
+});
+
+const section4DisplayTitle = computed(() => {
+  const defaultNum = otherCustomFields.value.length > 0 ? 4 : 3;
+  return formatSectionTitle(formSettings.value.section_4_title, defaultNum, 'Skema Paket & Metode Pembayaran');
 });
 
 // Field aliases mapping to support customized names & default names from Form Builder
@@ -360,20 +395,16 @@ const allinCodeField = computed(() => {
   return fields.find(f => isAllInCodeField(f)) || null;
 });
 
-// Additional Custom Fields (non-identity, non-repeater, dan BUKAN field tim)
+// Additional Custom Fields (Berkas & Pertanyaan Khusus Cabang, BUKAN identitas, BUKAN repeater, BUKAN tim, dan BUKAN allin_code)
 const otherCustomFields = computed(() => {
   const fields = activeComp.value?.custom_fields || [];
   return fields.filter(f => {
     if (isMandatoryIdentity(f)) return false;
     if (f.type === 'participant_repeater') return false;
     if (teamFieldConfig.value && (f.name === teamFieldConfig.value.name || isTeamFieldName(f.name, f.label))) return false;
+    if (isAllInCodeField(f)) return false; // allin_code secara khusus masuk ke Bagian Skema Paket & Metode Pembayaran
     return true;
   });
-});
-
-// Cek apakah allin_code sudah dirender di otherCustomFields (Section 3)
-const isAllInCodeRenderedInCustomFields = computed(() => {
-  return otherCustomFields.value.some(f => isAllInCodeField(f));
 });
 
 // Participant Count Calculation & Bounds
@@ -1767,9 +1798,16 @@ onMounted(() => {
             <!-- SECTION 1: Informasi Asal Sekolah & Guru Pembina (Identitas)   -->
             <!-- ============================================================== -->
             <div class="space-y-3.5 sm:space-y-4">
-              <div class="flex items-center gap-2 sm:gap-2.5 pb-2 border-b border-border-subtle form-section-header">
-                <i class="ri-bank-line text-primary form-section-icon"></i>
-                <h2 class="font-headline font-bold text-sm sm:text-base md:text-lg text-on-surface m-0 form-section-title">1. Delegasi &amp; Asal Sekolah</h2>
+              <div class="flex items-center justify-between pb-2 border-b border-border-subtle flex-wrap gap-2">
+                <div class="flex items-center gap-2 sm:gap-2.5 form-section-header">
+                  <i class="ri-bank-line text-primary form-section-icon"></i>
+                  <h2 class="font-headline font-bold text-sm sm:text-base md:text-lg text-on-surface m-0 form-section-title">
+                    {{ section1DisplayTitle }}
+                  </h2>
+                </div>
+                <span class="text-[11px] sm:text-xs text-on-surface-variant font-medium">
+                  {{ formSettings.section_1_subtitle || 'Identitas Lembaga Resmi' }}
+                </span>
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-5">
                 <!-- Nama Asal Sekolah with Autocomplete -->
@@ -1939,12 +1977,17 @@ onMounted(() => {
                 <div class="flex items-center gap-2 sm:gap-2.5 form-section-header">
                   <i class="ri-group-line text-primary form-section-icon"></i>
                   <h2 class="font-headline font-bold text-sm sm:text-base md:text-lg text-on-surface m-0 form-section-title">
-                    2. {{ repeaterField?.label || 'Biodata Peserta & Delegasi' }}
+                    {{ section2DisplayTitle }}
                   </h2>
                 </div>
                 <span class="text-[11px] sm:text-xs text-on-surface-variant font-medium">
-                  <span v-if="minParticipants === maxParticipants">Format: {{ minParticipants }} Siswa</span>
-                  <span v-else>Kuota: {{ minParticipants }} s.d. {{ maxParticipants }} Peserta</span>
+                  <template v-if="formSettings.section_2_subtitle">
+                    {{ formSettings.section_2_subtitle }}
+                  </template>
+                  <template v-else>
+                    <span v-if="minParticipants === maxParticipants">Format: {{ minParticipants }} Siswa</span>
+                    <span v-else>Kuota: {{ minParticipants }} s.d. {{ maxParticipants }} Peserta</span>
+                  </template>
                 </span>
               </div>
 
@@ -2477,14 +2520,16 @@ onMounted(() => {
             <!-- SECTION 3: Pertanyaan & Berkas Khusus Cabang (Dinamis Form)    -->
             <!-- ============================================================== -->
             <div v-if="otherCustomFields.length > 0" class="space-y-5">
-              <div class="flex items-center justify-between pb-2 border-b border-border-subtle">
+              <div class="flex items-center justify-between pb-2 border-b border-border-subtle flex-wrap gap-2">
                 <div class="flex items-center gap-2.5 form-section-header">
                   <i class="ri-file-upload-line text-primary form-section-icon"></i>
                   <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface m-0 form-section-title">
-                    3. {{ otherCustomFields.every(f => isAllInCodeField(f)) ? 'Kode Paket Komplit (All-In)' : 'Berkas &amp; Informasi Khusus Cabang' }}
+                    {{ section3DisplayTitle }}
                   </h2>
                 </div>
-                <span class="text-xs text-on-surface-variant">Sesuai Juknis Panitia</span>
+                <span class="text-xs text-on-surface-variant font-medium">
+                  {{ formSettings.section_3_subtitle || 'Sesuai Juknis Panitia' }}
+                </span>
               </div>
 
               <!-- Loop Dynamic Fields -->
@@ -2493,7 +2538,7 @@ onMounted(() => {
                   v-if="evaluateCondition(field.conditional_logic, form.custom_fields)" 
                   class="space-y-1.5 transition-all"
                 >
-                  <div v-if="!isAllInCodeField(field)" class="flex items-center justify-between">
+                  <div class="flex items-center justify-between">
                     <label class="form-label-aligned">
                       <i class="ri-file-text-line text-primary"></i>
                       <span>
@@ -2721,46 +2766,6 @@ onMounted(() => {
                     />
                   </div>
 
-                  <!-- Type: KODE PAKET KOMPLIT (ALL-IN) DINAMIS DARI FORM BUILDER -->
-                  <div v-else-if="isAllInCodeField(field)" class="p-3 sm:p-4 rounded-xl border border-dashed border-primary/40 bg-emerald-light/30 space-y-2 sm:space-y-2.5">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                      <label class="form-label-aligned">
-                        <i class="ri-vip-crown-line text-primary"></i>
-                        <span>{{ field.label || 'Punya Kode Paket Komplit (All-In)?' }}</span>
-                      </label>
-                      <span class="text-[11px] text-amber-dark font-medium bg-amber-soft px-2 py-0.5 rounded w-fit">Gratis Biaya Cabang (Rp 0)</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <div class="relative flex-1">
-                        <input 
-                          v-model="form.custom_fields[field.name || 'allin_code']"
-                          type="text" 
-                          :placeholder="field.placeholder || 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)'" 
-                          class="w-full h-10 px-3 sm:px-3.5 rounded-lg border border-border-subtle bg-white dark:bg-[#111d17] text-xs font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:font-body placeholder:normal-case placeholder:text-gray-400 text-on-surface"
-                        >
-                      </div>
-                      <button 
-                        type="button" 
-                        @click="verifyPackageCodeManual" 
-                        :disabled="isCheckingPackageCode"
-                        class="h-10 px-3.5 sm:px-4 rounded-lg bg-primary hover:bg-primary-container text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-colors shadow-xs cursor-pointer border-none"
-                      >
-                        <i v-if="isCheckingPackageCode" class="ri-loader-4-line animate-spin text-[16px]"></i>
-                        <i v-else class="ri-checkbox-circle-line text-[16px]"></i>
-                        <span>Cek Kode</span>
-                      </button>
-                    </div>
-                    <p v-if="codeVerificationError" class="text-xs text-red-500 font-medium">{{ codeVerificationError }}</p>
-                    <div v-else-if="isAllInFree" class="text-xs text-emerald-dark font-bold flex items-center gap-1.5">
-                      <i class="ri-checkbox-circle-fill text-primary text-[16px]"></i>
-                      <span>Kode Paket Komplit terverifikasi! Biaya pendaftaran cabang ini menjadi Rp 0 (Bebas Biaya).</span>
-                    </div>
-                    <p v-else class="text-[11px] text-on-surface-variant flex items-center gap-1">
-                      <i class="ri-information-line text-[14px] text-primary leading-none"></i>
-                      <span>{{ field.help_text || 'Jika sekolah Anda telah mendaftar Paket Komplit, masukkan kode paket agar pendaftaran cabang ini bebas biaya.' }}</span>
-                    </p>
-                  </div>
-
                   <!-- Type: STANDARD INPUTS (text, number, email, url) -->
                   <div v-else>
                     <input 
@@ -2789,11 +2794,16 @@ onMounted(() => {
                 <div class="flex items-center gap-2 sm:gap-2.5 form-section-header">
                   <i class="ri-wallet-3-line text-primary form-section-icon"></i>
                   <h2 class="font-headline font-bold text-sm sm:text-base md:text-lg text-on-surface m-0 form-section-title">
-                    {{ otherCustomFields.length > 0 ? '4.' : '3.' }} Skema Paket &amp; Metode Pembayaran
+                    {{ section4DisplayTitle }}
                   </h2>
                 </div>
                 <span class="text-xs font-bold text-primary bg-emerald-light px-2.5 py-1 rounded-full">
-                  Biaya: Rp {{ totalCalculatedFee.toLocaleString('id-ID') }}
+                  <template v-if="formSettings.section_4_subtitle">
+                    {{ formSettings.section_4_subtitle }}
+                  </template>
+                  <template v-else>
+                    Biaya: Rp {{ totalCalculatedFee.toLocaleString('id-ID') }}
+                  </template>
                 </span>
               </div>
 
@@ -2849,8 +2859,8 @@ onMounted(() => {
                 </div>
               </div>
 
-              <!-- INPUT & VERIFIKASI KODE PAKET KOMPLIT (JIKA BELUM DIRENDER DI SECTION 3 / CUSTOM FIELDS) -->
-              <div v-if="!isAllInCodeRenderedInCustomFields" class="p-3 sm:p-4 rounded-xl border border-dashed border-primary/40 bg-emerald-light/30 space-y-2 sm:space-y-2.5">
+              <!-- INPUT & VERIFIKASI KODE PAKET KOMPLIT (ALL-IN) - BAGIAN SKEMA PAKET & METODE PEMBAYARAN -->
+              <div class="p-3 sm:p-4 rounded-xl border border-dashed border-primary/40 bg-emerald-light/30 space-y-2 sm:space-y-2.5">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                   <label class="form-label-aligned">
                     <i class="ri-vip-crown-line text-primary"></i>

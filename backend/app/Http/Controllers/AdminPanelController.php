@@ -1461,6 +1461,14 @@ class AdminPanelController extends Controller
                 'form_title' => $settings['form_title'] ?? '',
                 'form_subtitle' => $settings['form_subtitle'] ?? '',
                 'submit_text' => $settings['submit_text'] ?? 'Kirim Pendaftaran Delegasi',
+                'section_1_title' => $settings['section_1_title'] ?? '',
+                'section_1_subtitle' => $settings['section_1_subtitle'] ?? '',
+                'section_2_title' => $settings['section_2_title'] ?? '',
+                'section_2_subtitle' => $settings['section_2_subtitle'] ?? '',
+                'section_3_title' => $settings['section_3_title'] ?? '',
+                'section_3_subtitle' => $settings['section_3_subtitle'] ?? '',
+                'section_4_title' => $settings['section_4_title'] ?? '',
+                'section_4_subtitle' => $settings['section_4_subtitle'] ?? '',
             ]);
         }
         $comp->save();
@@ -1633,6 +1641,14 @@ class AdminPanelController extends Controller
         $formTitle = $request->input('form_title', '');
         $formSubtitle = $request->input('form_subtitle', '');
         $submitText = $request->input('submit_text', 'Kirim Pendaftaran Delegasi');
+        $section1Title = $request->input('section_1_title', '');
+        $section1Subtitle = $request->input('section_1_subtitle', '');
+        $section2Title = $request->input('section_2_title', '');
+        $section2Subtitle = $request->input('section_2_subtitle', '');
+        $section3Title = $request->input('section_3_title', '');
+        $section3Subtitle = $request->input('section_3_subtitle', '');
+        $section4Title = $request->input('section_4_title', '');
+        $section4Subtitle = $request->input('section_4_subtitle', '');
 
         $competitions = Competition::all();
         $count = 0;
@@ -1641,12 +1657,20 @@ class AdminPanelController extends Controller
             $settings['form_title'] = $formTitle;
             $settings['form_subtitle'] = $formSubtitle;
             $settings['submit_text'] = $submitText;
+            $settings['section_1_title'] = $section1Title;
+            $settings['section_1_subtitle'] = $section1Subtitle;
+            $settings['section_2_title'] = $section2Title;
+            $settings['section_2_subtitle'] = $section2Subtitle;
+            $settings['section_3_title'] = $section3Title;
+            $settings['section_3_subtitle'] = $section3Subtitle;
+            $settings['section_4_title'] = $section4Title;
+            $settings['section_4_subtitle'] = $section4Subtitle;
             $c->form_settings = $settings;
             $c->save();
             $count++;
         }
 
-        $msg = "Headline dan pengaturan tombol pendaftaran berhasil diterapkan ke seluruh ({$count}) cabang lomba!";
+        $msg = "Seluruh headline utama dan headline pemisah bagian formulir berhasil diterapkan ke seluruh ({$count}) cabang lomba!";
         if ($request->wantsJson() && !$request->header('X-Inertia')) {
             return response()->json(['status' => 'success', 'message' => $msg]);
         }

@@ -212,7 +212,7 @@ const activeComp = computed(() => {
 const formSettings = computed(() => {
   const s = activeComp.value?.form_settings;
   return {
-    show_package_type: !!s?.show_package_type,
+    show_package_type: s?.show_package_type !== undefined ? !!s?.show_package_type : true,
     form_title: s?.form_title || '',
     form_subtitle: s?.form_subtitle || '',
     submit_text: s?.submit_text || 'Kirim Pendaftaran Delegasi',

@@ -1457,7 +1457,7 @@ class AdminPanelController extends Controller
             $currentSettings = is_array($comp->form_settings) ? $comp->form_settings : [];
             $comp->form_settings = array_merge($currentSettings, [
                 'is_active' => isset($settings['is_active']) ? (bool)$settings['is_active'] : true,
-                'show_package_type' => (bool) ($settings['show_package_type'] ?? false),
+                'show_package_type' => isset($settings['show_package_type']) ? (bool)$settings['show_package_type'] : true,
                 'form_title' => $settings['form_title'] ?? '',
                 'form_subtitle' => $settings['form_subtitle'] ?? '',
                 'submit_text' => $settings['submit_text'] ?? 'Kirim Pendaftaran Delegasi',
@@ -1638,6 +1638,7 @@ class AdminPanelController extends Controller
             return redirect()->back()->with('error', $msg);
         }
 
+        $showPackageType = $request->boolean('show_package_type', true);
         $formTitle = $request->input('form_title', '');
         $formSubtitle = $request->input('form_subtitle', '');
         $submitText = $request->input('submit_text', 'Kirim Pendaftaran Delegasi');
@@ -1654,6 +1655,7 @@ class AdminPanelController extends Controller
         $count = 0;
         foreach ($competitions as $c) {
             $settings = is_array($c->form_settings) ? $c->form_settings : [];
+            $settings['show_package_type'] = $showPackageType;
             $settings['form_title'] = $formTitle;
             $settings['form_subtitle'] = $formSubtitle;
             $settings['submit_text'] = $submitText;

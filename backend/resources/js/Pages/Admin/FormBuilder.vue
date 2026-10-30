@@ -34,7 +34,7 @@ const previewValues = ref({});
 const fields = ref([]);
 const formSettings = ref({
   is_active: true,
-  show_package_type: false,
+  show_package_type: true,
   form_title: '',
   form_subtitle: '',
   submit_text: 'Kirim Pendaftaran Delegasi',
@@ -49,6 +49,8 @@ const formSettings = ref({
 });
 const isDirty = ref(false);
 const isSaving = ref(false);
+const isHeadlineCardExpanded = ref(false);
+const isApplyingHeadlineAll = ref(false);
 
 // Authorization & Lock Computeds
 const canManageForm = computed(() => {
@@ -547,7 +549,7 @@ function initializeData() {
   if (s && typeof s === 'object') {
     formSettings.value = {
       is_active: s.is_active !== undefined ? !!s.is_active : !compIsInactive,
-      show_package_type: !!s.show_package_type,
+      show_package_type: s.show_package_type !== undefined ? !!s.show_package_type : true,
       form_title: s.form_title || '',
       form_subtitle: s.form_subtitle || '',
       submit_text: s.submit_text || 'Kirim Pendaftaran Delegasi',
@@ -563,7 +565,7 @@ function initializeData() {
   } else {
     formSettings.value = {
       is_active: !compIsInactive,
-      show_package_type: false,
+      show_package_type: true,
       form_title: '',
       form_subtitle: '',
       submit_text: 'Kirim Pendaftaran Delegasi',
@@ -1400,9 +1402,6 @@ function onDrop(targetIndex, event) {
 }
 
 // Headline & Header Formulir Card State & Actions
-const isHeadlineCardExpanded = ref(false);
-const isApplyingHeadlineAll = ref(false);
-
 async function applyHeadlineToAll() {
   if (!props.isGlobalAdmin && !props.hasManagePermission) {
     toast.error('Hanya Admin Utama yang memiliki hak akses untuk menerapkan headline ke semua cabang lomba.');
@@ -1421,6 +1420,7 @@ async function applyHeadlineToAll() {
 
   isApplyingHeadlineAll.value = true;
   router.post('/admin/form-builder/apply-headline-all', {
+    show_package_type: formSettings.value.show_package_type !== false,
     form_title: formSettings.value.form_title || '',
     form_subtitle: formSettings.value.form_subtitle || '',
     submit_text: formSettings.value.submit_text || 'Kirim Pendaftaran Delegasi',

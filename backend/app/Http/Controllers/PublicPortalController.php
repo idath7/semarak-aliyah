@@ -587,6 +587,78 @@ class PublicPortalController extends Controller
                     } elseif ($isRequired) {
                         $customErrors["cf_{$fName}"] = "Dokumen berkas \"{$fLabel}\" wajib diunggah.";
                     }
+                } elseif ($fType === 'participant_repeater') {
+                    $rawList = $rawCustomFields[$fName] ?? $request->input($fName) ?? [];
+                    if (!is_array($rawList)) {
+                        $rawList = [];
+                    }
+
+                    // Process participant photos (photo_formal & photo_freestyle)
+                    $repeaterFiles = $request->file("custom_fields.{$fName}") ?: $request->file($fName);
+
+                    foreach ($rawList as $pIdx => &$pItem) {
+                        if (!is_array($pItem)) continue;
+                        $pName = trim($pItem['name'] ?? "Peserta #" . ($pIdx + 1));
+
+                        // 1. Photo Formal (Pas Foto 1 File)
+                        $formalFile = $request->file("custom_fields.{$fName}.{$pIdx}.photo_formal")
+                            ?: ($request->file("{$fName}.{$pIdx}.photo_formal")
+                            ?: ($repeaterFiles[$pIdx]['photo_formal'] ?? null));
+
+                        if ($formalFile instanceof \Illuminate\Http\UploadedFile && $formalFile->isValid()) {
+                            $ext = strtolower($formalFile->getClientOriginalExtension());
+                            if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
+                                $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $formalFile->getClientOriginalName());
+                                $path = $formalFile->storeAs("uploads/registrations/{$regCode}", time() . "_{$pIdx}_formal_{$safeName}", 'public');
+                                $fileUrl = '/storage/' . $path;
+                                $pItem['photo_formal'] = $fileUrl;
+                                $pItem['photo'] = $fileUrl;
+                                $fileDocuments[] = [
+                                    'title' => "Pas Foto Formal: {$pName}",
+                                    'filename' => $formalFile->getClientOriginalName(),
+                                    'url' => $fileUrl,
+                                    'type' => $ext,
+                                    'uploaded_at' => now()->toIso8601String(),
+                                ];
+                            }
+                        }
+
+                        // 2. Photo Freestyle (Foto Gaya Bebas - Bisa >1 File)
+                        $freestyleFiles = $request->file("custom_fields.{$fName}.{$pIdx}.photo_freestyle")
+                            ?: ($request->file("{$fName}.{$pIdx}.photo_freestyle")
+                            ?: ($repeaterFiles[$pIdx]['photo_freestyle'] ?? null));
+
+                        if (!empty($freestyleFiles)) {
+                            if (!is_array($freestyleFiles)) {
+                                $freestyleFiles = [$freestyleFiles];
+                            }
+                            $storedFreestyleUrls = [];
+                            foreach ($freestyleFiles as $fIdx => $fFile) {
+                                if ($fFile instanceof \Illuminate\Http\UploadedFile && $fFile->isValid()) {
+                                    $ext = strtolower($fFile->getClientOriginalExtension());
+                                    if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
+                                        $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $fFile->getClientOriginalName());
+                                        $path = $fFile->storeAs("uploads/registrations/{$regCode}", time() . "_{$pIdx}_bebas_{$fIdx}_{$safeName}", 'public');
+                                        $fileUrl = '/storage/' . $path;
+                                        $storedFreestyleUrls[] = $fileUrl;
+                                        $fileDocuments[] = [
+                                            'title' => "Foto Gaya Bebas: {$pName}" . (count($freestyleFiles) > 1 ? " (#" . ($fIdx + 1) . ")" : ""),
+                                            'filename' => $fFile->getClientOriginalName(),
+                                            'url' => $fileUrl,
+                                            'type' => $ext,
+                                            'uploaded_at' => now()->toIso8601String(),
+                                        ];
+                                    }
+                                }
+                            }
+                            if (!empty($storedFreestyleUrls)) {
+                                $pItem['photo_freestyle'] = count($storedFreestyleUrls) === 1 ? $storedFreestyleUrls[0] : $storedFreestyleUrls;
+                                $pItem['photo_freestyle_urls'] = $storedFreestyleUrls;
+                            }
+                        }
+                    }
+                    unset($pItem);
+                    $processedCustomFields[$fName] = $rawList;
                 } else {
                     $val = $rawCustomFields[$fName] ?? $request->input($fName);
                     if ($isRequired && (is_null($val) || $val === '' || (is_array($val) && empty($val)))) {

@@ -1307,6 +1307,80 @@ class RegistrantDashboardController extends Controller
             }
         }
 
+        // Process participant repeater photos (photo_formal & photo_freestyle)
+        $compCustomFields = ($competition && is_array($competition->custom_fields)) ? $competition->custom_fields : [];
+        $repeaterDef = collect($compCustomFields)->firstWhere('type', 'participant_repeater');
+        $repeaterKey = $repeaterDef['name'] ?? 'biodata_peserta';
+
+        if (!empty($customFields[$repeaterKey]) && is_array($customFields[$repeaterKey])) {
+            $repeaterList = $customFields[$repeaterKey];
+            $repeaterFiles = $request->file("custom_fields.{$repeaterKey}") ?: $request->file($repeaterKey);
+
+            foreach ($repeaterList as $pIdx => &$pItem) {
+                if (!is_array($pItem)) continue;
+                $pName = trim($pItem['name'] ?? "Peserta #" . ($pIdx + 1));
+
+                // 1. Photo Formal (Pas Foto 1 File)
+                $formalFile = $request->file("custom_fields.{$repeaterKey}.{$pIdx}.photo_formal")
+                    ?: ($request->file("{$repeaterKey}.{$pIdx}.photo_formal")
+                    ?: ($repeaterFiles[$pIdx]['photo_formal'] ?? null));
+
+                if ($formalFile instanceof \Illuminate\Http\UploadedFile && $formalFile->isValid()) {
+                    $ext = strtolower($formalFile->getClientOriginalExtension());
+                    if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
+                        $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $formalFile->getClientOriginalName());
+                        $path = $formalFile->storeAs("uploads/registrations/{$regCode}", time() . "_{$pIdx}_formal_{$safeName}", 'public');
+                        $fileUrl = '/storage/' . $path;
+                        $pItem['photo_formal'] = $fileUrl;
+                        $pItem['photo'] = $fileUrl;
+                        $fileDocuments[] = [
+                            'title' => "Pas Foto Formal: {$pName}",
+                            'filename' => $formalFile->getClientOriginalName(),
+                            'url' => $fileUrl,
+                            'type' => $ext,
+                            'uploaded_at' => now()->toIso8601String(),
+                        ];
+                    }
+                }
+
+                // 2. Photo Freestyle (Foto Gaya Bebas - Bisa >1 File)
+                $freestyleFiles = $request->file("custom_fields.{$repeaterKey}.{$pIdx}.photo_freestyle")
+                    ?: ($request->file("{$repeaterKey}.{$pIdx}.photo_freestyle")
+                    ?: ($repeaterFiles[$pIdx]['photo_freestyle'] ?? null));
+
+                if (!empty($freestyleFiles)) {
+                    if (!is_array($freestyleFiles)) {
+                        $freestyleFiles = [$freestyleFiles];
+                    }
+                    $storedFreestyleUrls = [];
+                    foreach ($freestyleFiles as $fIdx => $fFile) {
+                        if ($fFile instanceof \Illuminate\Http\UploadedFile && $fFile->isValid()) {
+                            $ext = strtolower($fFile->getClientOriginalExtension());
+                            if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
+                                $safeName = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $fFile->getClientOriginalName());
+                                $path = $fFile->storeAs("uploads/registrations/{$regCode}", time() . "_{$pIdx}_bebas_{$fIdx}_{$safeName}", 'public');
+                                $fileUrl = '/storage/' . $path;
+                                $storedFreestyleUrls[] = $fileUrl;
+                                $fileDocuments[] = [
+                                    'title' => "Foto Gaya Bebas: {$pName}" . (count($freestyleFiles) > 1 ? " (#" . ($fIdx + 1) . ")" : ""),
+                                    'filename' => $fFile->getClientOriginalName(),
+                                    'url' => $fileUrl,
+                                    'type' => $ext,
+                                    'uploaded_at' => now()->toIso8601String(),
+                                ];
+                            }
+                        }
+                    }
+                    if (!empty($storedFreestyleUrls)) {
+                        $pItem['photo_freestyle'] = count($storedFreestyleUrls) === 1 ? $storedFreestyleUrls[0] : $storedFreestyleUrls;
+                        $pItem['photo_freestyle_urls'] = $storedFreestyleUrls;
+                    }
+                }
+            }
+            unset($pItem);
+            $customFields[$repeaterKey] = $repeaterList;
+        }
+
         if ($isAllInVerified && $existingAllIn) {
             $customFields['allin_code'] = $existingAllIn->reg_code;
             $customFields['linked_all_in_reg_code'] = $existingAllIn->reg_code;

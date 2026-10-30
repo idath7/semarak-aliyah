@@ -426,6 +426,8 @@ const activeBuilderRules = computed(() => {
     custom_id: { active: !!rawSubs.custom_id?.active, required: !!rawSubs.custom_id?.required, label: rawSubs.custom_id?.label || 'No. Dada / ID Game', placeholder: rawSubs.custom_id?.placeholder || 'ID Peserta...' },
     wa_number: { active: !!rawSubs.wa_number?.active, required: !!rawSubs.wa_number?.required, label: rawSubs.wa_number?.label || 'No. WhatsApp Siswa', placeholder: rawSubs.wa_number?.placeholder || '08xxxxxxxxxx' },
     captain_option: { active: !!rawSubs.captain_option?.active, required: false, label: rawSubs.captain_option?.label || 'Kapten Tim' },
+    photo_formal: { active: !!rawSubs.photo_formal?.active, required: !!rawSubs.photo_formal?.required, label: rawSubs.photo_formal?.label || 'Pas Foto Formal Siswa' },
+    photo_freestyle: { active: !!rawSubs.photo_freestyle?.active, required: !!rawSubs.photo_freestyle?.required, label: rawSubs.photo_freestyle?.label || 'Foto Pose Gaya Bebas' },
     custom_columns: Array.isArray(rawSubs.custom_columns) ? rawSubs.custom_columns : [],
   };
 
@@ -481,6 +483,8 @@ function openParticipantModal(compReg, schoolContext = null) {
         wa_number: st.wa_number || '',
         is_captain: !!st.is_captain,
         captain_wa: st.captain_wa || '',
+        photo_formal: st.photo_formal || st.photo || null,
+        photo_freestyle: st.photo_freestyle || [],
         custom_columns: st.custom_columns || {},
       });
     });
@@ -498,6 +502,8 @@ function openParticipantModal(compReg, schoolContext = null) {
       wa_number: '',
       is_captain: normalizedDelegates.length === 0 && !!activeBuilderRules.value.sub_fields.captain_option.active,
       captain_wa: '',
+      photo_formal: null,
+      photo_freestyle: [],
       custom_columns: {},
     });
   }

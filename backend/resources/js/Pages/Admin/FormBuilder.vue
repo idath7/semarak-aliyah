@@ -1749,6 +1749,44 @@ function setParticipantCountDirect(field, val) {
 
     <div class="form-builder-wrapper pb-5">
       <!-- ============================================================== -->
+      <!-- TOP BREADCRUMB & PAGE TITLE BANNER                             -->
+      <!-- ============================================================== -->
+      <div class="row align-items-center mb-3 g-2 d-print-none">
+        <div class="col-12 col-md-6">
+          <div class="d-flex align-items-center gap-2">
+            <div class="avatar-sm flex-shrink-0">
+              <span class="avatar-title bg-primary-subtle text-primary rounded-circle fs-20">
+                <i class="ri-survey-line"></i>
+              </span>
+            </div>
+            <div>
+              <h4 class="fw-bold text-dark mb-0">Form Builder Dinamis</h4>
+              <p class="text-muted fs-12 mb-0">
+                Kustomisasi headline formulir, pertanyaan dinamis, dan multi delegasi peserta per cabang lomba.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-md-6 text-md-end d-flex flex-wrap align-items-center justify-content-md-end gap-2">
+          <!-- Active Competition Badge -->
+          <span class="badge bg-light text-dark border fs-12 py-1.5 px-3 rounded-pill d-inline-flex align-items-center gap-1.5 shadow-xs">
+            <i class="ri-trophy-line text-warning"></i>
+            <span class="fw-semibold">{{ selectedCompetition?.title || 'Semua Cabang' }}</span>
+          </span>
+          <!-- Quick Link to Public Form -->
+          <a 
+            :href="`/formulir-pendaftaran?competition=${currentCompId}`" 
+            target="_blank" 
+            class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 shadow-sm"
+            title="Buka Formulir Publik di Tab Baru"
+          >
+            <i class="ri-external-link-line fs-13"></i>
+            <span>Buka Formulir Publik</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- ============================================================== -->
       <!-- TOP COMMAND BAR: SWITCHER, STATUS, VIEW MODES, SAVE            -->
       <!-- ============================================================== -->
       <div class="card border-0 shadow-sm mb-3 top-command-bar">
@@ -3281,7 +3319,7 @@ function setParticipantCountDirect(field, val) {
                       {{ selectedCompetition?.title }}
                     </h5>
                     <p class="text-[11px] text-slate-400 mb-0">
-                      {{ formSettings.form_subtitle || `Biaya: Rp ${Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID')}` }}
+                      {{ formSettings.form_subtitle || `Biaya Pendaftaran: Rp ${Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID')} • Kuota: ${selectedCompetition?.current_quota || 0}/${selectedCompetition?.max_quota || 0}` }}
                     </p>
                   </div>
 
@@ -3739,7 +3777,7 @@ function setParticipantCountDirect(field, val) {
                   {{ selectedCompetition?.title }}
                 </h2>
                 <p class="text-xs text-slate-400 mt-1">
-                  {{ formSettings.form_subtitle || `Kategori: ${selectedCompetition?.category_label || selectedCompetition?.category} • Biaya: Rp ${Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID')}` }}
+                  {{ formSettings.form_subtitle || `Biaya Pendaftaran: Rp ${Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID')} • Kuota: ${selectedCompetition?.current_quota || 0}/${selectedCompetition?.max_quota || 0}` }}
                 </p>
               </div>
 
@@ -4231,33 +4269,36 @@ function setParticipantCountDirect(field, val) {
             </div>
 
             <div class="mb-3">
-              <label class="form-label fs-12 fw-semibold text-dark">Judul Header Formulir:</label>
+              <label class="form-label fs-12 fw-semibold text-dark mb-1">Headline / Judul Utama Formulir:</label>
               <input 
                 type="text" 
                 v-model="formSettings.form_title"
                 class="form-control fs-12"
-                placeholder="Contoh: FORMULIR PENDAFTARAN DELEGASI"
+                :placeholder="selectedCompetition?.title ? `Contoh: Formulir Pendaftaran ${selectedCompetition.title}` : 'Contoh: FORMULIR PENDAFTARAN DELEGASI'"
               />
+              <div class="fs-11 text-muted mt-1">Judul yang tampil di bagian paling atas formulir pendaftaran.</div>
             </div>
 
             <div class="mb-3">
-              <label class="form-label fs-12 fw-semibold text-dark">Teks Subtitle / Petunjuk:</label>
+              <label class="form-label fs-12 fw-semibold text-dark mb-1">Subtitle / Petunjuk Formulir:</label>
               <input 
                 type="text" 
                 v-model="formSettings.form_subtitle"
                 class="form-control fs-12"
-                placeholder="Contoh: Silakan isi data delegasi di bawah ini dengan lengkap..."
+                placeholder="Contoh: Silakan isi data delegasi sekolah dan peserta di bawah ini dengan lengkap..."
               />
+              <div class="fs-11 text-muted mt-1">Penjelasan atau instruksi ringkas di bawah judul formulir.</div>
             </div>
 
             <div class="mb-2">
-              <label class="form-label fs-12 fw-semibold text-dark">Teks Tombol Kirim (Submit):</label>
+              <label class="form-label fs-12 fw-semibold text-dark mb-1">Teks Tombol Kirim (Submit):</label>
               <input 
                 type="text" 
                 v-model="formSettings.submit_text"
                 class="form-control fs-12"
                 placeholder="Contoh: Kirim Pendaftaran Delegasi"
               />
+              <div class="fs-11 text-muted mt-1">Label teks pada tombol pengiriman di akhir formulir.</div>
             </div>
             </fieldset>
           </div>

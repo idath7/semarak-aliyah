@@ -388,8 +388,84 @@ function createEmptyParticipant() {
     custom_id: '',
     wa_number: '',
     is_captain: false,
+    photo_formal: null,
+    photo_formal_preview: null,
+    photo_freestyle: [],
+    photo_freestyle_previews: [],
     custom_columns: {},
   };
+}
+
+function handleParticipantPhotoFormal(pIdx, e) {
+  const file = e.target?.files?.[0];
+  if (!file || !participantsList.value[pIdx]) return;
+  if (!file.type.startsWith('image/')) {
+    toast.error('Format berkas harus berupa gambar (JPG, PNG, WEBP)');
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('Ukuran foto maksimal 5 MB');
+    return;
+  }
+  if (participantsList.value[pIdx].photo_formal_preview) {
+    URL.revokeObjectURL(participantsList.value[pIdx].photo_formal_preview);
+  }
+  participantsList.value[pIdx].photo_formal = file;
+  participantsList.value[pIdx].photo_formal_preview = URL.createObjectURL(file);
+  toast.success(`Pas foto peserta #${pIdx + 1} berhasil dipilih`);
+}
+
+function removeParticipantPhotoFormal(pIdx) {
+  if (!participantsList.value[pIdx]) return;
+  if (participantsList.value[pIdx].photo_formal_preview) {
+    URL.revokeObjectURL(participantsList.value[pIdx].photo_formal_preview);
+  }
+  participantsList.value[pIdx].photo_formal = null;
+  participantsList.value[pIdx].photo_formal_preview = null;
+  const inputEl = document.getElementById(`reg_photo_formal_${pIdx + 1}`);
+  if (inputEl) inputEl.value = '';
+}
+
+function handleParticipantPhotoFreestyle(pIdx, e) {
+  const files = Array.from(e.target?.files || []);
+  if (!files.length || !participantsList.value[pIdx]) return;
+
+  const current = Array.isArray(participantsList.value[pIdx].photo_freestyle) ? [...participantsList.value[pIdx].photo_freestyle] : [];
+  const currentPreviews = Array.isArray(participantsList.value[pIdx].photo_freestyle_previews) ? [...participantsList.value[pIdx].photo_freestyle_previews] : [];
+
+  let added = 0;
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) {
+      toast.error(`Berkas "${file.name}" bukan gambar.`);
+      continue;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(`Berkas "${file.name}" melebihi 5 MB.`);
+      continue;
+    }
+    current.push(file);
+    currentPreviews.push(URL.createObjectURL(file));
+    added++;
+  }
+
+  participantsList.value[pIdx].photo_freestyle = current;
+  participantsList.value[pIdx].photo_freestyle_previews = currentPreviews;
+  if (added > 0) {
+    toast.success(`${added} foto pose gaya bebas ditambahkan untuk peserta #${pIdx + 1}`);
+  }
+  const inputEl = document.getElementById(`reg_photo_freestyle_${pIdx + 1}`);
+  if (inputEl) inputEl.value = '';
+}
+
+function removeParticipantPhotoFreestyleItem(pIdx, fIdx) {
+  if (!participantsList.value[pIdx]) return;
+  if (participantsList.value[pIdx].photo_freestyle_previews?.[fIdx]) {
+    URL.revokeObjectURL(participantsList.value[pIdx].photo_freestyle_previews[fIdx]);
+    participantsList.value[pIdx].photo_freestyle_previews.splice(fIdx, 1);
+  }
+  if (Array.isArray(participantsList.value[pIdx].photo_freestyle)) {
+    participantsList.value[pIdx].photo_freestyle.splice(fIdx, 1);
+  }
 }
 
 const participantsList = ref([createEmptyParticipant()]);
@@ -675,6 +751,26 @@ function submitRegistration() {
   // Compile participants names from repeater if present
   if (repeaterField.value) {
     const list = participantsList.value.slice(0, participantCount.value);
+    const subFields = repeaterField.value?.sub_fields || {};
+
+    // Validate participant photos if required
+    if (subFields.photo_formal?.active && subFields.photo_formal?.required) {
+      for (let i = 0; i < list.length; i++) {
+        if (!list[i].photo_formal) {
+          toast.error(`Pas foto formal peserta #${i + 1} (${list[i].name || 'Tanpa Nama'}) wajib diunggah.`);
+          return;
+        }
+      }
+    }
+    if (subFields.photo_freestyle?.active && subFields.photo_freestyle?.required) {
+      for (let i = 0; i < list.length; i++) {
+        if (!list[i].photo_freestyle || (Array.isArray(list[i].photo_freestyle) && list[i].photo_freestyle.length === 0)) {
+          toast.error(`Foto gaya bebas peserta #${i + 1} (${list[i].name || 'Tanpa Nama'}) wajib diunggah minimal 1 foto.`);
+          return;
+        }
+      }
+    }
+
     const lines = [];
     for (let i = 0; i < list.length; i++) {
       const p = list[i];
@@ -696,7 +792,15 @@ function submitRegistration() {
     }
     form.participants_names = lines.join('\n');
     if (!form.custom_fields) form.custom_fields = {};
-    form.custom_fields[repeaterField.value.name] = list;
+
+    // Clean preview URLs before passing to form
+    const cleanList = list.map(p => {
+      const cp = { ...p };
+      delete cp.photo_formal_preview;
+      delete cp.photo_freestyle_previews;
+      return cp;
+    });
+    form.custom_fields[repeaterField.value.name] = cleanList;
     form.custom_fields[repeaterField.value.name + '_count'] = participantCount.value;
   }
 
@@ -1704,6 +1808,165 @@ function handleUnifiedSubmit() {
                             />
                           </div>
                         </template>
+
+                        <!-- Upload Pas Foto Formal Siswa (1 File) -->
+                        <div v-if="repeaterField.sub_fields?.photo_formal?.active" class="col-12 col-md-6">
+                          <label class="form-label fs-12 fw-semibold reg-label mb-0.5 d-flex justify-content-between align-items-center">
+                            <span class="d-flex align-items-center gap-1">
+                              <i class="ri-camera-line text-primary"></i>
+                              <span>{{ repeaterField.sub_fields.photo_formal.label || 'Upload Pas Foto Formal' }}</span>
+                              <span v-if="repeaterField.sub_fields.photo_formal.required" class="text-danger">*</span>
+                            </span>
+                            <span class="badge bg-primary-subtle text-primary fs-10">Maks. 5 MB (1 File)</span>
+                          </label>
+
+                          <!-- Preview jika sudah ada foto -->
+                          <div 
+                            v-if="participantsList[pIdx - 1].photo_formal"
+                            class="p-2 rounded-3 border bg-light d-flex align-items-center justify-content-between gap-2"
+                          >
+                            <div class="d-flex align-items-center gap-2 overflow-hidden">
+                              <div class="rounded border overflow-hidden flex-shrink-0" style="width: 42px; height: 52px; background: #eaedf1;">
+                                <img 
+                                  v-if="participantsList[pIdx - 1].photo_formal_preview" 
+                                  :src="participantsList[pIdx - 1].photo_formal_preview" 
+                                  alt="Pas Foto" 
+                                  class="w-100 h-100 object-fit-cover"
+                                />
+                                <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
+                                  <i class="ri-user-line fs-18"></i>
+                                </div>
+                              </div>
+                              <div class="overflow-hidden text-start">
+                                <div class="fs-12 fw-bold text-dark text-truncate">{{ participantsList[pIdx - 1].photo_formal.name }}</div>
+                                <div class="fs-10 text-muted">{{ (participantsList[pIdx - 1].photo_formal.size / 1024).toFixed(1) }} KB • Foto Formal</div>
+                              </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                              <input 
+                                type="file" 
+                                class="d-none" 
+                                :id="`reg_photo_formal_${pIdx}`"
+                                accept="image/*"
+                                @change="handleParticipantPhotoFormal(pIdx - 1, $event)"
+                              />
+                              <label 
+                                :for="`reg_photo_formal_${pIdx}`" 
+                                class="btn btn-xs btn-outline-secondary mb-0 cursor-pointer"
+                                title="Ganti Foto"
+                              >
+                                <i class="ri-refresh-line"></i>
+                              </label>
+                              <button 
+                                type="button" 
+                                class="btn btn-xs btn-outline-danger" 
+                                @click="removeParticipantPhotoFormal(pIdx - 1)"
+                                title="Hapus Foto"
+                              >
+                                <i class="ri-delete-bin-line"></i>
+                              </button>
+                            </div>
+                          </div>
+
+                          <!-- Dropzone jika belum ada foto -->
+                          <div 
+                            v-else
+                            class="border border-dashed rounded-3 p-2.5 text-center bg-light cursor-pointer hover-bg-subtle transition-all"
+                          >
+                            <input 
+                              type="file" 
+                              class="d-none" 
+                              :id="`reg_photo_formal_${pIdx}`"
+                              accept="image/*"
+                              @change="handleParticipantPhotoFormal(pIdx - 1, $event)"
+                            />
+                            <label :for="`reg_photo_formal_${pIdx}`" class="cursor-pointer mb-0 w-100 d-block">
+                              <i class="ri-camera-line text-primary fs-20"></i>
+                              <div class="fs-11 fw-semibold text-dark mt-0.5">Pilih Pas Foto Formal Siswa</div>
+                              <div class="fs-10 text-muted">Format JPG, PNG, WEBP (Maks. 5 MB)</div>
+                            </label>
+                          </div>
+                        </div>
+
+                        <!-- Upload Foto Siswa Pose Gaya Bebas (Bisa >1 File) -->
+                        <div v-if="repeaterField.sub_fields?.photo_freestyle?.active" class="col-12 col-md-6">
+                          <label class="form-label fs-12 fw-semibold reg-label mb-0.5 d-flex justify-content-between align-items-center">
+                            <span class="d-flex align-items-center gap-1">
+                              <i class="ri-gallery-upload-line text-success"></i>
+                              <span>{{ repeaterField.sub_fields.photo_freestyle.label || 'Foto Pose Gaya Bebas' }}</span>
+                              <span v-if="repeaterField.sub_fields.photo_freestyle.required" class="text-danger">*</span>
+                            </span>
+                            <span class="badge bg-success-subtle text-success fs-10">Bisa >1 Foto</span>
+                          </label>
+
+                          <!-- Galeri Preview jika sudah ada foto -->
+                          <div 
+                            v-if="participantsList[pIdx - 1].photo_freestyle?.length"
+                            class="p-2 rounded-3 border bg-light"
+                          >
+                            <div class="d-flex flex-wrap gap-1.5 mb-1.5">
+                              <div 
+                                v-for="(f, fIdx) in participantsList[pIdx - 1].photo_freestyle" 
+                                :key="fIdx"
+                                class="position-relative rounded border overflow-hidden"
+                                style="width: 48px; height: 58px; background: #eaedf1;"
+                              >
+                                <img 
+                                  v-if="participantsList[pIdx - 1].photo_freestyle_previews?.[fIdx]" 
+                                  :src="participantsList[pIdx - 1].photo_freestyle_previews[fIdx]" 
+                                  alt="Foto Bebas" 
+                                  class="w-100 h-100 object-fit-cover"
+                                />
+                                <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
+                                  <i class="ri-image-line fs-14"></i>
+                                </div>
+                                <button 
+                                  type="button" 
+                                  class="btn btn-danger btn-icon btn-xs position-absolute top-0 end-0 p-0 rounded-circle"
+                                  style="width: 16px; height: 16px; font-size: 10px; line-height: 1;"
+                                  @click.stop="removeParticipantPhotoFreestyleItem(pIdx - 1, fIdx)"
+                                  title="Hapus foto ini"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </div>
+                            <div class="d-flex align-items-center justify-content-between pt-1 border-top fs-11">
+                              <span class="text-muted">{{ participantsList[pIdx - 1].photo_freestyle.length }} foto terpilih</span>
+                              <input 
+                                type="file" 
+                                class="d-none" 
+                                :id="`reg_photo_freestyle_add_${pIdx}`"
+                                multiple
+                                accept="image/*"
+                                @change="handleParticipantPhotoFreestyle(pIdx - 1, $event)"
+                              />
+                              <label :for="`reg_photo_freestyle_add_${pIdx}`" class="btn btn-xs btn-outline-success mb-0 cursor-pointer d-inline-flex align-items-center gap-1">
+                                <i class="ri-add-line"></i> Tambah Foto
+                              </label>
+                            </div>
+                          </div>
+
+                          <!-- Dropzone jika belum ada foto -->
+                          <div 
+                            v-else
+                            class="border border-dashed rounded-3 p-2.5 text-center bg-light cursor-pointer hover-bg-subtle transition-all"
+                          >
+                            <input 
+                              type="file" 
+                              class="d-none" 
+                              :id="`reg_photo_freestyle_${pIdx}`"
+                              multiple
+                              accept="image/*"
+                              @change="handleParticipantPhotoFreestyle(pIdx - 1, $event)"
+                            />
+                            <label :for="`reg_photo_freestyle_${pIdx}`" class="cursor-pointer mb-0 w-100 d-block">
+                              <i class="ri-images-line text-success fs-20"></i>
+                              <div class="fs-11 fw-semibold text-dark mt-0.5">Pilih Satu atau Beberapa Foto Pose Bebas</div>
+                              <div class="fs-10 text-muted">Bisa upload >1 foto (JPG, PNG, WEBP, Maks. 5 MB)</div>
+                            </label>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

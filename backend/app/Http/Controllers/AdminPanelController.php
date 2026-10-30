@@ -4027,6 +4027,9 @@ class AdminPanelController extends Controller
         ]);
 
         $namesList = [];
+        $customFields = is_array($registration->custom_fields) ? $registration->custom_fields : [];
+        $existingDelegates = $customFields['delegates'] ?? ($customFields['biodata_peserta'] ?? []);
+
         $cleanedDelegates = [];
         foreach ($validated['delegates'] as $idx => $st) {
             $name = trim($st['name'] ?? '');
@@ -4046,6 +4049,9 @@ class AdminPanelController extends Controller
                 'wa_number' => $st['wa_number'] ?? '',
                 'is_captain' => !empty($st['is_captain']),
                 'captain_wa' => $st['captain_wa'] ?? '',
+                'photo_formal' => $st['photo_formal'] ?? ($st['photo'] ?? ($existingDelegates[$idx]['photo_formal'] ?? ($existingDelegates[$idx]['photo'] ?? null))),
+                'photo' => $st['photo_formal'] ?? ($st['photo'] ?? ($existingDelegates[$idx]['photo'] ?? ($existingDelegates[$idx]['photo_formal'] ?? null))),
+                'photo_freestyle' => $st['photo_freestyle'] ?? ($existingDelegates[$idx]['photo_freestyle'] ?? null),
                 'custom_columns' => $st['custom_columns'] ?? [],
             ];
         }
@@ -4054,8 +4060,10 @@ class AdminPanelController extends Controller
             return redirect()->back()->with('error', 'Minimal harus mengisi 1 nama peserta delegasi yang valid.');
         }
 
-        $customFields = is_array($registration->custom_fields) ? $registration->custom_fields : [];
         $customFields['delegates'] = $cleanedDelegates;
+        if (isset($customFields['biodata_peserta'])) {
+            $customFields['biodata_peserta'] = $cleanedDelegates;
+        }
 
         if (!empty($validated['additional_fields'])) {
             foreach ($validated['additional_fields'] as $k => $v) {

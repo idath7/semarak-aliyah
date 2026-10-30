@@ -924,6 +924,21 @@ class AdminPanelController extends Controller
     {
         $reg = Registration::findOrFail($id);
 
+        // Validasi: Cegah verifikasi jika pendaftaran berstatus "Menunggu Pengisian Peserta" (belum final / ditunda)
+        $isAttemptingVerify = (
+            $request->input('registration_status') === 'Terverifikasi' || 
+            $request->input('status') === 'Terverifikasi' ||
+            (!$request->has('registration_status') && !$request->has('payment_status') && !$request->has('status'))
+        );
+
+        if ($reg->registration_status === 'Menunggu Pengisian Peserta' && $isAttemptingVerify) {
+            $delegates = $reg->custom_fields['delegates'] ?? [];
+            $hasRealDelegates = !empty($delegates) && is_array($delegates) && count(array_filter($delegates, fn($d) => !empty($d['name'] ?? null))) > 0;
+            if (!$hasRealDelegates && ($reg->participants_names === 'Pengisian Ditunda (Diisi Nanti)' || $reg->participants_names === 'Belum Ada Delegasi (Perlu Input)' || empty($reg->participants_names))) {
+                return redirect()->back()->with('error', 'Pendaftaran kontingen ini belum bisa diverifikasi karena pengisian delegasi peserta masih ditunda (belum lengkap). Silakan lengkapi data peserta terlebih dahulu melalui menu Kelola Delegasi.');
+            }
+        }
+
         if ($request->has('registration_status')) {
             $reg->registration_status = $request->input('registration_status');
         }
@@ -3874,6 +3889,8 @@ class AdminPanelController extends Controller
             'custom_fee' => 'nullable|numeric|min:0',
             'package_price' => 'nullable|numeric|min:0',
             'students' => 'nullable|array',
+            'delegates_by_comp' => 'nullable|array',
+            'save_mode' => 'nullable|string|in:draft,final',
             'participants_text' => 'nullable|string',
             'custom_fields' => 'nullable|array',
             'payment_status' => 'required|string|in:Terverifikasi,Menunggu Verifikasi,Belum Bayar',
@@ -3884,6 +3901,7 @@ class AdminPanelController extends Controller
 
         $cleanWa = Setting::formatWaNumber($validated['mentor_wa']);
         $schoolName = trim($validated['school_name']);
+        $saveMode = $validated['save_mode'] ?? ($validated['target_action'] === 'save_only' ? 'draft' : 'final');
 
         // Cari atau buat akun di tabel registrants untuk pembina ini agar tercatat di sistem
         $user = \App\Models\Registrant::where('phone', $cleanWa)->first();
@@ -3908,14 +3926,24 @@ class AdminPanelController extends Controller
             ]);
         }
 
-        // Susun delegasi siswa
+        // Susun delegasi siswa untuk single/default
         $students = $validated['students'] ?? [];
         $namesList = [];
+        $cleanedStudents = [];
         if (!empty($students) && is_array($students)) {
             foreach ($students as $idx => $st) {
-                if (!empty($st['name'])) {
-                    $nisnText = !empty($st['nisn']) ? " (NISN: {$st['nisn']})" : "";
-                    $namesList[] = ($idx + 1) . ". " . trim($st['name']) . $nisnText;
+                $stName = trim($st['name'] ?? '');
+                if (!empty($stName)) {
+                    $nisnText = !empty($st['nisn']) && $st['nisn'] !== '-' ? " (NISN: {$st['nisn']})" : "";
+                    $roleText = !empty($st['is_captain']) ? " [Kapten]" : "";
+                    $namesList[] = ($idx + 1) . ". " . $stName . $roleText . $nisnText;
+                    $cleanedStudents[] = [
+                        'name' => $stName,
+                        'nisn' => $st['nisn'] ?? '',
+                        'gender' => $st['gender'] ?? 'Laki-laki',
+                        'grade' => $st['grade'] ?? '7',
+                        'is_captain' => !empty($st['is_captain']),
+                    ];
                 }
             }
         }
@@ -3926,7 +3954,7 @@ class AdminPanelController extends Controller
                 $c = trim($line);
                 if (!empty($c)) {
                     $namesList[] = ($i + 1) . ". " . $c;
-                    $students[] = [
+                    $cleanedStudents[] = [
                         'name' => $c,
                         'nisn' => '-',
                         'gender' => '-',
@@ -3936,7 +3964,6 @@ class AdminPanelController extends Controller
             }
         }
 
-        $participantsString = !empty($namesList) ? implode("\n", $namesList) : 'Belum Ada Delegasi (Perlu Input)';
         $createdRegistrations = [];
 
         $customFieldsBase = array_merge($validated['custom_fields'] ?? [], [
@@ -3949,7 +3976,7 @@ class AdminPanelController extends Controller
             'school_address' => $validated['alamat'] ?? null,
             'team_name' => $validated['team_name'] ?? null,
             'nama_tim' => $validated['team_name'] ?? null,
-            'delegates' => $students,
+            'is_draft_delegates' => ($saveMode === 'draft'),
             'registered_by_admin' => Auth::guard('web')->user()?->name ?? 'Panitia Admin',
             'registered_at_desk' => now()->toIso8601String(),
         ]);
@@ -3966,6 +3993,21 @@ class AdminPanelController extends Controller
 
             $regCode = 'SA26-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 6));
 
+            if ($saveMode === 'draft') {
+                $participantsString = 'Pengisian Ditunda (Diisi Nanti)';
+                $regStatus = 'Menunggu Pengisian Peserta';
+                $notesPrefix = '[Pengisian Delegasi Ditunda / Diisi Nanti] ';
+            } else {
+                $participantsString = !empty($namesList) ? implode("\n", $namesList) : 'Belum Ada Delegasi (Perlu Input)';
+                $regStatus = ($validated['payment_status'] === 'Terverifikasi') ? 'Terverifikasi' : 'Menunggu Verifikasi';
+                $notesPrefix = '';
+            }
+
+            $compCustomFields = array_merge($customFieldsBase, [
+                'delegates' => $cleanedStudents,
+                'biodata_peserta' => $cleanedStudents,
+            ]);
+
             $reg = Registration::create([
                 'registrant_id' => $user->id,
                 'user_id' => $user->id,
@@ -3979,11 +4021,11 @@ class AdminPanelController extends Controller
                 'competition_title' => $competition->title,
                 'participants_names' => $participantsString,
                 'total_fee' => $fee,
-                'registration_status' => 'Terverifikasi',
+                'registration_status' => $regStatus,
                 'payment_status' => $validated['payment_status'],
                 'payment_method' => $validated['payment_method'],
-                'notes' => $validated['notes'] ?? 'Pendaftaran di tempat (Meja Panitia)',
-                'custom_fields' => $customFieldsBase,
+                'notes' => $notesPrefix . ($validated['notes'] ?? 'Pendaftaran di tempat (Meja Panitia)'),
+                'custom_fields' => $compCustomFields,
             ]);
 
             $createdRegistrations[] = $reg;
@@ -4001,10 +4043,74 @@ class AdminPanelController extends Controller
                 ? (int)$validated['package_price'] 
                 : $defaultAllinPrice;
 
+            $delegatesByComp = $validated['delegates_by_comp'] ?? [];
+
             $isFirst = true;
             foreach ($competitions as $comp) {
                 $regCode = 'SA26-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 6));
                 $fee = $isFirst ? $packagePrice : 0; // Hanya master cabang pertama yang memegang tagihan biaya all-in
+
+                $compStudents = [];
+                $compNames = [];
+
+                if ($saveMode === 'draft') {
+                    $compParticipantsString = 'Pengisian Ditunda (Diisi Nanti)';
+                    $compRegStatus = 'Menunggu Pengisian Peserta';
+                    $compNotesPrefix = '[Pengisian Delegasi Ditunda / Diisi Nanti] ';
+
+                    // Jika ada sebagian delegates yang sudah sempat diinput
+                    $rawCompSt = $delegatesByComp[$comp->id] ?? ($isFirst ? $cleanedStudents : []);
+                    if (!empty($rawCompSt) && is_array($rawCompSt)) {
+                        foreach ($rawCompSt as $idx => $st) {
+                            $stName = trim($st['name'] ?? '');
+                            if (!empty($stName)) {
+                                $compStudents[] = [
+                                    'name' => $stName,
+                                    'nisn' => $st['nisn'] ?? '',
+                                    'gender' => $st['gender'] ?? 'Laki-laki',
+                                    'grade' => $st['grade'] ?? '7',
+                                    'is_captain' => !empty($st['is_captain']),
+                                ];
+                            }
+                        }
+                    }
+                } else {
+                    // Mode Final: ambil dari delegates_by_comp jika ada, atau default $cleanedStudents untuk cabang pertama
+                    $rawCompSt = $delegatesByComp[$comp->id] ?? ($isFirst ? $cleanedStudents : []);
+                    if (!empty($rawCompSt) && is_array($rawCompSt)) {
+                        foreach ($rawCompSt as $idx => $st) {
+                            $stName = trim($st['name'] ?? '');
+                            if (!empty($stName)) {
+                                $nisnText = !empty($st['nisn']) && $st['nisn'] !== '-' ? " (NISN: {$st['nisn']})" : "";
+                                $roleText = !empty($st['is_captain']) ? " [Kapten]" : "";
+                                $compNames[] = ($idx + 1) . ". " . $stName . $roleText . $nisnText;
+                                $compStudents[] = [
+                                    'name' => $stName,
+                                    'nisn' => $st['nisn'] ?? '',
+                                    'gender' => $st['gender'] ?? 'Laki-laki',
+                                    'grade' => $st['grade'] ?? '7',
+                                    'is_captain' => !empty($st['is_captain']),
+                                ];
+                            }
+                        }
+                    }
+
+                    if (!empty($compNames)) {
+                        $compParticipantsString = implode("\n", $compNames);
+                        $compRegStatus = ($validated['payment_status'] === 'Terverifikasi') ? 'Terverifikasi' : 'Menunggu Verifikasi';
+                        $compNotesPrefix = '';
+                    } else {
+                        // Jika cabang ini belum diisi peserta pada saat simpan final paket all-in
+                        $compParticipantsString = 'Pengisian Ditunda (Diisi Nanti)';
+                        $compRegStatus = 'Menunggu Pengisian Peserta';
+                        $compNotesPrefix = '[Delegasi Belum Diisi] ';
+                    }
+                }
+
+                $compCustomFields = array_merge($customFieldsBase, [
+                    'delegates' => $compStudents,
+                    'biodata_peserta' => $compStudents,
+                ]);
 
                 $reg = Registration::create([
                     'registrant_id' => $user->id,
@@ -4017,13 +4123,13 @@ class AdminPanelController extends Controller
                     'package_type' => 'Paket All-In',
                     'competition_id' => $comp->id,
                     'competition_title' => $comp->title,
-                    'participants_names' => $participantsString,
+                    'participants_names' => $compParticipantsString,
                     'total_fee' => $fee,
-                    'registration_status' => 'Terverifikasi',
+                    'registration_status' => $compRegStatus,
                     'payment_status' => $validated['payment_status'],
                     'payment_method' => $validated['payment_method'],
-                    'notes' => $validated['notes'] ?? 'Pendaftaran di tempat Paket Komplit (All-In)',
-                    'custom_fields' => $customFieldsBase,
+                    'notes' => $compNotesPrefix . ($validated['notes'] ?? 'Pendaftaran di tempat Paket Komplit (All-In)'),
+                    'custom_fields' => $compCustomFields,
                 ]);
 
                 $createdRegistrations[] = $reg;
@@ -4044,10 +4150,15 @@ class AdminPanelController extends Controller
 
         $count = count($createdRegistrations);
         $firstReg = $createdRegistrations[0] ?? null;
-        $targetAction = $validated['target_action'] ?? 'manage_delegates';
+        $targetAction = $validated['target_action'] ?? ($saveMode === 'draft' ? 'save_only' : 'manage_delegates');
+
+        $statusFeedback = ($saveMode === 'draft')
+            ? "sebagai DRAF / Pengisian Ditunda ({$count} cabang lomba). Status belum final dan belum bisa diverifikasi sampai data peserta dilengkapi."
+            : "secara FINAL ({$count} cabang lomba terdata)!";
 
         return redirect()->back()->with([
-            'success' => "Pendaftaran kontingen {$schoolName} berhasil disimpan ({$count} cabang lomba terdata)!",
+            'success' => "Pendaftaran kontingen {$schoolName} berhasil disimpan {$statusFeedback}",
+            'save_mode' => $saveMode,
             'newly_registered' => $firstReg ? [
                 'registration_id' => $firstReg->id,
                 'reg_code' => $firstReg->reg_code,
@@ -4066,6 +4177,7 @@ class AdminPanelController extends Controller
                 'package_type' => $r->package_type,
                 'total_fee' => (int)$r->total_fee,
                 'payment_status' => $r->payment_status,
+                'registration_status' => $r->registration_status,
                 'students' => $r->custom_fields['delegates'] ?? [],
                 'custom_fields' => $r->custom_fields ?? [],
             ], $createdRegistrations),
@@ -4143,10 +4255,20 @@ class AdminPanelController extends Controller
         $customFields['participants_updated_by'] = Auth::guard('web')->user()?->name ?? 'Panitia Admin';
         $customFields['participants_updated_at'] = now()->toIso8601String();
 
-        $registration->update([
+        $updatePayload = [
             'participants_names' => implode("\n", $namesList),
             'custom_fields' => $customFields,
-        ]);
+        ];
+
+        // Jika pendaftaran ini sebelumnya berstatus "Menunggu Pengisian Peserta" (ditunda / draf),
+        // maka setelah delegasi diisi, otomatis promosikan statusnya sehingga dapat diverifikasi
+        if ($registration->registration_status === 'Menunggu Pengisian Peserta') {
+            $updatePayload['registration_status'] = ($registration->payment_status === 'Terverifikasi')
+                ? 'Terverifikasi'
+                : 'Menunggu Verifikasi';
+        }
+
+        $registration->update($updatePayload);
 
         return redirect()->back()->with('success', "Data peserta delegasi {$registration->competition_title} ({$registration->reg_code}) berhasil diperbarui sesuai aturan form builder!");
     }

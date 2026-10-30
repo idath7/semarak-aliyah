@@ -360,27 +360,6 @@ const allinCodeField = computed(() => {
   return fields.find(f => isAllInCodeField(f)) || null;
 });
 
-// Mengecek apakah posisi Kode Paket Komplit berada sebelum repeater/peserta (misal di Section 1)
-const isAllInCodeBeforeRepeater = computed(() => {
-  const fields = activeComp.value?.custom_fields || [];
-  const allinIdx = fields.findIndex(f => isAllInCodeField(f));
-  if (allinIdx === -1) return true; // Default tetap di Section 1 jika tidak diatur khusus
-
-  const repIdx = fields.findIndex(f => f && f.type === 'participant_repeater');
-  if (repIdx !== -1) {
-    return allinIdx < repIdx;
-  }
-
-  // Jika tidak ada participant_repeater, bandingkan dengan field identitas terakhir
-  let lastIdIdx = -1;
-  fields.forEach((f, idx) => {
-    if (isMandatoryIdentity(f)) {
-      lastIdIdx = Math.max(lastIdIdx, idx);
-    }
-  });
-  return allinIdx <= lastIdIdx;
-});
-
 // Additional Custom Fields (non-identity, non-repeater, dan BUKAN field tim)
 const otherCustomFields = computed(() => {
   const fields = activeComp.value?.custom_fields || [];
@@ -388,10 +367,13 @@ const otherCustomFields = computed(() => {
     if (isMandatoryIdentity(f)) return false;
     if (f.type === 'participant_repeater') return false;
     if (teamFieldConfig.value && (f.name === teamFieldConfig.value.name || isTeamFieldName(f.name, f.label))) return false;
-    // Jika field adalah kode paket komplit dan posisinya sebelum repeater, maka dirender di Section 1
-    if (isAllInCodeField(f) && isAllInCodeBeforeRepeater.value) return false;
     return true;
   });
+});
+
+// Cek apakah allin_code sudah dirender di otherCustomFields (Section 3)
+const isAllInCodeRenderedInCustomFields = computed(() => {
+  return otherCustomFields.value.some(f => isAllInCodeField(f));
 });
 
 // Participant Count Calculation & Bounds
@@ -1947,46 +1929,6 @@ onMounted(() => {
                   <p v-if="getFieldHelpText('mentor_email')" class="text-[11px] text-on-surface-variant">{{ getFieldHelpText('mentor_email') }}</p>
                 </div>
               </div>
-
-              <!-- Input & Verifikasi Kode Paket Komplit (All-In) Jika Posisi di Section 1 -->
-              <div v-if="isAllInCodeBeforeRepeater" class="p-3 sm:p-4 rounded-xl border border-dashed border-primary/40 bg-emerald-light/30 space-y-2 sm:space-y-2.5">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                  <label class="form-label-aligned">
-                    <i class="ri-vip-crown-line text-primary"></i>
-                    <span>{{ allinCodeField?.label || getFieldLabel('allin_code', 'Punya Kode Paket Komplit (All-In)?') }}</span>
-                  </label>
-                  <span class="text-[11px] text-amber-dark font-medium bg-amber-soft px-2 py-0.5 rounded w-fit">Gratis Biaya Cabang (Rp 0)</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <div class="relative flex-1">
-                    <input 
-                      v-model="form.custom_fields[allinCodeField?.name || 'allin_code']"
-                      type="text" 
-                      :placeholder="allinCodeField?.placeholder || getFieldPlaceholder('allin_code', 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)')" 
-                      class="w-full h-10 px-3 sm:px-3.5 rounded-lg border border-border-subtle bg-white dark:bg-[#111d17] text-xs font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:font-body placeholder:normal-case placeholder:text-gray-400 text-on-surface"
-                    >
-                  </div>
-                  <button 
-                    type="button" 
-                    @click="verifyPackageCodeManual" 
-                    :disabled="isCheckingPackageCode"
-                    class="h-10 px-3.5 sm:px-4 rounded-lg bg-primary hover:bg-primary-container text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-colors shadow-xs cursor-pointer border-none"
-                  >
-                    <i v-if="isCheckingPackageCode" class="ri-loader-4-line animate-spin text-[16px]"></i>
-                    <i v-else class="ri-checkbox-circle-line text-[16px]"></i>
-                    <span>Cek Kode</span>
-                  </button>
-                </div>
-                <p v-if="codeVerificationError" class="text-xs text-red-500 font-medium">{{ codeVerificationError }}</p>
-                <div v-else-if="isAllInFree" class="text-xs text-emerald-dark font-bold flex items-center gap-1.5">
-                  <i class="ri-checkbox-circle-fill text-primary text-[16px]"></i>
-                  <span>Kode Paket Komplit terverifikasi! Biaya pendaftaran cabang ini menjadi Rp 0 (Bebas Biaya).</span>
-                </div>
-                <p v-else class="text-[11px] text-on-surface-variant flex items-center gap-1">
-                  <i class="ri-information-line text-[14px] text-primary leading-none"></i>
-                  <span>{{ allinCodeField?.help_text || 'Jika sekolah Anda telah mendaftar Paket Komplit, masukkan kode paket agar pendaftaran cabang ini bebas biaya.' }}</span>
-                </p>
-              </div>
             </div>
 
             <!-- ============================================================== -->
@@ -2840,14 +2782,14 @@ onMounted(() => {
             </div>
 
             <!-- ============================================================== -->
-            <!-- SECTION 4: Metode Pembayaran & Biaya                           -->
+            <!-- SECTION 4: Skema Paket & Metode Pembayaran                     -->
             <!-- ============================================================== -->
             <div class="space-y-3.5 sm:space-y-4" id="sectionPembayaran">
               <div class="flex items-center justify-between pb-2 border-b border-border-subtle flex-wrap gap-2">
                 <div class="flex items-center gap-2 sm:gap-2.5 form-section-header">
                   <i class="ri-wallet-3-line text-primary form-section-icon"></i>
                   <h2 class="font-headline font-bold text-sm sm:text-base md:text-lg text-on-surface m-0 form-section-title">
-                    {{ otherCustomFields.length > 0 ? '4.' : '3.' }} Metode Pembayaran &amp; Biaya
+                    {{ otherCustomFields.length > 0 ? '4.' : '3.' }} Skema Paket &amp; Metode Pembayaran
                   </h2>
                 </div>
                 <span class="text-xs font-bold text-primary bg-emerald-light px-2.5 py-1 rounded-full">
@@ -2905,6 +2847,46 @@ onMounted(() => {
                     <i class="ri-verified-badge-line text-primary text-[20px] shrink-0"></i>
                   </label>
                 </div>
+              </div>
+
+              <!-- INPUT & VERIFIKASI KODE PAKET KOMPLIT (JIKA BELUM DIRENDER DI SECTION 3 / CUSTOM FIELDS) -->
+              <div v-if="!isAllInCodeRenderedInCustomFields" class="p-3 sm:p-4 rounded-xl border border-dashed border-primary/40 bg-emerald-light/30 space-y-2 sm:space-y-2.5">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                  <label class="form-label-aligned">
+                    <i class="ri-vip-crown-line text-primary"></i>
+                    <span>{{ allinCodeField?.label || getFieldLabel('allin_code', 'Punya Kode Paket Komplit (All-In)?') }}</span>
+                  </label>
+                  <span class="text-[11px] text-amber-dark font-medium bg-amber-soft px-2 py-0.5 rounded w-fit">Gratis Biaya Cabang (Rp 0)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="relative flex-1">
+                    <input 
+                      v-model="form.custom_fields[allinCodeField?.name || 'allin_code']"
+                      type="text" 
+                      :placeholder="allinCodeField?.placeholder || getFieldPlaceholder('allin_code', 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)')" 
+                      class="w-full h-10 px-3 sm:px-3.5 rounded-lg border border-border-subtle bg-white dark:bg-[#111d17] text-xs font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:font-body placeholder:normal-case placeholder:text-gray-400 text-on-surface"
+                    >
+                  </div>
+                  <button 
+                    type="button" 
+                    @click="verifyPackageCodeManual" 
+                    :disabled="isCheckingPackageCode"
+                    class="h-10 px-3.5 sm:px-4 rounded-lg bg-primary hover:bg-primary-container text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-colors shadow-xs cursor-pointer border-none"
+                  >
+                    <i v-if="isCheckingPackageCode" class="ri-loader-4-line animate-spin text-[16px]"></i>
+                    <i v-else class="ri-checkbox-circle-line text-[16px]"></i>
+                    <span>Cek Kode</span>
+                  </button>
+                </div>
+                <p v-if="codeVerificationError" class="text-xs text-red-500 font-medium">{{ codeVerificationError }}</p>
+                <div v-else-if="isAllInFree" class="text-xs text-emerald-dark font-bold flex items-center gap-1.5">
+                  <i class="ri-checkbox-circle-fill text-primary text-[16px]"></i>
+                  <span>Kode Paket Komplit terverifikasi! Biaya pendaftaran cabang ini menjadi Rp 0 (Bebas Biaya).</span>
+                </div>
+                <p v-else class="text-[11px] text-on-surface-variant flex items-center gap-1">
+                  <i class="ri-information-line text-[14px] text-primary leading-none"></i>
+                  <span>{{ allinCodeField?.help_text || 'Jika sekolah Anda telah mendaftar Paket Komplit, masukkan kode paket agar pendaftaran cabang ini bebas biaya.' }}</span>
+                </p>
               </div>
 
               <!-- JIKA BIAYA > 0 (PILIHAN SALURAN PEMBAYARAN) -->

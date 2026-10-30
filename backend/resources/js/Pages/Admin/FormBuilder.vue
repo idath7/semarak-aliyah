@@ -338,7 +338,11 @@ const MANDATORY_IDENTITY_CONFIG = [
     aliases: ['mentor_email', 'contact_email', 'email', 'alamat_email', 'email_pendamping', 'alamat_email_aktif', 'email_kontak', 'alamat_email_resmi_sekolah_pembina'],
     icon: 'ri-mail-line',
     desc: 'Email aktif pendamping untuk tanda terima pendaftaran'
-  },
+  }
+];
+
+// Konfigurasi Field Khusus Skema Paket (Bebas Digeser di Formulir)
+const PACKAGE_FIELDS_CONFIG = [
   {
     name: 'allin_code',
     label: 'Kode Paket Komplit (All-In)',
@@ -348,28 +352,53 @@ const MANDATORY_IDENTITY_CONFIG = [
     required: false,
     aliases: ['allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code', 'all_in_code', 'kode_paket_allin'],
     icon: 'ri-vip-crown-line',
-    desc: 'Penanda pendaftaran cabang mandiri bagian dari Paket Komplit (Rp 0)'
+    desc: 'Penanda pendaftaran bagian dari Paket Komplit (Rp 0). Bebas digeser posisinya di formulir.'
   }
 ];
 
-// Presets in Toolbox (Tab 3: Identitas)
-const coreIdentityPresets = MANDATORY_IDENTITY_CONFIG.map(m => ({
-  name: m.label,
-  type: m.type,
-  default_name: m.name,
-  label: m.label,
-  placeholder: m.placeholder,
-  help_text: m.help_text,
-  required: m.required,
-  icon: m.icon,
-  desc: m.desc,
-  options: m.options ? [...m.options] : [],
-  is_mandatory_identity: true,
-}));
+// Presets in Toolbox (Tab 3: Identitas & Paket)
+const coreIdentityPresets = [
+  ...MANDATORY_IDENTITY_CONFIG.map(m => ({
+    name: m.label,
+    type: m.type,
+    default_name: m.name,
+    label: m.label,
+    placeholder: m.placeholder,
+    help_text: m.help_text,
+    required: m.required,
+    icon: m.icon,
+    desc: m.desc,
+    options: m.options ? [...m.options] : [],
+    is_mandatory_identity: true,
+  })),
+  ...PACKAGE_FIELDS_CONFIG.map(p => ({
+    name: p.label,
+    type: p.type,
+    default_name: p.name,
+    label: p.label,
+    placeholder: p.placeholder,
+    help_text: p.help_text,
+    required: p.required,
+    icon: p.icon,
+    desc: p.desc,
+    options: [],
+    is_mandatory_identity: false,
+  }))
+];
+
+function isAllInCodeField(field) {
+  if (!field) return false;
+  const name = String(field.name || '').toLowerCase().trim();
+  const defName = String(field.default_name || '').toLowerCase().trim();
+  const label = String(field.label || '').toLowerCase();
+  const aliases = ['allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code', 'all_in_code', 'kode_paket_allin'];
+  return aliases.includes(name) || aliases.includes(defName) || label.includes('kode paket') || label.includes('kode all-in');
+}
 
 function isMandatoryIdentity(field) {
   if (!field) return false;
-  if (field.is_mandatory_identity) return true;
+  if (isAllInCodeField(field)) return false;
+  if (field.is_mandatory_identity && !isAllInCodeField(field)) return true;
   return MANDATORY_IDENTITY_CONFIG.some(m => m.name === field.name || m.aliases.includes(field.name));
 }
 
@@ -431,6 +460,12 @@ function ensureMandatoryIdentityFields() {
     }
   });
   const normalizedRemaining = remaining.map(f => {
+    if (isAllInCodeField(f)) {
+      return {
+        ...f,
+        is_mandatory_identity: false,
+      };
+    }
     if (f.type === 'participant_repeater') {
       return {
         ...f,
@@ -2191,12 +2226,12 @@ function setParticipantCountDirect(field, val) {
                 <div class="p-2.5 mb-1 rounded-3 bg-primary-subtle border border-primary-subtle d-flex flex-column gap-1.5 shadow-sm">
                   <div class="d-flex align-items-center justify-content-between">
                     <span class="fs-11 fw-bold text-primary d-flex align-items-center gap-1">
-                      <i class="ri-shield-check-line"></i> 8 Field Identitas & Paket Standar
+                      <i class="ri-shield-check-line"></i> 7 Field Identitas Wajib Standar
                     </span>
                     <span class="badge bg-primary text-white fs-10 px-1.5 py-0.5 rounded-pill font-mono">Standar</span>
                   </div>
                   <div class="fs-10 text-muted">
-                    Setiap formulir cabang lomba memuat: Nama Sekolah, Kecamatan, NPSN, Alamat Sekolah, Nama Pendamping, No. WA (hanya angka), Email, dan Kode Paket Komplit (All-In).
+                    Setiap formulir cabang lomba memuat 7 identitas resmi: Nama Sekolah, Kecamatan, NPSN, Alamat Sekolah, Nama Pendamping, No. WA, dan Email. (Kode Paket Komplit dipisah agar posisinya bebas diatur).
                   </div>
                   <button 
                     v-if="canManageForm"
@@ -2205,7 +2240,7 @@ function setParticipantCountDirect(field, val) {
                     @click="restoreMandatoryFields"
                   >
                     <i class="ri-refresh-line"></i>
-                    <span>Lengkapi 8 Field Standar</span>
+                    <span>Lengkapi 7 Field Standar</span>
                   </button>
                 </div>
 
@@ -2602,14 +2637,24 @@ function setParticipantCountDirect(field, val) {
                         {{ field.label || '(Pertanyaan Tanpa Judul)' }}
                       </span>
 
-                      <!-- Mandatory Standard Badge -->
+                      <!-- Mandatory Standard Badge (7 Field Identitas) -->
                       <span 
                         v-if="isMandatoryIdentity(field)"
                         class="badge bg-primary-subtle text-primary border border-primary-subtle fs-10 px-2 py-0.5 rounded-pill d-inline-flex align-items-center gap-1"
-                        :title="['school_npsn', 'allin_code'].includes(field.name) ? 'Field standar identitas & paket (opsional)' : 'Field identitas standar wajib untuk seluruh cabang lomba'"
+                        :title="field.name === 'school_npsn' ? 'Field standar identitas resmi (opsional)' : 'Field identitas standar wajib untuk seluruh cabang lomba'"
                       >
                         <i class="ri-shield-check-line"></i>
-                        <span>{{ ['school_npsn', 'allin_code'].includes(field.name) ? 'Standar (Opsional)' : 'Wajib Standar' }}</span>
+                        <span>{{ field.name === 'school_npsn' ? 'Standar (Opsional)' : 'Wajib Standar' }}</span>
+                      </span>
+
+                      <!-- Skema Paket (Bebas Geser) Badge -->
+                      <span 
+                        v-if="isAllInCodeField(field)"
+                        class="badge bg-warning-subtle text-warning border border-warning-subtle fs-10 px-2 py-0.5 rounded-pill d-inline-flex align-items-center gap-1"
+                        title="Field Kode Paket Komplit (All-In) - Posisi bebas digeser di formulir"
+                      >
+                        <i class="ri-vip-crown-line"></i>
+                        <span>Skema Paket (Bebas Geser)</span>
                       </span>
 
                       <!-- Conditional Logic Active Badge -->
@@ -2648,11 +2693,11 @@ function setParticipantCountDirect(field, val) {
                         type="button" 
                         class="btn btn-xs rounded-pill px-2 py-0.5 fw-semibold transition-all"
                         :class="field.required ? 'btn-danger-subtle text-danger border border-danger-subtle' : 'btn-light text-muted border'"
-                        @click="!canManageForm || (isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name)) ? null : (field.required = !field.required)"
-                        :disabled="!canManageForm || (isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name))"
-                        :title="!canManageForm ? disabledReasonDetail : (isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name) ? 'Field identitas ini wajib diisi sesuai standar lomba' : (field.required ? 'Pertanyaan ini wajib diisi oleh pendaftar' : 'Pertanyaan ini opsional'))"
+                        @click="!canManageForm || (isMandatoryIdentity(field) && field.name !== 'school_npsn') ? null : (field.required = !field.required)"
+                        :disabled="!canManageForm || (isMandatoryIdentity(field) && field.name !== 'school_npsn')"
+                        :title="!canManageForm ? disabledReasonDetail : (isMandatoryIdentity(field) && field.name !== 'school_npsn' ? 'Field identitas ini wajib diisi sesuai standar lomba' : (field.required ? 'Pertanyaan ini wajib diisi oleh pendaftar' : 'Pertanyaan ini opsional'))"
                       >
-                        <i v-if="!canManageForm || (isMandatoryIdentity(field) && !['school_npsn', 'allin_code'].includes(field.name))" class="ri-lock-line me-0.5"></i>
+                        <i v-if="!canManageForm || (isMandatoryIdentity(field) && field.name !== 'school_npsn')" class="ri-lock-line me-0.5"></i>
                         {{ field.required ? 'Wajib' : 'Opsional' }}
                       </button>
 

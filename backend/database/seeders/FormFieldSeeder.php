@@ -123,6 +123,23 @@ class FormFieldSeeder extends Seeder
         ];
     }
 
+    public static function getAllInCodeField(): array
+    {
+        return [
+            'id' => 'cf_allin_code',
+            'name' => 'allin_code',
+            'label' => 'Kode Paket Komplit (All-In)',
+            'type' => 'text',
+            'placeholder' => 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)',
+            'help_text' => 'Masukkan kode paket jika sekolah Anda mendaftar Paket Komplit agar pendaftaran cabang mandiri ini bebas biaya (Rp 0).',
+            'required' => false,
+            'options' => [],
+            'allowed_extensions' => [],
+            'max_size_mb' => null,
+            'is_mandatory_identity' => false,
+        ];
+    }
+
     public static function makeParticipantRepeater(string $id, string $name, string $label, int $min, int $max, ?int $main = null, ?int $reserve = null): array
     {
         return [
@@ -406,25 +423,28 @@ class FormFieldSeeder extends Seeder
             ],
         ]);
 
+        $allInField = self::getAllInCodeField();
+        $appendAllIn = fn(array $t) => array_merge($t, [$allInField]);
+
         return [
             // Standard Generic Templates
-            'template_1_siswa' => $t1,
-            'template_2_siswa' => $t2,
-            'template_3_siswa' => $t3,
-            'template_4_siswa' => $t4,
-            'template_5_siswa' => $t5,
-            'template_6_siswa' => $t6,
-            'template_10_siswa' => $t10,
-            'template_12_siswa' => $t12,
-            'template_dinamis' => $t_dinamis,
+            'template_1_siswa' => $appendAllIn($t1),
+            'template_2_siswa' => $appendAllIn($t2),
+            'template_3_siswa' => $appendAllIn($t3),
+            'template_4_siswa' => $appendAllIn($t4),
+            'template_5_siswa' => $appendAllIn($t5),
+            'template_6_siswa' => $appendAllIn($t6),
+            'template_10_siswa' => $appendAllIn($t10),
+            'template_12_siswa' => $appendAllIn($t12),
+            'template_dinamis' => $appendAllIn($t_dinamis),
 
             // Backward-compatible Aliases
-            'akademik' => $t1,
-            'tahfidz' => $t1,
-            'seni' => $t10,
-            'esport' => $t6,
-            'olahraga' => $t12,
-            'umum' => $t_dinamis,
+            'akademik' => $appendAllIn($t1),
+            'tahfidz' => $appendAllIn($t1),
+            'seni' => $appendAllIn($t10),
+            'esport' => $appendAllIn($t6),
+            'olahraga' => $appendAllIn($t12),
+            'umum' => $appendAllIn($t_dinamis),
         ];
     }
 

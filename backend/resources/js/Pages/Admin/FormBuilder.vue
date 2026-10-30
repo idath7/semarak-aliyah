@@ -485,6 +485,21 @@ function ensureMandatoryIdentityFields() {
     return f;
   });
 
+  // Pastikan field allin_code selalu ada dalam urutan builder
+  const hasAllInField = normalizedRemaining.some(f => isAllInCodeField(f));
+  if (!hasAllInField) {
+    normalizedRemaining.push({
+      id: 'cf_allin_code',
+      name: 'allin_code',
+      label: 'Kode Paket Komplit (All-In)',
+      type: 'text',
+      placeholder: 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)',
+      help_text: 'Masukkan kode paket jika sekolah Anda mendaftar Paket Komplit agar pendaftaran cabang mandiri ini bebas biaya (Rp 0).',
+      required: false,
+      is_mandatory_identity: false,
+    });
+  }
+
   fields.value = [...mandatoryOrdered, ...normalizedRemaining];
 }
 
@@ -2844,15 +2859,26 @@ function setParticipantCountDirect(field, val) {
                         <span>{{ field.name === 'school_npsn' ? 'Standar (Opsional)' : 'Wajib Standar' }}</span>
                       </span>
 
-                      <!-- Skema Paket (Bebas Geser) Badge -->
-                      <span 
-                        v-if="isAllInCodeField(field)"
-                        class="badge bg-warning-subtle text-warning border border-warning-subtle fs-10 px-2 py-0.5 rounded-pill d-inline-flex align-items-center gap-1"
-                        title="Field Kode Paket Komplit (All-In) - Posisi bebas digeser di formulir"
-                      >
-                        <i class="ri-vip-crown-line"></i>
-                        <span>Skema Paket (Bebas Geser)</span>
-                      </span>
+                      <!-- Skema Paket (Bebas Geser) Badge & Status Aktif -->
+                      <template v-if="isAllInCodeField(field)">
+                        <span 
+                          class="badge bg-warning-subtle text-warning border border-warning-subtle fs-10 px-2 py-0.5 rounded-pill d-inline-flex align-items-center gap-1"
+                          title="Field Kode Paket Komplit (All-In) - Posisi bebas digeser di formulir"
+                        >
+                          <i class="ri-vip-crown-fill text-warning"></i>
+                          <span>Skema Paket</span>
+                        </span>
+
+                        <span 
+                          class="badge fs-10 px-2 py-0.5 rounded-pill d-inline-flex align-items-center gap-1 cursor-pointer"
+                          :class="formSettings.show_package_type ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-muted border border-secondary-subtle'"
+                          @click.stop="formSettings.show_package_type = !formSettings.show_package_type; isDirty = true;"
+                          :title="formSettings.show_package_type ? 'Skema paket AKTIF (Pendaftar dapat memilih Paket Satuan / Paket All-In). Klik untuk mengubah.' : 'Skema paket NONAKTIF (Hanya tarif satuan cabang). Klik untuk mengubah.'"
+                        >
+                          <i :class="formSettings.show_package_type ? 'ri-checkbox-circle-fill text-success' : 'ri-close-circle-line text-muted'"></i>
+                          <span>{{ formSettings.show_package_type ? 'Skema Paket: AKTIF' : 'Skema Paket: NONAKTIF' }}</span>
+                        </span>
+                      </template>
 
                       <!-- Conditional Logic Active Badge -->
                       <span 
@@ -2962,6 +2988,54 @@ function setParticipantCountDirect(field, val) {
                     <fieldset :disabled="!canManageForm" class="border-0 p-0 m-0">
                     <div class="row g-2.5">
                       
+                      <!-- PENGATURAN KHUSUS SKEMA PAKET & KODE ALL-IN (BANNER & TOGGLE) -->
+                      <div v-if="isAllInCodeField(field)" class="col-12">
+                        <div class="p-3 rounded-3 border border-warning/40 bg-warning-subtle/25 shadow-xs mb-1">
+                          <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom flex-wrap gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                              <span class="avatar-xs rounded-circle bg-warning text-dark d-inline-flex align-items-center justify-content-center fs-13">
+                                <i class="ri-vip-crown-line"></i>
+                              </span>
+                              <div>
+                                <h6 class="fs-12 fw-bold text-dark mb-0">Komponen Skema Paket &amp; Kode Komplit (All-In)</h6>
+                                <p class="fs-10 text-muted mb-0">Komponen ini mengontrol ketersediaan opsi Paket Satuan vs Paket All-In serta verifikasi kode paket pada formulir pendaftaran.</p>
+                              </div>
+                            </div>
+                            
+                            <!-- Switch Status Skema Paket Langsung di Kartu Builder -->
+                            <div class="form-check form-switch mb-0 d-flex align-items-center gap-2">
+                              <input 
+                                class="form-check-input cursor-pointer" 
+                                type="checkbox" 
+                                role="switch" 
+                                :id="`togglePackageInCard_${field.id}`"
+                                v-model="formSettings.show_package_type" 
+                                @change="isDirty = true"
+                                :disabled="!canManageForm"
+                              />
+                              <label class="form-check-label fs-11 text-dark fw-bold cursor-pointer mb-0" :for="`togglePackageInCard_${field.id}`">
+                                {{ formSettings.show_package_type ? 'Skema Paket: AKTIF' : 'Skema Paket: NONAKTIF' }}
+                              </label>
+                            </div>
+                          </div>
+
+                          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 pt-1">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                              <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-10 px-2 py-0.5">
+                                <i class="ri-price-tag-3-line me-1"></i> Paket Satuan: Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}
+                              </span>
+                              <span class="badge bg-warning-subtle text-warning border border-warning-subtle fs-10 px-2 py-0.5">
+                                <i class="ri-vip-crown-line me-1"></i> Paket All-In: Rp 200.000 (Seluruh Cabang)
+                              </span>
+                            </div>
+                            <div class="fs-10 text-muted">
+                              <i class="ri-drag-move-2-line text-primary me-0.5"></i>
+                              <span>Urutan kartu ini menentukan posisi opsi skema paket di formulir.</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
                       <!-- Label Pertanyaan Input -->
                       <div class="col-md-7">
                         <label class="form-label fs-11 fw-bold text-dark mb-1 d-flex align-items-center justify-content-between">

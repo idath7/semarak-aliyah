@@ -1296,6 +1296,7 @@ class AdminPanelController extends Controller
         }
 
         // Append remaining custom fields
+        $hasAllIn = false;
         foreach ($remainingFields as $rf) {
             if (($rf['type'] ?? '') === 'participant_repeater') {
                 $rf['sub_fields'] = self::normalizeRepeaterSubFields($rf['sub_fields'] ?? null);
@@ -1303,8 +1304,26 @@ class AdminPanelController extends Controller
             $rfName = $rf['name'] ?? '';
             if (in_array($rfName, ['allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code', 'all_in_code', 'kode_paket_allin'], true)) {
                 $rf['is_mandatory_identity'] = false;
+                $hasAllIn = true;
             }
             $clean[] = $rf;
+        }
+
+        // Pastikan field allin_code selalu tersedia dalam urutan builder
+        if (!$hasAllIn) {
+            $clean[] = [
+                'id' => 'cf_allin_code',
+                'name' => 'allin_code',
+                'label' => 'Kode Paket Komplit (All-In)',
+                'type' => 'text',
+                'placeholder' => 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)',
+                'help_text' => 'Masukkan kode paket jika sekolah Anda mendaftar Paket Komplit agar pendaftaran cabang mandiri ini bebas biaya (Rp 0).',
+                'required' => false,
+                'options' => [],
+                'allowed_extensions' => [],
+                'max_size_mb' => null,
+                'is_mandatory_identity' => false,
+            ];
         }
 
         return $clean;

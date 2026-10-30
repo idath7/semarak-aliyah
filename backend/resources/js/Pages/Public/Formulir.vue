@@ -469,9 +469,10 @@ function initCompetitionData() {
 
   if (!form.custom_fields) form.custom_fields = {};
 
-  // Prefill default mandatory identity values
+  // Prefill default mandatory identity values (jika belum dipilih, jangan set default ke kecamatan manapun)
   if (!form.custom_fields['school_district']) {
-    form.custom_fields['school_district'] = props.authRegistrant?.school_district || 'Balung';
+    const authDistrict = props.authRegistrant?.school_district;
+    form.custom_fields['school_district'] = (authDistrict && authDistrict !== '-' && authDistrict.trim() !== '') ? authDistrict : '';
   }
   if (!form.custom_fields['school_address']) {
     form.custom_fields['school_address'] = props.authRegistrant?.school_name || '';
@@ -1372,7 +1373,9 @@ onMounted(() => {
   if (props.authRegistrant?.name) form.mentor_name = props.authRegistrant.name;
   if (props.authRegistrant?.phone) form.mentor_wa = props.authRegistrant.phone;
   if (props.authRegistrant?.email && form.custom_fields) form.custom_fields['mentor_email'] = props.authRegistrant.email;
-  if (props.authRegistrant?.school_district && form.custom_fields) form.custom_fields['school_district'] = props.authRegistrant.school_district;
+  if (props.authRegistrant?.school_district && props.authRegistrant.school_district !== '-' && form.custom_fields) {
+    form.custom_fields['school_district'] = props.authRegistrant.school_district;
+  }
 
   initCompetitionData();
 

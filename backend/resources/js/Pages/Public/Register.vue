@@ -613,7 +613,7 @@ onMounted(async () => {
     } else {
       selectedSchool.value = {
         name: initialSchool,
-        kecamatan: props.authRegistrant?.school_district || 'Jember',
+        kecamatan: (props.authRegistrant?.school_district && props.authRegistrant.school_district !== '-') ? props.authRegistrant.school_district : '',
         jenjang: 'SMP/MTs',
         status: 'Terdaftar',
         npsn: ''
@@ -626,7 +626,7 @@ onMounted(async () => {
     if (props.authRegistrant.email && !form.custom_fields['mentor_email']) {
       form.custom_fields['mentor_email'] = props.authRegistrant.email;
     }
-    if (props.authRegistrant.school_district && !form.custom_fields['school_district']) {
+    if (props.authRegistrant.school_district && props.authRegistrant.school_district !== '-' && !form.custom_fields['school_district']) {
       form.custom_fields['school_district'] = props.authRegistrant.school_district;
     }
     if (props.authRegistrant.school_address && !form.custom_fields['school_address']) {

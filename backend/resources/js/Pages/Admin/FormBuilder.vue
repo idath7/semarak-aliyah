@@ -3019,7 +3019,8 @@ function setParticipantCountDirect(field, val) {
                             </div>
                           </div>
 
-                          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 pt-1">
+                          <!-- Informasi & Urutan saat AKTIF -->
+                          <div v-if="formSettings.show_package_type" class="d-flex align-items-center justify-content-between flex-wrap gap-2 pt-1">
                             <div class="d-flex align-items-center gap-2 flex-wrap">
                               <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-10 px-2 py-0.5">
                                 <i class="ri-price-tag-3-line me-1"></i> Paket Satuan: Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}
@@ -3029,8 +3030,16 @@ function setParticipantCountDirect(field, val) {
                               </span>
                             </div>
                             <div class="fs-10 text-muted">
-                              <i class="ri-drag-move-2-line text-primary me-0.5"></i>
-                              <span>Urutan kartu ini menentukan posisi opsi skema paket di formulir.</span>
+                              <i class="ri-arrow-down-line text-primary me-0.5"></i>
+                              <span>Urutan di formulir: 1. Input Kode Paket Komplit &rarr; 2. Pilihan Skema Paket.</span>
+                            </div>
+                          </div>
+
+                          <!-- Peringatan saat NONAKTIF -->
+                          <div v-else class="p-2 rounded bg-danger-subtle text-danger border border-danger-subtle fs-11 d-flex align-items-center gap-2 mt-1">
+                            <i class="ri-error-warning-fill fs-14 shrink-0"></i>
+                            <div>
+                              <strong>Skema Paket Sedang NONAKTIF:</strong> Seluruh opsi skema paket (Paket Satuan &amp; All-In) dan input Kode Paket ini <u>TIDAK AKAN DITAMPILKAN</u> pada formulir pendaftaran. Pendaftaran murni bertarif standar cabang ini.
                             </div>
                           </div>
                         </div>
@@ -3962,13 +3971,13 @@ function setParticipantCountDirect(field, val) {
                     </div>
 
                     <template v-for="field in fields" :key="field.id">
-                      <!-- Evaluate Conditional Logic: If condition not met, hide! -->
+                      <!-- Evaluate Conditional Logic & Status Skema Paket: Sembunyikan jika nonaktif -->
                       <div 
-                        v-if="evaluateCondition(field.conditional_logic, previewValues)"
+                        v-if="(!isAllInCodeField(field) || formSettings.show_package_type) && evaluateCondition(field.conditional_logic, previewValues)"
                         class="space-y-1.5 transition-all"
                       >
-                        <!-- Label -->
-                        <label class="block text-slate-200 font-bold text-[11px] d-flex align-items-center justify-content-between">
+                        <!-- Label Field Standar -->
+                        <label v-if="!isAllInCodeField(field)" class="block text-slate-200 font-bold text-[11px] d-flex align-items-center justify-content-between">
                           <span>
                             {{ field.label }}
                             <span v-if="field.required" class="text-rose-400 ml-0.5">*</span>
@@ -3979,8 +3988,68 @@ function setParticipantCountDirect(field, val) {
                           </span>
                         </label>
 
+                        <!-- KHUSUS SIMULASI SKEMA PAKET & KODE ALL-IN (URUTAN: 1. INPUT KODE -> 2. PILIHAN SKEMA PAKET) -->
+                        <div v-if="isAllInCodeField(field)" class="space-y-2.5">
+                          <!-- 1. Input & Verifikasi Kode Paket Komplit -->
+                          <div class="p-2.5 rounded-xl border border-dashed border-amber-500/40 bg-amber-500/10 space-y-2">
+                            <div class="flex items-center justify-between gap-1">
+                              <label class="text-[11px] font-bold text-slate-200 flex items-center gap-1">
+                                <i class="ri-vip-crown-line text-amber-400"></i>
+                                <span>{{ field.label || 'Punya Kode Paket Komplit (All-In)?' }}</span>
+                              </label>
+                              <span class="badge bg-amber-500/20 text-amber-300 text-[9px] px-1.5 py-0.5">Rp 0 (Bebas Biaya)</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                              <input 
+                                type="text" 
+                                v-model="previewValues[field.name]"
+                                :placeholder="field.placeholder || 'Contoh: SA26-XXXXXX'"
+                                class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono uppercase"
+                              />
+                              <button 
+                                type="button" 
+                                class="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] flex items-center gap-1 shrink-0"
+                                @click="toast.success('Simulasi cek kode berhasil')"
+                              >
+                                <i class="ri-checkbox-circle-line"></i>
+                                <span>Cek Kode</span>
+                              </button>
+                            </div>
+                            <div v-if="field.help_text" class="text-[10px] text-slate-400 flex items-center gap-1">
+                              <i class="ri-information-line text-amber-400"></i>
+                              <span>{{ field.help_text }}</span>
+                            </div>
+                          </div>
+
+                          <!-- 2. Pilihan Skema Paket (Satuan vs All-In) TEPAT DI BAWAH KODE -->
+                          <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                            <div class="flex items-center justify-between">
+                              <label class="text-[11px] font-bold text-slate-300 flex items-center gap-1">
+                                <i class="ri-price-tag-3-line text-amber-400"></i>
+                                <span>Pilihan Skema Paket Pendaftaran</span>
+                              </label>
+                              <span class="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-semibold">Biaya Fleksibel</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                              <div class="p-2 rounded-lg border border-amber-500 bg-amber-500/10 text-white text-[11px]">
+                                <div class="font-bold flex items-center justify-between">
+                                  <span>Paket Satuan</span>
+                                  <i class="ri-checkbox-circle-fill text-amber-400"></i>
+                                </div>
+                                <div class="text-emerald-400 font-mono text-[10px] mt-0.5">Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}</div>
+                                <div class="text-[9px] text-slate-400">Khusus cabang ini</div>
+                              </div>
+                              <div class="p-2 rounded-lg border border-slate-800 bg-slate-950 text-slate-400 text-[11px]">
+                                <div class="font-bold text-slate-300">Paket All-In</div>
+                                <div class="text-amber-400 font-mono text-[10px] mt-0.5">Rp 200.000</div>
+                                <div class="text-[9px] text-slate-500">Semua cabang lomba</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
                         <!-- SPECIAL COMPONENT: PARTICIPANT REPEATER (MULTI-PESERTA DINAMIS) -->
-                        <div v-if="field.type === 'participant_repeater'" class="space-y-2.5 pt-1">
+                        <div v-else-if="field.type === 'participant_repeater'" class="space-y-2.5 pt-1">
                           
                           <!-- Stepper Control: Jumlah Siswa yang Didaftarkan -->
                           <div class="p-2.5 rounded-xl bg-slate-950 border border-amber-500/30 d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -4340,20 +4409,6 @@ function setParticipantCountDirect(field, val) {
                       </div>
                     </template>
 
-                    <!-- Optional Package Type Simulation (Sebelum Metode Pembayaran) -->
-                    <div v-if="formSettings.show_package_type" class="pt-3 mt-3 border-t border-slate-800">
-                      <label class="block text-[11px] font-bold text-slate-300 mb-1.5">Pilihan Skema Paket:</label>
-                      <div class="grid grid-cols-2 gap-2">
-                        <div class="p-2 rounded-lg border border-amber-500 bg-amber-500/10 text-white text-[11px]">
-                          <div class="font-bold">Paket Satuan</div>
-                          <div class="text-emerald-400 font-mono text-[10px]">Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}</div>
-                        </div>
-                        <div class="p-2 rounded-lg border border-slate-800 bg-slate-950 text-slate-400 text-[11px]">
-                          <div class="font-bold">Paket All-In</div>
-                          <div class="text-amber-400 font-mono text-[10px]">Rp 200.000</div>
-                        </div>
-                      </div>
-                    </div>
 
                     <!-- Submit Button Simulation -->
                     <div class="pt-2 mt-4 border-t border-slate-800">
@@ -4441,11 +4496,13 @@ function setParticipantCountDirect(field, val) {
                 </div>
 
                 <template v-for="field in fields" :key="field.id">
+                  <!-- Evaluate Conditional Logic & Status Skema Paket: Sembunyikan jika nonaktif -->
                   <div 
-                    v-if="evaluateCondition(field.conditional_logic, previewValues)"
+                    v-if="(!isAllInCodeField(field) || formSettings.show_package_type) && evaluateCondition(field.conditional_logic, previewValues)"
                     class="space-y-1.5 transition-all"
                   >
-                    <label class="block text-slate-200 font-bold d-flex align-items-center justify-content-between">
+                    <!-- Label Field Standar -->
+                    <label v-if="!isAllInCodeField(field)" class="block text-slate-200 font-bold d-flex align-items-center justify-content-between">
                       <span>
                         {{ field.label }}
                         <span v-if="field.required" class="text-rose-400 ml-0.5">*</span>
@@ -4456,8 +4513,68 @@ function setParticipantCountDirect(field, val) {
                       </span>
                     </label>
 
+                    <!-- KHUSUS SIMULASI SKEMA PAKET & KODE ALL-IN (URUTAN: 1. INPUT KODE -> 2. PILIHAN SKEMA PAKET) -->
+                    <div v-if="isAllInCodeField(field)" class="space-y-3">
+                      <!-- 1. Input & Verifikasi Kode Paket Komplit -->
+                      <div class="p-3.5 rounded-2xl border border-dashed border-amber-500/40 bg-amber-500/10 space-y-2.5">
+                        <div class="flex items-center justify-between gap-1">
+                          <label class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                            <i class="ri-vip-crown-line text-amber-400 text-sm"></i>
+                            <span>{{ field.label || 'Punya Kode Paket Komplit (All-In)?' }}</span>
+                          </label>
+                          <span class="badge bg-amber-500/20 text-amber-300 text-[10px] px-2 py-0.5">Rp 0 (Bebas Biaya)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <input 
+                            type="text" 
+                            v-model="previewValues[field.name]"
+                            :placeholder="field.placeholder || 'Contoh: SA26-XXXXXX'"
+                            class="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs font-mono uppercase"
+                          />
+                          <button 
+                            type="button" 
+                            class="px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center gap-1 shrink-0"
+                            @click="toast.success('Simulasi cek kode berhasil')"
+                          >
+                            <i class="ri-checkbox-circle-line"></i>
+                            <span>Cek Kode</span>
+                          </button>
+                        </div>
+                        <div v-if="field.help_text" class="text-[11px] text-slate-400 flex items-center gap-1">
+                          <i class="ri-information-line text-amber-400"></i>
+                          <span>{{ field.help_text }}</span>
+                        </div>
+                      </div>
+
+                      <!-- 2. Pilihan Skema Paket (Satuan vs All-In) TEPAT DI BAWAH KODE -->
+                      <div class="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                          <label class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                            <i class="ri-price-tag-3-line text-amber-400"></i>
+                            <span>Pilihan Skema Paket Pendaftaran</span>
+                          </label>
+                          <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-semibold">Biaya Fleksibel</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                          <div class="p-3 rounded-xl border border-amber-500 bg-amber-500/10 text-white text-xs">
+                            <div class="font-bold flex items-center justify-between">
+                              <span>Paket Satuan</span>
+                              <i class="ri-checkbox-circle-fill text-amber-400"></i>
+                            </div>
+                            <div class="text-emerald-400 font-mono mt-0.5">Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Khusus cabang ini</div>
+                          </div>
+                          <div class="p-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-xs">
+                            <div class="font-bold text-slate-300">Paket All-In</div>
+                            <div class="text-amber-400 font-mono mt-0.5">Rp 200.000</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">Semua cabang lomba</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     <!-- REPEATER IN FULL PREVIEW -->
-                    <div v-if="field.type === 'participant_repeater'" class="space-y-3 pt-1">
+                    <div v-else-if="field.type === 'participant_repeater'" class="space-y-3 pt-1">
                       <div class="p-3 rounded-2xl bg-slate-950 border border-amber-500/30 d-flex align-items-center justify-content-between flex-wrap gap-2">
                         <div>
                           <div class="text-slate-200 font-bold text-xs d-flex align-items-center gap-1.5">
@@ -4807,20 +4924,6 @@ function setParticipantCountDirect(field, val) {
                   </div>
                 </template>
 
-                <!-- Package Type Simulation (Sebelum Metode Pembayaran) -->
-                <div v-if="formSettings.show_package_type" class="pt-4 mt-6 border-t border-slate-800">
-                  <label class="block text-xs font-bold text-slate-300 mb-2">Pilihan Skema Paket:</label>
-                  <div class="grid grid-cols-2 gap-3">
-                    <div class="p-3 rounded-xl border border-amber-500 bg-amber-500/10 text-white text-xs">
-                      <div class="font-bold">Paket Satuan</div>
-                      <div class="text-emerald-400 font-mono mt-0.5">Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}</div>
-                    </div>
-                    <div class="p-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-xs">
-                      <div class="font-bold">Paket All-In</div>
-                      <div class="text-amber-400 font-mono mt-0.5">Rp 200.000</div>
-                    </div>
-                  </div>
-                </div>
 
                 <!-- Submit Button simulation -->
                 <div class="pt-4 mt-6 border-t border-slate-800">

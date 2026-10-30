@@ -279,7 +279,51 @@ const currentCompetition = computed(() => {
   return (props.competitions || []).find(c => c.id === form.competition_id) || null;
 });
 
-// Dynamic Custom Fields dari Form Builder (selain repeater & field identitas)
+function isTeamFieldName(name = '', label = '') {
+  const n = String(name || '').toLowerCase().trim();
+  const l = String(label || '').toLowerCase().trim();
+  const keys = ['nama_tim', 'team_name', 'nama_squad', 'nama_regu', 'team', 'squad', 'regu'];
+  return keys.includes(n) || l.includes('nama tim') || l.includes('nama skuad') || l.includes('nama regu');
+}
+
+// Repeater field (jika cabang lomba menggunakan konfigurasi tim / anggota jamak)
+const repeaterField = computed(() => {
+  if (!currentCompetition.value || !Array.isArray(currentCompetition.value.custom_fields)) return null;
+  return currentCompetition.value.custom_fields.find(f => f.type === 'participant_repeater') || null;
+});
+
+// Konfigurasi Input Nama Tim / Skuad (Jika aktif dari Sub-Fields Repeater atau Custom Fields)
+const teamFieldConfig = computed(() => {
+  // 1. Cek dari sub-fields repeater
+  const rf = repeaterField.value;
+  if (rf?.sub_fields?.team_name?.active) {
+    return {
+      name: 'nama_tim',
+      label: rf.sub_fields.team_name.label || 'Nama Tim / Skuad',
+      placeholder: rf.sub_fields.team_name.placeholder || 'Contoh: Garuda Squad / Tim Voli Utama',
+      required: rf.sub_fields.team_name.required !== false,
+      help_text: 'Nama tim / regu resmi yang mewakili sekolah Anda'
+    };
+  }
+
+  // 2. Cek apakah ada custom field standalone dengan nama tim
+  if (currentCompetition.value && Array.isArray(currentCompetition.value.custom_fields)) {
+    const found = currentCompetition.value.custom_fields.find(f => f && f.type !== 'participant_repeater' && isTeamFieldName(f.name, f.label));
+    if (found) {
+      return {
+        name: found.name,
+        label: found.label || 'Nama Tim / Skuad',
+        placeholder: found.placeholder || 'Contoh: Garuda Squad / Tim Voli Utama',
+        required: !!found.required,
+        help_text: found.help_text || 'Nama tim / regu resmi yang mewakili sekolah Anda'
+      };
+    }
+  }
+
+  return null;
+});
+
+// Dynamic Custom Fields dari Form Builder (selain repeater, field identitas, dan field tim)
 const dynamicFields = computed(() => {
   if (!currentCompetition.value || !Array.isArray(currentCompetition.value.custom_fields)) return [];
   const excluded = [
@@ -299,14 +343,9 @@ const dynamicFields = computed(() => {
     if (!f || !f.name) return false;
     if (f.type === 'participant_repeater') return false;
     if (excluded.includes(f.name)) return false;
+    if (teamFieldConfig.value && (f.name === teamFieldConfig.value.name || isTeamFieldName(f.name, f.label))) return false;
     return true;
   });
-});
-
-// Repeater field (jika cabang lomba menggunakan konfigurasi tim / anggota jamak)
-const repeaterField = computed(() => {
-  if (!currentCompetition.value || !Array.isArray(currentCompetition.value.custom_fields)) return null;
-  return currentCompetition.value.custom_fields.find(f => f.type === 'participant_repeater') || null;
 });
 
 // Evaluator Conditional Logic Form Builder
@@ -748,6 +787,23 @@ function submitRegistration() {
     return;
   }
 
+  // Validate team name if active and required
+  if (teamFieldConfig.value?.required) {
+    const teamVal = form.custom_fields?.[teamFieldConfig.value.name];
+    if (!teamVal || !String(teamVal).trim()) {
+      toast.error(`${teamFieldConfig.value.label} wajib diisi.`);
+      return;
+    }
+  }
+
+  if (teamFieldConfig.value) {
+    const tVal = form.custom_fields?.[teamFieldConfig.value.name] || '';
+    if (!form.custom_fields) form.custom_fields = {};
+    form.custom_fields[teamFieldConfig.value.name] = tVal;
+    form.custom_fields['nama_tim'] = tVal;
+    form.custom_fields['team_name'] = tVal;
+  }
+
   // Compile participants names from repeater if present
   if (repeaterField.value) {
     const list = participantsList.value.slice(0, participantCount.value);
@@ -969,9 +1025,11 @@ function handleUnifiedSubmit() {
       
       <!-- Page Header Banner -->
       <div class="text-center mb-4">
-        <h1 class="fs-22 fw-bold reg-title mb-1.5">Pendaftaran Cabang Lomba Delegasi</h1>
+        <h1 class="fs-22 fw-bold reg-title mb-1.5">
+          {{ (selectedPackageType === 'Paket Satuan' && currentCompetition?.form_settings?.form_title) ? currentCompetition.form_settings.form_title : 'Pendaftaran Cabang Lomba Delegasi' }}
+        </h1>
         <p class="fs-13 reg-desc mb-0">
-          Daftarkan delegasi kontingen madrasah/sekolah Anda. Formulir menyesuaikan persyaratan khusus dari masing-masing cabang lomba.
+          {{ (selectedPackageType === 'Paket Satuan' && currentCompetition?.form_settings?.form_subtitle) ? currentCompetition.form_settings.form_subtitle : 'Daftarkan delegasi kontingen madrasah/sekolah Anda. Formulir menyesuaikan persyaratan khusus dari masing-masing cabang lomba.' }}
         </p>
       </div>
 
@@ -1662,6 +1720,34 @@ function handleUnifiedSubmit() {
 
                 <div class="card-body p-4 d-flex flex-column gap-3.5">
                   
+                  <!-- Kolom Pengisian Nama Tim / Skuad (Jika Aktif, Ditampilkan SEBELUM Data Siswa) -->
+                  <div v-if="teamFieldConfig" class="p-3.5 rounded-3 border bg-light-subtle d-flex flex-column gap-2 mb-1">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                      <label class="form-label fs-12 fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
+                        <i class="ri-shield-star-line text-primary"></i>
+                        <span>{{ teamFieldConfig.label }}</span>
+                        <span v-if="teamFieldConfig.required" class="text-danger">*</span>
+                        <span v-else class="text-muted fs-11 font-normal">(Opsional)</span>
+                      </label>
+                      <span class="badge bg-primary-subtle text-primary fs-10 px-2 py-0.5 rounded-pill">
+                        Delegasi Tim / Skuad
+                      </span>
+                    </div>
+                    <input 
+                      type="text" 
+                      v-model="form.custom_fields[teamFieldConfig.name]"
+                      :placeholder="teamFieldConfig.placeholder"
+                      class="form-control form-control-sm fs-12 py-2"
+                      :class="{ 'is-invalid': form.errors[teamFieldConfig.name] }"
+                    />
+                    <div v-if="form.errors[teamFieldConfig.name]" class="invalid-feedback d-block fs-11">
+                      {{ form.errors[teamFieldConfig.name] }}
+                    </div>
+                    <div v-else-if="teamFieldConfig.help_text" class="fs-11 text-muted">
+                      <i class="ri-information-line me-1"></i>{{ teamFieldConfig.help_text }}
+                    </div>
+                  </div>
+
                   <!-- JIKA MENGGUNAKAN REPEATER ANGGOTA TIM -->
                   <div v-if="repeaterField" class="d-flex flex-column gap-3">
                     <div v-if="teamInfo.rule" class="p-2.5 rounded-3 reg-comp-info fs-11 reg-desc d-flex align-items-center gap-2">
@@ -1882,7 +1968,7 @@ function handleUnifiedSubmit() {
                             />
                             <label :for="`reg_photo_formal_${pIdx}`" class="cursor-pointer mb-0 w-100 d-block">
                               <i class="ri-camera-line text-primary fs-20"></i>
-                              <div class="fs-11 fw-semibold text-dark mt-0.5">Pilih Pas Foto Formal Siswa</div>
+                              <div class="fs-11 fw-semibold text-dark mt-0.5">{{ repeaterField.sub_fields.photo_formal.placeholder || 'Pilih Pas Foto Formal Siswa' }}</div>
                               <div class="fs-10 text-muted">Format JPG, PNG, WEBP (Maks. 5 MB)</div>
                             </label>
                           </div>
@@ -1962,7 +2048,7 @@ function handleUnifiedSubmit() {
                             />
                             <label :for="`reg_photo_freestyle_${pIdx}`" class="cursor-pointer mb-0 w-100 d-block">
                               <i class="ri-images-line text-success fs-20"></i>
-                              <div class="fs-11 fw-semibold text-dark mt-0.5">Pilih Satu atau Beberapa Foto Pose Bebas</div>
+                              <div class="fs-11 fw-semibold text-dark mt-0.5">{{ repeaterField.sub_fields.photo_freestyle.placeholder || 'Pilih Satu atau Beberapa Foto Pose Bebas' }}</div>
                               <div class="fs-10 text-muted">Bisa upload >1 foto (JPG, PNG, WEBP, Maks. 5 MB)</div>
                             </label>
                           </div>
@@ -2357,7 +2443,7 @@ function handleUnifiedSubmit() {
                   >
                     <span v-if="form.processing" class="spinner-border spinner-border-sm"></span>
                     <i v-else class="ri-send-plane-fill fs-18"></i>
-                    <span>{{ form.processing ? 'Menyimpan Pendaftaran...' : 'Kirim Pendaftaran Delegasi' }}</span>
+                    <span>{{ form.processing ? 'Menyimpan Pendaftaran...' : (currentCompetition?.form_settings?.submit_text || 'Kirim Pendaftaran Delegasi') }}</span>
                   </button>
 
                   <div class="fs-11 reg-desc text-center">

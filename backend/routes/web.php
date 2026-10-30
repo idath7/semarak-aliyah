@@ -199,6 +199,7 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
     Route::get('/form-builder', [AdminPanelController::class, 'formBuilderIndex'])->middleware(['permission:form_builder.view,form_builder.manage'])->name('form-builder.index');
     Route::get('/form-builder/{competitionId}', [AdminPanelController::class, 'formBuilderShow'])->middleware(['permission:form_builder.view,form_builder.manage'])->name('form-builder.show');
     Route::middleware(['permission:form_builder.manage'])->group(function () {
+        Route::post('/form-builder/apply-headline-all', [AdminPanelController::class, 'formBuilderApplyHeadlineAll'])->name('form-builder.apply-headline-all');
         Route::post('/form-builder/presets/save', [AdminPanelController::class, 'formBuilderSavePreset'])->name('form-builder.presets.save');
         Route::post('/form-builder/presets/delete', [AdminPanelController::class, 'formBuilderDeletePreset'])->name('form-builder.presets.delete');
         Route::post('/form-builder/presets/reset-default', [AdminPanelController::class, 'formBuilderResetPresets'])->name('form-builder.presets.reset');

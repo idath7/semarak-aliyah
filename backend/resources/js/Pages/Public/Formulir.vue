@@ -209,6 +209,7 @@ const repeaterField = computed(() => {
 const subFieldsConfig = computed(() => {
   const rf = repeaterField.value;
   const defs = {
+    team_name: { active: false, required: true, label: 'Nama Tim / Skuad', placeholder: 'Contoh: Garuda Squad / Tim Voli Utama' },
     name: { active: true, required: true, label: 'Nama Lengkap Siswa', placeholder: 'Nama lengkap Siswa' },
     gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)', placeholder: '' },
     grade: { active: true, required: true, label: 'Kelas / Tingkat', placeholder: 'Pilih Kelas...' },
@@ -217,8 +218,8 @@ const subFieldsConfig = computed(() => {
     custom_id: { active: false, required: false, label: 'ID Siswa / No. Identitas', placeholder: 'Contoh: ID-0912 / User ID Game' },
     wa_number: { active: false, required: false, label: 'Nomor WhatsApp Siswa', placeholder: '08xxxxxxxxxx' },
     captain_option: { active: false, required: false, label: 'Tandai Kapten Tim', placeholder: 'Contoh: 081234567890 (Untuk koordinasi panitia & kapten)' },
-    photo_formal: { active: false, required: false, label: 'Upload Pas Foto Formal Siswa', placeholder: '' },
-    photo_freestyle: { active: false, required: false, label: 'Upload Foto Pose Gaya Bebas', multiple: true, placeholder: '' },
+    photo_formal: { active: false, required: false, label: 'Upload Pas Foto Formal Siswa', placeholder: 'Pilih Pas Foto Formal Siswa' },
+    photo_freestyle: { active: false, required: false, label: 'Upload Foto Pose Gaya Bebas', multiple: true, placeholder: 'Pilih Satu atau Beberapa Foto Pose Bebas' },
     custom_columns: []
   };
 
@@ -244,10 +245,51 @@ const subFieldsConfig = computed(() => {
   return result;
 });
 
-// Additional Custom Fields (non-identity and non-repeater)
+function isTeamFieldName(name = '', label = '') {
+  const n = String(name || '').toLowerCase().trim();
+  const l = String(label || '').toLowerCase().trim();
+  const keys = ['nama_tim', 'team_name', 'nama_squad', 'nama_regu', 'team', 'squad', 'regu'];
+  return keys.includes(n) || l.includes('nama tim') || l.includes('nama skuad') || l.includes('nama regu');
+}
+
+// Konfigurasi Input Nama Tim / Skuad (Jika aktif dari Sub-Fields Repeater atau Custom Fields)
+const teamFieldConfig = computed(() => {
+  // 1. Cek dari sub-fields repeater
+  if (subFieldsConfig.value?.team_name?.active) {
+    return {
+      name: 'nama_tim',
+      label: subFieldsConfig.value.team_name.label || 'Nama Tim / Skuad',
+      placeholder: subFieldsConfig.value.team_name.placeholder || 'Contoh: Garuda Squad / Tim Voli Utama',
+      required: subFieldsConfig.value.team_name.required !== false,
+      help_text: 'Nama tim / regu delegasi resmi yang mewakili sekolah Anda'
+    };
+  }
+
+  // 2. Cek apakah ada custom field standalone dengan nama tim
+  const fields = activeComp.value?.custom_fields || [];
+  const found = fields.find(f => f && f.type !== 'participant_repeater' && isTeamFieldName(f.name, f.label));
+  if (found) {
+    return {
+      name: found.name,
+      label: found.label || 'Nama Tim / Skuad',
+      placeholder: found.placeholder || 'Contoh: Garuda Squad / Tim Voli Utama',
+      required: !!found.required,
+      help_text: found.help_text || 'Nama tim / regu delegasi resmi yang mewakili sekolah Anda'
+    };
+  }
+
+  return null;
+});
+
+// Additional Custom Fields (non-identity, non-repeater, dan BUKAN field tim)
 const otherCustomFields = computed(() => {
   const fields = activeComp.value?.custom_fields || [];
-  return fields.filter(f => !isMandatoryIdentity(f) && f.type !== 'participant_repeater');
+  return fields.filter(f => {
+    if (isMandatoryIdentity(f)) return false;
+    if (f.type === 'participant_repeater') return false;
+    if (teamFieldConfig.value && (f.name === teamFieldConfig.value.name || isTeamFieldName(f.name, f.label))) return false;
+    return true;
+  });
 });
 
 // Participant Count Calculation & Bounds
@@ -827,7 +869,15 @@ function validateForm() {
     }
   }
 
-  // 3. Additional Custom Fields Validation
+  // 3. Validasi Nama Tim / Skuad (Jika aktif & wajib)
+  if (teamFieldConfig.value?.required) {
+    const teamVal = form.custom_fields?.[teamFieldConfig.value.name];
+    if (!teamVal || !String(teamVal).trim()) {
+      errs[teamFieldConfig.value.name] = `${teamFieldConfig.value.label} wajib diisi.`;
+    }
+  }
+
+  // 4. Additional Custom Fields Validation
   otherCustomFields.value.forEach(f => {
     if (f.required && evaluateCondition(f.conditional_logic, form.custom_fields)) {
       const val = form.custom_fields?.[f.name];
@@ -896,6 +946,14 @@ function handleSubmit() {
   form.custom_fields['school_name'] = form.school_name;
   form.custom_fields['mentor_name'] = form.mentor_name;
   form.custom_fields['mentor_wa'] = form.mentor_wa;
+
+  // Sync nama tim/skuad ke field tim
+  if (teamFieldConfig.value) {
+    const tVal = form.custom_fields?.[teamFieldConfig.value.name] || '';
+    form.custom_fields[teamFieldConfig.value.name] = tVal;
+    form.custom_fields['nama_tim'] = tVal;
+    form.custom_fields['team_name'] = tVal;
+  }
 
   // Sync custom files into form
   otherCustomFields.value.forEach(f => {
@@ -1357,6 +1415,38 @@ onMounted(() => {
                 </div>
               </div>
 
+              <!-- Kolom Nama Tim / Skuad (Jika Aktif, Ditampilkan SEBELUM Data Siswa) -->
+              <div 
+                v-if="teamFieldConfig" 
+                class="p-4 sm:p-5 rounded-xl border border-primary/30 bg-emerald-light/10 space-y-2 shadow-xs transition-all"
+                :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError(teamFieldConfig.name) }"
+              >
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                  <label class="form-label-aligned">
+                    <i class="ri-shield-star-line text-primary"></i>
+                    <span>{{ teamFieldConfig.label }}</span>
+                    <span v-if="teamFieldConfig.required" class="text-red-500">*</span>
+                    <span v-else class="text-xs text-on-surface-variant font-normal">(Opsional)</span>
+                  </label>
+                  <span class="text-[11px] font-semibold text-emerald-dark bg-emerald-light px-2.5 py-0.5 rounded-full border border-primary/20">
+                    Delegasi Tim / Skuad
+                  </span>
+                </div>
+                <input 
+                  type="text" 
+                  v-model="form.custom_fields[teamFieldConfig.name]"
+                  :placeholder="teamFieldConfig.placeholder"
+                  class="w-full h-11 px-3.5 rounded-xl border border-border-subtle bg-background/50 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                  :class="{ 'border-red-500 ring-2 ring-red-500/20': getFieldError(teamFieldConfig.name) }"
+                />
+                <p v-if="getFieldError(teamFieldConfig.name)" class="text-xs text-red-500 font-medium m-0">
+                  {{ getFieldError(teamFieldConfig.name) }}
+                </p>
+                <p v-else-if="teamFieldConfig.help_text" class="text-[11px] text-on-surface-variant m-0">
+                  <i class="ri-information-line me-1"></i>{{ teamFieldConfig.help_text }}
+                </p>
+              </div>
+
               <!-- Selector Jumlah Peserta (Jika Min < Max) -->
               <div v-if="minParticipants < maxParticipants" class="p-4 rounded-xl bg-background/50 border border-border-subtle space-y-3">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 flex-wrap">
@@ -1693,7 +1783,7 @@ onMounted(() => {
                         <label :for="`photo_formal_${pIdx}`" class="cursor-pointer block m-0">
                           <i class="ri-camera-line text-primary text-2xl"></i>
                           <p class="text-xs text-on-surface font-semibold mt-1 mb-0.5">
-                            Pilih Pas Foto Formal Siswa
+                            {{ subFieldsConfig.photo_formal.placeholder || 'Pilih Pas Foto Formal Siswa' }}
                           </p>
                           <p class="text-[11px] text-on-surface-variant m-0">
                             Format JPG, PNG, WEBP (Maks. 5 MB)
@@ -1789,7 +1879,7 @@ onMounted(() => {
                         <label :for="`photo_freestyle_${pIdx}`" class="cursor-pointer block m-0">
                           <i class="ri-images-line text-emerald-600 text-2xl"></i>
                           <p class="text-xs text-on-surface font-semibold mt-1 mb-0.5">
-                            Pilih Satu atau Beberapa Foto Pose Bebas
+                            {{ subFieldsConfig.photo_freestyle.placeholder || 'Pilih Satu atau Beberapa Foto Pose Bebas' }}
                           </p>
                           <p class="text-[11px] text-on-surface-variant m-0">
                             Bisa pilih >1 file sekaligus (JPG, PNG, WEBP, Maks. 5 MB)

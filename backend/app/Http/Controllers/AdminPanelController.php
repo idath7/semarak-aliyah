@@ -1178,8 +1178,9 @@ class AdminPanelController extends Controller
             'custom_id' => ['active' => false, 'required' => false, 'label' => 'ID Siswa / No. Identitas (Teks)'],
             'wa_number' => ['active' => false, 'required' => false, 'label' => 'Nomor WhatsApp Siswa (Angka)'],
             'captain_option' => ['active' => false, 'required' => false, 'label' => 'Tandai Kapten Tim & Nomor WA Khusus Kapten'],
-            'photo_formal' => ['active' => true, 'required' => false, 'label' => 'Pas Foto Formal (3x4)'],
-            'photo_freestyle' => ['active' => false, 'required' => false, 'label' => 'Upload Foto Pose Gaya Bebas (Bisa >1 Foto)', 'multiple' => true],
+            'team_name' => ['active' => false, 'required' => true, 'label' => 'Nama Tim / Skuad', 'placeholder' => 'Contoh: Garuda Squad / Tim Voli Utama'],
+            'photo_formal' => ['active' => false, 'required' => false, 'label' => 'Upload Pas Foto Formal Siswa', 'placeholder' => 'Pilih Pas Foto Formal Siswa (JPG/PNG, Maks. 5 MB)'],
+            'photo_freestyle' => ['active' => false, 'required' => false, 'label' => 'Upload Foto Pose Gaya Bebas (Bisa >1 Foto)', 'placeholder' => 'Pilih Satu atau Beberapa Foto Pose Bebas', 'multiple' => true],
             'custom_columns' => [],
         ];
 
@@ -1589,6 +1590,44 @@ class AdminPanelController extends Controller
         } catch (\Throwable $e) {}
 
         return redirect()->back()->with('success', "Semua template preset telah dikembalikan ke standar bawaan sistem.");
+    }
+
+    public function formBuilderApplyHeadlineAll(Request $request)
+    {
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+        $isGlobalAdmin = $authUser?->isSuperAdmin() || in_array($authUser?->role, ['admin', 'ketua_panitia', 'wakil_ketua_panitia', 'sekretaris', 'kesekretariatan'], true);
+        $hasManagePermission = $authUser ? $authUser->hasPermission('form_builder.manage') : false;
+
+        if (!$hasManagePermission || !$isGlobalAdmin) {
+            $msg = "Akses Ditolak: Hanya Admin Utama yang memiliki hak akses untuk menerapkan headline ke semua cabang lomba.";
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json(['status' => 'error', 'message' => $msg], 403);
+            }
+            return redirect()->back()->with('error', $msg);
+        }
+
+        $formTitle = $request->input('form_title', '');
+        $formSubtitle = $request->input('form_subtitle', '');
+        $submitText = $request->input('submit_text', 'Kirim Pendaftaran Delegasi');
+
+        $competitions = Competition::all();
+        $count = 0;
+        foreach ($competitions as $c) {
+            $settings = is_array($c->form_settings) ? $c->form_settings : [];
+            $settings['form_title'] = $formTitle;
+            $settings['form_subtitle'] = $formSubtitle;
+            $settings['submit_text'] = $submitText;
+            $c->form_settings = $settings;
+            $c->save();
+            $count++;
+        }
+
+        $msg = "Headline dan pengaturan tombol pendaftaran berhasil diterapkan ke seluruh ({$count}) cabang lomba!";
+        if ($request->wantsJson() && !$request->header('X-Inertia')) {
+            return response()->json(['status' => 'success', 'message' => $msg]);
+        }
+        return redirect()->back()->with('success', $msg);
     }
 
     private function cleanFormFields(mixed $fields): array

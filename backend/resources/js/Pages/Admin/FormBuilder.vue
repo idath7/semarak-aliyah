@@ -146,6 +146,7 @@ const nextCompetition = computed(() => {
 // Default sub-fields generator for dynamic participant repeater
 function createDefaultSubFields() {
   return {
+    team_name: { active: false, required: true, label: 'Nama Tim / Skuad', placeholder: 'Contoh: Garuda Squad / Tim Voli Utama' },
     name: { active: true, required: true, label: 'Nama Lengkap Siswa', placeholder: 'Nama lengkap Siswa' },
     gender: { active: true, required: true, label: 'Jenis Kelamin (L/P)' },
     grade: { active: true, required: true, label: 'Kelas / Tingkat', placeholder: 'Pilih Kelas...' },
@@ -154,8 +155,8 @@ function createDefaultSubFields() {
     custom_id: { active: false, required: false, label: 'ID Siswa / No. Identitas (Teks)', placeholder: 'Contoh: ID-0912 / User ID Game' },
     wa_number: { active: false, required: false, label: 'Nomor WhatsApp Siswa (Angka)', placeholder: '08xxxxxxxxxx' },
     captain_option: { active: false, required: false, label: 'Tandai Kapten Tim & Nomor WA Khusus Kapten', placeholder: 'Contoh: 081234567890 (Untuk koordinasi panitia & kapten)' },
-    photo_formal: { active: false, required: false, label: 'Upload Pas Foto Formal Siswa' },
-    photo_freestyle: { active: false, required: false, label: 'Upload Foto Pose Gaya Bebas (Bisa >1 Foto)', multiple: true },
+    photo_formal: { active: false, required: false, label: 'Upload Pas Foto Siswa Formal', placeholder: 'Unggah pas foto formal 3x4 berwarna siswa' },
+    photo_freestyle: { active: false, required: false, label: 'Upload Foto Siswa Pose Gaya Bebas (Bisa >1 Foto)', placeholder: 'Unggah foto pose gaya bebas perorangan/tim', multiple: true },
     custom_columns: [],
   };
 }
@@ -1342,6 +1343,44 @@ function onDrop(targetIndex, event) {
   toast.info('Urutan pertanyaan berhasil diubah.');
 }
 
+// Headline & Header Formulir Card State & Actions
+const isHeadlineCardExpanded = ref(true);
+const isApplyingHeadlineAll = ref(false);
+
+async function applyHeadlineToAll() {
+  if (!props.isGlobalAdmin && !props.hasManagePermission) {
+    toast.error('Hanya Admin Utama yang memiliki hak akses untuk menerapkan headline ke semua cabang lomba.');
+    return;
+  }
+
+  const confirmed = await confirmDialog({
+    title: 'Terapkan Headline ke Semua Cabang Lomba?',
+    message: `Apakah Anda yakin ingin menerapkan Headline ("${formSettings.value.form_title || 'Default'}"), Subtitle, dan Teks Tombol Kirim ini ke SEMUA (${props.competitions.length}) cabang lomba? Perubahan ini akan menyeragamkan judul formulir pendaftaran di seluruh cabang lomba.`,
+    confirmText: 'Ya, Terapkan ke Semua Cabang',
+    cancelText: 'Batal',
+    variant: 'primary',
+  });
+
+  if (!confirmed) return;
+
+  isApplyingHeadlineAll.value = true;
+  router.post('/admin/form-builder/apply-headline-all', {
+    form_title: formSettings.value.form_title || '',
+    form_subtitle: formSettings.value.form_subtitle || '',
+    submit_text: formSettings.value.submit_text || 'Kirim Pendaftaran Delegasi',
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isApplyingHeadlineAll.value = false;
+      toast.success('Headline formulir berhasil diterapkan ke seluruh cabang lomba!');
+    },
+    onError: () => {
+      isApplyingHeadlineAll.value = false;
+      toast.error('Gagal menerapkan headline ke semua cabang.');
+    }
+  });
+}
+
 // Save Form
 function saveFormFields() {
   if (!canManageForm.value) {
@@ -2301,6 +2340,147 @@ function setParticipantCountDirect(field, val) {
             <!-- Canvas Card Body: Field List -->
             <div class="card-body p-3 p-sm-4 canvas-scroll-area">
               
+              <!-- KARTU HEADLINE & HEADER FORMULIR PENDAFTARAN (Global / Per Cabang Lomba) -->
+              <div class="card border rounded-3 mb-3 shadow-xs bg-white border-primary-subtle overflow-hidden">
+                <div 
+                  class="card-header py-2.5 px-3 bg-light-subtle d-flex align-items-center justify-content-between cursor-pointer user-select-none"
+                  @click="isHeadlineCardExpanded = !isHeadlineCardExpanded"
+                >
+                  <div class="d-flex align-items-center gap-2 text-truncate">
+                    <span class="avatar-xs rounded-2 bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center">
+                      <i class="ri-layout-top-line fs-14"></i>
+                    </span>
+                    <div>
+                      <div class="fs-12 fw-bold text-dark d-flex align-items-center gap-1.5">
+                        <span>Headline &amp; Header Formulir Pendaftaran</span>
+                        <span class="badge bg-primary-subtle text-primary fs-10 px-1.5 py-0.5">Tampilan Header</span>
+                      </div>
+                      <div class="fs-10 text-muted">
+                        {{ formSettings.form_title ? `"${formSettings.form_title}"` : 'Menggunakan judul bawaan sistem' }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    <button 
+                      v-if="isGlobalAdmin && canManageForm"
+                      type="button" 
+                      class="btn btn-xs btn-outline-primary d-none d-sm-inline-flex align-items-center gap-1 py-1 px-2.5 fw-semibold"
+                      @click.stop="applyHeadlineToAll"
+                      :disabled="isApplyingHeadlineAll"
+                      title="Salin judul, subtitle & teks tombol formulir ini ke seluruh cabang lomba"
+                    >
+                      <i :class="isApplyingHeadlineAll ? 'ri-loader-4-line spin' : 'ri-share-forward-line'"></i>
+                      <span>Terapkan ke Semua Cabang</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      class="btn btn-xs btn-ghost-secondary p-1"
+                      :title="isHeadlineCardExpanded ? 'Ciutkan Header' : 'Bentangkan Header'"
+                    >
+                      <i class="ri-arrow-down-s-line fs-14 transition-transform" :class="{ 'rotate-180': isHeadlineCardExpanded }"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <div v-show="isHeadlineCardExpanded" class="card-body p-3 border-top">
+                  <div class="row g-3">
+                    <div class="col-md-7">
+                      <label class="form-label fs-11 fw-bold text-dark mb-1 d-flex align-items-center gap-1">
+                        <i class="ri-heading text-primary"></i>
+                        <span>Headline / Judul Utama Formulir:</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        v-model="formSettings.form_title"
+                        @input="isDirty = true"
+                        :disabled="!canManageForm"
+                        class="form-control form-control-sm fs-12"
+                        placeholder="Contoh: FORMULIR PENDAFTARAN DELEGASI"
+                      />
+                      <div class="fs-10 text-muted mt-0.5">Teks judul yang tampil paling atas di lembar formulir pendaftaran siswa.</div>
+                    </div>
+
+                    <div class="col-md-5">
+                      <label class="form-label fs-11 fw-bold text-dark mb-1 d-flex align-items-center gap-1">
+                        <i class="ri-send-plane-line text-success"></i>
+                        <span>Teks Tombol Kirim (Submit):</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        v-model="formSettings.submit_text"
+                        @input="isDirty = true"
+                        :disabled="!canManageForm"
+                        class="form-control form-control-sm fs-12"
+                        placeholder="Contoh: Kirim Pendaftaran Delegasi"
+                      />
+                      <div class="fs-10 text-muted mt-0.5">Label pada tombol pengiriman di bagian akhir formulir.</div>
+                    </div>
+
+                    <div class="col-12">
+                      <label class="form-label fs-11 fw-bold text-dark mb-1 d-flex align-items-center gap-1">
+                        <i class="ri-subscript text-info"></i>
+                        <span>Subtitle / Petunjuk Pengisian Formulir:</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        v-model="formSettings.form_subtitle"
+                        @input="isDirty = true"
+                        :disabled="!canManageForm"
+                        class="form-control form-control-sm fs-12"
+                        placeholder="Contoh: Silakan isi data delegasi sekolah dan peserta di bawah ini dengan lengkap dan valid..."
+                      />
+                      <div class="fs-10 text-muted mt-0.5">Instruksi ringkas tepat di bawah judul utama formulir.</div>
+                    </div>
+
+                    <!-- Quick toggles & Apply All Button -->
+                    <div class="col-12 pt-2 border-top d-flex align-items-center justify-content-between flex-wrap gap-2">
+                      <div class="d-flex align-items-center gap-3 flex-wrap">
+                        <div class="form-check form-switch mb-0 d-flex align-items-center gap-2">
+                          <input 
+                            class="form-check-input cursor-pointer" 
+                            type="checkbox" 
+                            role="switch" 
+                            id="canvasToggleFormActive"
+                            v-model="formSettings.is_active"
+                            @change="isDirty = true"
+                            :disabled="!canManageForm && !isGlobalAdmin"
+                          />
+                          <label class="form-check-label fs-11 text-dark fw-semibold cursor-pointer mb-0" for="canvasToggleFormActive">
+                            Status Formulir Aktif
+                          </label>
+                        </div>
+
+                        <div class="form-check form-switch mb-0 d-flex align-items-center gap-2">
+                          <input 
+                            class="form-check-input cursor-pointer" 
+                            type="checkbox" 
+                            role="switch" 
+                            id="canvasTogglePackage"
+                            v-model="formSettings.show_package_type" 
+                            @change="isDirty = true"
+                            :disabled="!canManageForm"
+                          />
+                          <label class="form-check-label fs-11 text-dark fw-semibold cursor-pointer mb-0" for="canvasTogglePackage">
+                            Tampilkan Opsi Paket (Satuan / All-In)
+                          </label>
+                        </div>
+                      </div>
+
+                      <button 
+                        v-if="isGlobalAdmin && canManageForm"
+                        type="button" 
+                        class="btn btn-xs btn-outline-primary d-inline-flex align-items-center gap-1 py-1 px-2.5 fw-semibold"
+                        @click="applyHeadlineToAll"
+                        :disabled="isApplyingHeadlineAll"
+                      >
+                        <i :class="isApplyingHeadlineAll ? 'ri-loader-4-line spin' : 'ri-share-forward-line'"></i>
+                        <span>Terapkan Headline ke Semua Cabang Lomba</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               <!-- Empty State -->
               <div v-if="fields.length === 0" class="text-center py-5 border border-dashed rounded-3">
                 <div class="avatar-md bg-warning-subtle text-warning rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3">
@@ -2741,8 +2921,64 @@ function setParticipantCountDirect(field, val) {
                                 <span>Kolom Biodata Siswa yang Diaktifkan:</span>
                                 <span class="text-muted fs-10 font-normal">Pilih yang dibutuhkan</span>
                               </label>
-                              <div class="d-flex flex-column gap-2 p-2.5 bg-body rounded-3 border" style="max-height: 280px; overflow-y: auto;">
+                              <div class="d-flex flex-column gap-2 p-2.5 bg-body rounded-3 border" style="max-height: 380px; overflow-y: auto;">
                                 
+                                <!-- Group 0: Pengisian Nama Tim / Skuad (Sebelum Data Siswa) -->
+                                <div class="p-2 rounded bg-light-subtle border" v-if="field.sub_fields?.team_name">
+                                  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                      <input 
+                                        type="checkbox" 
+                                        class="form-check-input text-warning" 
+                                        v-model="field.sub_fields.team_name.active" 
+                                        @change="isDirty = true"
+                                      />
+                                      <div class="d-flex flex-column">
+                                        <span class="text-dark fw-bold d-flex align-items-center gap-1">
+                                          <i class="ri-shield-star-line text-warning"></i>
+                                          <span>Pengisian Nama Tim / Skuad</span>
+                                        </span>
+                                        <span class="text-muted fs-10">Tampil tepat sebelum pengisian data delegasi siswa</span>
+                                      </div>
+                                    </label>
+                                    
+                                    <div v-if="field.sub_fields.team_name.active" class="d-flex align-items-center gap-2">
+                                      <span class="fs-10 text-muted">Sifat Kolom:</span>
+                                      <button 
+                                        type="button" 
+                                        class="btn btn-xs py-0.5 px-2 fw-semibold rounded"
+                                        :class="field.sub_fields.team_name.required ? 'btn-danger-subtle text-danger border border-danger-subtle' : 'btn-light text-muted border'"
+                                        @click="field.sub_fields.team_name.required = !field.sub_fields.team_name.required; isDirty = true"
+                                      >
+                                        {{ field.sub_fields.team_name.required ? 'Wajib Diisi *' : 'Opsional' }}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div v-if="field.sub_fields.team_name.active" class="row g-2 pt-2 mt-1 border-top">
+                                    <div class="col-md-5">
+                                      <label class="fs-10 fw-semibold text-dark mb-0.5">Label Kolom Nama Tim:</label>
+                                      <input 
+                                        type="text" 
+                                        v-model="field.sub_fields.team_name.label" 
+                                        @input="isDirty = true"
+                                        class="form-control form-control-sm fs-11" 
+                                        placeholder="Nama Tim / Skuad"
+                                      />
+                                    </div>
+                                    <div class="col-md-7">
+                                      <label class="fs-10 fw-semibold text-dark mb-0.5">Placeholder / Contoh Pengisian:</label>
+                                      <input 
+                                        type="text" 
+                                        v-model="field.sub_fields.team_name.placeholder" 
+                                        @input="isDirty = true"
+                                        class="form-control form-control-sm fs-11" 
+                                        placeholder="Contoh: Garuda Squad / Tim Voli Utama"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+
                                 <!-- Group 1: Data Identitas Dasar -->
                                 <div>
                                   <div class="text-muted fs-10 fw-bold text-uppercase tracking-wider mb-1">1. Identitas & Akademik</div>
@@ -2835,24 +3071,104 @@ function setParticipantCountDirect(field, val) {
 
                                 <!-- Group 3: Foto & Media Siswa -->
                                 <div class="pt-2 border-top">
-                                  <div class="text-muted fs-10 fw-bold text-uppercase tracking-wider mb-1">3. Upload Berkas & Foto Siswa</div>
-                                  <div class="d-flex flex-column gap-1.5">
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11" v-if="field.sub_fields?.photo_formal">
-                                      <input type="checkbox" class="form-check-input" v-model="field.sub_fields.photo_formal.active" />
-                                      <div class="d-flex flex-column">
-                                        <span class="text-dark fw-medium">Upload Pas Foto Siswa Formal</span>
-                                        <span class="text-muted fs-10">Upload foto resmi 3x4 atau berseragam (1 file foto)</span>
+                                  <div class="text-muted fs-10 fw-bold text-uppercase tracking-wider mb-1 d-flex align-items-center gap-1">
+                                    <i class="ri-image-line text-info"></i>
+                                    <span>3. Upload Berkas &amp; Foto Siswa</span>
+                                  </div>
+                                  <div class="d-flex flex-column gap-2">
+                                    <!-- Photo Formal -->
+                                    <div v-if="field.sub_fields?.photo_formal" class="p-2 rounded bg-light-subtle border d-flex flex-column gap-1.5">
+                                      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                        <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                          <input type="checkbox" class="form-check-input text-info" v-model="field.sub_fields.photo_formal.active" @change="isDirty = true" />
+                                          <div class="d-flex flex-column">
+                                            <span class="text-dark fw-bold">Upload Pas Foto Siswa Formal</span>
+                                            <span class="text-muted fs-10">Upload pas foto resmi 3x4 atau berseragam (1 file per siswa)</span>
+                                          </div>
+                                        </label>
+                                        <div v-if="field.sub_fields.photo_formal.active" class="d-flex align-items-center gap-2">
+                                          <span class="fs-10 text-muted">Sifat Unggahan:</span>
+                                          <button 
+                                            type="button" 
+                                            class="btn btn-xs py-0.5 px-2 fw-semibold rounded"
+                                            :class="field.sub_fields.photo_formal.required ? 'btn-danger-subtle text-danger border border-danger-subtle' : 'btn-light text-muted border'"
+                                            @click="field.sub_fields.photo_formal.required = !field.sub_fields.photo_formal.required; isDirty = true"
+                                          >
+                                            {{ field.sub_fields.photo_formal.required ? 'Wajib Diunggah *' : 'Opsional' }}
+                                          </button>
+                                        </div>
                                       </div>
-                                      <span class="badge bg-info-subtle text-info fs-9 ms-auto">Formal</span>
-                                    </label>
-                                    <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11" v-if="field.sub_fields?.photo_freestyle">
-                                      <input type="checkbox" class="form-check-input" v-model="field.sub_fields.photo_freestyle.active" />
-                                      <div class="d-flex flex-column">
-                                        <span class="text-dark fw-medium">Upload Foto Siswa Pose Gaya Bebas</span>
-                                        <span class="text-muted fs-10">Mendukung upload lebih dari 1 file foto sekaligus (Multi-Foto)</span>
+
+                                      <div v-if="field.sub_fields.photo_formal.active" class="row g-2 pt-1 border-top">
+                                        <div class="col-md-5">
+                                          <label class="fs-10 fw-semibold text-dark mb-0.5">Label Kolom Foto Formal:</label>
+                                          <input 
+                                            type="text" 
+                                            v-model="field.sub_fields.photo_formal.label" 
+                                            @input="isDirty = true"
+                                            class="form-control form-control-sm fs-11" 
+                                            placeholder="Upload Pas Foto Formal Siswa"
+                                          />
+                                        </div>
+                                        <div class="col-md-7">
+                                          <label class="fs-10 fw-semibold text-dark mb-0.5">Placeholder / Petunjuk Dropzone:</label>
+                                          <input 
+                                            type="text" 
+                                            v-model="field.sub_fields.photo_formal.placeholder" 
+                                            @input="isDirty = true"
+                                            class="form-control form-control-sm fs-11" 
+                                            placeholder="Contoh: Unggah pas foto formal 3x4 berwarna siswa"
+                                          />
+                                        </div>
                                       </div>
-                                      <span class="badge bg-success-subtle text-success fs-9 ms-auto">Bisa >1 Foto</span>
-                                    </label>
+                                    </div>
+
+                                    <!-- Photo Freestyle -->
+                                    <div v-if="field.sub_fields?.photo_freestyle" class="p-2 rounded bg-light-subtle border d-flex flex-column gap-1.5">
+                                      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                        <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11">
+                                          <input type="checkbox" class="form-check-input text-success" v-model="field.sub_fields.photo_freestyle.active" @change="isDirty = true" />
+                                          <div class="d-flex flex-column">
+                                            <span class="text-dark fw-bold">Upload Foto Siswa Pose Gaya Bebas</span>
+                                            <span class="text-muted fs-10">Mendukung upload lebih dari 1 file foto sekaligus (Multi-Foto)</span>
+                                          </div>
+                                        </label>
+                                        <div v-if="field.sub_fields.photo_freestyle.active" class="d-flex align-items-center gap-2">
+                                          <span class="fs-10 text-muted">Sifat Unggahan:</span>
+                                          <button 
+                                            type="button" 
+                                            class="btn btn-xs py-0.5 px-2 fw-semibold rounded"
+                                            :class="field.sub_fields.photo_freestyle.required ? 'btn-danger-subtle text-danger border border-danger-subtle' : 'btn-light text-muted border'"
+                                            @click="field.sub_fields.photo_freestyle.required = !field.sub_fields.photo_freestyle.required; isDirty = true"
+                                          >
+                                            {{ field.sub_fields.photo_freestyle.required ? 'Wajib Diunggah *' : 'Opsional' }}
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      <div v-if="field.sub_fields.photo_freestyle.active" class="row g-2 pt-1 border-top">
+                                        <div class="col-md-5">
+                                          <label class="fs-10 fw-semibold text-dark mb-0.5">Label Kolom Foto Gaya Bebas:</label>
+                                          <input 
+                                            type="text" 
+                                            v-model="field.sub_fields.photo_freestyle.label" 
+                                            @input="isDirty = true"
+                                            class="form-control form-control-sm fs-11" 
+                                            placeholder="Upload Foto Pose Gaya Bebas"
+                                          />
+                                        </div>
+                                        <div class="col-md-7">
+                                          <label class="fs-10 fw-semibold text-dark mb-0.5">Placeholder / Petunjuk Dropzone:</label>
+                                          <input 
+                                            type="text" 
+                                            v-model="field.sub_fields.photo_freestyle.placeholder" 
+                                            @input="isDirty = true"
+                                            class="form-control form-control-sm fs-11" 
+                                            placeholder="Contoh: Unggah foto pose gaya bebas perorangan/tim"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
 
@@ -3402,6 +3718,22 @@ function setParticipantCountDirect(field, val) {
                             </div>
                           </div>
 
+                          <!-- Nama Tim / Skuad (Sebelum Pengisian Data Siswa) -->
+                          <div v-if="field.sub_fields?.team_name?.active" class="p-2.5 rounded-xl bg-slate-950 border border-amber-500/30 mb-2">
+                            <label class="block text-[11px] font-bold text-amber-300 mb-1 d-flex align-items-center gap-1.5">
+                              <i class="ri-shield-star-line text-amber-400"></i>
+                              <span>{{ field.sub_fields.team_name.label || 'Nama Tim / Skuad' }}</span>
+                              <span v-if="field.sub_fields.team_name.required" class="text-rose-400">*</span>
+                              <span v-else class="text-slate-500 text-[10px] font-normal">(Opsional)</span>
+                            </label>
+                            <input 
+                              type="text" 
+                              :placeholder="field.sub_fields.team_name.placeholder || 'Contoh: Garuda Squad / Tim Voli Utama'" 
+                              class="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
+                            />
+                            <div class="text-[9px] text-slate-500 mt-0.5">Nama tim/skuad resmi pengirim delegasi.</div>
+                          </div>
+
                           <!-- Dynamic Student Biodata Forms (1 s.d. N Sesuai Pilihan) -->
                           <div class="space-y-2">
                             <div 
@@ -3550,12 +3882,13 @@ function setParticipantCountDirect(field, val) {
                                 <div v-if="field.sub_fields?.photo_formal?.active">
                                   <label class="block text-[10px] text-slate-400 mb-0.5 d-flex align-items-center gap-1">
                                     <i class="ri-camera-line text-sky-400"></i>
-                                    <span>Upload Pas Foto Formal Siswa</span>
+                                    <span>{{ field.sub_fields.photo_formal.label || 'Upload Pas Foto Formal Siswa' }}</span>
+                                    <span v-if="field.sub_fields.photo_formal.required" class="text-rose-400">*</span>
                                     <span class="badge bg-sky-500/20 text-sky-300 text-[9px] py-0 border border-sky-500/30 ms-auto">Formal (1 File)</span>
                                   </label>
                                   <div class="border border-dashed border-slate-800 hover:border-sky-500/50 rounded-lg p-2 text-center bg-slate-900/50 cursor-pointer">
                                     <i class="ri-image-add-line text-sky-400 text-sm"></i>
-                                    <div class="text-[10px] text-slate-300 font-medium mt-0.5">Pilih Pas Foto Formal (JPG / PNG)</div>
+                                    <div class="text-[10px] text-slate-300 font-medium mt-0.5">{{ field.sub_fields.photo_formal.placeholder || 'Pilih Pas Foto Formal (JPG / PNG)' }}</div>
                                     <div class="text-[9px] text-slate-500">Maks. 3 MB</div>
                                   </div>
                                 </div>
@@ -3564,12 +3897,13 @@ function setParticipantCountDirect(field, val) {
                                 <div v-if="field.sub_fields?.photo_freestyle?.active">
                                   <label class="block text-[10px] text-slate-400 mb-0.5 d-flex align-items-center gap-1">
                                     <i class="ri-gallery-upload-line text-emerald-400"></i>
-                                    <span>Upload Foto Pose Gaya Bebas</span>
+                                    <span>{{ field.sub_fields.photo_freestyle.label || 'Upload Foto Pose Gaya Bebas' }}</span>
+                                    <span v-if="field.sub_fields.photo_freestyle.required" class="text-rose-400">*</span>
                                     <span class="badge bg-emerald-500/20 text-emerald-300 text-[9px] py-0 border border-emerald-500/30 ms-auto">Bisa >1 Foto</span>
                                   </label>
                                   <div class="border border-dashed border-slate-800 hover:border-emerald-500/50 rounded-lg p-2 text-center bg-slate-900/50 cursor-pointer">
                                     <i class="ri-images-line text-emerald-400 text-sm"></i>
-                                    <div class="text-[10px] text-slate-300 font-medium mt-0.5">Pilih Satu atau Beberapa Foto Pose Bebas</div>
+                                    <div class="text-[10px] text-slate-300 font-medium mt-0.5">{{ field.sub_fields.photo_freestyle.placeholder || 'Pilih Satu atau Beberapa Foto Pose Bebas' }}</div>
                                     <div class="text-[9px] text-slate-500">Mendukung upload lebih dari 1 file foto sekaligus</div>
                                   </div>
                                 </div>
@@ -3857,6 +4191,22 @@ function setParticipantCountDirect(field, val) {
                       </div>
 
                       <div class="space-y-3">
+                        <!-- Nama Tim / Skuad (Sebelum Pengisian Data Siswa) -->
+                        <div v-if="field.sub_fields?.team_name?.active" class="p-3.5 rounded-2xl bg-slate-950 border border-amber-500/30 mb-3">
+                          <label class="block text-xs font-bold text-amber-300 mb-1.5 d-flex align-items-center gap-1.5">
+                            <i class="ri-shield-star-line text-amber-400"></i>
+                            <span>{{ field.sub_fields.team_name.label || 'Nama Tim / Skuad' }}</span>
+                            <span v-if="field.sub_fields.team_name.required" class="text-rose-400">*</span>
+                            <span v-else class="text-slate-500 text-[11px] font-normal">(Opsional)</span>
+                          </label>
+                          <input 
+                            type="text" 
+                            :placeholder="field.sub_fields.team_name.placeholder || 'Contoh: Garuda Squad / Tim Voli Utama'" 
+                            class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:border-amber-400 text-xs"
+                          />
+                          <div class="text-[10px] text-slate-500 mt-1">Nama tim/skuad resmi pengirim delegasi.</div>
+                        </div>
+
                         <div 
                           v-for="pIdx in (previewValues[field.name + '_count'] || 3)" 
                           :key="pIdx"
@@ -3994,13 +4344,15 @@ function setParticipantCountDirect(field, val) {
                             <div v-if="field.sub_fields?.photo_formal?.active" class="sm:col-span-1">
                               <label class="block text-[11px] text-slate-400 mb-1 d-flex align-items-center justify-content-between">
                                 <span class="d-flex align-items-center gap-1">
-                                  <i class="ri-camera-line text-sky-400"></i> Foto Formal Siswa
+                                  <i class="ri-camera-line text-sky-400"></i>
+                                  <span>{{ field.sub_fields.photo_formal.label || 'Foto Formal Siswa' }}</span>
+                                  <span v-if="field.sub_fields.photo_formal.required" class="text-rose-400">*</span>
                                 </span>
                                 <span class="badge bg-sky-500/20 text-sky-300 text-[10px] py-0.5 border border-sky-500/30">Pas Foto (1 File)</span>
                               </label>
                               <div class="border border-dashed border-slate-800 hover:border-sky-500/50 rounded-xl p-3 text-center bg-slate-900/60 cursor-pointer">
                                 <i class="ri-image-add-line text-sky-400 text-lg"></i>
-                                <div class="text-xs text-slate-300 font-medium mt-1">Upload Pas Foto Formal</div>
+                                <div class="text-xs text-slate-300 font-medium mt-1">{{ field.sub_fields.photo_formal.placeholder || 'Upload Pas Foto Formal' }}</div>
                                 <div class="text-[10px] text-slate-500">JPG/PNG, Maks. 3 MB</div>
                               </div>
                             </div>
@@ -4009,13 +4361,15 @@ function setParticipantCountDirect(field, val) {
                             <div v-if="field.sub_fields?.photo_freestyle?.active" class="sm:col-span-1">
                               <label class="block text-[11px] text-slate-400 mb-1 d-flex align-items-center justify-content-between">
                                 <span class="d-flex align-items-center gap-1">
-                                  <i class="ri-gallery-upload-line text-emerald-400"></i> Foto Pose Gaya Bebas
+                                  <i class="ri-gallery-upload-line text-emerald-400"></i>
+                                  <span>{{ field.sub_fields.photo_freestyle.label || 'Foto Pose Gaya Bebas' }}</span>
+                                  <span v-if="field.sub_fields.photo_freestyle.required" class="text-rose-400">*</span>
                                 </span>
                                 <span class="badge bg-emerald-500/20 text-emerald-300 text-[10px] py-0.5 border border-emerald-500/30">Bisa >1 Foto</span>
                               </label>
                               <div class="border border-dashed border-slate-800 hover:border-emerald-500/50 rounded-xl p-3 text-center bg-slate-900/60 cursor-pointer">
                                 <i class="ri-images-line text-emerald-400 text-lg"></i>
-                                <div class="text-xs text-slate-300 font-medium mt-1">Upload Foto Pose Bebas</div>
+                                <div class="text-xs text-slate-300 font-medium mt-1">{{ field.sub_fields.photo_freestyle.placeholder || 'Upload Foto Pose Bebas' }}</div>
                                 <div class="text-[10px] text-slate-500">Mendukung upload lebih dari 1 foto</div>
                               </div>
                             </div>
@@ -4685,6 +5039,49 @@ function setParticipantCountDirect(field, val) {
                     <div class="preset-section-divider pt-2">
                       <div class="fs-11 fw-bold preset-form-label mb-2">Kolom Biodata Siswa yang Diaktifkan di Template Ini:</div>
                       
+                      <!-- Group 0: Pengisian Nama Tim / Skuad di Preset -->
+                      <div class="p-2 rounded preset-subcard border mb-2" v-if="pf.sub_fields?.team_name">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                          <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                            <input type="checkbox" class="form-check-input text-warning" v-model="pf.sub_fields.team_name.active" />
+                            <div>
+                              <span class="fw-bold d-flex align-items-center gap-1">
+                                <i class="ri-shield-star-line text-warning"></i> Nama Tim / Skuad (Sebelum Data Siswa)
+                              </span>
+                              <div class="preset-subtext fs-10">Aktifkan kolom nama tim sebelum isian data siswa</div>
+                            </div>
+                          </label>
+                          <div v-if="pf.sub_fields.team_name.active" class="d-flex align-items-center gap-1.5">
+                            <button 
+                              type="button" 
+                              class="btn btn-xs py-0.5 px-2 fs-10 fw-semibold rounded"
+                              :class="pf.sub_fields.team_name.required ? 'btn-danger-subtle text-danger' : 'btn-light text-muted'"
+                              @click="pf.sub_fields.team_name.required = !pf.sub_fields.team_name.required"
+                            >
+                              {{ pf.sub_fields.team_name.required ? 'Wajib *' : 'Opsional' }}
+                            </button>
+                          </div>
+                        </div>
+                        <div v-if="pf.sub_fields.team_name.active" class="row g-2 pt-1.5 mt-1 border-top">
+                          <div class="col-md-5">
+                            <input 
+                              type="text" 
+                              v-model="pf.sub_fields.team_name.label" 
+                              class="form-control form-control-sm preset-form-input fs-11" 
+                              placeholder="Nama Tim / Skuad"
+                            />
+                          </div>
+                          <div class="col-md-7">
+                            <input 
+                              type="text" 
+                              v-model="pf.sub_fields.team_name.placeholder" 
+                              class="form-control form-control-sm preset-form-input fs-11" 
+                              placeholder="Placeholder nama tim..."
+                            />
+                          </div>
+                        </div>
+                      </div>
+
                       <div class="row g-2">
                         <!-- Group 1: Identitas -->
                         <div class="col-md-4">
@@ -4750,24 +5147,61 @@ function setParticipantCountDirect(field, val) {
 
                         <!-- Group 3: Foto & Berkas Siswa -->
                         <div class="col-md-4">
-                          <div class="p-2.5 rounded preset-subcard border h-100 d-flex flex-column gap-1.5">
+                          <div class="p-2.5 rounded preset-subcard border h-100 d-flex flex-column gap-2">
                             <div class="preset-group-title-rose fs-10 fw-bold text-uppercase mb-1 d-flex align-items-center gap-1">
                               <i class="ri-image-line"></i> Berkas &amp; Foto Siswa
                             </div>
-                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label" v-if="pf.sub_fields?.photo_formal">
-                              <input type="checkbox" class="form-check-input text-danger" v-model="pf.sub_fields.photo_formal.active" />
-                              <div>
-                                <span>Upload Pas Foto Formal Siswa</span>
-                                <div class="preset-subtext fs-10">Foto resmi 3x4 / berseragam (1 file)</div>
+                            <!-- Photo Formal -->
+                            <div v-if="pf.sub_fields?.photo_formal" class="d-flex flex-column gap-1">
+                              <div class="d-flex align-items-center justify-content-between">
+                                <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                                  <input type="checkbox" class="form-check-input text-danger" v-model="pf.sub_fields.photo_formal.active" />
+                                  <span class="fw-semibold">Pas Foto Formal</span>
+                                </label>
+                                <button 
+                                  v-if="pf.sub_fields.photo_formal.active"
+                                  type="button" 
+                                  class="btn btn-xs py-0 px-1.5 fs-9 fw-semibold rounded"
+                                  :class="pf.sub_fields.photo_formal.required ? 'btn-danger-subtle text-danger' : 'btn-light text-muted'"
+                                  @click="pf.sub_fields.photo_formal.required = !pf.sub_fields.photo_formal.required"
+                                >
+                                  {{ pf.sub_fields.photo_formal.required ? 'Wajib *' : 'Opsional' }}
+                                </button>
                               </div>
-                            </label>
-                            <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label" v-if="pf.sub_fields?.photo_freestyle">
-                              <input type="checkbox" class="form-check-input text-danger" v-model="pf.sub_fields.photo_freestyle.active" />
-                              <div>
-                                <span>Upload Foto Pose Gaya Bebas</span>
-                                <div class="preset-subtext fs-10">Bisa &gt;1 file foto sekaligus</div>
+                              <input 
+                                v-if="pf.sub_fields.photo_formal.active"
+                                type="text" 
+                                v-model="pf.sub_fields.photo_formal.placeholder" 
+                                class="form-control form-control-sm preset-form-input fs-10 py-0.5" 
+                                placeholder="Petunjuk upload formal..."
+                              />
+                            </div>
+
+                            <!-- Photo Freestyle -->
+                            <div v-if="pf.sub_fields?.photo_freestyle" class="d-flex flex-column gap-1 pt-1 border-top">
+                              <div class="d-flex align-items-center justify-content-between">
+                                <label class="form-check form-check-sm mb-0 d-flex align-items-center gap-2 cursor-pointer fs-11 preset-check-label">
+                                  <input type="checkbox" class="form-check-input text-danger" v-model="pf.sub_fields.photo_freestyle.active" />
+                                  <span class="fw-semibold">Foto Gaya Bebas</span>
+                                </label>
+                                <button 
+                                  v-if="pf.sub_fields.photo_freestyle.active"
+                                  type="button" 
+                                  class="btn btn-xs py-0 px-1.5 fs-9 fw-semibold rounded"
+                                  :class="pf.sub_fields.photo_freestyle.required ? 'btn-danger-subtle text-danger' : 'btn-light text-muted'"
+                                  @click="pf.sub_fields.photo_freestyle.required = !pf.sub_fields.photo_freestyle.required"
+                                >
+                                  {{ pf.sub_fields.photo_freestyle.required ? 'Wajib *' : 'Opsional' }}
+                                </button>
                               </div>
-                            </label>
+                              <input 
+                                v-if="pf.sub_fields.photo_freestyle.active"
+                                type="text" 
+                                v-model="pf.sub_fields.photo_freestyle.placeholder" 
+                                class="form-control form-control-sm preset-form-input fs-10 py-0.5" 
+                                placeholder="Petunjuk upload bebas..."
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>

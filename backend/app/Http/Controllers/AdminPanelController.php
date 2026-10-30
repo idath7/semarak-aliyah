@@ -3615,7 +3615,7 @@ class AdminPanelController extends Controller
     public function registeredSchoolsIndex(Request $request)
     {
         $allCompetitions = Competition::orderBy('id', 'asc')->get();
-        $masterSchools = \App\Models\School::orderBy('name', 'asc')->get(['id', 'npsn', 'name', 'jenjang', 'kecamatan']);
+        $masterSchools = \App\Models\School::orderBy('name', 'asc')->get(['id', 'npsn', 'name', 'jenjang', 'kecamatan', 'alamat']);
         $districts = \App\Models\School::getKecamatanList();
         $packageAllinPrice = (int)Setting::get('package_allin_price', 200000);
 
@@ -3861,9 +3861,12 @@ class AdminPanelController extends Controller
             'school_name' => 'required|string|max:255',
             'jenjang' => 'nullable|string|in:SMP,MTs,Lainnya',
             'kecamatan' => 'nullable|string|max:100',
+            'npsn' => 'nullable|string|max:50',
+            'alamat' => 'nullable|string|max:500',
             'mentor_name' => 'required|string|max:255',
             'mentor_wa' => 'required|string|max:30',
             'mentor_email' => 'nullable|email|max:255',
+            'team_name' => 'nullable|string|max:255',
             'package_type' => 'required|string|in:Paket Satuan,Paket All-In',
             'competition_id' => 'nullable|exists:competitions,id',
             'competition_ids' => 'nullable|array',
@@ -3872,9 +3875,11 @@ class AdminPanelController extends Controller
             'package_price' => 'nullable|numeric|min:0',
             'students' => 'nullable|array',
             'participants_text' => 'nullable|string',
+            'custom_fields' => 'nullable|array',
             'payment_status' => 'required|string|in:Terverifikasi,Menunggu Verifikasi,Belum Bayar',
             'payment_method' => 'required|string|max:100',
             'notes' => 'nullable|string|max:1000',
+            'target_action' => 'nullable|string|in:manage_delegates,save_only',
         ]);
 
         $cleanWa = Setting::formatWaNumber($validated['mentor_wa']);
@@ -3934,6 +3939,21 @@ class AdminPanelController extends Controller
         $participantsString = !empty($namesList) ? implode("\n", $namesList) : 'Belum Ada Delegasi (Perlu Input)';
         $createdRegistrations = [];
 
+        $customFieldsBase = array_merge($validated['custom_fields'] ?? [], [
+            'kecamatan' => $validated['kecamatan'] ?? null,
+            'school_district' => $validated['kecamatan'] ?? null,
+            'jenjang' => $validated['jenjang'] ?? null,
+            'npsn' => $validated['npsn'] ?? null,
+            'school_npsn' => $validated['npsn'] ?? null,
+            'alamat' => $validated['alamat'] ?? null,
+            'school_address' => $validated['alamat'] ?? null,
+            'team_name' => $validated['team_name'] ?? null,
+            'nama_tim' => $validated['team_name'] ?? null,
+            'delegates' => $students,
+            'registered_by_admin' => Auth::guard('web')->user()?->name ?? 'Panitia Admin',
+            'registered_at_desk' => now()->toIso8601String(),
+        ]);
+
         if ($validated['package_type'] === 'Paket Satuan') {
             if (empty($validated['competition_id'])) {
                 return redirect()->back()->with('error', 'Cabang lomba wajib dipilih untuk pendaftaran Paket Satuan.');
@@ -3942,7 +3962,7 @@ class AdminPanelController extends Controller
             $competition = Competition::findOrFail($validated['competition_id']);
             $fee = isset($validated['custom_fee']) && $validated['custom_fee'] !== null 
                 ? (int)$validated['custom_fee'] 
-                : (int)$competition->price;
+                : (int)($competition->price ?? $competition->fee ?? 0);
 
             $regCode = 'SA26-' . strtoupper(substr(md5(uniqid(rand(), true)), 0, 6));
 
@@ -3963,13 +3983,7 @@ class AdminPanelController extends Controller
                 'payment_status' => $validated['payment_status'],
                 'payment_method' => $validated['payment_method'],
                 'notes' => $validated['notes'] ?? 'Pendaftaran di tempat (Meja Panitia)',
-                'custom_fields' => [
-                    'kecamatan' => $validated['kecamatan'] ?? null,
-                    'jenjang' => $validated['jenjang'] ?? null,
-                    'delegates' => $students,
-                    'registered_by_admin' => Auth::guard('web')->user()?->name ?? 'Panitia Admin',
-                    'registered_at_desk' => now()->toIso8601String(),
-                ],
+                'custom_fields' => $customFieldsBase,
             ]);
 
             $createdRegistrations[] = $reg;
@@ -4009,13 +4023,7 @@ class AdminPanelController extends Controller
                     'payment_status' => $validated['payment_status'],
                     'payment_method' => $validated['payment_method'],
                     'notes' => $validated['notes'] ?? 'Pendaftaran di tempat Paket Komplit (All-In)',
-                    'custom_fields' => [
-                        'kecamatan' => $validated['kecamatan'] ?? null,
-                        'jenjang' => $validated['jenjang'] ?? null,
-                        'delegates' => $students,
-                        'registered_by_admin' => Auth::guard('web')->user()?->name ?? 'Panitia Admin',
-                        'registered_at_desk' => now()->toIso8601String(),
-                    ],
+                    'custom_fields' => $customFieldsBase,
                 ]);
 
                 $createdRegistrations[] = $reg;
@@ -4025,23 +4033,43 @@ class AdminPanelController extends Controller
 
         // Auto-sinkronisasi ke tabel master School
         try {
-            \App\Models\School::firstOrCreateFromRegistration($schoolName, $cleanWa, $validated['kecamatan'] ?? null);
+            \App\Models\School::firstOrCreateFromRegistration(
+                $schoolName, 
+                $cleanWa, 
+                $validated['kecamatan'] ?? null,
+                $validated['npsn'] ?? null,
+                $validated['alamat'] ?? null
+            );
         } catch (\Throwable $e) {}
 
         $count = count($createdRegistrations);
         $firstReg = $createdRegistrations[0] ?? null;
+        $targetAction = $validated['target_action'] ?? 'manage_delegates';
 
         return redirect()->back()->with([
-            'success' => "Pendaftaran kontingen {$schoolName} berhasil disimpan ({$count} cabang lomba terdata)! Silakan lengkapi data delegasi peserta sesuai aturan form builder.",
+            'success' => "Pendaftaran kontingen {$schoolName} berhasil disimpan ({$count} cabang lomba terdata)!",
             'newly_registered' => $firstReg ? [
                 'registration_id' => $firstReg->id,
                 'reg_code' => $firstReg->reg_code,
                 'competition_id' => $firstReg->competition_id,
                 'competition_title' => $firstReg->competition_title,
                 'school_name' => $firstReg->school_name,
-                'students' => [],
+                'students' => $firstReg->custom_fields['delegates'] ?? [],
                 'custom_fields' => $firstReg->custom_fields ?? [],
             ] : null,
+            'newly_registered_all' => array_map(fn($r) => [
+                'registration_id' => $r->id,
+                'reg_code' => $r->reg_code,
+                'competition_id' => $r->competition_id,
+                'competition_title' => $r->competition_title,
+                'school_name' => $r->school_name,
+                'package_type' => $r->package_type,
+                'total_fee' => (int)$r->total_fee,
+                'payment_status' => $r->payment_status,
+                'students' => $r->custom_fields['delegates'] ?? [],
+                'custom_fields' => $r->custom_fields ?? [],
+            ], $createdRegistrations),
+            'target_action' => $targetAction,
         ]);
     }
 

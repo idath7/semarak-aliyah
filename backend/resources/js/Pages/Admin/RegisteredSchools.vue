@@ -283,6 +283,8 @@ function onSelectMasterSchool(schoolId) {
   if (found) {
     manualForm.value.school_name = found.name;
     if (found.jenjang) manualForm.value.jenjang = found.jenjang;
+    if (found.npsn) manualForm.value.npsn = found.npsn;
+    if (found.alamat) manualForm.value.alamat = found.alamat;
     if (found.kecamatan) {
       const match = JEMBER_KECAMATAN_LIST.find(k => k.toLowerCase() === found.kecamatan.toLowerCase() && k !== 'Lainnya');
       if (match) {
@@ -316,17 +318,21 @@ function openManualModal(prefilledSchool = null) {
     jenjang: prefilledSchool?.jenjang && prefilledSchool.jenjang !== '-' ? prefilledSchool.jenjang : 'SMP',
     kecamatan: initKecamatan,
     custom_kecamatan: initCustomKecamatan,
+    npsn: prefilledSchool?.npsn && prefilledSchool.npsn !== '-' ? prefilledSchool.npsn : '',
+    alamat: '',
     mentor_name: prefilledSchool?.mentor_name && prefilledSchool.mentor_name !== '-' ? prefilledSchool.mentor_name : '',
     mentor_wa: prefilledSchool?.mentor_wa && prefilledSchool.mentor_wa !== '-' ? prefilledSchool.mentor_wa : '',
     mentor_email: '',
+    team_name: '',
     package_type: prefilledSchool?.has_all_in ? 'Paket All-In' : 'Paket Satuan',
     competition_id: props.competitions[0]?.id ? String(props.competitions[0].id) : '',
-    competition_ids: prefilledSchool?.competitions ? prefilledSchool.competitions.map(c => c.competition_id) : [],
+    competition_ids: prefilledSchool?.competitions ? prefilledSchool.competitions.map(c => c.competition_id) : (props.competitions.map(c => c.id)),
     custom_fee: null,
     package_price: props.package_allin_price,
     payment_status: 'Terverifikasi',
     payment_method: 'Tunai di Meja Panitia',
     notes: 'Pendaftaran langsung on-the-spot di Meja Panitia',
+    target_action: 'manage_delegates',
   };
 
   // If prefilled school exists in master
@@ -335,6 +341,8 @@ function openManualModal(prefilledSchool = null) {
     const found = props.master_schools.find(ms => ms.name.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
     if (found) {
       manualForm.value.selected_master_id = String(found.id);
+      if (found.npsn) manualForm.value.npsn = found.npsn;
+      if (found.alamat) manualForm.value.alamat = found.alamat;
       if (!manualForm.value.kecamatan && found.kecamatan) {
         const match = JEMBER_KECAMATAN_LIST.find(k => k.toLowerCase() === found.kecamatan.toLowerCase() && k !== 'Lainnya');
         if (match) {
@@ -370,7 +378,92 @@ function deselectAllCompetitions() {
   manualForm.value.competition_ids = [];
 }
 
-async function submitManualRegistration() {
+// -----------------------------------------------------------------------------
+// KONFIGURASI FORM BUILDER UNTUK MODAL INPUT MANUAL
+// -----------------------------------------------------------------------------
+const activeManualCompetition = computed(() => {
+  if (manualForm.value.package_type === 'Paket Satuan' && manualForm.value.competition_id) {
+    return props.competitions.find(c => String(c.id) === String(manualForm.value.competition_id)) || null;
+  }
+  return null;
+});
+
+const competitionSelectOptions = computed(() => {
+  return props.competitions.map(c => {
+    const fee = Number(c.price || c.fee || 0);
+    const feeText = fee > 0 ? formatRupiah(fee) : 'Gratis';
+    const cat = c.category?.name || 'Umum';
+    return {
+      value: String(c.id),
+      label: `${c.title} • ${cat} (${feeText})`
+    };
+  });
+});
+
+const activeManualFormBuilder = computed(() => {
+  const comp = activeManualCompetition.value;
+  if (!comp) return null;
+
+  const customFields = Array.isArray(comp.custom_fields) ? comp.custom_fields : [];
+  const repeater = customFields.find(f => f.type === 'participant_repeater');
+  const rawSubs = repeater?.sub_fields || {};
+
+  const hasTeamName = !!rawSubs.team_name?.active || customFields.some(f => ['nama_tim', 'team_name', 'nama_squad', 'nama_regu'].includes(f.name));
+  const teamLabel = rawSubs.team_name?.label || 'Nama Tim / Skuad';
+  const teamPlaceholder = rawSubs.team_name?.placeholder || 'Contoh: Garuda Squad / Tim Voli Utama';
+
+  const npsnField = customFields.find(f => ['school_npsn', 'npsn', 'nomor_pokok_sekolah_nasional'].includes(f.name));
+  const addressField = customFields.find(f => ['school_address', 'alamat_sekolah', 'alamat_lengkap_sekolah', 'alamat'].includes(f.name));
+  const emailField = customFields.find(f => ['mentor_email', 'email', 'alamat_email'].includes(f.name));
+
+  const standardNames = [
+    'school_name', 'asal_sekolah', 'nama_sekolah', 'nama_lembaga', 'nama_sekolah_madrasah',
+    'school_district', 'kecamatan', 'kecamatan_sekolah', 'kecamatan_asal_sekolah',
+    'school_npsn', 'npsn', 'npsn_sekolah', 'nomor_pokok_sekolah_nasional',
+    'school_address', 'alamat_sekolah', 'alamat_lengkap_sekolah', 'alamat',
+    'mentor_name', 'nama_pendamping', 'nama_guru_pendamping', 'nama_pembina',
+    'mentor_wa', 'nomor_wa', 'whatsapp', 'nomor_whatsapp', 'nomor_whatsapp_pendamping',
+    'mentor_email', 'contact_email', 'email', 'alamat_email',
+    'nama_tim', 'team_name', 'nama_squad', 'nama_regu',
+    'allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin'
+  ];
+
+  const otherFields = customFields.filter(f => f.type !== 'participant_repeater' && !standardNames.includes(f.name));
+
+  const minItems = repeater?.min_items ? Number(repeater.min_items) : Math.max(1, Number(comp.min_participants || 1));
+  const maxItems = repeater?.max_items ? Number(repeater.max_items) : Math.max(minItems, Number(comp.max_participants || 1));
+
+  return {
+    comp,
+    repeater,
+    rawSubs,
+    hasTeamName,
+    teamLabel,
+    teamPlaceholder,
+    npsnField,
+    addressField,
+    emailField,
+    otherFields,
+    minItems,
+    maxItems,
+    isTeam: maxItems > 1 || hasTeamName || comp.participant_type === 'team' || comp.participant_type === 'regu',
+  };
+});
+
+const manualTotalCalculatedFee = computed(() => {
+  if (manualForm.value.package_type === 'Paket All-In') {
+    return manualForm.value.package_price !== null && manualForm.value.package_price !== undefined && manualForm.value.package_price !== ''
+      ? Number(manualForm.value.package_price)
+      : Number(props.package_allin_price || 200000);
+  }
+  if (manualForm.value.custom_fee !== null && manualForm.value.custom_fee !== undefined && manualForm.value.custom_fee !== '') {
+    return Number(manualForm.value.custom_fee);
+  }
+  const comp = activeManualCompetition.value;
+  return Number(comp?.price || comp?.fee || 0);
+});
+
+async function submitManualRegistration(targetAction = 'manage_delegates') {
   if (!manualForm.value.school_name.trim()) {
     toast.showToast({ type: 'warning', title: 'Perhatian', message: 'Nama sekolah / madrasah wajib diisi!' });
     return;
@@ -403,8 +496,8 @@ async function submitManualRegistration() {
     : manualForm.value.kecamatan;
 
   const confirmed = await confirmDialog({
-    title: 'Konfirmasi Pendaftaran Manual',
-    message: `Daftarkan kontingen ${manualForm.value.school_name} (${manualForm.value.package_type}) dengan status pembayaran [${manualForm.value.payment_status}]?`,
+    title: 'Konfirmasi Pendaftaran Meja Panitia',
+    message: `Daftarkan kontingen ${manualForm.value.school_name} (${manualForm.value.package_type}) dengan total tagihan [${formatRupiah(manualTotalCalculatedFee.value)}] dan status [${manualForm.value.payment_status}]?`,
     type: 'primary',
     confirmText: 'Ya, Simpan Pendaftaran',
     cancelText: 'Cek Kembali',
@@ -413,13 +506,18 @@ async function submitManualRegistration() {
   if (!confirmed) return;
 
   isSubmittingManual.value = true;
+  manualForm.value.target_action = targetAction;
+
   router.post('/admin/pendaftar/manual-store', {
     school_name: manualForm.value.school_name,
     jenjang: manualForm.value.jenjang,
     kecamatan: finalKecamatan,
+    npsn: manualForm.value.npsn,
+    alamat: manualForm.value.alamat,
     mentor_name: manualForm.value.mentor_name,
     mentor_wa: manualForm.value.mentor_wa,
     mentor_email: manualForm.value.mentor_email,
+    team_name: manualForm.value.team_name,
     package_type: manualForm.value.package_type,
     competition_id: manualForm.value.package_type === 'Paket Satuan' ? manualForm.value.competition_id : null,
     competition_ids: manualForm.value.package_type === 'Paket All-In' ? manualForm.value.competition_ids : [],
@@ -428,20 +526,40 @@ async function submitManualRegistration() {
     payment_status: manualForm.value.payment_status,
     payment_method: manualForm.value.payment_method,
     notes: manualForm.value.notes,
+    target_action: targetAction,
   }, {
     onSuccess: (pageRes) => {
       isSubmittingManual.value = false;
       showManualModal.value = false;
+
+      const newlyAll = pageRes.props?.flash?.newly_registered_all || page.props.flash?.newly_registered_all || [];
+      const newlyFirst = pageRes.props?.flash?.newly_registered || page.props.flash?.newly_registered;
+      const returnedAction = pageRes.props?.flash?.target_action || targetAction;
+
       toast.showToast({
         type: 'success',
         title: 'Pendaftaran Sekolah Berhasil',
-        message: 'Informasi sekolah & pendamping berhasil disimpan!'
+        message: 'Informasi sekolah, pembina & cabang lomba berhasil disimpan di meja panitia!'
       });
 
-      // Buka otomatis modal input peserta delegasi sesuai aturan form builder jika ada registrasi baru
-      const newlyReg = pageRes.props?.flash?.newly_registered || page.props.flash?.newly_registered;
-      if (newlyReg) {
-        openParticipantModal(newlyReg);
+      if (returnedAction === 'manage_delegates') {
+        if (newlyAll.length > 0) {
+          openParticipantModal(newlyAll[0], { competitions: newlyAll });
+        } else if (newlyFirst) {
+          openParticipantModal(newlyFirst);
+        }
+      } else {
+        // Mode Simpan Kontingen Saja -> tampilkan dialog ringkasan
+        openSummaryModal({
+          school_name: manualForm.value.school_name,
+          mentor_name: manualForm.value.mentor_name,
+          mentor_wa: manualForm.value.mentor_wa,
+          package_type: manualForm.value.package_type,
+          total_fee: manualTotalCalculatedFee.value,
+          payment_status: manualForm.value.payment_status,
+          payment_method: manualForm.value.payment_method,
+          competitions: newlyAll.length > 0 ? newlyAll : (newlyFirst ? [newlyFirst] : []),
+        });
       }
     },
     onError: (errs) => {
@@ -533,8 +651,21 @@ const activeBuilderRules = computed(() => {
   };
 });
 
+const contingentRegistrations = ref([]);
+
 function openParticipantModal(compReg, schoolContext = null) {
   activeRegForParticipants.value = compReg;
+
+  // Normalisasi daftar cabang lomba kontingen untuk tab navigator multi-cabang
+  if (schoolContext?.competitions && Array.isArray(schoolContext.competitions) && schoolContext.competitions.length > 0) {
+    contingentRegistrations.value = schoolContext.competitions;
+  } else if (compReg.contingent_competitions && Array.isArray(compReg.contingent_competitions) && compReg.contingent_competitions.length > 0) {
+    contingentRegistrations.value = compReg.contingent_competitions;
+  } else if (contingentRegistrations.value.length > 1 && contingentRegistrations.value.some(c => (c.registration_id || c.id) === (compReg.registration_id || compReg.id))) {
+    // Pertahankan daftar cabang kontingen yang sedang dibuka
+  } else {
+    contingentRegistrations.value = [compReg];
+  }
   
   // Temukan konfigurasi competition dari props.competitions
   const foundComp = props.competitions.find(c => String(c.id) === String(compReg.competition_id));
@@ -607,6 +738,11 @@ function openParticipantModal(compReg, schoolContext = null) {
   showParticipantModal.value = true;
 }
 
+function switchContingentCompetition(targetReg) {
+  if (!targetReg) return;
+  openParticipantModal(targetReg, { competitions: contingentRegistrations.value });
+}
+
 function addDelegateItem() {
   const max = activeBuilderRules.value.max_items;
   if (participantForm.value.delegates.length >= max) {
@@ -662,12 +798,26 @@ async function submitParticipants() {
   }, {
     onSuccess: () => {
       isSubmittingParticipants.value = false;
-      showParticipantModal.value = false;
+
+      const savedDelegates = JSON.parse(JSON.stringify(participantForm.value.delegates));
+      activeRegForParticipants.value.students = savedDelegates;
+
+      // Update di array kontingen
+      const foundInContingent = contingentRegistrations.value.find(c => (c.registration_id || c.id) === regId);
+      if (foundInContingent) {
+        foundInContingent.students = savedDelegates;
+      }
+
       toast.showToast({
         type: 'success',
         title: 'Berhasil Disimpan',
-        message: 'Data peserta delegasi berhasil diperbarui sesuai aturan form builder!'
+        message: `Data delegasi untuk ${activeRegForParticipants.value.competition_title} berhasil diperbarui!`
       });
+
+      // Jika pendaftaran satuan (1 cabang), tutup modal. Jika multi-cabang kontingen, biarkan terbuka agar panitia bisa pilih tab lain
+      if (contingentRegistrations.value.length <= 1) {
+        showParticipantModal.value = false;
+      }
     },
     onError: (errs) => {
       isSubmittingParticipants.value = false;
@@ -675,6 +825,17 @@ async function submitParticipants() {
       toast.showToast({ type: 'danger', title: 'Gagal', message: msg });
     }
   });
+}
+
+// -----------------------------------------------------------------------------
+// MODAL: RINGKASAN PENDAFTARAN KONTINGEN BARU (SUMMARY DIALOG)
+// -----------------------------------------------------------------------------
+const showSummaryModal = ref(false);
+const summaryData = ref(null);
+
+function openSummaryModal(data) {
+  summaryData.value = data;
+  showSummaryModal.value = true;
 }
 
 // -----------------------------------------------------------------------------
@@ -1524,7 +1685,17 @@ function printReport() {
 
           <!-- Modal Footer -->
           <div class="modal-footer bg-white border-top py-2.5 d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div class="d-flex align-items-center gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <button 
+                v-if="activeSchool.competitions && activeSchool.competitions.length > 1"
+                type="button" 
+                class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+                @click="openParticipantModal(activeSchool.competitions[0], activeSchool)"
+                title="Kelola delegasi peserta untuk seluruh cabang lomba kontingen ini secara multi-tab"
+              >
+                <i class="ri-team-line"></i>
+                <span>Kelola Delegasi Multi-Cabang</span>
+              </button>
               <button 
                 type="button" 
                 class="btn btn-sm btn-success d-inline-flex align-items-center gap-1"
@@ -1558,27 +1729,226 @@ function printReport() {
         <div class="modal-content shadow-lg border-0">
           <!-- Modal Header -->
           <div class="modal-header py-2.5 px-3 px-md-4 border-bottom d-flex align-items-center justify-content-between">
-            <h6 class="modal-title fw-bold mb-0 d-flex align-items-center gap-2 fs-14">
-              <i class="ri-user-add-line text-primary fs-18"></i>
-              <span>Input Manual Pendaftaran &amp; Delegasi (Meja Panitia)</span>
-            </h6>
+            <div>
+              <h6 class="modal-title fw-bold mb-0 d-flex align-items-center gap-2 fs-14">
+                <i class="ri-user-add-line text-primary fs-18"></i>
+                <span>Input Manual Pendaftaran &amp; Delegasi (Meja Panitia)</span>
+              </h6>
+              <div class="fs-11 text-muted mt-0.5 d-flex align-items-center gap-2">
+                <span>Alur: 1. Paket &amp; Lomba &rarr; 2. Identitas Lembaga &amp; Pembina &rarr; 3. Pembayaran &amp; Delegasi</span>
+              </div>
+            </div>
             <button type="button" class="btn-close" @click="showManualModal = false"></button>
           </div>
 
           <!-- Modal Body -->
           <div class="modal-body p-3 p-md-4 bg-light">
+            <!-- Top Step Navigation Bar Indicator -->
+            <div class="card border-0 shadow-xs mb-3 bg-white">
+              <div class="card-body p-2 px-3">
+                <div class="row g-2 text-center fs-11">
+                  <div class="col-4">
+                    <div class="p-1.5 rounded-2 bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center gap-1.5">
+                      <span class="badge rounded-circle bg-primary text-white p-1" style="width: 18px; height: 18px; line-height: 10px;">1</span>
+                      <span class="d-none d-sm-inline">Pilih Paket &amp; Cabang</span>
+                      <span class="d-inline d-sm-none">Paket/Lomba</span>
+                    </div>
+                  </div>
+                  <div class="col-4">
+                    <div class="p-1.5 rounded-2 bg-light text-dark fw-bold border d-flex align-items-center justify-content-center gap-1.5">
+                      <span class="badge rounded-circle bg-secondary text-white p-1" style="width: 18px; height: 18px; line-height: 10px;">2</span>
+                      <span class="d-none d-sm-inline">Identitas Sekolah &amp; Pembina</span>
+                      <span class="d-inline d-sm-none">Identitas</span>
+                    </div>
+                  </div>
+                  <div class="col-4">
+                    <div class="p-1.5 rounded-2 bg-light text-dark fw-bold border d-flex align-items-center justify-content-center gap-1.5">
+                      <span class="badge rounded-circle bg-secondary text-white p-1" style="width: 18px; height: 18px; line-height: 10px;">3</span>
+                      <span class="d-none d-sm-inline">Pembayaran &amp; Delegasi</span>
+                      <span class="d-inline d-sm-none">Delegasi</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="row g-3">
-              <!-- 1. DATA SEKOLAH / KONTINGEN -->
+              <!-- KOLOM KIRI: 1. SKEMA PAKET & CABANG LOMBA + 3. PEMBAYARAN -->
+              <div class="col-12 col-lg-6">
+                <!-- 1. PILIHAN PAKET & CABANG LOMBA (DITENTUKAN PERTAMA KALI) -->
+                <div class="card shadow-sm border-0 mb-3">
+                  <div class="card-header bg-white py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
+                    <span class="fw-bold text-dark fs-12 text-uppercase d-flex align-items-center gap-1.5">
+                      <i class="ri-medal-fill text-warning"></i> 1. Pilihan Skema Paket &amp; Cabang Lomba
+                    </span>
+                    <span class="badge bg-primary text-white fs-10 px-2 py-0.5 rounded-pill">Langkah Pertama</span>
+                  </div>
+
+                  <div class="card-body p-3">
+                    <!-- Tab Switch Paket Satuan vs Paket All-In -->
+                    <div class="row g-2 mb-3">
+                      <div class="col-6">
+                        <div 
+                          class="p-2.5 rounded-3 border text-center cursor-pointer transition-all"
+                          :class="manualForm.package_type === 'Paket Satuan' ? 'border-primary bg-primary-subtle text-primary fw-bold shadow-sm' : 'bg-light text-muted'"
+                          @click="manualForm.package_type = 'Paket Satuan'"
+                        >
+                          <i class="ri-medal-line fs-20 d-block mb-1"></i>
+                          <span>Paket Satuan</span>
+                          <span class="d-block fs-10 text-muted">Per cabang lomba</span>
+                        </div>
+                      </div>
+                      <div class="col-6">
+                        <div 
+                          class="p-2.5 rounded-3 border text-center cursor-pointer transition-all"
+                          :class="manualForm.package_type === 'Paket All-In' ? 'border-warning bg-warning-subtle text-warning-emphasis fw-bold shadow-sm' : 'bg-light text-muted'"
+                          @click="manualForm.package_type = 'Paket All-In'"
+                        >
+                          <i class="ri-vip-crown-fill fs-20 d-block mb-1 text-warning"></i>
+                          <span>Paket Komplit (All-In)</span>
+                          <span class="d-block fs-10 text-muted">Semua cabang lomba</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- IF PAKET SATUAN -->
+                    <div v-if="manualForm.package_type === 'Paket Satuan'" class="p-3 rounded-3 border bg-white mb-2 shadow-xs">
+                      <label class="form-label fs-11 fw-bold text-dark d-flex align-items-center justify-content-between">
+                        <span>Pilih Cabang Lomba <span class="text-danger">*</span></span>
+                        <span class="badge bg-primary-subtle text-primary fs-10">Tarif Resmi</span>
+                      </label>
+                      <CustomSelect 
+                        v-model="manualForm.competition_id" 
+                        :options="competitionSelectOptions" 
+                        size="sm"
+                        searchable
+                        search-placeholder="Cari cabang lomba..."
+                      />
+
+                      <!-- Ringkasan Info Form Builder Cabang Terpilih -->
+                      <div v-if="activeManualCompetition" class="mt-2.5 p-2.5 rounded-2 bg-light border fs-11">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+                          <span class="fw-bold text-dark">{{ activeManualCompetition.title }}</span>
+                          <span class="badge bg-success-subtle text-success fs-10">
+                            {{ formatRupiah(activeManualCompetition.price || activeManualCompetition.fee) }}
+                          </span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 text-muted fs-11">
+                          <span><i class="ri-group-line me-0.5"></i> Kuota: {{ activeManualFormBuilder?.minItems }} s.d {{ activeManualFormBuilder?.maxItems }} Siswa</span>
+                          <span>•</span>
+                          <span>Tipe: {{ activeManualFormBuilder?.isTeam ? 'Beregu / Tim' : 'Individu' }}</span>
+                        </div>
+                      </div>
+
+                      <div class="mt-2.5">
+                        <label class="form-label fs-11 fw-bold text-dark">Biaya Pendaftaran Khusus (Opsional / Override)</label>
+                        <input 
+                          type="number" 
+                          v-model="manualForm.custom_fee" 
+                          class="form-control form-control-sm fs-12"
+                          placeholder="Kosongkan untuk memakai harga default cabang" 
+                        />
+                        <span class="fs-10 text-muted">Biarkan kosong jika mengikuti tarif resmi cabang lomba.</span>
+                      </div>
+                    </div>
+
+                    <!-- IF PAKET ALL-IN -->
+                    <div v-else class="p-3 rounded-3 border border-warning-subtle bg-warning-subtle bg-opacity-10 mb-2">
+                      <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="fs-11 fw-bold text-dark">Pilih Cabang Lomba yang Diikuti Kontingen:</span>
+                        <div class="d-flex gap-1">
+                          <button type="button" class="btn btn-xs btn-outline-dark py-0.5 px-2 fs-10" @click="selectAllCompetitions">Pilih Semua</button>
+                          <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-2 fs-10" @click="deselectAllCompetitions">Reset</button>
+                        </div>
+                      </div>
+
+                      <div class="row g-1.5 mb-2" style="max-height: 190px; overflow-y: auto;">
+                        <div v-for="comp in competitions" :key="comp.id" class="col-12 col-md-6">
+                          <div 
+                            class="p-2 rounded-2 border bg-white cursor-pointer d-flex align-items-center gap-2 fs-11 transition-all"
+                            :class="manualForm.competition_ids.includes(comp.id) ? 'border-success text-success fw-bold shadow-xs' : 'text-dark border-secondary-subtle'"
+                            @click="toggleAllInCompetition(comp.id)"
+                          >
+                            <i 
+                              class="fs-15 flex-shrink-0"
+                              :class="manualForm.competition_ids.includes(comp.id) ? 'ri-checkbox-circle-fill text-success' : 'ri-checkbox-blank-circle-line text-muted'"
+                            ></i>
+                            <span class="text-truncate">{{ comp.title }}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="d-flex align-items-center justify-content-between bg-white p-2 rounded border mb-2 fs-11">
+                        <span class="text-muted">Total Cabang Dipilih:</span>
+                        <span class="badge bg-success text-white fs-11">{{ manualForm.competition_ids.length }} Cabang Lomba</span>
+                      </div>
+
+                      <div>
+                        <label class="form-label fs-11 fw-bold text-dark">Biaya Paket All-In (Total Tagihan Kontingen)</label>
+                        <input 
+                          type="number" 
+                          v-model="manualForm.package_price" 
+                          class="form-control form-control-sm fs-12 fw-bold text-success"
+                        />
+                        <span class="fs-10 text-muted">Hanya dicatat 1 tagihan paket komplit untuk seluruh cabang kontingen ini.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 3. ADMINISTRASI PEMBAYARAN DI MEJA PANITIA -->
+                <div class="card shadow-sm border-0">
+                  <div class="card-header bg-white py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
+                    <span class="fw-bold text-dark fs-12 text-uppercase d-flex align-items-center gap-1.5">
+                      <i class="ri-secure-payment-line text-primary"></i> 3. Administrasi Pembayaran di Meja Panitia
+                    </span>
+                    <span class="badge bg-success text-white fs-11">
+                      Total: {{ formatRupiah(manualTotalCalculatedFee) }}
+                    </span>
+                  </div>
+                  <div class="card-body p-3">
+                    <div class="row g-2 mb-2">
+                      <div class="col-6">
+                        <label class="form-label fs-11 fw-bold text-dark">Status Pembayaran</label>
+                        <CustomSelect 
+                          v-model="manualForm.payment_status" 
+                          :options="manualPaymentStatusOptions" 
+                          size="sm"
+                        />
+                      </div>
+                      <div class="col-6">
+                        <label class="form-label fs-11 fw-bold text-dark">Metode Bayar</label>
+                        <CustomSelect 
+                          v-model="manualForm.payment_method" 
+                          :options="manualPaymentMethodOptions" 
+                          size="sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label class="form-label fs-11 fw-bold text-dark">Catatan Petugas Meja Panitia</label>
+                      <input 
+                        type="text" 
+                        v-model="manualForm.notes" 
+                        class="form-control form-control-sm fs-12"
+                        placeholder="Nomor kwitansi, berkas fisik, atau info tambahan..." 
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- KOLOM KANAN: 2. IDENTITAS SEKOLAH & PEMBINA (ADAPTIF FORM BUILDER) -->
               <div class="col-12 col-lg-6">
                 <div class="card shadow-sm border-0 h-100">
                   <div class="card-header bg-white py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
                     <span class="fw-bold text-dark fs-12 text-uppercase d-flex align-items-center gap-1.5">
-                      <i class="ri-building-4-line text-primary"></i> 1. Identitas Sekolah / Madrasah
+                      <i class="ri-building-4-line text-primary"></i> 2. Identitas Sekolah &amp; Pembina
                     </span>
                     <div class="btn-group btn-group-sm" role="group">
                       <button 
                         type="button" 
-                        class="btn btn-xs py-0.5 px-2"
+                        class="btn btn-xs py-0.5 px-2.5"
                         :class="manualForm.school_selection_mode === 'master' ? 'btn-primary' : 'btn-light border'"
                         @click="manualForm.school_selection_mode = 'master'"
                       >
@@ -1586,7 +1956,7 @@ function printReport() {
                       </button>
                       <button 
                         type="button" 
-                        class="btn btn-xs py-0.5 px-2"
+                        class="btn btn-xs py-0.5 px-2.5"
                         :class="manualForm.school_selection_mode === 'custom' ? 'btn-primary' : 'btn-light border'"
                         @click="manualForm.school_selection_mode = 'custom'"
                       >
@@ -1598,7 +1968,9 @@ function printReport() {
                   <div class="card-body p-3">
                     <!-- Dropdown Master Sekolah jika mode master -->
                     <div v-if="manualForm.school_selection_mode === 'master'" class="mb-3">
-                      <label class="form-label fs-11 fw-bold text-dark">Pilih Sekolah dari Database Master (Jember)</label>
+                      <label class="form-label fs-11 fw-bold text-dark">
+                        Pilih Sekolah dari Database Master (Jember)
+                      </label>
                       <CustomSelect 
                         v-model="manualForm.selected_master_id" 
                         :options="masterSchoolOptions" 
@@ -1607,11 +1979,14 @@ function printReport() {
                         search-placeholder="Ketik nama sekolah/kecamatan..."
                         @update:modelValue="onSelectMasterSchool"
                       />
+                      <span class="fs-10 text-muted mt-1 d-block">Memilih master sekolah akan otomatis mengisi nama, jenjang, kecamatan, NPSN, dan alamat.</span>
                     </div>
 
                     <!-- Input Nama Sekolah -->
                     <div class="mb-3">
-                      <label class="form-label fs-11 fw-bold text-dark">Nama Sekolah / Madrasah <span class="text-danger">*</span></label>
+                      <label class="form-label fs-11 fw-bold text-dark">
+                        Nama Sekolah / Madrasah <span class="text-danger">*</span>
+                      </label>
                       <input 
                         type="text" 
                         v-model="manualForm.school_name" 
@@ -1623,7 +1998,7 @@ function printReport() {
                     </div>
 
                     <div class="row g-2 mb-3">
-                      <div class="col-6">
+                      <div class="col-5">
                         <label class="form-label fs-11 fw-bold text-dark">Jenjang</label>
                         <CustomSelect 
                           v-model="manualForm.jenjang" 
@@ -1631,7 +2006,7 @@ function printReport() {
                           size="sm"
                         />
                       </div>
-                      <div class="col-6">
+                      <div class="col-7">
                         <label class="form-label fs-11 fw-bold text-dark">
                           Kecamatan Asal <span class="text-danger">*</span>
                         </label>
@@ -1659,15 +2034,61 @@ function printReport() {
                       </div>
                     </div>
 
+                    <!-- Field NPSN & Alamat Sekolah (Adaptif Form Builder / Master) -->
+                    <div class="row g-2 mb-3">
+                      <div class="col-5">
+                        <label class="form-label fs-11 fw-bold text-dark">
+                          {{ activeManualFormBuilder?.npsnField?.label || 'NPSN Sekolah' }}
+                        </label>
+                        <input 
+                          type="text" 
+                          v-model="manualForm.npsn" 
+                          class="form-control form-control-sm fs-12 font-monospace"
+                          :placeholder="activeManualFormBuilder?.npsnField?.placeholder || 'Contoh: 20581234'" 
+                        />
+                      </div>
+                      <div class="col-7">
+                        <label class="form-label fs-11 fw-bold text-dark">
+                          {{ activeManualFormBuilder?.addressField?.label || 'Alamat Sekolah / Madrasah' }}
+                        </label>
+                        <input 
+                          type="text" 
+                          v-model="manualForm.alamat" 
+                          class="form-control form-control-sm fs-12"
+                          :placeholder="activeManualFormBuilder?.addressField?.placeholder || 'Alamat lengkap sekolah...'" 
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Input Nama Tim / Skuad (Dinamis Jika Cabang Lomba Beregu) -->
+                    <div 
+                      v-if="manualForm.package_type === 'Paket Satuan' && activeManualFormBuilder?.hasTeamName" 
+                      class="p-2.5 rounded-3 border border-primary-subtle bg-primary-subtle bg-opacity-10 mb-3"
+                    >
+                      <label class="form-label fs-11 fw-bold text-primary mb-1 d-flex align-items-center justify-content-between">
+                        <span><i class="ri-shield-star-line me-1"></i> {{ activeManualFormBuilder.teamLabel }} <span class="text-danger">*</span></span>
+                        <span class="badge bg-primary text-white fs-10">Delegasi Beregu / Tim</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        v-model="manualForm.team_name" 
+                        class="form-control form-control-sm fs-12"
+                        :placeholder="activeManualFormBuilder.teamPlaceholder" 
+                      />
+                      <span class="fs-10 text-muted mt-1 d-block">Cabang lomba beregu ini mewajibkan penamaan skuad/tim kontingen.</span>
+                    </div>
+
                     <hr class="my-3" />
 
-                    <!-- Data Pembina / Pendamping -->
+                    <!-- Kontak Pembina / Pendamping -->
                     <span class="fs-11 fw-bold text-dark text-uppercase d-block mb-2">
-                      <i class="ri-user-star-line text-success"></i> Kontak Pembina / Pendamping
+                      <i class="ri-user-star-line text-success"></i> Kontak Pembina / Pendamping Resmi
                     </span>
 
                     <div class="mb-2">
-                      <label class="form-label fs-11 fw-bold text-dark">Nama Lengkap Pembina <span class="text-danger">*</span></label>
+                      <label class="form-label fs-11 fw-bold text-dark">
+                        Nama Lengkap Pembina <span class="text-danger">*</span>
+                      </label>
                       <input 
                         type="text" 
                         v-model="manualForm.mentor_name" 
@@ -1679,7 +2100,9 @@ function printReport() {
 
                     <div class="row g-2 mb-2">
                       <div class="col-7">
-                        <label class="form-label fs-11 fw-bold text-dark">No. WhatsApp <span class="text-danger">*</span></label>
+                        <label class="form-label fs-11 fw-bold text-dark">
+                          No. WhatsApp <span class="text-danger">*</span>
+                        </label>
                         <input 
                           type="text" 
                           v-model="manualForm.mentor_wa" 
@@ -1689,7 +2112,9 @@ function printReport() {
                         />
                       </div>
                       <div class="col-5">
-                        <label class="form-label fs-11 fw-bold text-dark">Email (Opsional)</label>
+                        <label class="form-label fs-11 fw-bold text-dark">
+                          {{ activeManualFormBuilder?.emailField?.label || 'Email (Opsional)' }}
+                        </label>
                         <input 
                           type="email" 
                           v-model="manualForm.mentor_email" 
@@ -1702,160 +2127,50 @@ function printReport() {
                 </div>
               </div>
 
-              <!-- 2. PEMILIHAN PAKET & CABANG LOMBA -->
-              <div class="col-12 col-lg-6">
-                <div class="card shadow-sm border-0 h-100">
-                  <div class="card-header bg-white py-2.5 px-3 border-bottom">
-                    <span class="fw-bold text-dark fs-12 text-uppercase d-flex align-items-center gap-1.5">
-                      <i class="ri-medal-fill text-warning"></i> 2. Pilihan Paket & Cabang Lomba
-                    </span>
-                  </div>
-
-                  <div class="card-body p-3">
-                    <!-- Tab Switch Paket Satuan vs Paket All-In -->
-                    <div class="row g-2 mb-3">
-                      <div class="col-6">
-                        <div 
-                          class="p-2.5 rounded border text-center cursor-pointer transition-all"
-                          :class="manualForm.package_type === 'Paket Satuan' ? 'border-primary bg-primary-subtle text-primary fw-bold shadow-sm' : 'bg-light text-muted'"
-                          @click="manualForm.package_type = 'Paket Satuan'"
-                        >
-                          <i class="ri-medal-line fs-18 d-block mb-1"></i>
-                          <span>Paket Satuan</span>
-                          <span class="d-block fs-10 text-muted">Per cabang lomba</span>
-                        </div>
+              <!-- BAGIAN BAWAH: INFORMASI & SOLUSI SKEMA DELEGASI PESERTA (KHUSUSNYA PAKET KOMPLIT) -->
+              <div class="col-12">
+                <!-- IF PAKET SATUAN -->
+                <div v-if="manualForm.package_type === 'Paket Satuan'" class="card shadow-sm border-0 border-start border-4 border-primary bg-white">
+                  <div class="card-body p-3 p-md-4">
+                    <div class="d-flex align-items-start gap-3">
+                      <div class="avatar-sm flex-shrink-0 rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                        <i class="ri-user-follow-line fs-22"></i>
                       </div>
-                      <div class="col-6">
-                        <div 
-                          class="p-2.5 rounded border text-center cursor-pointer transition-all"
-                          :class="manualForm.package_type === 'Paket All-In' ? 'border-warning bg-warning-subtle text-warning fw-bold shadow-sm' : 'bg-light text-muted'"
-                          @click="manualForm.package_type = 'Paket All-In'"
-                        >
-                          <i class="ri-vip-crown-fill fs-18 d-block mb-1"></i>
-                          <span>Paket Komplit (All-In)</span>
-                          <span class="d-block fs-10 text-muted">Semua cabang lomba</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- IF PAKET SATUAN -->
-                    <div v-if="manualForm.package_type === 'Paket Satuan'" class="p-3 rounded border bg-light mb-3">
-                      <label class="form-label fs-11 fw-bold text-dark">Pilih Cabang Lomba <span class="text-danger">*</span></label>
-                      <CustomSelect 
-                        v-model="manualForm.competition_id" 
-                        :options="competitions.map(c => ({ value: String(c.id), label: `${c.title} (${c.category?.name || 'Umum'}) - ${formatRupiah(c.price)}` }))" 
-                        size="sm"
-                        searchable
-                        search-placeholder="Cari cabang lomba..."
-                      />
-
-                      <div class="mt-2.5">
-                        <label class="form-label fs-11 fw-bold text-dark">Biaya Pendaftaran Khusus (Opsional / Override)</label>
-                        <input 
-                          type="number" 
-                          v-model="manualForm.custom_fee" 
-                          class="form-control form-control-sm fs-12"
-                          placeholder="Kosongkan untuk memakai harga default cabang" 
-                        />
-                        <span class="fs-10 text-muted">Biarkan kosong jika mengikuti tarif resmi cabang lomba.</span>
-                      </div>
-                    </div>
-
-                    <!-- IF PAKET ALL-IN -->
-                    <div v-else class="p-3 rounded border border-warning-subtle bg-warning-subtle mb-3">
-                      <div class="d-flex align-items-center justify-content-between mb-2">
-                        <span class="fs-11 fw-bold text-dark">Pilih Cabang Lomba yang Diikuti:</span>
-                        <div class="d-flex gap-1">
-                          <button type="button" class="btn btn-xs btn-outline-dark py-0 px-1.5 fs-10" @click="selectAllCompetitions">Pilih Semua</button>
-                          <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1.5 fs-10" @click="deselectAllCompetitions">Reset</button>
-                        </div>
-                      </div>
-
-                      <div class="row g-1.5" style="max-height: 180px; overflow-y: auto;">
-                        <div v-for="comp in competitions" :key="comp.id" class="col-12 col-md-6">
-                          <div 
-                            class="p-1.5 px-2 rounded border bg-white cursor-pointer d-flex align-items-center gap-2 fs-11"
-                            :class="manualForm.competition_ids.includes(comp.id) ? 'border-success text-success fw-bold' : 'text-dark'"
-                            @click="toggleAllInCompetition(comp.id)"
-                          >
-                            <i 
-                              class="fs-14"
-                              :class="manualForm.competition_ids.includes(comp.id) ? 'ri-checkbox-circle-fill text-success' : 'ri-checkbox-blank-circle-line text-muted'"
-                            ></i>
-                            <span class="text-truncate">{{ comp.title }}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div class="mt-2.5">
-                        <label class="form-label fs-11 fw-bold text-dark">Biaya Paket All-In (Total Tagihan Kontingen)</label>
-                        <input 
-                          type="number" 
-                          v-model="manualForm.package_price" 
-                          class="form-control form-control-sm fs-12 fw-bold text-success"
-                        />
-                        <span class="fs-10 text-muted">Hanya dicatat 1 tagihan paket komplit untuk sekolah ini.</span>
-                      </div>
-                    </div>
-
-                    <!-- Administrasi Pembayaran -->
-                    <div class="p-2.5 rounded border bg-white">
-                      <span class="fs-11 fw-bold text-dark text-uppercase d-block mb-2">
-                        <i class="ri-secure-payment-line text-primary"></i> Administrasi Pembayaran di Meja Panitia
-                      </span>
-                      <div class="row g-2">
-                        <div class="col-6">
-                          <label class="form-label fs-11 fw-bold text-dark">Status Pembayaran</label>
-                          <CustomSelect 
-                            v-model="manualForm.payment_status" 
-                            :options="manualPaymentStatusOptions" 
-                            size="sm"
-                          />
-                        </div>
-                        <div class="col-6">
-                          <label class="form-label fs-11 fw-bold text-dark">Metode Bayar</label>
-                          <CustomSelect 
-                            v-model="manualForm.payment_method" 
-                            :options="manualPaymentMethodOptions" 
-                            size="sm"
-                          />
-                        </div>
-                      </div>
-                      <div class="mt-2">
-                        <label class="form-label fs-11 fw-bold text-dark">Catatan Petugas Meja Panitia</label>
-                        <input 
-                          type="text" 
-                          v-model="manualForm.notes" 
-                          class="form-control form-control-sm fs-12"
-                          placeholder="Catatan kwitansi, berkas, atau info tambahan..." 
-                        />
+                      <div class="flex-grow-1">
+                        <h6 class="fs-13 fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                          <span>Alur Delegasi Paket Satuan: {{ activeManualCompetition?.title || 'Cabang Terpilih' }}</span>
+                          <span class="badge bg-primary-subtle text-primary fs-10 px-2 py-0.5 rounded-pill">1 Cabang Lomba</span>
+                        </h6>
+                        <p class="fs-12 text-muted mb-0">
+                          Satu cabang lomba terpilih dengan kuota <strong>{{ activeManualFormBuilder?.minItems || 1 }} s.d {{ activeManualFormBuilder?.maxItems || 1 }} siswa</strong>. Anda dapat langsung menginput siswa delegasi sekarang di meja panitia atau menyimpan kontingen terlebih dahulu.
+                        </p>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <!-- 3. INFORMASI ALUR PENGISIAN DELEGASI PESERTA -->
-              <div class="col-12">
-                <div class="card shadow-sm border-0 border-start border-4 border-primary bg-primary-subtle bg-opacity-10">
+                <!-- IF PAKET KOMPLIT (ALL-IN): SOLUSI UTAMA YANG MENGHILANGKAN KEBINGUNGAN -->
+                <div v-else class="card shadow-sm border-0 border-start border-4 border-warning bg-white">
                   <div class="card-body p-3 p-md-4">
                     <div class="d-flex align-items-start gap-3">
-                      <div class="avatar-sm flex-shrink-0 rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
-                        <i class="ri-user-follow-line fs-20"></i>
+                      <div class="avatar-sm flex-shrink-0 rounded-circle bg-warning-subtle text-warning-emphasis d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                        <i class="ri-vip-crown-fill fs-22 text-warning"></i>
                       </div>
                       <div class="flex-grow-1">
-                        <h6 class="fs-13 fw-bold text-dark mb-1 d-flex align-items-center gap-2">
-                          <span>Tahap 1: Simpan Profil Sekolah, Pendamping & Cabang Lomba</span>
-                          <span class="badge bg-primary text-white fs-10 px-2 py-0.5 rounded-pill">Langkah 1 dari 2</span>
-                        </h6>
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                          <h6 class="fs-13 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                            <span>Solusi Delegasi Paket Komplit (All-In): {{ manualForm.competition_ids.length }} Cabang Terdaftar</span>
+                            <span class="badge bg-warning text-dark fs-10 px-2 py-0.5 rounded-pill fw-bold">Multi-Cabang</span>
+                          </h6>
+                        </div>
                         <p class="fs-12 text-muted mb-2">
-                          Sesuai alur administrasi, simpan informasi sekolah, narahubung pembina, pilihan cabang lomba, dan transaksi pembayaran terlebih dahulu.
+                          Karena setiap cabang lomba memiliki ketentuan kuota dan format peserta yang berbeda (misal: beregu vs individu), pengisian peserta dikelompokkan <strong>per cabang lomba</strong> secara teratur melalui <strong>Pengelola Delegasi Multi-Cabang</strong>.
                         </p>
-                        <div class="p-2.5 rounded-2 bg-white border border-primary-subtle d-flex align-items-center gap-2 text-primary fs-11">
-                          <i class="ri-information-fill fs-15 flex-shrink-0"></i>
-                          <span>
-                            Setelah tombol <strong>"Simpan & Lanjut ke Input Peserta →"</strong> ditekan, modal pengisian peserta delegasi akan otomatis terbuka secara terpisah dengan form dinamis sesuai aturan <strong>Form Builder</strong> cabang lomba terkait.
-                          </span>
+                        <div class="p-2.5 rounded-3 bg-light border d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 fs-11 text-dark">
+                          <div>
+                            <i class="ri-information-line text-primary me-1"></i>
+                            <span>Pilih opsi tindakan yang paling sesuai dengan kondisi antrean di meja panitia saat ini:</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1866,18 +2181,58 @@ function printReport() {
           </div>
 
           <!-- Modal Footer -->
-          <div class="modal-footer bg-white border-top py-2.5 d-flex align-items-center justify-content-between">
+          <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
             <button type="button" class="btn btn-sm btn-secondary" @click="showManualModal = false">Batal</button>
-            <button 
-              type="button" 
-              class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
-              :disabled="isSubmittingManual"
-              @click="submitManualRegistration"
-            >
-              <i class="ri-arrow-right-line" v-if="!isSubmittingManual"></i>
-              <span class="spinner-border spinner-border-sm" v-else></span>
-              <span>{{ isSubmittingManual ? 'Menyimpan...' : 'Simpan & Lanjut ke Input Peserta →' }}</span>
-            </button>
+
+            <!-- Aksi Tombol Paket Satuan -->
+            <div v-if="manualForm.package_type === 'Paket Satuan'" class="d-flex align-items-center gap-2 flex-wrap">
+              <button 
+                type="button" 
+                class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 shadow-xs"
+                :disabled="isSubmittingManual"
+                @click="submitManualRegistration('save_only')"
+                title="Simpan profil kontingen dan pembayaran. Pengisian siswa delegasi dapat dilengkapi nanti."
+              >
+                <i class="ri-save-line" v-if="!isSubmittingManual"></i>
+                <span class="spinner-border spinner-border-sm" v-else></span>
+                <span>Simpan Saja (Delegasi Diisi Nanti)</span>
+              </button>
+              <button 
+                type="button" 
+                class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+                :disabled="isSubmittingManual"
+                @click="submitManualRegistration('manage_delegates')"
+              >
+                <i class="ri-user-add-line" v-if="!isSubmittingManual"></i>
+                <span class="spinner-border spinner-border-sm" v-else></span>
+                <span>Simpan &amp; Input Delegasi Siswa &rarr;</span>
+              </button>
+            </div>
+
+            <!-- Aksi Tombol Paket Komplit (All-In) -->
+            <div v-else class="d-flex align-items-center gap-2 flex-wrap">
+              <button 
+                type="button" 
+                class="btn btn-sm btn-outline-warning text-dark d-inline-flex align-items-center gap-1.5 shadow-xs"
+                :disabled="isSubmittingManual"
+                @click="submitManualRegistration('save_only')"
+                title="Daftarkan kontingen & catat pembayaran lunas. Delegasi semua cabang dapat dilengkapi kapan saja."
+              >
+                <i class="ri-check-line" v-if="!isSubmittingManual"></i>
+                <span class="spinner-border spinner-border-sm" v-else></span>
+                <span>Simpan Kontingen Saja (Delegasi Dilengkapi Nanti)</span>
+              </button>
+              <button 
+                type="button" 
+                class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+                :disabled="isSubmittingManual"
+                @click="submitManualRegistration('manage_delegates')"
+              >
+                <i class="ri-team-line" v-if="!isSubmittingManual"></i>
+                <span class="spinner-border spinner-border-sm" v-else></span>
+                <span>Simpan &amp; Kelola Delegasi Multi-Cabang &rarr;</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1910,6 +2265,40 @@ function printReport() {
               </div>
             </div>
             <button type="button" class="btn-close" @click="showParticipantModal = false"></button>
+          </div>
+
+          <!-- Multi-Cabang Contingent Tab Navigator (Jika Kontingen Memiliki Lebih dari 1 Lomba) -->
+          <div v-if="contingentRegistrations.length > 1" class="border-bottom bg-white px-3 px-md-4 py-2.5">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <span class="fs-11 fw-bold text-dark text-uppercase d-flex align-items-center gap-1.5">
+                <i class="ri-git-branch-line text-primary fs-14"></i>
+                <span>Cabang Lomba Kontingen Ini (Pilih Tab untuk Mengisi / Mengedit Peserta):</span>
+              </span>
+              <span class="badge bg-primary-subtle text-primary fs-10 px-2 py-0.5 rounded-pill fw-semibold">
+                {{ contingentRegistrations.length }} Cabang Terdaftar
+              </span>
+            </div>
+            <div class="d-flex align-items-center gap-2 overflow-x-auto pb-1" style="scrollbar-width: thin;">
+              <button 
+                v-for="cReg in contingentRegistrations" 
+                :key="cReg.registration_id || cReg.id"
+                type="button"
+                class="btn btn-sm text-nowrap d-inline-flex align-items-center gap-2 py-1 px-3 rounded-pill transition-all"
+                :class="(activeRegForParticipants?.registration_id === (cReg.registration_id || cReg.id)) 
+                  ? 'btn-primary fw-bold shadow-sm' 
+                  : 'btn-outline-secondary bg-light text-dark'"
+                @click="switchContingentCompetition(cReg)"
+              >
+                <span>{{ cReg.competition_title }}</span>
+                <span 
+                  class="badge rounded-pill fs-10"
+                  :class="(cReg.students && cReg.students.length > 0) ? 'bg-success text-white' : 'bg-secondary text-white'"
+                >
+                  <i class="ri-check-line me-0.5" v-if="cReg.students && cReg.students.length > 0"></i>
+                  {{ (cReg.students && cReg.students.length > 0) ? `${cReg.students.length} Siswa` : 'Belum Diisi' }}
+                </span>
+              </button>
+            </div>
           </div>
 
           <!-- Modal Body -->
@@ -2236,19 +2625,123 @@ function printReport() {
           </div>
 
           <!-- Modal Footer -->
-          <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between">
+          <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
             <button type="button" class="btn btn-sm btn-secondary" @click="showParticipantModal = false">
-              Tutup
+              {{ contingentRegistrations.length > 1 ? 'Selesai Kelola Kontingen' : 'Tutup' }}
             </button>
-            <button 
-              type="button" 
-              class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
-              :disabled="isSubmittingParticipants"
-              @click="submitParticipants"
-            >
-              <i class="ri-check-double-line" v-if="!isSubmittingParticipants"></i>
-              <span class="spinner-border spinner-border-sm" v-else></span>
-              <span>{{ isSubmittingParticipants ? 'Menyimpan Delegasi...' : 'Simpan Data Delegasi Peserta' }}</span>
+            <div class="d-flex align-items-center gap-2">
+              <span v-if="contingentRegistrations.length > 1" class="fs-11 text-muted d-none d-md-inline">
+                Data disimpan per cabang lomba tanpa keluar dari modal.
+              </span>
+              <button 
+                type="button" 
+                class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+                :disabled="isSubmittingParticipants"
+                @click="submitParticipants"
+              >
+                <i class="ri-check-double-line" v-if="!isSubmittingParticipants"></i>
+                <span class="spinner-border spinner-border-sm" v-else></span>
+                <span>{{ isSubmittingParticipants ? 'Menyimpan Delegasi...' : (contingentRegistrations.length > 1 ? `Simpan Delegasi ${activeCompetitionConfig?.title || 'Cabang Ini'}` : 'Simpan Data Delegasi Peserta') }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: RINGKASAN PENDAFTARAN KONTINGEN BARU                           -->
+    <!-- ===================================================================== -->
+    <div v-if="showSummaryModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.65); z-index: 1060;">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+          <div class="modal-header py-3 px-3 px-md-4 border-bottom bg-success-subtle d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2.5">
+              <div class="avatar-xs flex-shrink-0 rounded-circle bg-success text-white d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                <i class="ri-checkbox-circle-fill fs-20"></i>
+              </div>
+              <div>
+                <h6 class="modal-title fw-bold mb-0 text-success-emphasis fs-14">
+                  Kontingen Berhasil Didaftarkan di Meja Panitia!
+                </h6>
+                <p class="fs-11 text-muted mb-0">Informasi sekolah, kontak pembina, dan tagihan telah tercatat resmi di database.</p>
+              </div>
+            </div>
+            <button type="button" class="btn-close" @click="showSummaryModal = false"></button>
+          </div>
+
+          <div class="modal-body p-3 p-md-4 bg-light">
+            <!-- Profil Kontingen -->
+            <div class="card border-0 shadow-sm mb-3 bg-white">
+              <div class="card-body p-3">
+                <div class="row g-2 fs-12">
+                  <div class="col-12 col-md-6">
+                    <span class="text-muted d-block fs-11">Sekolah / Kontingen:</span>
+                    <strong class="text-dark fs-13">{{ summaryData?.school_name }}</strong>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <span class="text-muted d-block fs-11">Pembina / Kontak WA:</span>
+                    <strong class="text-dark">{{ summaryData?.mentor_name }} ({{ summaryData?.mentor_wa }})</strong>
+                  </div>
+                  <div class="col-12 col-md-6 mt-2">
+                    <span class="text-muted d-block fs-11">Skema Paket:</span>
+                    <span class="badge" :class="summaryData?.package_type === 'Paket All-In' ? 'bg-warning text-dark' : 'bg-primary text-white'">
+                      {{ summaryData?.package_type }}
+                    </span>
+                  </div>
+                  <div class="col-12 col-md-6 mt-2">
+                    <span class="text-muted d-block fs-11">Total Tagihan &amp; Status:</span>
+                    <strong class="text-success">{{ formatRupiah(summaryData?.total_fee) }}</strong>
+                    <span class="badge bg-success-subtle text-success ms-1.5">{{ summaryData?.payment_status }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Daftar Cabang Lomba Terdaftar -->
+            <h6 class="fw-bold text-dark fs-12 mb-2 d-flex align-items-center justify-content-between">
+              <span>Cabang Lomba yang Terdaftar ({{ summaryData?.competitions?.length || 0 }} Cabang):</span>
+              <span class="text-muted fs-11">Delegasi dapat dilengkapi kapan saja</span>
+            </h6>
+
+            <div class="d-flex flex-column gap-2 mb-2">
+              <div 
+                v-for="(comp, cIdx) in (summaryData?.competitions || [])" 
+                :key="cIdx"
+                class="p-2.5 px-3 rounded-3 bg-white border d-flex align-items-center justify-content-between flex-wrap gap-2 shadow-xs"
+              >
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-primary-subtle text-primary font-monospace fs-10">
+                    {{ comp.reg_code || `Cabang #${cIdx + 1}` }}
+                  </span>
+                  <div>
+                    <span class="fw-bold text-dark fs-12 d-block">{{ comp.competition_title }}</span>
+                    <span class="fs-10 text-muted">
+                      Status Delegasi: 
+                      <strong :class="(comp.students && comp.students.length > 0) ? 'text-success' : 'text-warning'">
+                        {{ (comp.students && comp.students.length > 0) ? `${comp.students.length} Siswa Terdaftar` : 'Belum Ada Delegasi' }}
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+
+                <button 
+                  type="button" 
+                  class="btn btn-xs btn-outline-success py-1 px-2.5 rounded-pill d-inline-flex align-items-center gap-1 shadow-xs"
+                  @click="showSummaryModal = false; openParticipantModal(comp, { competitions: summaryData.competitions });"
+                >
+                  <i class="ri-user-star-line"></i>
+                  <span>Input Delegasi Sekarang</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between">
+            <span class="text-muted fs-11">Pendaftaran kontingen tersimpan aman di sistem.</span>
+            <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm" @click="showSummaryModal = false">
+              <i class="ri-check-line"></i>
+              <span>Selesai &amp; Lanjut Antrean Berikutnya</span>
             </button>
           </div>
         </div>

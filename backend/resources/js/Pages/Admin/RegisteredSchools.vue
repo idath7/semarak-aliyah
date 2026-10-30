@@ -402,37 +402,44 @@ function deselectAllCompetitions() {
 }
 
 // -----------------------------------------------------------------------------
-// NAVIGASI LANGKAH WIZARD:
-// Langkah 1: Skema Lomba & Data Sekolah (Cabang Lomba Ditentukan Dahulu)
-// Langkah 2: Pengisian Siswa Delegasi Peserta (Langkah Terakhir & Simpan)
+// NAVIGASI LANGKAH WIZARD (3 LANGKAH):
+// Langkah 1: Kiri = Pilihan Paket & Cabang, Kanan = Identitas Sekolah & Pembina
+// Langkah 2: Pengisian Siswa Delegasi Peserta (Multi-Cabang Tab All-In / Satuan)
+// Langkah 3: Administrasi Pembayaran & Konfirmasi Simpan (Final / Draf)
 // -----------------------------------------------------------------------------
 function goToManualStep(targetStep) {
-  if (targetStep === 2) {
-    // 1. Validasi cabang lomba ditentukan terlebih dahulu
+  if (targetStep > 1) {
+    // 1. Validasi cabang lomba pada kolom sebelah kiri
     if (manualForm.value.package_type === 'Paket Satuan' && !manualForm.value.competition_id) {
-      toast.showToast({ type: 'warning', title: 'Pilih Cabang Lomba', message: 'Silakan tentukan cabang lomba terlebih dahulu pada bagian atas!' });
+      toast.showToast({ type: 'warning', title: 'Pilih Cabang Lomba', message: 'Silakan pilih cabang lomba pada kolom sebelah kiri terlebih dahulu!' });
+      manualStep.value = 1;
       return;
     }
     if (manualForm.value.package_type === 'Paket All-In' && manualForm.value.competition_ids.length === 0) {
-      toast.showToast({ type: 'warning', title: 'Pilih Cabang Lomba', message: 'Pilih minimal satu cabang lomba untuk Paket Komplit (All-In)!' });
+      toast.showToast({ type: 'warning', title: 'Pilih Cabang Lomba', message: 'Pilih minimal satu cabang lomba pada kolom sebelah kiri untuk Paket Komplit (All-In)!' });
+      manualStep.value = 1;
       return;
     }
 
-    // 2. Validasi identitas sekolah & pembina
+    // 2. Validasi identitas sekolah & pembina pada kolom sebelah kanan
     if (!manualForm.value.school_name.trim()) {
-      toast.showToast({ type: 'warning', title: 'Nama Sekolah Wajib Diisi', message: 'Silakan isi nama sekolah / madrasah terlebih dahulu!' });
+      toast.showToast({ type: 'warning', title: 'Nama Sekolah Wajib Diisi', message: 'Silakan isi nama sekolah / madrasah pada kolom sebelah kanan!' });
+      manualStep.value = 1;
       return;
     }
     if (!manualForm.value.kecamatan) {
       toast.showToast({ type: 'warning', title: 'Kecamatan Belum Dipilih', message: 'Kecamatan asal sekolah wajib dipilih!' });
+      manualStep.value = 1;
       return;
     }
     if (manualForm.value.kecamatan === 'Lainnya' && !manualForm.value.custom_kecamatan?.trim()) {
       toast.showToast({ type: 'warning', title: 'Ketik Nama Kecamatan', message: 'Silakan ketik nama kecamatan pada kolom isian manual!' });
+      manualStep.value = 1;
       return;
     }
     if (!manualForm.value.mentor_name.trim() || !manualForm.value.mentor_wa.trim()) {
       toast.showToast({ type: 'warning', title: 'Kontak Pembina Wajib', message: 'Nama pembina/pendamping dan nomor WhatsApp wajib diisi!' });
+      manualStep.value = 1;
       return;
     }
 
@@ -1942,10 +1949,10 @@ function printReport() {
               </h6>
               <div class="fs-11 text-muted mt-0.5 d-flex align-items-center gap-2">
                 <span class="badge bg-primary text-white fs-10 px-2 py-0.5 rounded-pill">
-                  Langkah {{ manualStep }} dari 2
+                  Langkah {{ manualStep }} dari 3
                 </span>
                 <span class="fw-medium text-dark">
-                  {{ manualStep === 1 ? '1. Skema Lomba & Data Lembaga' : '2. Pengisian Siswa Delegasi Peserta (Simpan)' }}
+                  {{ manualStep === 1 ? '1. Paket Lomba & Identitas Sekolah' : (manualStep === 2 ? '2. Pengisian Siswa Delegasi Peserta' : '3. Pembayaran & Simpan Pendaftaran') }}
                 </span>
               </div>
             </div>
@@ -1954,41 +1961,58 @@ function printReport() {
 
           <!-- Modal Body -->
           <div class="modal-body p-3 p-md-4 bg-light">
-            <!-- Top Step Navigation Bar Indicator (2 Langkah Jelas) -->
+            <!-- Top Step Navigation Bar Indicator (3 Langkah Jelas) -->
             <div class="card border-0 shadow-xs mb-3 bg-white">
               <div class="card-body p-2 px-3">
                 <div class="row g-2 text-center fs-11">
-                  <!-- Step 1: Skema Lomba & Data Sekolah -->
-                  <div class="col-6">
+                  <!-- Step 1: Paket & Identitas Sekolah -->
+                  <div class="col-4">
                     <div 
-                      class="p-2 rounded-2 fw-bold d-flex align-items-center justify-content-center gap-2 cursor-pointer transition-all"
-                      :class="manualStep === 1 ? 'bg-primary text-white shadow-xs' : 'bg-primary-subtle text-primary border border-primary-subtle'"
-                      @click="manualStep = 1"
+                      class="p-2 rounded-2 fw-bold d-flex align-items-center justify-content-center gap-1.5 cursor-pointer transition-all"
+                      :class="manualStep === 1 ? 'bg-primary text-white shadow-xs' : (manualStep > 1 ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-light text-muted border')"
+                      @click="goToManualStep(1)"
                     >
                       <span 
                         class="badge rounded-circle p-1"
-                        :class="manualStep === 1 ? 'bg-white text-primary' : 'bg-primary text-white'"
+                        :class="manualStep === 1 ? 'bg-white text-primary' : (manualStep > 1 ? 'bg-primary text-white' : 'bg-secondary text-white')"
                         style="width: 20px; height: 20px; line-height: 12px;"
                       >1</span>
-                      <span class="d-none d-sm-inline">1. Skema Lomba &amp; Data Sekolah</span>
-                      <span class="d-inline d-sm-none">1. Lomba &amp; Sekolah</span>
+                      <span class="d-none d-sm-inline">1. Paket &amp; Data Sekolah</span>
+                      <span class="d-inline d-sm-none">1. Paket/Sekolah</span>
                     </div>
                   </div>
 
                   <!-- Step 2: Pengisian Siswa Delegasi -->
-                  <div class="col-6">
+                  <div class="col-4">
                     <div 
-                      class="p-2 rounded-2 fw-bold d-flex align-items-center justify-content-center gap-2 cursor-pointer transition-all"
-                      :class="manualStep === 2 ? 'bg-primary text-white shadow-xs' : 'bg-light text-muted border'"
+                      class="p-2 rounded-2 fw-bold d-flex align-items-center justify-content-center gap-1.5 cursor-pointer transition-all"
+                      :class="manualStep === 2 ? 'bg-primary text-white shadow-xs' : (manualStep > 2 ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-light text-muted border')"
                       @click="goToManualStep(2)"
                     >
                       <span 
                         class="badge rounded-circle p-1"
-                        :class="manualStep === 2 ? 'bg-white text-primary' : 'bg-secondary text-white'"
+                        :class="manualStep === 2 ? 'bg-white text-primary' : (manualStep > 2 ? 'bg-primary text-white' : 'bg-secondary text-white')"
                         style="width: 20px; height: 20px; line-height: 12px;"
                       >2</span>
-                      <span class="d-none d-sm-inline">2. Pengisian Siswa Delegasi (Langkah Terakhir &amp; Simpan)</span>
-                      <span class="d-inline d-sm-none">2. Siswa Delegasi (Simpan)</span>
+                      <span class="d-none d-sm-inline">2. Pengisian Siswa Delegasi</span>
+                      <span class="d-inline d-sm-none">2. Delegasi</span>
+                    </div>
+                  </div>
+
+                  <!-- Step 3: Pembayaran & Simpan -->
+                  <div class="col-4">
+                    <div 
+                      class="p-2 rounded-2 fw-bold d-flex align-items-center justify-content-center gap-1.5 cursor-pointer transition-all"
+                      :class="manualStep === 3 ? 'bg-primary text-white shadow-xs' : 'bg-light text-muted border'"
+                      @click="goToManualStep(3)"
+                    >
+                      <span 
+                        class="badge rounded-circle p-1"
+                        :class="manualStep === 3 ? 'bg-white text-primary' : 'bg-secondary text-white'"
+                        style="width: 20px; height: 20px; line-height: 12px;"
+                      >3</span>
+                      <span class="d-none d-sm-inline">3. Pembayaran &amp; Simpan</span>
+                      <span class="d-inline d-sm-none">3. Simpan</span>
                     </div>
                   </div>
                 </div>
@@ -1996,122 +2020,120 @@ function printReport() {
             </div>
 
             <!-- ============================================================= -->
-            <!-- LANGKAH 1: SKEMA LOMBA & DATA SEKOLAH                         -->
-            <!-- (CABANG LOMBA DITENTUKAN PERTAMA; TIDAK MENYIMPAN KE DATABASE)-->
+            <!-- LANGKAH 1: KIRI = PAKET & CABANG, KANAN = IDENTITAS SEKOLAH   -->
+            <!-- (TIDAK ADA PROSES SIMPAN KE DATABASE DI LANGKAH 1)            -->
             <!-- ============================================================= -->
             <div v-if="manualStep === 1">
-              <!-- 1. TENTUKAN SKEMA PAKET & CABANG LOMBA TERLEBIH DAHULU (SEPERTI HALAMAN FORMULIR) -->
-              <div class="card shadow-sm border-0 mb-3 bg-white">
-                <div class="card-header bg-white py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
-                  <span class="fw-bold text-dark fs-12 text-uppercase d-flex align-items-center gap-1.5">
-                    <i class="ri-medal-fill text-warning"></i> 1. Tentukan Skema Paket &amp; Cabang Lomba Terlebih Dahulu
-                  </span>
-                  <span class="badge bg-primary-subtle text-primary fs-10">
-                    <i class="ri-information-line me-0.5"></i> Menentukan konfigurasi form &amp; kuota
-                  </span>
-                </div>
-
-                <div class="card-body p-3">
-                  <!-- Switch Paket Satuan vs Paket All-In -->
-                  <div class="row g-2 mb-3">
-                    <div class="col-6">
-                      <div 
-                        class="p-2.5 rounded-3 border text-center cursor-pointer transition-all"
-                        :class="manualForm.package_type === 'Paket Satuan' ? 'border-primary bg-primary-subtle text-primary fw-bold shadow-sm' : 'bg-light text-muted'"
-                        @click="manualForm.package_type = 'Paket Satuan'"
-                      >
-                        <i class="ri-medal-line fs-20 d-block mb-1"></i>
-                        <span>Paket Satuan</span>
-                        <span class="d-block fs-10 text-muted">Per cabang lomba</span>
-                      </div>
-                    </div>
-                    <div class="col-6">
-                      <div 
-                        class="p-2.5 rounded-3 border text-center cursor-pointer transition-all"
-                        :class="manualForm.package_type === 'Paket All-In' ? 'border-warning bg-warning-subtle text-warning-emphasis fw-bold shadow-sm' : 'bg-light text-muted'"
-                        @click="manualForm.package_type = 'Paket All-In'"
-                      >
-                        <i class="ri-vip-crown-fill fs-20 d-block mb-1 text-warning"></i>
-                        <span>Paket Komplit (All-In)</span>
-                        <span class="d-block fs-10 text-muted">Semua cabang lomba</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- IF PAKET SATUAN -->
-                  <div v-if="manualForm.package_type === 'Paket Satuan'" class="p-3 rounded-3 border bg-light bg-opacity-50">
-                    <label class="form-label fs-11 fw-bold text-dark d-flex align-items-center justify-content-between">
-                      <span>Pilih Cabang Lomba <span class="text-danger">*</span></span>
-                      <span class="badge bg-primary text-white fs-10">Pilihan Utama</span>
-                    </label>
-                    <CustomSelect 
-                      v-model="manualForm.competition_id" 
-                      :options="competitionSelectOptions" 
-                      size="sm"
-                      searchable
-                      search-placeholder="Cari cabang lomba..."
-                      placeholder="-- Silakan Pilih Cabang Lomba --"
-                    />
-
-                    <!-- Ringkasan Info Form Builder Cabang Terpilih -->
-                    <div v-if="activeManualCompetition" class="mt-2.5 p-2.5 rounded-2 bg-white border fs-11">
-                      <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
-                        <span class="fw-bold text-dark fs-12">{{ activeManualCompetition.title }}</span>
-                        <span class="badge bg-success-subtle text-success fs-10">
-                          Tarif: {{ formatRupiah(activeManualCompetition.price || activeManualCompetition.fee) }}
-                        </span>
-                      </div>
-                      <div class="d-flex align-items-center gap-2 text-muted fs-11">
-                        <span><i class="ri-group-line me-0.5"></i> Kuota: <strong>{{ activeManualFormBuilder?.minItems }} s.d {{ activeManualFormBuilder?.maxItems }} Siswa</strong></span>
-                        <span>•</span>
-                        <span>Tipe: <strong>{{ activeManualFormBuilder?.isTeam ? 'Beregu / Tim' : 'Individu' }}</strong></span>
-                        <span v-if="activeManualFormBuilder?.hasTeamName">• Memerlukan Nama Tim</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- IF PAKET ALL-IN -->
-                  <div v-else class="p-3 rounded-3 border border-warning-subtle bg-warning-subtle bg-opacity-10">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                      <span class="fs-11 fw-bold text-dark">Pilih Cabang Lomba yang Diikuti Kontingen:</span>
-                      <div class="d-flex gap-1">
-                        <button type="button" class="btn btn-xs btn-outline-dark py-0.5 px-2 fs-10" @click="selectAllCompetitions">Pilih Semua</button>
-                        <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-2 fs-10" @click="deselectAllCompetitions">Reset</button>
-                      </div>
-                    </div>
-
-                    <div class="row g-1.5 mb-2" style="max-height: 180px; overflow-y: auto;">
-                      <div v-for="comp in competitions" :key="comp.id" class="col-12 col-md-6 col-lg-4">
-                        <div 
-                          class="p-2 rounded-2 border bg-white cursor-pointer d-flex align-items-center gap-2 fs-11 transition-all"
-                          :class="manualForm.competition_ids.includes(comp.id) ? 'border-success text-success fw-bold shadow-xs' : 'text-dark border-secondary-subtle'"
-                          @click="toggleAllInCompetition(comp.id)"
-                        >
-                          <i 
-                            class="fs-15 flex-shrink-0"
-                            :class="manualForm.competition_ids.includes(comp.id) ? 'ri-checkbox-circle-fill text-success' : 'ri-checkbox-blank-circle-line text-muted'"
-                          ></i>
-                          <span class="text-truncate">{{ comp.title }}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="d-flex align-items-center justify-content-between bg-white p-2 rounded border fs-11">
-                      <span class="text-muted">Total Cabang Dipilih:</span>
-                      <span class="badge bg-success text-white fs-11">{{ manualForm.competition_ids.length }} Cabang Lomba</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 2. IDENTITAS SEKOLAH & 3. KONTAK PEMBINA + PEMBAYARAN -->
               <div class="row g-3">
-                <!-- KOLOM KIRI: 2. IDENTITAS SEKOLAH / MADRASAH (MENGIKUTI KONFIGURASI FORM BUILDER DI ATAS) -->
+                <!-- SEBELAH KIRI: 1. PILIHAN SKEMA PAKET & CABANG LOMBA -->
                 <div class="col-12 col-lg-6">
                   <div class="card shadow-sm border-0 h-100 bg-white">
                     <div class="card-header bg-white py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
                       <span class="fw-bold text-dark fs-12 text-uppercase d-flex align-items-center gap-1.5">
-                        <i class="ri-building-4-line text-primary"></i> 2. Identitas Sekolah / Madrasah
+                        <i class="ri-medal-fill text-warning"></i> 1. Pilihan Skema Paket &amp; Cabang Lomba
+                      </span>
+                      <span class="badge bg-primary text-white fs-10 px-2 py-0.5 rounded-pill">Kolom Kiri</span>
+                    </div>
+
+                    <div class="card-body p-3">
+                      <!-- Switch Paket Satuan vs Paket All-In -->
+                      <div class="row g-2 mb-3">
+                        <div class="col-6">
+                          <div 
+                            class="p-2.5 rounded-3 border text-center cursor-pointer transition-all"
+                            :class="manualForm.package_type === 'Paket Satuan' ? 'border-primary bg-primary-subtle text-primary fw-bold shadow-sm' : 'bg-light text-muted'"
+                            @click="manualForm.package_type = 'Paket Satuan'"
+                          >
+                            <i class="ri-medal-line fs-20 d-block mb-1"></i>
+                            <span>Paket Satuan</span>
+                            <span class="d-block fs-10 text-muted">Per cabang lomba</span>
+                          </div>
+                        </div>
+                        <div class="col-6">
+                          <div 
+                            class="p-2.5 rounded-3 border text-center cursor-pointer transition-all"
+                            :class="manualForm.package_type === 'Paket All-In' ? 'border-warning bg-warning-subtle text-warning-emphasis fw-bold shadow-sm' : 'bg-light text-muted'"
+                            @click="manualForm.package_type = 'Paket All-In'"
+                          >
+                            <i class="ri-vip-crown-fill fs-20 d-block mb-1 text-warning"></i>
+                            <span>Paket Komplit (All-In)</span>
+                            <span class="d-block fs-10 text-muted">Semua cabang lomba</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- IF PAKET SATUAN -->
+                      <div v-if="manualForm.package_type === 'Paket Satuan'" class="p-3 rounded-3 border bg-light bg-opacity-50">
+                        <label class="form-label fs-11 fw-bold text-dark d-flex align-items-center justify-content-between">
+                          <span>Pilih Cabang Lomba <span class="text-danger">*</span></span>
+                          <span class="badge bg-primary text-white fs-10">Tarif Resmi</span>
+                        </label>
+                        <CustomSelect 
+                          v-model="manualForm.competition_id" 
+                          :options="competitionSelectOptions" 
+                          size="sm"
+                          searchable
+                          search-placeholder="Cari cabang lomba..."
+                          placeholder="-- Silakan Pilih Cabang Lomba --"
+                        />
+
+                        <!-- Ringkasan Info Form Builder Cabang Terpilih -->
+                        <div v-if="activeManualCompetition" class="mt-2.5 p-2.5 rounded-2 bg-white border fs-11">
+                          <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+                            <span class="fw-bold text-dark fs-12">{{ activeManualCompetition.title }}</span>
+                            <span class="badge bg-success-subtle text-success fs-10">
+                              Tarif: {{ formatRupiah(activeManualCompetition.price || activeManualCompetition.fee) }}
+                            </span>
+                          </div>
+                          <div class="d-flex align-items-center gap-2 text-muted fs-11">
+                            <span><i class="ri-group-line me-0.5"></i> Kuota: <strong>{{ activeManualFormBuilder?.minItems }} s.d {{ activeManualFormBuilder?.maxItems }} Siswa</strong></span>
+                            <span>•</span>
+                            <span>Tipe: <strong>{{ activeManualFormBuilder?.isTeam ? 'Beregu / Tim' : 'Individu' }}</strong></span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- IF PAKET ALL-IN -->
+                      <div v-else class="p-3 rounded-3 border border-warning-subtle bg-warning-subtle bg-opacity-10">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                          <span class="fs-11 fw-bold text-dark">Pilih Cabang Lomba yang Diikuti:</span>
+                          <div class="d-flex gap-1">
+                            <button type="button" class="btn btn-xs btn-outline-dark py-0.5 px-2 fs-10" @click="selectAllCompetitions">Pilih Semua</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary py-0.5 px-2 fs-10" @click="deselectAllCompetitions">Reset</button>
+                          </div>
+                        </div>
+
+                        <div class="row g-1.5 mb-2" style="max-height: 240px; overflow-y: auto;">
+                          <div v-for="comp in competitions" :key="comp.id" class="col-12 col-md-6">
+                            <div 
+                              class="p-2 rounded-2 border bg-white cursor-pointer d-flex align-items-center gap-2 fs-11 transition-all"
+                              :class="manualForm.competition_ids.includes(comp.id) ? 'border-success text-success fw-bold shadow-xs' : 'text-dark border-secondary-subtle'"
+                              @click="toggleAllInCompetition(comp.id)"
+                            >
+                              <i 
+                                class="fs-15 flex-shrink-0"
+                                :class="manualForm.competition_ids.includes(comp.id) ? 'ri-checkbox-circle-fill text-success' : 'ri-checkbox-blank-circle-line text-muted'"
+                              ></i>
+                              <span class="text-truncate">{{ comp.title }}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="d-flex align-items-center justify-content-between bg-white p-2 rounded border fs-11">
+                          <span class="text-muted">Total Cabang Dipilih:</span>
+                          <span class="badge bg-success text-white fs-11">{{ manualForm.competition_ids.length }} Cabang Lomba</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SEBELAH KANAN: 2. IDENTITAS SEKOLAH / MADRASAH & KONTAK PEMBINA -->
+                <div class="col-12 col-lg-6">
+                  <div class="card shadow-sm border-0 h-100 bg-white">
+                    <div class="card-header bg-white py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
+                      <span class="fw-bold text-dark fs-12 text-uppercase d-flex align-items-center gap-1.5">
+                        <i class="ri-building-4-line text-primary"></i> 2. Identitas Sekolah &amp; Pembina
                       </span>
                       <div class="btn-group btn-group-sm" role="group">
                         <button 
@@ -2232,7 +2254,7 @@ function printReport() {
                       <!-- Input Nama Tim / Skuad (Dinamis Jika Cabang Lomba Beregu di Paket Satuan) -->
                       <div 
                         v-if="manualForm.package_type === 'Paket Satuan' && activeManualFormBuilder?.hasTeamName" 
-                        class="p-2.5 rounded-3 border border-primary-subtle bg-primary-subtle bg-opacity-10 mb-2"
+                        class="p-2.5 rounded-3 border border-primary-subtle bg-primary-subtle bg-opacity-10 mb-3"
                       >
                         <label class="form-label fs-11 fw-bold text-primary mb-1 d-flex align-items-center justify-content-between">
                           <span><i class="ri-shield-star-line me-1"></i> {{ activeManualFormBuilder.teamLabel }} <span class="text-danger">*</span></span>
@@ -2246,20 +2268,14 @@ function printReport() {
                         />
                         <span class="fs-10 text-muted mt-1 d-block">Cabang lomba beregu ini mewajibkan penamaan skuad/tim kontingen.</span>
                       </div>
-                    </div>
-                  </div>
-                </div>
 
-                <!-- KOLOM KANAN: 3. KONTAK PEMBINA & ADMINISTRASI PEMBAYARAN -->
-                <div class="col-12 col-lg-6">
-                  <!-- Kontak Pembina / Pendamping Resmi -->
-                  <div class="card shadow-sm border-0 mb-3 bg-white">
-                    <div class="card-header bg-white py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
-                      <span class="fw-bold text-dark fs-12 text-uppercase d-flex align-items-center gap-1.5">
-                        <i class="ri-user-star-line text-success"></i> 3. Kontak Pembina / Pendamping Resmi
+                      <hr class="my-3" />
+
+                      <!-- Kontak Pembina / Pendamping Resmi -->
+                      <span class="fs-11 fw-bold text-dark text-uppercase d-block mb-2">
+                        <i class="ri-user-star-line text-success"></i> Kontak Pembina / Pendamping Resmi
                       </span>
-                    </div>
-                    <div class="card-body p-3">
+
                       <div class="mb-2">
                         <label class="form-label fs-11 fw-bold text-dark">
                           Nama Lengkap Pembina <span class="text-danger">*</span>
@@ -2297,71 +2313,6 @@ function printReport() {
                             placeholder="email@sekolah.sch.id" 
                           />
                         </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Administrasi Pembayaran Meja Panitia -->
-                  <div class="card shadow-sm border-0 bg-white">
-                    <div class="card-header bg-white py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
-                      <span class="fw-bold text-dark fs-12 text-uppercase d-flex align-items-center gap-1.5">
-                        <i class="ri-secure-payment-line text-primary"></i> 4. Administrasi Pembayaran di Meja Panitia
-                      </span>
-                      <span class="badge bg-success text-white fs-11">
-                        Total: {{ formatRupiah(manualTotalCalculatedFee) }}
-                      </span>
-                    </div>
-                    <div class="card-body p-3">
-                      <!-- Override Biaya jika Paket Satuan -->
-                      <div v-if="manualForm.package_type === 'Paket Satuan'" class="mb-2">
-                        <label class="form-label fs-11 fw-bold text-dark">Biaya Pendaftaran Khusus (Opsional / Override)</label>
-                        <input 
-                          type="number" 
-                          v-model="manualForm.custom_fee" 
-                          class="form-control form-control-sm fs-12"
-                          placeholder="Kosongkan untuk memakai harga default cabang" 
-                        />
-                        <span class="fs-10 text-muted">Biarkan kosong jika mengikuti tarif resmi cabang lomba ({{ formatRupiah(activeManualCompetition?.price || activeManualCompetition?.fee || 0) }}).</span>
-                      </div>
-
-                      <!-- Biaya Paket All-In jika Paket All-In -->
-                      <div v-else class="mb-2">
-                        <label class="form-label fs-11 fw-bold text-dark">Biaya Paket All-In (Total Tagihan Kontingen)</label>
-                        <input 
-                          type="number" 
-                          v-model="manualForm.package_price" 
-                          class="form-control form-control-sm fs-12 fw-bold text-success"
-                        />
-                        <span class="fs-10 text-muted">Hanya dicatat 1 tagihan paket komplit untuk seluruh cabang kontingen ini.</span>
-                      </div>
-
-                      <div class="row g-2 mb-2">
-                        <div class="col-6">
-                          <label class="form-label fs-11 fw-bold text-dark">Status Pembayaran</label>
-                          <CustomSelect 
-                            v-model="manualForm.payment_status" 
-                            :options="manualPaymentStatusOptions" 
-                            size="sm"
-                          />
-                        </div>
-                        <div class="col-6">
-                          <label class="form-label fs-11 fw-bold text-dark">Metode Bayar</label>
-                          <CustomSelect 
-                            v-model="manualForm.payment_method" 
-                            :options="manualPaymentMethodOptions" 
-                            size="sm"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label class="form-label fs-11 fw-bold text-dark">Catatan Petugas Meja Panitia</label>
-                        <input 
-                          type="text" 
-                          v-model="manualForm.notes" 
-                          class="form-control form-control-sm fs-12"
-                          placeholder="Nomor kwitansi, berkas fisik, atau info tambahan..." 
-                        />
                       </div>
                     </div>
                   </div>
@@ -2647,14 +2598,201 @@ function printReport() {
                 </div>
               </div>
 
-              <!-- Callout Penjelasan Simpan Saja (Draf) vs Simpan Final -->
+            </div>
+
+            <!-- ============================================================= -->
+            <!-- LANGKAH 3: ADMINISTRASI PEMBAYARAN & KONFIRMASI SIMPAN        -->
+            <!-- (SATU-SATUNYA TEMPAT PENYIMPANAN KE DATABASE)                 -->
+            <!-- ============================================================= -->
+            <div v-if="manualStep === 3">
+              <div class="row g-3">
+                <!-- KOLOM KIRI: RINGKASAN LENGKAP KONTINGEN & DELEGASI -->
+                <div class="col-12 col-lg-6">
+                  <div class="card shadow-sm border-0 h-100 bg-white">
+                    <div class="card-header bg-white py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
+                      <span class="fw-bold text-dark fs-12 text-uppercase d-flex align-items-center gap-1.5">
+                        <i class="ri-survey-line text-primary"></i> Ringkasan Kontingen &amp; Delegasi
+                      </span>
+                      <span class="badge" :class="manualForm.package_type === 'Paket All-In' ? 'bg-warning text-dark' : 'bg-primary text-white'">
+                        {{ manualForm.package_type }}
+                      </span>
+                    </div>
+
+                    <div class="card-body p-3">
+                      <!-- Profil Lembaga & Kontak -->
+                      <div class="p-2.5 rounded-2 bg-light border mb-3 fs-11">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                          <strong class="text-dark fs-13">{{ manualForm.school_name }}</strong>
+                          <span class="badge bg-secondary-subtle text-secondary">{{ manualForm.jenjang }}</span>
+                        </div>
+                        <div class="text-muted d-flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                          <span><i class="ri-map-pin-2-line me-0.5"></i> Kec. {{ manualForm.kecamatan === 'Lainnya' ? manualForm.custom_kecamatan : manualForm.kecamatan }}</span>
+                          <span v-if="manualForm.npsn"><i class="ri-barcode-line me-0.5"></i> NPSN: {{ manualForm.npsn }}</span>
+                        </div>
+                        <div v-if="manualForm.alamat" class="text-muted mt-1 text-truncate">
+                          <i class="ri-building-line me-0.5"></i> {{ manualForm.alamat }}
+                        </div>
+                        <hr class="my-1.5 border-secondary-subtle" />
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1">
+                          <span><i class="ri-user-star-line me-0.5 text-success"></i> Pembina: <strong>{{ manualForm.mentor_name }}</strong></span>
+                          <span class="font-monospace text-dark"><i class="ri-whatsapp-line text-success me-0.5"></i> {{ manualForm.mentor_wa }}</span>
+                        </div>
+                        <div v-if="manualForm.team_name" class="mt-1 text-primary fw-semibold">
+                          <i class="ri-shield-star-line me-0.5"></i> Tim: {{ manualForm.team_name }}
+                        </div>
+                      </div>
+
+                      <!-- Status Pengisian Delegasi Siswa -->
+                      <span class="fs-11 fw-bold text-dark text-uppercase d-block mb-2">
+                        <i class="ri-team-line text-warning"></i> Status Delegasi Siswa per Cabang Lomba:
+                      </span>
+
+                      <!-- Jika Paket Satuan -->
+                      <div v-if="manualForm.package_type === 'Paket Satuan'" class="p-2.5 rounded-2 border bg-white fs-11">
+                        <div class="d-flex align-items-center justify-content-between mb-1.5">
+                          <span class="fw-bold text-dark">{{ activeManualCompetition?.title || 'Cabang Terpilih' }}</span>
+                          <span 
+                            class="badge fs-10"
+                            :class="manualSingleDelegates.filter(d => d.name?.trim()).length >= (activeManualFormBuilder?.minItems || 1) ? 'bg-success text-white' : 'bg-warning text-dark'"
+                          >
+                            {{ manualSingleDelegates.filter(d => d.name?.trim()).length }}/{{ activeManualFormBuilder?.minItems || 1 }} Siswa
+                          </span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1 mt-1" v-if="manualSingleDelegates.filter(d => d.name?.trim()).length > 0">
+                          <span 
+                            v-for="(st, sIdx) in manualSingleDelegates.filter(d => d.name?.trim())" 
+                            :key="sIdx"
+                            class="badge bg-light text-dark border fs-10 px-2 py-0.5"
+                          >
+                            <i class="ri-shield-star-fill text-warning me-0.5" v-if="st.is_captain"></i>
+                            {{ st.name }} (Kls {{ st.grade }})
+                          </span>
+                        </div>
+                        <div v-else class="text-warning fs-11 mt-1">
+                          <i class="ri-time-line me-1"></i> Belum ada nama siswa diisi (pengisian dapat ditunda).
+                        </div>
+                      </div>
+
+                      <!-- Jika Paket All-In -->
+                      <div v-else class="d-flex flex-column gap-1.5" style="max-height: 220px; overflow-y: auto;">
+                        <div 
+                          v-for="cId in manualForm.competition_ids" 
+                          :key="cId"
+                          class="p-2 rounded-2 border bg-white d-flex align-items-center justify-content-between fs-11"
+                        >
+                          <div class="d-flex align-items-center gap-1.5">
+                            <i class="ri-medal-fill text-warning fs-13"></i>
+                            <span class="text-dark fw-semibold">{{ getAllInComp(cId)?.title || ('Lomba #' + cId) }}</span>
+                          </div>
+                          <span 
+                            class="badge fs-10"
+                            :class="getAllInFilledCount(cId) >= getAllInBuilder(cId).minItems ? 'bg-success text-white' : (getAllInFilledCount(cId) > 0 ? 'bg-warning text-dark' : 'bg-secondary text-white')"
+                          >
+                            {{ getAllInFilledCount(cId) }}/{{ getAllInBuilder(cId).minItems }} Siswa
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- KOLOM KANAN: ADMINISTRASI PEMBAYARAN MEJA PANITIA -->
+                <div class="col-12 col-lg-6">
+                  <div class="card shadow-sm border-0 h-100 bg-white">
+                    <div class="card-header bg-white py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
+                      <span class="fw-bold text-dark fs-12 text-uppercase d-flex align-items-center gap-1.5">
+                        <i class="ri-money-dollar-circle-line text-success"></i> Administrasi Pembayaran Meja Panitia
+                      </span>
+                      <span class="badge bg-success-subtle text-success fs-10 px-2 py-0.5 rounded-pill">Kasir On-Site</span>
+                    </div>
+
+                    <div class="card-body p-3">
+                      <!-- Total Tagihan -->
+                      <div class="p-3 rounded-3 border border-success-subtle bg-success-subtle bg-opacity-10 mb-3 text-center">
+                        <span class="fs-11 text-muted text-uppercase fw-semibold d-block mb-1">Total Tagihan Pendaftaran</span>
+                        <div class="fs-22 fw-bold text-success">{{ formatRupiah(manualTotalCalculatedFee) }}</div>
+                        <span class="badge bg-success text-white fs-10 mt-1">
+                          {{ manualForm.package_type === 'Paket All-In' ? 'Tarif Paket Komplit (All-In)' : 'Tarif Satuan Cabang Lomba' }}
+                        </span>
+                      </div>
+
+                      <!-- Penyesuaian / Override Tarif jika ada dispensasi -->
+                      <div class="row g-2 mb-3">
+                        <div class="col-12" v-if="manualForm.package_type === 'Paket Satuan'">
+                          <label class="form-label fs-11 fw-bold text-dark d-flex align-items-center justify-content-between mb-1">
+                            <span>Biaya Cabang Lomba (Rp)</span>
+                            <span class="text-muted fs-10">Bisa di-override jika ada diskon</span>
+                          </label>
+                          <input 
+                            type="number" 
+                            v-model.number="manualForm.custom_fee" 
+                            class="form-control form-control-sm fs-12 font-monospace"
+                            :placeholder="`Tarif default: ${activeManualCompetition?.price || activeManualCompetition?.fee || 0}`" 
+                          />
+                        </div>
+                        <div class="col-12" v-else>
+                          <label class="form-label fs-11 fw-bold text-dark d-flex align-items-center justify-content-between mb-1">
+                            <span>Tarif Paket All-In (Rp)</span>
+                            <span class="text-muted fs-10">Bisa disesuaikan jika perlu</span>
+                          </label>
+                          <input 
+                            type="number" 
+                            v-model.number="manualForm.package_price" 
+                            class="form-control form-control-sm fs-12 font-monospace"
+                            :placeholder="`Tarif default: ${package_allin_price}`" 
+                          />
+                        </div>
+                      </div>
+
+                      <!-- Status Pembayaran -->
+                      <div class="mb-3">
+                        <label class="form-label fs-11 fw-bold text-dark">
+                          Status Pembayaran <span class="text-danger">*</span>
+                        </label>
+                        <CustomSelect 
+                          v-model="manualForm.payment_status" 
+                          :options="manualPaymentStatusOptions" 
+                          size="sm"
+                        />
+                      </div>
+
+                      <!-- Metode Pembayaran -->
+                      <div class="mb-3">
+                        <label class="form-label fs-11 fw-bold text-dark">
+                          Metode Pembayaran <span class="text-danger">*</span>
+                        </label>
+                        <CustomSelect 
+                          v-model="manualForm.payment_method" 
+                          :options="manualPaymentMethodOptions" 
+                          size="sm"
+                        />
+                      </div>
+
+                      <!-- Catatan Kwitansi -->
+                      <div class="mb-2">
+                        <label class="form-label fs-11 fw-bold text-dark">
+                          Catatan / No. Kwitansi Meja Panitia (Opsional)
+                        </label>
+                        <textarea 
+                          v-model="manualForm.notes" 
+                          class="form-control form-control-sm fs-12"
+                          rows="2"
+                          placeholder="Nomor kwitansi fisik atau catatan khusus meja panitia..."
+                        ></textarea>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Callout Penjelasan Simpan Saja (Draf) vs Simpan Final di Langkah 3 -->
               <div class="p-2.5 rounded-3 border border-warning-subtle bg-warning-subtle bg-opacity-20 d-flex align-items-start gap-2.5 fs-11 text-dark mt-3">
                 <i class="ri-information-fill fs-18 text-warning flex-shrink-0 mt-0.5"></i>
                 <div>
-                  <strong>Perhatian Meja Panitia Mengenai Pilihan Simpan:</strong>
+                  <strong>Perhatian Meja Panitia Mengenai Pilihan Simpan di Langkah 3:</strong>
                   <ul class="mb-0 ps-3 mt-1 text-muted">
                     <li>
-                      <strong>Simpan Saja (Draf / Diisi Nanti)</strong>: Menyimpan data kontingen &amp; pembayaran di meja panitia, tetapi berstatus <em>Menunggu Pengisian Peserta</em>. Pendaftaran <strong>belum final dan belum bisa diverifikasi</strong> sampai delegasi siswa dilengkapi.
+                      <strong>Simpan Saja (Draf / Diisi Nanti)</strong>: Menyimpan data kontingen &amp; pembayaran di meja panitia dengan status <em>Menunggu Pengisian Peserta</em>. Pendaftaran <strong>belum final dan belum bisa diverifikasi</strong> sampai delegasi siswa dilengkapi.
                     </li>
                     <li>
                       <strong>Simpan Final &amp; Selesai</strong>: Menyimpan seluruh kontingen dan data siswa delegasi secara lengkap &amp; final, sehingga langsung siap untuk diverifikasi.
@@ -2682,7 +2820,7 @@ function printReport() {
               </button>
             </template>
 
-            <!-- FOOTER LANGKAH 2 (PENGISIAN DELEGASI SISWA - LANGKAH TERAKHIR & TEMPAT PENYIMPANAN) -->
+            <!-- FOOTER LANGKAH 2 (PENGISIAN DELEGASI SISWA - MURNI NAVIGASI CLIENT-SIDE) -->
             <template v-else-if="manualStep === 2">
               <button 
                 type="button" 
@@ -2691,6 +2829,28 @@ function printReport() {
               >
                 <i class="ri-arrow-left-line"></i>
                 <span>&larr; Kembali ke Data Sekolah (Langkah 1)</span>
+              </button>
+
+              <!-- Lanjut ke Langkah 3: Administrasi Pembayaran & Simpan (MURNI NAVIGASI CLIENT-SIDE) -->
+              <button 
+                type="button" 
+                class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm"
+                @click="goToManualStep(3)"
+              >
+                <span>Lanjut ke Pembayaran &amp; Simpan (Langkah 3) &rarr;</span>
+                <i class="ri-arrow-right-line"></i>
+              </button>
+            </template>
+
+            <!-- FOOTER LANGKAH 3 (PEMBAYARAN & SIMPAN - SATU-SATUNYA TEMPAT PENYIMPANAN KE DATABASE) -->
+            <template v-else-if="manualStep === 3">
+              <button 
+                type="button" 
+                class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5"
+                @click="manualStep = 2"
+              >
+                <i class="ri-arrow-left-line"></i>
+                <span>&larr; Kembali ke Pengisian Siswa Delegasi (Langkah 2)</span>
               </button>
 
               <div class="d-flex align-items-center gap-2 flex-wrap">

@@ -23,7 +23,7 @@ const { confirm: confirmDialog } = useConfirmDialog();
 
 // Navigation & View Mode State
 const currentCompId = ref(props.selectedCompetition?.id || props.competitions[0]?.id || '');
-const viewMode = ref('split'); // 'builder' (Editor Penuh) | 'split' (Berdampingan) | 'preview' (Pratinjau Penuh)
+const viewMode = ref('builder'); // 'builder' (Editor Penuh) | 'split' (Berdampingan) | 'preview' (Pratinjau Penuh)
 const previewDevice = ref('desktop'); // 'desktop' | 'mobile'
 const toolboxTab = ref('types'); // 'types' | 'presets' | 'identity'
 const toolboxSearch = ref('');
@@ -527,16 +527,13 @@ function initializeData() {
     }
   });
 
-  // Setup initial expansion: if more than 3 fields, expand first 2 (excluding district), collapse rest
+  // Setup initial expansion: ciutkan semua field & headline secara default saat pertama diakses
   const newMap = {};
-  fields.value.forEach((f, idx) => {
-    if (isDistrictField(f)) {
-      newMap[f.id] = false;
-    } else {
-      newMap[f.id] = fields.value.length <= 3 ? true : (idx < 2);
-    }
+  fields.value.forEach(f => {
+    newMap[f.id] = false;
   });
   expandedMap.value = newMap;
+  isHeadlineCardExpanded.value = false;
 
   // Initialize preview values for repeaters
   fields.value.forEach(f => {
@@ -1403,7 +1400,7 @@ function onDrop(targetIndex, event) {
 }
 
 // Headline & Header Formulir Card State & Actions
-const isHeadlineCardExpanded = ref(true);
+const isHeadlineCardExpanded = ref(false);
 const isApplyingHeadlineAll = ref(false);
 
 async function applyHeadlineToAll() {
@@ -4336,7 +4333,7 @@ function setParticipantCountDirect(field, val) {
             <button 
               type="button" 
               class="btn btn-sm preview-back-btn"
-              @click="viewMode = 'split'"
+              @click="viewMode = 'builder'"
             >
               <i class="ri-arrow-left-line me-1"></i> Kembali ke Editor
             </button>

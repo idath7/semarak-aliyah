@@ -4,10 +4,31 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class School extends Model
 {
     use HasFactory;
+
+    public const JEMBER_KECAMATANS = [
+        'Ajung', 'Ambulu', 'Arjasa', 'Balung', 'Bangsalsari', 'Gumukmas', 'Jelbuk', 
+        'Jenggawah', 'Jombang', 'Kalisat', 'Kaliwates', 'Kencong', 'Ledokombo', 
+        'Mayang', 'Mumbulsari', 'Pakusari', 'Panti', 'Patrang', 'Puger', 
+        'Rambipuji', 'Semboro', 'Silo', 'Sukorambi', 'Sukowono', 'Sumberbaru', 
+        'Sumberjambe', 'Sumbersari', 'Tanggul', 'Tempurejo', 'Umbulsari', 'Wuluhan',
+        'Luar Kabupaten Jember'
+    ];
+
+    public static function getKecamatanList(): array
+    {
+        $db = self::distinct()
+            ->whereNotNull('kecamatan')
+            ->where('kecamatan', '!=', '')
+            ->pluck('kecamatan')
+            ->toArray();
+
+        return array_values(array_unique(array_merge(self::JEMBER_KECAMATANS, $db)));
+    }
 
     protected $fillable = [
         'npsn',
@@ -30,7 +51,7 @@ class School extends Model
     /**
      * Scope query to active schools.
      */
-    public function scopeActive($query)
+    public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
     }
@@ -38,7 +59,7 @@ class School extends Model
     /**
      * Scope query for keyword search across name, npsn, kecamatan, or address.
      */
-    public function scopeSearch($query, ?string $keyword)
+    public function scopeSearch(Builder $query, ?string $keyword): Builder
     {
         if (empty($keyword)) {
             return $query;
@@ -56,7 +77,7 @@ class School extends Model
     /**
      * Scope query by Jenjang (SMP / MTs).
      */
-    public function scopeJenjang($query, ?string $jenjang)
+    public function scopeJenjang(Builder $query, ?string $jenjang): Builder
     {
         if (!empty($jenjang) && in_array(strtoupper($jenjang), ['SMP', 'MTS'])) {
             return $query->where('jenjang', strtoupper($jenjang));
@@ -67,7 +88,7 @@ class School extends Model
     /**
      * Scope query by Status (Negeri / Swasta).
      */
-    public function scopeStatus($query, ?string $status)
+    public function scopeStatus(Builder $query, ?string $status): Builder
     {
         if (!empty($status) && in_array(ucfirst(strtolower($status)), ['Negeri', 'Swasta'])) {
             return $query->where('status', ucfirst(strtolower($status)));
@@ -78,7 +99,7 @@ class School extends Model
     /**
      * Scope query by Kecamatan.
      */
-    public function scopeKecamatan($query, ?string $kecamatan)
+    public function scopeKecamatan(Builder $query, ?string $kecamatan): Builder
     {
         if (!empty($kecamatan)) {
             return $query->where('kecamatan', $kecamatan);

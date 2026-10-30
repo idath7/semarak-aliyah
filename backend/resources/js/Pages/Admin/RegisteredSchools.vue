@@ -200,44 +200,44 @@ const jenjangOptions = [
   { value: 'Lainnya', label: 'Lainnya / Sederajat' },
 ];
 
-// Opsi Kecamatan dari Database Master
+// 31 Kecamatan Resmi Kabupaten Jember + Pilihan Luar Jember (Selaras 100% dengan Halaman Formulir)
+const JEMBER_KECAMATAN_LIST = [
+  'Ajung', 'Ambulu', 'Arjasa', 'Balung', 'Bangsalsari', 'Gumukmas', 'Jelbuk', 'Jenggawah',
+  'Jombang', 'Kalisat', 'Kaliwates', 'Kencong', 'Ledokombo', 'Mayang', 'Mumbulsari',
+  'Pakusari', 'Panti', 'Patrang', 'Puger', 'Rambipuji', 'Semboro', 'Silo', 'Sukorambi',
+  'Sukowono', 'Sumberbaru', 'Sumberjambe', 'Sumbersari', 'Tanggul', 'Tempurejo', 'Umbulsari',
+  'Wuluhan', 'Luar Kabupaten Jember'
+];
+
+// Opsi Kecamatan Lengkap untuk Dropdown CustomSelect
 const kecamatanOptions = computed(() => {
-  let dbDistricts = props.districts && props.districts.length > 0
-    ? [...props.districts]
-    : [...new Set(props.master_schools.map(s => s.kecamatan).filter(Boolean))].sort();
+  const merged = [...JEMBER_KECAMATAN_LIST];
 
-  if (dbDistricts.length === 0) {
-    dbDistricts = [
-      'Ajung', 'Ambulu', 'Arjasa', 'Balung', 'Bangsalsari', 'Gumukmas', 'Jelbuk',
-      'Jenggawah', 'Jombang', 'Kalisat', 'Kaliwates', 'Kencong', 'Ledokombo',
-      'Mayang', 'Mumbulsari', 'Pakusari', 'Panti', 'Patrang', 'Puger',
-      'Rambipuji', 'Semboro', 'Silo', 'Sukorambi', 'Sukowono', 'Sumberbaru',
-      'Sumberjambe', 'Sumbersari', 'Tanggul', 'Tempurejo', 'Umbulsari', 'Wuluhan'
-    ];
+  // Tambahkan kecamatan dari master_schools atau props.districts jika ada data variasi lain
+  if (Array.isArray(props.districts)) {
+    props.districts.forEach(d => {
+      if (d && !merged.includes(d)) merged.push(d);
+    });
+  }
+  if (Array.isArray(props.master_schools)) {
+    props.master_schools.forEach(s => {
+      if (s.kecamatan && s.kecamatan !== '-' && !merged.includes(s.kecamatan)) {
+        merged.push(s.kecamatan);
+      }
+    });
   }
 
-  const opts = dbDistricts.map(k => ({
+  // Jika nilai manualForm.kecamatan saat ini ada tapi belum ada di list, tambahkan dinamis
+  if (manualForm.value.kecamatan && !merged.includes(manualForm.value.kecamatan)) {
+    merged.push(manualForm.value.kecamatan);
+  }
+
+  return merged.map(k => ({
     value: k,
-    label: `Kec. ${k}`
+    label: k === 'Luar Kabupaten Jember' || k.toLowerCase().includes('luar')
+      ? '🌐 ' + k
+      : 'Kecamatan ' + k
   }));
-
-  // Opsi Luar Jember jika belum ada
-  if (!dbDistricts.some(k => k.toLowerCase().includes('luar'))) {
-    opts.push({
-      value: 'Luar Jember (Lainnya)',
-      label: '🌐 Luar Jember (Lainnya)'
-    });
-  }
-
-  // Jika nilai manualForm.kecamatan saat ini belum terdaftar di list, sisipkan dinamis
-  if (manualForm.value.kecamatan && !opts.some(o => o.value.toLowerCase() === manualForm.value.kecamatan.toLowerCase())) {
-    opts.unshift({
-      value: manualForm.value.kecamatan,
-      label: `Kec. ${manualForm.value.kecamatan}`
-    });
-  }
-
-  return opts;
 });
 
 function onSchoolNameInput() {
@@ -251,11 +251,8 @@ function onSchoolNameInput() {
 
     // Auto-detect kecamatan jika belum terpilih
     if (!manualForm.value.kecamatan) {
-      const candidates = props.districts && props.districts.length > 0
-        ? props.districts
-        : props.master_schools.map(s => s.kecamatan).filter(Boolean);
-      for (const k of candidates) {
-        if (new RegExp('\\b' + k + '\\b', 'i').test(manualForm.value.school_name)) {
+      for (const k of JEMBER_KECAMATAN_LIST) {
+        if (k !== 'Luar Kabupaten Jember' && new RegExp('\\b' + k + '\\b', 'i').test(manualForm.value.school_name)) {
           manualForm.value.kecamatan = k;
           break;
         }
@@ -391,7 +388,8 @@ async function submitManualRegistration() {
     return;
   }
 
-  const finalKecamatan = (manualForm.value.kecamatan === 'Luar Jember (Lainnya)' && manualForm.value.custom_kecamatan?.trim())
+  const isLuar = manualForm.value.kecamatan === 'Luar Kabupaten Jember' || manualForm.value.kecamatan === 'Luar Jember (Lainnya)';
+  const finalKecamatan = (isLuar && manualForm.value.custom_kecamatan?.trim())
     ? manualForm.value.custom_kecamatan.trim()
     : manualForm.value.kecamatan;
 
@@ -1637,7 +1635,7 @@ function printReport() {
                           placeholder="Pilih Kecamatan..."
                         />
                       </div>
-                      <div v-if="manualForm.kecamatan === 'Luar Jember (Lainnya)'" class="col-12 mt-1">
+                      <div v-if="manualForm.kecamatan === 'Luar Kabupaten Jember' || manualForm.kecamatan === 'Luar Jember (Lainnya)'" class="col-12 mt-1">
                         <label class="form-label fs-10 text-muted fw-semibold">Nama Kecamatan / Wilayah (Luar Jember)</label>
                         <input 
                           type="text" 

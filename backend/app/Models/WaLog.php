@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class WaLog extends Model
 {
@@ -30,12 +31,12 @@ class WaLog extends Model
     /**
      * Scope for filtering by status or type.
      */
-    public function scopeSuccessful($query)
+    public function scopeSuccessful(Builder $query): Builder
     {
         return $query->where('status', 'success');
     }
 
-    public function scopeFailed($query)
+    public function scopeFailed(Builder $query): Builder
     {
         return $query->where('status', 'failed');
     }

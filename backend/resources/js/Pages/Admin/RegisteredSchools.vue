@@ -185,7 +185,6 @@ const manualForm = ref({
   school_selection_mode: 'master', // 'master' | 'custom'
   selected_master_id: '',
   school_name: '',
-  jenjang: 'SMP',
   kecamatan: '',
   custom_kecamatan: '',
   npsn: '',
@@ -203,13 +202,6 @@ const manualForm = ref({
   payment_method: 'Tunai di Meja Panitia',
   notes: 'Pendaftaran langsung on-the-spot di Meja Panitia',
 });
-
-// Dropdown options for manual form
-const jenjangOptions = [
-  { value: 'SMP', label: 'SMP (Sekolah Menengah Pertama)' },
-  { value: 'MTs', label: 'MTs (Madrasah Tsanawiyah)' },
-  { value: 'Lainnya', label: 'Lainnya / Sederajat' },
-];
 
 // 31 Kecamatan Resmi Kabupaten Jember + Opsi Lainnya
 const JEMBER_KECAMATAN_LIST = [
@@ -230,13 +222,6 @@ const kecamatanOptions = computed(() => {
 
 function onSchoolNameInput() {
   if (manualForm.value.school_selection_mode === 'custom' && manualForm.value.school_name) {
-    const nameUpper = manualForm.value.school_name.toUpperCase();
-    if (nameUpper.includes('MTS') || nameUpper.includes('MADRASAH')) {
-      manualForm.value.jenjang = 'MTs';
-    } else if (nameUpper.includes('SMP')) {
-      manualForm.value.jenjang = 'SMP';
-    }
-
     // Auto-detect kecamatan jika belum terpilih
     if (!manualForm.value.kecamatan) {
       for (const k of JEMBER_KECAMATAN_LIST) {
@@ -293,7 +278,6 @@ function onSelectMasterSchool(schoolId) {
   const found = props.master_schools.find(s => String(s.id) === String(schoolId));
   if (found) {
     manualForm.value.school_name = found.name;
-    if (found.jenjang) manualForm.value.jenjang = found.jenjang;
     if (found.npsn) manualForm.value.npsn = found.npsn;
     if (found.alamat) manualForm.value.alamat = found.alamat;
     if (found.kecamatan) {
@@ -332,7 +316,6 @@ function openManualModal(prefilledSchool = null) {
     school_selection_mode: 'master',
     selected_master_id: '',
     school_name: prefilledSchool ? prefilledSchool.school_name : '',
-    jenjang: prefilledSchool?.jenjang && prefilledSchool.jenjang !== '-' ? prefilledSchool.jenjang : 'SMP',
     kecamatan: initKecamatan,
     custom_kecamatan: initCustomKecamatan,
     npsn: prefilledSchool?.npsn && prefilledSchool.npsn !== '-' ? prefilledSchool.npsn : '',
@@ -468,11 +451,60 @@ function goToManualStep(targetStep) {
 // HELPER FORM BUILDER & DELEGASI SISWA (LANGKAH 3)
 // -----------------------------------------------------------------------------
 const activeManualCompetition = computed(() => {
-  if (manualForm.value.package_type === 'Paket Satuan' && manualForm.value.competition_id) {
-    return props.competitions.find(c => String(c.id) === String(manualForm.value.competition_id)) || null;
+  if (manualForm.value.package_type === 'Paket Satuan') {
+    if (manualForm.value.competition_id) {
+      return props.competitions.find(c => String(c.id) === String(manualForm.value.competition_id)) || props.competitions[0] || null;
+    }
+    return props.competitions[0] || null;
   }
-  return null;
+  // Paket All-In: gunakan cabang pertama yang dipilih atau cabang pertama yang tersedia
+  if (manualForm.value.competition_ids && manualForm.value.competition_ids.length > 0) {
+    return props.competitions.find(c => c.id === manualForm.value.competition_ids[0]) || props.competitions[0] || null;
+  }
+  return props.competitions[0] || null;
 });
+
+// Alias identitas sesuai spesifikasi Form Builder
+const IDENTITY_ALIASES = {
+  school_name: ['school_name', 'asal_sekolah', 'nama_sekolah', 'nama_lembaga', 'nama_sekolah_madrasah', 'nama_sekolah_madrasah_pengirim', 'nama_sekolah_madrasah_instansi_pengirim'],
+  school_district: ['school_district', 'kecamatan', 'kecamatan_sekolah', 'kecamatan_asal_sekolah', 'kecamatan_asal_sekolah_madrasah', 'wilayah_kecamatan'],
+  school_npsn: ['school_npsn', 'npsn', 'npsn_sekolah', 'nomor_pokok_sekolah_nasional', 'nomor_pokok_sekolah_nasional_npsn'],
+  school_address: ['school_address', 'alamat_sekolah', 'alamat_lengkap_sekolah', 'alamat_sekolah_madrasah', 'alamat_lengkap_sekolah_madrasah', 'alamat'],
+  mentor_name: ['mentor_name', 'nama_pendamping', 'nama_guru_pendamping', 'nama_pembina', 'nama_guru_pembina_pendamping', 'nama_pelatih_official'],
+  mentor_wa: ['mentor_wa', 'nomor_wa', 'whatsapp', 'nomor_whatsapp', 'nomor_whatsapp_pendamping', 'nomor_whatsapp_kontak', 'nomor_whatsapp_pembina', 'no_whatsapp_pelatih_official', 'no_whatsapp_kapten_kontak_tim'],
+  mentor_email: ['mentor_email', 'contact_email', 'email', 'alamat_email', 'email_pendamping', 'alamat_email_aktif', 'email_kontak', 'alamat_email_resmi_sekolah_pembina'],
+  allin_code: ['allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code', 'all_in_code', 'kode_paket_allin']
+};
+
+function getManualFieldConfig(canonicalName) {
+  const fields = activeManualCompetition.value?.custom_fields || [];
+  const aliases = IDENTITY_ALIASES[canonicalName] || [canonicalName];
+  return fields.find(f => f && (aliases.includes(f.name) || aliases.includes(f.default_name))) || null;
+}
+
+function getManualFieldLabel(canonicalName, fallback = '') {
+  const f = getManualFieldConfig(canonicalName);
+  if (f && typeof f.label === 'string' && f.label.trim()) {
+    return f.label.trim();
+  }
+  return fallback;
+}
+
+function getManualFieldPlaceholder(canonicalName, fallback = '') {
+  const f = getManualFieldConfig(canonicalName);
+  if (f && typeof f.placeholder === 'string' && f.placeholder.trim()) {
+    return f.placeholder.trim();
+  }
+  return fallback;
+}
+
+function getManualFieldHelpText(canonicalName, fallback = '') {
+  const f = getManualFieldConfig(canonicalName);
+  if (f && typeof f.help_text === 'string' && f.help_text.trim()) {
+    return f.help_text.trim();
+  }
+  return fallback;
+}
 
 const competitionSelectOptions = computed(() => {
   return props.competitions.map(c => {
@@ -713,7 +745,6 @@ async function submitManualRegistration(saveMode = 'final') {
 
   router.post('/admin/pendaftar/manual-store', {
     school_name: manualForm.value.school_name,
-    jenjang: manualForm.value.jenjang,
     kecamatan: finalKecamatan,
     npsn: manualForm.value.npsn,
     alamat: manualForm.value.alamat,
@@ -2169,37 +2200,32 @@ function printReport() {
                           search-placeholder="Ketik nama sekolah/kecamatan..."
                           @update:modelValue="onSelectMasterSchool"
                         />
-                        <span class="fs-10 text-muted mt-1 d-block">Memilih master sekolah akan otomatis mengisi nama lembaga, jenjang, kecamatan, NPSN, dan alamat.</span>
+                        <span class="fs-10 text-muted mt-1 d-block">Memilih master sekolah akan otomatis mengisi nama lembaga, kecamatan, NPSN, dan alamat.</span>
                       </div>
 
-                      <!-- Input Nama Sekolah -->
+                      <!-- Input Nama Asal Sekolah / Madrasah (Mengikuti Form Builder) -->
                       <div class="mb-3">
                         <label class="form-label fs-11 fw-bold text-dark">
-                          Nama Sekolah / Madrasah <span class="text-danger">*</span>
+                          {{ getManualFieldLabel('school_name', 'Nama Asal Sekolah / Madrasah') }} <span class="text-danger">*</span>
                         </label>
                         <input 
                           type="text" 
                           v-model="manualForm.school_name" 
                           class="form-control form-control-sm fs-12"
-                          placeholder="Contoh: MTs Negeri 1 Jember" 
+                          :placeholder="getManualFieldPlaceholder('school_name', 'Contoh: MTs Negeri 1 Jember / SMPN 1 Balung')" 
                           @input="onSchoolNameInput"
                           required
                         />
+                        <span v-if="getManualFieldHelpText('school_name')" class="fs-10 text-muted mt-1 d-block">
+                          {{ getManualFieldHelpText('school_name') }}
+                        </span>
                       </div>
 
-                      <!-- Jenjang & Kecamatan -->
+                      <!-- Kecamatan Asal Sekolah & NPSN (Mengikuti Form Builder, Tanpa Field Jenjang) -->
                       <div class="row g-2 mb-3">
-                        <div class="col-5">
-                          <label class="form-label fs-11 fw-bold text-dark">Jenjang</label>
-                          <CustomSelect 
-                            v-model="manualForm.jenjang" 
-                            :options="jenjangOptions" 
-                            size="sm"
-                          />
-                        </div>
-                        <div class="col-7">
+                        <div class="col-12 col-md-7">
                           <label class="form-label fs-11 fw-bold text-dark">
-                            Kecamatan Asal <span class="text-danger">*</span>
+                            {{ getManualFieldLabel('school_district', 'Kecamatan Asal Sekolah') }} <span class="text-danger">*</span>
                           </label>
                           <CustomSelect 
                             v-model="manualForm.kecamatan" 
@@ -2207,9 +2233,21 @@ function printReport() {
                             size="sm"
                             searchable
                             search-placeholder="Ketik nama kecamatan..."
-                            placeholder="Pilih Kecamatan..."
+                            :placeholder="getManualFieldPlaceholder('school_district', 'Pilih Kecamatan Asal Sekolah...')"
                           />
                         </div>
+                        <div class="col-12 col-md-5">
+                          <label class="form-label fs-11 fw-bold text-dark">
+                            {{ getManualFieldLabel('school_npsn', 'Nomor Pokok Sekolah Nasional (NPSN)') }}
+                          </label>
+                          <input 
+                            type="text" 
+                            v-model="manualForm.npsn" 
+                            class="form-control form-control-sm fs-12 font-monospace"
+                            :placeholder="getManualFieldPlaceholder('school_npsn', 'Contoh: 20581234 (opsional)')" 
+                          />
+                        </div>
+
                         <!-- Input manual jika opsi Lainnya dipilih -->
                         <div v-if="manualForm.kecamatan === 'Lainnya'" class="col-12 mt-1">
                           <label class="form-label fs-10 text-muted fw-semibold">
@@ -2225,30 +2263,20 @@ function printReport() {
                         </div>
                       </div>
 
-                      <!-- Field NPSN & Alamat Sekolah (Adaptif Form Builder / Master) -->
-                      <div class="row g-2 mb-3">
-                        <div class="col-5">
-                          <label class="form-label fs-11 fw-bold text-dark">
-                            {{ activeManualFormBuilder?.npsnField?.label || 'NPSN Sekolah' }}
-                          </label>
-                          <input 
-                            type="text" 
-                            v-model="manualForm.npsn" 
-                            class="form-control form-control-sm fs-12 font-monospace"
-                            :placeholder="activeManualFormBuilder?.npsnField?.placeholder || 'Contoh: 20581234'" 
-                          />
-                        </div>
-                        <div class="col-7">
-                          <label class="form-label fs-11 fw-bold text-dark">
-                            {{ activeManualFormBuilder?.addressField?.label || 'Alamat Sekolah / Madrasah' }}
-                          </label>
-                          <input 
-                            type="text" 
-                            v-model="manualForm.alamat" 
-                            class="form-control form-control-sm fs-12"
-                            :placeholder="activeManualFormBuilder?.addressField?.placeholder || 'Alamat lengkap sekolah...'" 
-                          />
-                        </div>
+                      <!-- Alamat Lengkap Sekolah / Madrasah (Mengikuti Form Builder) -->
+                      <div class="mb-3">
+                        <label class="form-label fs-11 fw-bold text-dark">
+                          {{ getManualFieldLabel('school_address', 'Alamat Lengkap Sekolah / Madrasah') }}
+                        </label>
+                        <textarea 
+                          rows="2"
+                          v-model="manualForm.alamat" 
+                          class="form-control form-control-sm fs-12"
+                          :placeholder="getManualFieldPlaceholder('school_address', 'Contoh: Jl. Raya Puger No. 20, Balung Kulon, Kec. Balung')" 
+                        ></textarea>
+                        <span v-if="getManualFieldHelpText('school_address')" class="fs-10 text-muted mt-1 d-block">
+                          {{ getManualFieldHelpText('school_address') }}
+                        </span>
                       </div>
 
                       <!-- Input Nama Tim / Skuad (Dinamis Jika Cabang Lomba Beregu di Paket Satuan) -->
@@ -2271,46 +2299,49 @@ function printReport() {
 
                       <hr class="my-3" />
 
-                      <!-- Kontak Pembina / Pendamping Resmi -->
+                      <!-- Kontak Pembina / Pendamping Resmi (Mengikuti Form Builder) -->
                       <span class="fs-11 fw-bold text-dark text-uppercase d-block mb-2">
                         <i class="ri-user-star-line text-success"></i> Kontak Pembina / Pendamping Resmi
                       </span>
 
                       <div class="mb-2">
                         <label class="form-label fs-11 fw-bold text-dark">
-                          Nama Lengkap Pembina <span class="text-danger">*</span>
+                          {{ getManualFieldLabel('mentor_name', 'Nama Guru Pembina / Pendamping') }} <span class="text-danger">*</span>
                         </label>
                         <input 
                           type="text" 
                           v-model="manualForm.mentor_name" 
                           class="form-control form-control-sm fs-12"
-                          placeholder="Contoh: H. Ahmad Fauzi, S.Pd" 
+                          :placeholder="getManualFieldPlaceholder('mentor_name', 'Contoh: Ustadz Ahmad Fauzi, S.Pd')" 
                           required
                         />
+                        <span v-if="getManualFieldHelpText('mentor_name')" class="fs-10 text-muted mt-1 d-block">
+                          {{ getManualFieldHelpText('mentor_name') }}
+                        </span>
                       </div>
 
                       <div class="row g-2">
                         <div class="col-7">
                           <label class="form-label fs-11 fw-bold text-dark">
-                            No. WhatsApp <span class="text-danger">*</span>
+                            {{ getManualFieldLabel('mentor_wa', 'Nomor WhatsApp Pembina') }} <span class="text-danger">*</span>
                           </label>
                           <input 
                             type="text" 
                             v-model="manualForm.mentor_wa" 
                             class="form-control form-control-sm fs-12 font-monospace"
-                            placeholder="081234567890" 
+                            :placeholder="getManualFieldPlaceholder('mentor_wa', '08xxxxxxxxxx')" 
                             required
                           />
                         </div>
                         <div class="col-5">
                           <label class="form-label fs-11 fw-bold text-dark">
-                            {{ activeManualFormBuilder?.emailField?.label || 'Email (Opsional)' }}
+                            {{ getManualFieldLabel('mentor_email', 'Alamat Email (Opsional)') }}
                           </label>
                           <input 
                             type="email" 
                             v-model="manualForm.mentor_email" 
                             class="form-control form-control-sm fs-12"
-                            placeholder="email@sekolah.sch.id" 
+                            :placeholder="getManualFieldPlaceholder('mentor_email', 'email@sekolah.sch.id')" 
                           />
                         </div>
                       </div>
@@ -2621,9 +2652,8 @@ function printReport() {
                     <div class="card-body p-3">
                       <!-- Profil Lembaga & Kontak -->
                       <div class="p-2.5 rounded-2 bg-light border mb-3 fs-11">
-                        <div class="d-flex align-items-center justify-content-between mb-1">
+                        <div class="mb-1">
                           <strong class="text-dark fs-13">{{ manualForm.school_name }}</strong>
-                          <span class="badge bg-secondary-subtle text-secondary">{{ manualForm.jenjang }}</span>
                         </div>
                         <div class="text-muted d-flex flex-wrap gap-x-3 gap-y-1 mt-1">
                           <span><i class="ri-map-pin-2-line me-0.5"></i> Kec. {{ manualForm.kecamatan === 'Lainnya' ? manualForm.custom_kecamatan : manualForm.kecamatan }}</span>

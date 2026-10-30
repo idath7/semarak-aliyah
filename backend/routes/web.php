@@ -96,7 +96,10 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
     Route::post('/pendaftar/manual-store', [AdminPanelController::class, 'storeManualRegistration'])->name('pendaftar.manual-store');
     Route::post('/pendaftar/merge-schools', [AdminPanelController::class, 'mergeSchools'])->name('pendaftar.merge-schools');
     Route::get('/sekolah-terdaftar', [AdminPanelController::class, 'registeredSchoolsIndex'])->name('sekolah-terdaftar.index');
+    Route::post('/sekolah-terdaftar/destroy', [AdminPanelController::class, 'destroyRegisteredSchool'])->name('sekolah-terdaftar.destroy');
     Route::get('/pendaftar/{id}', [AdminPanelController::class, 'pendaftarDetail'])->name('pendaftar.detail');
+    Route::delete('/pendaftar/{id}', [AdminPanelController::class, 'destroyRegistration'])->name('pendaftar.destroy');
+    Route::post('/pendaftar/bulk-destroy', [AdminPanelController::class, 'bulkDestroyRegistrations'])->name('pendaftar.bulk-destroy');
     Route::post('/pendaftar/{id}/verify', [AdminPanelController::class, 'verify'])->name('pendaftar.verify');
     Route::post('/pendaftar/{id}/update-participants', [AdminPanelController::class, 'updateRegistrationParticipants'])->name('pendaftar.update-participants');
     // Manajemen Cabang Lomba & Kuota Delegasi

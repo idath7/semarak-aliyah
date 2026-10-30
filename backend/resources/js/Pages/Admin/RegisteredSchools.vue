@@ -5,6 +5,7 @@ import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import IndoDatePicker from '@/Components/IndoDatePicker.vue';
 import { useToast } from '@/Composables/useToast';
 import { useConfirmDialog } from '@/Composables/useConfirmDialog';
+import { usePermission } from '@/Composables/usePermission';
 import { getWaChatUrl } from '@/Utils/whatsapp';
 
 const props = defineProps({
@@ -89,6 +90,80 @@ const activeSchool = ref(null);
 function openSchoolDetail(school) {
   activeSchool.value = school;
   showDetailModal.value = true;
+}
+
+// -----------------------------------------------------------------------------
+// HAK AKSES & FITUR HAPUS DATA (SUPER ADMIN)
+// -----------------------------------------------------------------------------
+const { can, isSuperAdmin } = usePermission();
+const canDeleteSchool = computed(() => isSuperAdmin.value || can('registered_schools.delete') || can('schools.manage'));
+const canDeleteDelegate = computed(() => isSuperAdmin.value || can('registrants.delete'));
+
+async function deleteRegisteredSchool(school) {
+  if (!school) return;
+  const compCount = school.competitions?.length || school.total_competitions || 0;
+  const confirmed = await confirmDialog({
+    title: 'Hapus Sekolah Terdaftar?',
+    message: `Apakah Anda yakin ingin menghapus seluruh data pendaftaran kontingen "${school.school_name}"? Sebanyak ${compCount} cabang lomba delegasi yang didaftarkan akan dihapus secara permanen dari sistem.`,
+    type: 'danger',
+    confirmText: 'Ya, Hapus Seluruh Kontingen',
+    cancelText: 'Batal',
+  });
+
+  if (!confirmed) return;
+
+  router.post('/admin/sekolah-terdaftar/destroy', {
+    school_name: school.school_name,
+  }, {
+    onSuccess: () => {
+      showDetailModal.value = false;
+      toast.showToast({
+        type: 'success',
+        title: 'Sekolah Dihapus',
+        message: `Data sekolah ${school.school_name} beserta seluruh delegasinya berhasil dihapus permanen!`,
+      });
+    },
+    onError: (errs) => {
+      const msg = Object.values(errs)[0] || 'Gagal menghapus data sekolah.';
+      toast.showToast({ type: 'danger', title: 'Gagal', message: msg });
+    }
+  });
+}
+
+async function deleteSingleDelegation(comp, schoolContext = null) {
+  if (!comp) return;
+  const sName = schoolContext?.school_name || activeSchool.value?.school_name || 'sekolah terkait';
+  const confirmed = await confirmDialog({
+    title: 'Hapus Delegasi Cabang Lomba?',
+    message: `Apakah Anda yakin ingin menghapus delegasi cabang "${comp.competition_title}" (Kode: ${comp.reg_code}) dari ${sName}? Data delegasi ini akan dihapus permanen.`,
+    type: 'danger',
+    confirmText: 'Ya, Hapus Delegasi Ini',
+    cancelText: 'Batal',
+  });
+
+  if (!confirmed) return;
+
+  const regId = comp.registration_id || comp.id;
+  router.delete(`/admin/pendaftar/${regId}`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      if (activeSchool.value && Array.isArray(activeSchool.value.competitions)) {
+        activeSchool.value.competitions = activeSchool.value.competitions.filter(c => (c.registration_id || c.id) !== regId);
+        if (activeSchool.value.competitions.length === 0) {
+          showDetailModal.value = false;
+        }
+      }
+      toast.showToast({
+        type: 'success',
+        title: 'Delegasi Dihapus',
+        message: `Delegasi ${comp.competition_title} (${comp.reg_code}) berhasil dihapus permanen!`,
+      });
+    },
+    onError: (errs) => {
+      const msg = Object.values(errs)[0] || 'Gagal menghapus delegasi.';
+      toast.showToast({ type: 'danger', title: 'Gagal', message: msg });
+    }
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -1041,6 +1116,15 @@ function printReport() {
                 >
                   <i class="ri-git-merge-line text-warning"></i>
                 </button>
+                <button 
+                  v-if="canDeleteSchool"
+                  type="button" 
+                  class="btn btn-sm btn-soft-danger text-danger fs-11 px-2"
+                  @click="deleteRegisteredSchool(school)"
+                  title="Hapus seluruh data sekolah terdaftar ini"
+                >
+                  <i class="ri-delete-bin-line"></i>
+                </button>
               </div>
             </div>
           </div>
@@ -1151,6 +1235,15 @@ function printReport() {
                         title="Merge Sekolah"
                       >
                         <i class="ri-git-merge-line text-warning"></i>
+                      </button>
+                      <button 
+                        v-if="canDeleteSchool"
+                        type="button" 
+                        class="btn btn-sm btn-soft-danger text-danger px-2 py-1"
+                        @click="deleteRegisteredSchool(school)"
+                        title="Hapus seluruh data sekolah terdaftar ini"
+                      >
+                        <i class="ri-delete-bin-line"></i>
                       </button>
                     </div>
                   </td>
@@ -1321,6 +1414,16 @@ function printReport() {
                         <i class="ri-survey-line"></i>
                         <span>Verifikasi &rarr;</span>
                       </Link>
+                      <button 
+                        v-if="canDeleteDelegate"
+                        type="button" 
+                        class="btn btn-sm btn-outline-danger py-1 px-2 fs-11 d-inline-flex align-items-center gap-1 shadow-xs"
+                        @click="deleteSingleDelegation(comp, activeSchool)"
+                        title="Hapus delegasi pendaftar ini"
+                      >
+                        <i class="ri-delete-bin-line"></i>
+                        <span>Hapus</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1329,15 +1432,27 @@ function printReport() {
           </div>
 
           <!-- Modal Footer -->
-          <div class="modal-footer bg-white border-top py-2.5 d-flex align-items-center justify-content-between">
-            <button 
-              type="button" 
-              class="btn btn-sm btn-success d-inline-flex align-items-center gap-1"
-              @click="openManualModal(activeSchool)"
-            >
-              <i class="ri-add-line"></i>
-              <span>+ Tambah Cabang Lomba untuk Sekolah Ini</span>
-            </button>
+          <div class="modal-footer bg-white border-top py-2.5 d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <button 
+                type="button" 
+                class="btn btn-sm btn-success d-inline-flex align-items-center gap-1"
+                @click="openManualModal(activeSchool)"
+              >
+                <i class="ri-add-line"></i>
+                <span>+ Tambah Cabang Lomba</span>
+              </button>
+              <button 
+                v-if="canDeleteSchool"
+                type="button" 
+                class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1"
+                @click="deleteRegisteredSchool(activeSchool)"
+                title="Hapus seluruh data kontingen sekolah ini"
+              >
+                <i class="ri-delete-bin-line"></i>
+                <span>Hapus Kontingen Sekolah</span>
+              </button>
+            </div>
             <button type="button" class="btn btn-sm btn-secondary" @click="showDetailModal = false">Tutup Modal</button>
           </div>
         </div>

@@ -4149,6 +4149,189 @@ class AdminPanelController extends Controller
             return redirect()->back()->with('error', 'Gagal menggabungkan sekolah: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Hapus satu data delegasi pendaftar masuk (Super Admin / Izin registrants.delete)
+     */
+    public function destroyRegistration(string|int $id, Request $request)
+    {
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+        if (!$authUser || (!$authUser->isSuperAdmin() && !$authUser->hasPermission('registrants.delete'))) {
+            abort(403, 'Akses Ditolak: Hanya Super Admin atau panitia berwenang yang dapat menghapus data delegasi pendaftar.');
+        }
+
+        $reg = Registration::findOrFail($id);
+        $regCode = $reg->reg_code;
+        $schoolName = $reg->school_name;
+        $compTitle = $reg->competition_title;
+
+        // Bersihkan berkas fisik yang tersimpan di storage jika ada
+        if (!empty($reg->file_documents) && is_array($reg->file_documents)) {
+            foreach ($reg->file_documents as $doc) {
+                $path = is_array($doc) ? ($doc['path'] ?? null) : $doc;
+                if ($path && \Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($path);
+                }
+            }
+        }
+        if (!empty($reg->custom_fields) && is_array($reg->custom_fields)) {
+            foreach ($reg->custom_fields as $val) {
+                if (is_string($val) && (str_starts_with($val, 'uploads/') || str_starts_with($val, 'payment_proofs/')) && \Illuminate\Support\Facades\Storage::disk('public')->exists($val)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($val);
+                }
+            }
+        }
+
+        // Catat Log Audit Aktivitas
+        \App\Models\ActivityLog::record(
+            'registration_delete',
+            'Hapus Delegasi Pendaftar Masuk',
+            "Super Admin {$authUser->name} menghapus data delegasi {$schoolName} pada cabang {$compTitle} (Kode: {$regCode}).",
+            [
+                'user' => $authUser,
+                'highlight' => $schoolName,
+                'activity_type' => 'delete',
+                'properties' => [
+                    'reg_code' => $regCode,
+                    'school_name' => $schoolName,
+                    'competition_title' => $compTitle,
+                ]
+            ]
+        );
+
+        $reg->delete();
+
+        if (!$request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Data delegasi {$compTitle} ({$regCode}) dari {$schoolName} berhasil dihapus permanen!"
+            ]);
+        }
+
+        // Jika dipanggil dari halaman detail pendaftar yang bersangkutan, alihkan ke index pendaftar
+        $referer = $request->header('referer', '');
+        if (str_contains($referer, '/admin/pendaftar/' . $id)) {
+            return redirect()->route('admin.pendaftar')->with('success', "Data delegasi {$compTitle} ({$regCode}) dari {$schoolName} berhasil dihapus permanen!");
+        }
+
+        return redirect()->back()->with('success', "Data delegasi {$compTitle} ({$regCode}) dari {$schoolName} berhasil dihapus permanen!");
+    }
+
+    /**
+     * Hapus massal beberapa data delegasi pendaftar masuk sekaligus (Super Admin)
+     */
+    public function bulkDestroyRegistrations(Request $request)
+    {
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+        if (!$authUser || (!$authUser->isSuperAdmin() && !$authUser->hasPermission('registrants.delete'))) {
+            abort(403, 'Akses Ditolak: Hanya Super Admin yang berwenang menghapus delegasi pendaftar secara massal.');
+        }
+
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $regs = Registration::whereIn('id', $validated['ids'])->get();
+        $count = $regs->count();
+
+        foreach ($regs as $reg) {
+            if (!empty($reg->file_documents) && is_array($reg->file_documents)) {
+                foreach ($reg->file_documents as $doc) {
+                    $path = is_array($doc) ? ($doc['path'] ?? null) : $doc;
+                    if ($path && \Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($path);
+                    }
+                }
+            }
+            $reg->delete();
+        }
+
+        \App\Models\ActivityLog::record(
+            'registration_bulk_delete',
+            'Hapus Massal Delegasi Pendaftar',
+            "Super Admin {$authUser->name} menghapus massal {$count} delegasi pendaftar.",
+            [
+                'user' => $authUser,
+                'activity_type' => 'delete',
+                'properties' => ['deleted_count' => $count, 'ids' => $validated['ids']]
+            ]
+        );
+
+        return redirect()->back()->with('success', "Sebanyak {$count} data delegasi pendaftar berhasil dihapus permanen!");
+    }
+
+    /**
+     * Hapus seluruh data sekolah terdaftar beserta seluruh pendaftaran lombanya (Super Admin / Izin registered_schools.delete)
+     */
+    public function destroyRegisteredSchool(Request $request)
+    {
+        /** @var User|null $authUser */
+        $authUser = Auth::guard('web')->user();
+        if (!$authUser || (!$authUser->isSuperAdmin() && !$authUser->hasPermission('registered_schools.delete') && !$authUser->hasPermission('schools.manage'))) {
+            abort(403, 'Akses Ditolak: Hanya Super Admin yang berwenang menghapus data sekolah terdaftar.');
+        }
+
+        $validated = $request->validate([
+            'school_name' => 'required|string|max:255',
+        ]);
+
+        $schoolName = trim($validated['school_name']);
+        $registrations = Registration::where('school_name', $schoolName)->get();
+        if ($registrations->isEmpty()) {
+            $registrations = Registration::whereRaw('LOWER(TRIM(school_name)) = ?', [strtolower($schoolName)])->get();
+        }
+
+        if ($registrations->isEmpty()) {
+            return redirect()->back()->with('error', "Data pendaftaran untuk sekolah '{$schoolName}' tidak ditemukan.");
+        }
+
+        $count = $registrations->count();
+        foreach ($registrations as $reg) {
+            if (!empty($reg->file_documents) && is_array($reg->file_documents)) {
+                foreach ($reg->file_documents as $doc) {
+                    $path = is_array($doc) ? ($doc['path'] ?? null) : $doc;
+                    if ($path && \Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($path);
+                    }
+                }
+            }
+            if (!empty($reg->custom_fields) && is_array($reg->custom_fields)) {
+                foreach ($reg->custom_fields as $val) {
+                    if (is_string($val) && (str_starts_with($val, 'uploads/') || str_starts_with($val, 'payment_proofs/')) && \Illuminate\Support\Facades\Storage::disk('public')->exists($val)) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($val);
+                    }
+                }
+            }
+            $reg->delete();
+        }
+
+        \App\Models\ActivityLog::record(
+            'school_registration_delete',
+            'Hapus Data Kontingen Sekolah Terdaftar',
+            "Super Admin {$authUser->name} menghapus data kontingen sekolah {$schoolName} ({$count} cabang lomba delegasi).",
+            [
+                'user' => $authUser,
+                'highlight' => $schoolName,
+                'activity_type' => 'delete',
+                'properties' => [
+                    'school_name' => $schoolName,
+                    'deleted_registrations_count' => $count,
+                ]
+            ]
+        );
+
+        if (!$request->header('X-Inertia') && ($request->ajax() || $request->wantsJson())) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Data sekolah {$schoolName} beserta {$count} cabang lomba delegasi berhasil dihapus permanen!"
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Data kontingen sekolah {$schoolName} beserta {$count} cabang lomba delegasi berhasil dihapus permanen!");
+    }
 }
 
 

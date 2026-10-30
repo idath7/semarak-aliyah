@@ -344,7 +344,7 @@ class RolePermissionController extends Controller
             'admin' => [
                 'dashboard.view',
                 'registrants.view', 'registrants.verify', 'registrants.delete', 'registrants.export',
-                'schools.view', 'schools.manage',
+                'schools.view', 'schools.manage', 'registered_schools.delete',
                 'competitions.view', 'competitions.manage',
                 'tm.view', 'tm.manage',
                 'form_builder.view', 'form_builder.manage',
@@ -386,7 +386,7 @@ class RolePermissionController extends Controller
             'sekretaris' => [
                 'dashboard.view',
                 'registrants.view', 'registrants.verify', 'registrants.export',
-                'schools.view', 'schools.manage',
+                'schools.view', 'schools.manage', 'registered_schools.delete',
                 'competitions.view', 'competitions.manage',
                 'tm.view', 'tm.manage',
                 'form_builder.view', 'form_builder.manage',
@@ -397,7 +397,7 @@ class RolePermissionController extends Controller
             'kesekretariatan' => [
                 'dashboard.view',
                 'registrants.view', 'registrants.verify', 'registrants.export',
-                'schools.view', 'schools.manage',
+                'schools.view', 'schools.manage', 'registered_schools.delete',
                 'competitions.view', 'competitions.manage',
                 'tm.view', 'tm.manage',
                 'form_builder.view', 'form_builder.manage',

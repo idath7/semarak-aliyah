@@ -4,6 +4,8 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import CustomSelect from '@/Components/CustomSelect.vue';
 import { useToast } from '@/Composables/useToast';
+import { useConfirmDialog } from '@/Composables/useConfirmDialog';
+import { usePermission } from '@/Composables/usePermission';
 
 const props = defineProps({
   registration: {
@@ -37,6 +39,31 @@ const props = defineProps({
 });
 
 const toast = useToast();
+const { can, isSuperAdmin } = usePermission();
+const { confirm: confirmDialog } = useConfirmDialog();
+const canDelete = computed(() => isSuperAdmin.value || can('registrants.delete'));
+
+async function deleteThisRegistration() {
+  const confirmed = await confirmDialog({
+    title: 'Hapus Delegasi Pendaftar?',
+    message: `Apakah Anda yakin ingin menghapus data delegasi ${props.registration.competition_title} dari ${props.registration.school_name} (Kode: #${props.registration.reg_code})? Data ini akan dihapus permanen dari sistem dan Anda akan dialihkan ke daftar pendaftar.`,
+    type: 'danger',
+    confirmText: 'Ya, Hapus Permanen',
+    cancelText: 'Batal',
+  });
+
+  if (!confirmed) return;
+
+  router.delete(`/admin/pendaftar/${props.registration.id}`, {
+    onSuccess: () => {
+      toast.success(`Data delegasi #${props.registration.reg_code} berhasil dihapus permanen!`, 'Delegasi Dihapus');
+    },
+    onError: (errs) => {
+      const msg = typeof errs === 'object' ? (Object.values(errs)[0] || 'Gagal menghapus pendaftaran.') : 'Gagal menghapus pendaftaran.';
+      toast.error(msg, 'Terjadi Kesalahan');
+    }
+  });
+}
 
 // Verification Form State
 const verifyForm = useForm({
@@ -603,6 +630,18 @@ function sendOfficialNotification(templateKey) {
           >
             <i class="ri-printer-line"></i>
             <span>Cetak</span>
+          </button>
+
+          <!-- Hapus Delegasi Pendaftar (Super Admin) -->
+          <button 
+            v-if="canDelete"
+            type="button" 
+            class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 rounded-pill shadow-xs"
+            @click="deleteThisRegistration"
+            title="Hapus Delegasi Pendaftar Ini (Super Admin)"
+          >
+            <i class="ri-delete-bin-line"></i>
+            <span>Hapus Delegasi</span>
           </button>
 
           <!-- Hubungi Pembina via WhatsApp -->

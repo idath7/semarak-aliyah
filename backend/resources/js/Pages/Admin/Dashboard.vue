@@ -4,6 +4,8 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import { initEcho } from '@/echo';
 import { useToast } from '@/Composables/useToast';
+import { useConfirmDialog } from '@/Composables/useConfirmDialog';
+import { usePermission } from '@/Composables/usePermission';
 import { getWaChatUrl } from '@/Utils/whatsapp';
 
 const page = usePage();
@@ -100,6 +102,38 @@ function formatRupiah(num) {
 }
 
 const toast = useToast();
+const { can, isSuperAdmin } = usePermission();
+const { confirm: confirmDialog } = useConfirmDialog();
+const canDelete = computed(() => isSuperAdmin.value || can('registrants.delete'));
+
+async function deleteRegistration(reg) {
+  if (!reg) return;
+  const confirmed = await confirmDialog({
+    title: 'Hapus Delegasi Pendaftar Masuk?',
+    message: `Apakah Anda yakin ingin menghapus delegasi "${reg.competition_title}" dari ${reg.school_name} (Kode: #${reg.reg_code})? Seluruh data pendaftaran delegasi ini akan dihapus permanen.`,
+    type: 'danger',
+    confirmText: 'Ya, Hapus Delegasi',
+    cancelText: 'Batal',
+  });
+
+  if (!confirmed) return;
+
+  router.delete(`/admin/pendaftar/${reg.id}`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      showDetailModal.value = false;
+      const idx = registrationsList.value.findIndex(r => r.id === reg.id);
+      if (idx !== -1) {
+        registrationsList.value.splice(idx, 1);
+      }
+      toast.success(`Data delegasi #${reg.reg_code} (${reg.competition_title}) berhasil dihapus permanen!`, 'Delegasi Dihapus');
+    },
+    onError: (errs) => {
+      const msg = typeof errs === 'object' ? (Object.values(errs)[0] || 'Gagal menghapus delegasi.') : 'Gagal menghapus delegasi.';
+      toast.error(msg, 'Terjadi Kesalahan');
+    }
+  });
+}
 
 // Format Date string: dd/mm/yyyy
 function formatDate(dateStr) {
@@ -758,6 +792,17 @@ onMounted(() => {
                         >
                           <i class="ri-survey-line"></i>
                         </Link>
+
+                        <!-- Hapus Delegasi Pendaftar (Super Admin) -->
+                        <button 
+                          v-if="canDelete"
+                          type="button" 
+                          class="btn btn-sm btn-outline-danger"
+                          @click="deleteRegistration(reg)"
+                          title="Hapus Delegasi Pendaftar Ini (Super Admin)"
+                        >
+                          <i class="ri-delete-bin-line"></i>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -883,6 +928,17 @@ onMounted(() => {
                   >
                     <i class="ri-survey-line fs-14"></i>
                   </Link>
+
+                  <!-- Hapus Delegasi Pendaftar (Super Admin) -->
+                  <button 
+                    v-if="canDelete"
+                    type="button" 
+                    class="btn btn-xs btn-outline-danger px-2 py-1.5 rounded-2 flex-shrink-0"
+                    @click="deleteRegistration(reg)"
+                    title="Hapus Delegasi Ini"
+                  >
+                    <i class="ri-delete-bin-line fs-14"></i>
+                  </button>
                 </div>
               </div>
             </div>

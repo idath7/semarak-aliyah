@@ -875,7 +875,7 @@ onMounted(() => {
                   <div class="fw-bold text-dark mb-0.5 d-flex align-items-center gap-1">
                     <i class="ri-user-star-line text-warning"></i> Delegasi Siswa:
                   </div>
-                  <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4;">
+                  <div style="display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4;">
                     {{ reg.participants_names }}
                   </div>
                 </div>

@@ -1379,7 +1379,7 @@
                   </div>
 
                   <!-- Subheadline -->
-                  <div class="fs-11 text-light opacity-75 mb-3" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35;">
+                  <div class="fs-11 text-light opacity-75 mb-3" style="display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35;">
                     {{ form.hero_subheadline || 'Panggung unjuk prestasi, bakat seni, kecerdasan sains, dan sportivitas pelajar...' }}
                   </div>
 
@@ -1457,7 +1457,7 @@
                     <h6 class="fw-bold fs-13 section-title-text mb-1">
                       {{ form.about_title || 'Dapatkan Hadiah Bergengsi' }}
                     </h6>
-                    <p class="fs-11 text-muted mb-0" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35;">
+                    <p class="fs-11 text-muted mb-0" style="display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.35;">
                       {{ form.about_desc || 'Bentuk apresiasi nyata bagi generasi muda...' }}
                     </p>
                   </div>
@@ -1469,7 +1469,7 @@
                           <i :class="pr.icon || 'ri-trophy-line'" class="text-warning fs-14"></i>
                           <div class="fw-bold fs-11 section-title-text text-truncate">{{ pr.title || 'Hadiah' }}</div>
                         </div>
-                        <div class="text-muted fs-10 lh-sm" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ pr.desc || '-' }}</div>
+                        <div class="text-muted fs-10 lh-sm" style="display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ pr.desc || '-' }}</div>
                       </div>
                     </div>
                   </div>

@@ -1999,8 +1999,8 @@ function handleUnifiedSubmit() {
                           />
                         </div>
 
-                        <!-- Jenis Kelamin & Kelas (Rule 1: CustomSelect) -->
-                        <div class="col-sm-6">
+                        <!-- Jenis Kelamin & Kelas (Ukuran Kelas Dirampingkan & Jenis Kelamin Diberi Space Luas) -->
+                        <div class="col-sm-7 col-md-8">
                           <label class="form-label fs-12 fw-semibold reg-label mb-0.5">Jenis Kelamin</label>
                           <div class="d-flex gap-2">
                             <label
@@ -2008,23 +2008,23 @@ function handleUnifiedSubmit() {
                               :class="participantsList[pIdx - 1].gender === 'L' ? 'reg-gender-male-selected' : 'reg-gender-unselected'"
                             >
                               <input type="radio" :name="`reg_gender_${pIdx}`" value="L" v-model="participantsList[pIdx - 1].gender" class="d-none" />
-                              <i class="ri-men-line me-1" :class="participantsList[pIdx - 1].gender === 'L' ? 'text-primary fw-bold' : 'text-muted'"></i>
-                              <span>Laki-laki</span>
-                              <i v-if="participantsList[pIdx - 1].gender === 'L'" class="ri-checkbox-circle-fill text-primary ms-1"></i>
+                              <i class="ri-men-line me-1 flex-shrink-0" :class="participantsList[pIdx - 1].gender === 'L' ? 'text-primary fw-bold' : 'text-muted'"></i>
+                              <span class="text-nowrap">Laki-laki</span>
+                              <i v-if="participantsList[pIdx - 1].gender === 'L'" class="ri-checkbox-circle-fill text-primary ms-1 flex-shrink-0"></i>
                             </label>
                             <label
                               class="flex-grow-1 p-1.5 rounded-2 border cursor-pointer text-center fs-12 reg-gender-btn"
                               :class="participantsList[pIdx - 1].gender === 'P' ? 'reg-gender-female-selected' : 'reg-gender-unselected'"
                             >
                               <input type="radio" :name="`reg_gender_${pIdx}`" value="P" v-model="participantsList[pIdx - 1].gender" class="d-none" />
-                              <i class="ri-women-line me-1" :class="participantsList[pIdx - 1].gender === 'P' ? 'gender-pink-icon fw-bold' : 'text-muted'"></i>
-                              <span>Perempuan</span>
-                              <i v-if="participantsList[pIdx - 1].gender === 'P'" class="ri-checkbox-circle-fill gender-pink-icon ms-1"></i>
+                              <i class="ri-women-line me-1 flex-shrink-0" :class="participantsList[pIdx - 1].gender === 'P' ? 'gender-pink-icon fw-bold' : 'text-muted'"></i>
+                              <span class="text-nowrap">Perempuan</span>
+                              <i v-if="participantsList[pIdx - 1].gender === 'P'" class="ri-checkbox-circle-fill gender-pink-icon ms-1 flex-shrink-0"></i>
                             </label>
                           </div>
                         </div>
 
-                        <div class="col-sm-6">
+                        <div class="col-sm-5 col-md-4">
                           <label class="form-label fs-12 fw-semibold reg-label mb-0.5">Kelas / Tingkat</label>
                           <CustomSelect
                             v-model="participantsList[pIdx - 1].grade"

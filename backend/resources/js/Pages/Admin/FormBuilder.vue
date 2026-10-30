@@ -3783,28 +3783,28 @@ function setParticipantCountDirect(field, val) {
                                   />
                                 </div>
 
-                                <div class="grid grid-cols-2 gap-2">
+                                <div class="grid grid-cols-12 gap-2">
                                   <!-- Jenis Kelamin -->
-                                  <div v-if="field.sub_fields?.gender?.active !== false">
+                                  <div v-if="field.sub_fields?.gender?.active !== false" class="col-span-7">
                                     <label class="block text-[10px] text-slate-400 mb-0.5">Jenis Kelamin</label>
                                     <div class="flex gap-1.5">
                                       <label class="flex items-center justify-center gap-1 p-1.5 rounded-lg border border-blue-500/50 bg-blue-500/15 cursor-pointer text-[10px] flex-1 font-semibold text-blue-300">
                                         <input type="radio" :name="`p_gender_${field.name}_${pIdx}`" value="L" checked class="hidden" />
                                         <i class="ri-men-line text-blue-400"></i>
-                                        <span>Laki-Laki</span>
+                                        <span class="whitespace-nowrap">Laki-Laki</span>
                                         <i class="ri-checkbox-circle-fill text-blue-400 text-xs"></i>
                                       </label>
                                       <label class="flex items-center justify-center gap-1 p-1.5 rounded-lg border border-pink-500/30 bg-pink-500/10 cursor-pointer text-[10px] flex-1 font-medium text-pink-300">
                                         <input type="radio" :name="`p_gender_${field.name}_${pIdx}`" value="P" class="hidden" />
                                         <i class="ri-women-line text-pink-400"></i>
-                                        <span>Perempuan</span>
+                                        <span class="whitespace-nowrap">Perempuan</span>
                                       </label>
                                     </div>
                                   </div>
 
                                   <!-- Kelas -->
-                                  <div v-if="field.sub_fields?.grade?.active !== false">
-                                    <label class="block text-[10px] text-slate-400 mb-0.5">Kelas / Tingkat</label>
+                                  <div v-if="field.sub_fields?.grade?.active !== false" class="col-span-5">
+                                    <label class="block text-[10px] text-slate-400 mb-0.5">Kelas</label>
                                     <CustomSelect 
                                       v-model="previewValues[field.name + '_grade_' + pIdx]"
                                       :options="['Kelas 9', 'Kelas 8', 'Kelas 7']"
@@ -4246,8 +4246,8 @@ function setParticipantCountDirect(field, val) {
                             </div>
                           </div>
 
-                          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-                            <div v-if="field.sub_fields?.name?.active !== false" class="sm:col-span-2">
+                          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 text-xs">
+                            <div v-if="field.sub_fields?.name?.active !== false" class="sm:col-span-12">
                               <label class="block text-[11px] text-slate-400 mb-1">Nama Lengkap Siswa *</label>
                               <input 
                                 type="text" 
@@ -4256,24 +4256,24 @@ function setParticipantCountDirect(field, val) {
                               />
                             </div>
 
-                            <div v-if="field.sub_fields?.gender?.active !== false">
+                            <div v-if="field.sub_fields?.gender?.active !== false" class="sm:col-span-7 md:col-span-8">
                               <label class="block text-[11px] text-slate-400 mb-1">Jenis Kelamin *</label>
                               <div class="flex gap-2">
                                 <label class="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-500 bg-blue-500/15 text-blue-300 cursor-pointer text-xs flex-1 font-bold">
                                   <input type="radio" :name="`full_p_gender_${field.name}_${pIdx}`" value="L" checked class="hidden" />
                                   <i class="ri-men-line text-blue-400 text-sm"></i>
-                                  <span>Laki-Laki</span>
+                                  <span class="whitespace-nowrap">Laki-Laki</span>
                                   <i class="ri-checkbox-circle-fill text-blue-400 text-xs ms-1"></i>
                                 </label>
                                 <label class="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-pink-500/40 bg-pink-500/10 text-pink-300 cursor-pointer text-xs flex-1 font-medium">
                                   <input type="radio" :name="`full_p_gender_${field.name}_${pIdx}`" value="P" class="hidden" />
                                   <i class="ri-women-line text-pink-400 text-sm"></i>
-                                  <span>Perempuan</span>
+                                  <span class="whitespace-nowrap">Perempuan</span>
                                 </label>
                               </div>
                             </div>
 
-                            <div v-if="field.sub_fields?.grade?.active !== false">
+                            <div v-if="field.sub_fields?.grade?.active !== false" class="sm:col-span-5 md:col-span-4">
                               <label class="block text-[11px] text-slate-400 mb-1">Kelas / Tingkat *</label>
                               <CustomSelect 
                                 v-model="previewValues[field.name + '_grade_' + pIdx]"
@@ -4284,7 +4284,7 @@ function setParticipantCountDirect(field, val) {
                               />
                             </div>
 
-                            <div v-if="field.sub_fields?.birth_date?.active !== false">
+                            <div v-if="field.sub_fields?.birth_date?.active !== false" class="sm:col-span-6">
                               <label class="block text-[11px] text-slate-400 mb-1">Tanggal Lahir (dd/mm/yyyy)</label>
                               <IndoDatePicker 
                                 v-model="previewValues[field.name + '_birth_' + pIdx]"
@@ -4294,7 +4294,7 @@ function setParticipantCountDirect(field, val) {
                               />
                             </div>
 
-                            <div v-if="field.sub_fields?.nisn?.active !== false">
+                            <div v-if="field.sub_fields?.nisn?.active !== false" class="sm:col-span-6">
                               <label class="block text-[11px] text-slate-400 mb-1">NISN</label>
                               <input 
                                 type="text" 
@@ -4304,7 +4304,7 @@ function setParticipantCountDirect(field, val) {
                             </div>
 
                             <!-- ID Siswa (Field Text) -->
-                            <div v-if="field.sub_fields?.custom_id?.active" class="sm:col-span-2">
+                            <div v-if="field.sub_fields?.custom_id?.active" class="sm:col-span-12">
                               <label class="block text-[11px] text-slate-400 mb-1 d-flex align-items-center justify-content-between">
                                 <span>{{ field.sub_fields.custom_id.label || 'ID Siswa / No. Identitas Khusus' }}</span>
                                 <span class="badge bg-slate-900 text-slate-400 text-[10px] py-0 border border-slate-800 font-mono">Field Text</span>
@@ -4317,7 +4317,7 @@ function setParticipantCountDirect(field, val) {
                             </div>
 
                             <!-- Nomor WhatsApp Siswa (Field Angka) -->
-                            <div v-if="field.sub_fields?.wa_number?.active" class="sm:col-span-2">
+                            <div v-if="field.sub_fields?.wa_number?.active" class="sm:col-span-12">
                               <label class="block text-[11px] text-slate-400 mb-1 d-flex align-items-center gap-1.5">
                                 <i class="ri-whatsapp-line text-emerald-400"></i>
                                 <span>Nomor WhatsApp Siswa</span>
@@ -4331,7 +4331,7 @@ function setParticipantCountDirect(field, val) {
                             </div>
 
                             <!-- Nomor WA Khusus Kapten Tim -->
-                            <div v-if="field.sub_fields?.captain_option?.active && previewValues[field.name + '_captain'] === pIdx" class="sm:col-span-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                            <div v-if="field.sub_fields?.captain_option?.active && previewValues[field.name + '_captain'] === pIdx" class="sm:col-span-12 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
                               <label class="block text-xs text-amber-300 font-bold mb-1 d-flex align-items-center gap-1.5">
                                 <i class="ri-whatsapp-fill text-emerald-400"></i>
                                 <span>Nomor WhatsApp Kapten Tim (Field Angka) *</span>
@@ -4347,7 +4347,7 @@ function setParticipantCountDirect(field, val) {
                             </div>
 
                             <!-- Upload Foto Siswa Formal (Pas Foto 1 File) -->
-                            <div v-if="field.sub_fields?.photo_formal?.active" class="sm:col-span-1">
+                            <div v-if="field.sub_fields?.photo_formal?.active" class="sm:col-span-6">
                               <label class="block text-[11px] text-slate-400 mb-1 d-flex align-items-center justify-content-between">
                                 <span class="d-flex align-items-center gap-1">
                                   <i class="ri-camera-line text-sky-400"></i>
@@ -4364,7 +4364,7 @@ function setParticipantCountDirect(field, val) {
                             </div>
 
                             <!-- Upload Foto Siswa Pose Gaya Bebas (Bisa >1 Foto) -->
-                            <div v-if="field.sub_fields?.photo_freestyle?.active" class="sm:col-span-1">
+                            <div v-if="field.sub_fields?.photo_freestyle?.active" class="sm:col-span-6">
                               <label class="block text-[11px] text-slate-400 mb-1 d-flex align-items-center justify-content-between">
                                 <span class="d-flex align-items-center gap-1">
                                   <i class="ri-gallery-upload-line text-emerald-400"></i>
@@ -4381,7 +4381,7 @@ function setParticipantCountDirect(field, val) {
                             </div>
 
                             <!-- Kolom Kustom Tambahan Biodata Siswa -->
-                            <div v-for="col in (field.sub_fields?.custom_columns || [])" :key="col.id || col.label" class="sm:col-span-1">
+                            <div v-for="col in (field.sub_fields?.custom_columns || [])" :key="col.id || col.label" class="sm:col-span-6">
                               <label class="block text-[11px] text-slate-400 mb-1 d-flex align-items-center justify-content-between">
                                 <span>{{ col.label || 'Kolom Tambahan' }}</span>
                                 <span v-if="col.required" class="text-rose-400">*</span>

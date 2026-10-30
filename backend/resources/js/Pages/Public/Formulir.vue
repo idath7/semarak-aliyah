@@ -1837,7 +1837,7 @@ onMounted(() => {
                     <div 
                       v-if="subFieldsConfig.name?.active !== false"
                       class="space-y-1.5"
-                      :class="(subFieldsConfig.grade?.active !== false || subFieldsConfig.gender?.active !== false) ? 'md:col-span-6' : 'md:col-span-12'"
+                      :class="(subFieldsConfig.grade?.active !== false && subFieldsConfig.gender?.active !== false) ? 'col-span-12 md:col-span-5' : ((subFieldsConfig.grade?.active !== false || subFieldsConfig.gender?.active !== false) ? 'col-span-12 md:col-span-7' : 'col-span-12')"
                     >
                       <label class="form-label-aligned">
                         <i class="ri-user-3-line text-primary"></i>
@@ -1855,14 +1855,15 @@ onMounted(() => {
                       <p v-if="getFieldError(`p_${pIdx - 1}_name`)" class="text-xs text-red-500 font-medium">{{ getFieldError(`p_${pIdx - 1}_name`) }}</p>
                     </div>
 
-                    <!-- Kelas / Tingkat -->
+                    <!-- Kelas / Tingkat (Width Dirampingkan Khusus Opsi Kelas 9, 8, 7) -->
                     <div 
                       v-if="subFieldsConfig.grade?.active !== false"
-                      class="space-y-1.5 md:col-span-3"
+                      class="space-y-1.5"
+                      :class="subFieldsConfig.gender?.active !== false ? 'col-span-12 sm:col-span-4 md:col-span-2' : 'col-span-12 sm:col-span-5 md:col-span-4'"
                     >
                       <label class="form-label-aligned">
                         <i class="ri-graduation-cap-line text-primary"></i>
-                        <span>{{ subFieldsConfig.grade.label || 'Kelas / Tingkat' }} <span v-if="subFieldsConfig.grade.required" class="text-red-500">*</span></span>
+                        <span class="truncate">{{ subFieldsConfig.grade.label || 'Kelas' }} <span v-if="subFieldsConfig.grade.required" class="text-red-500">*</span></span>
                       </label>
                       <CustomSelect 
                         v-model="participants[pIdx - 1].grade"
@@ -1872,10 +1873,11 @@ onMounted(() => {
                       />
                     </div>
 
-                    <!-- Jenis Kelamin -->
+                    <!-- Jenis Kelamin (Diberi Width Luas Agar Radio Tampil Sempurna & Elegan) -->
                     <div 
                       v-if="subFieldsConfig.gender?.active !== false"
-                      class="space-y-1.5 md:col-span-3"
+                      class="space-y-1.5"
+                      :class="subFieldsConfig.grade?.active !== false ? 'col-span-12 sm:col-span-8 md:col-span-5' : 'col-span-12 sm:col-span-7 md:col-span-6'"
                     >
                       <label class="form-label-aligned">
                         <i class="ri-men-line text-primary"></i>
@@ -1884,30 +1886,30 @@ onMounted(() => {
                       <div class="grid grid-cols-2 gap-2 h-11">
                         <!-- Pilihan Laki-laki (Warna Biru Kontras + Ikon Centang) -->
                         <label 
-                          class="inline-flex items-center justify-center gap-1.5 px-2 border rounded-xl cursor-pointer text-xs transition-all user-select-none"
+                          class="inline-flex items-center justify-center gap-1.5 px-2.5 border rounded-xl cursor-pointer text-xs transition-all user-select-none"
                           :class="participants[pIdx - 1].gender === 'L' 
                             ? 'border-blue-500 bg-blue-500/15 text-blue-700 dark:text-blue-300 ring-2 ring-blue-500/30 font-bold shadow-xs' 
                             : 'border-border-subtle bg-background/40 text-on-surface-variant hover:border-blue-300 hover:bg-blue-50/20 font-medium'"
                           @click="participants[pIdx - 1].gender = 'L'"
                         >
                           <input type="radio" :name="`gender_${pIdx}`" value="L" :checked="participants[pIdx - 1].gender === 'L'" class="hidden">
-                          <i class="ri-men-line text-sm" :class="participants[pIdx - 1].gender === 'L' ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-gray-400'"></i>
-                          <span>Laki-Laki</span>
-                          <i v-if="participants[pIdx - 1].gender === 'L'" class="ri-checkbox-circle-fill text-blue-600 dark:text-blue-400 text-sm ms-0.5"></i>
+                          <i class="ri-men-line text-sm flex-shrink-0" :class="participants[pIdx - 1].gender === 'L' ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-gray-400'"></i>
+                          <span class="whitespace-nowrap">Laki-Laki</span>
+                          <i v-if="participants[pIdx - 1].gender === 'L'" class="ri-checkbox-circle-fill text-blue-600 dark:text-blue-400 text-sm ms-0.5 flex-shrink-0"></i>
                         </label>
 
                         <!-- Pilihan Perempuan (Warna Pink/Rose Kontras + Ikon Centang) -->
                         <label 
-                          class="inline-flex items-center justify-center gap-1.5 px-2 border rounded-xl cursor-pointer text-xs transition-all user-select-none"
+                          class="inline-flex items-center justify-center gap-1.5 px-2.5 border rounded-xl cursor-pointer text-xs transition-all user-select-none"
                           :class="participants[pIdx - 1].gender === 'P' 
                             ? 'border-pink-500 bg-pink-500/15 text-pink-700 dark:text-pink-300 ring-2 ring-pink-500/30 font-bold shadow-xs' 
                             : 'border-border-subtle bg-background/40 text-on-surface-variant hover:border-pink-300 hover:bg-pink-50/20 font-medium'"
                           @click="participants[pIdx - 1].gender = 'P'"
                         >
                           <input type="radio" :name="`gender_${pIdx}`" value="P" :checked="participants[pIdx - 1].gender === 'P'" class="hidden">
-                          <i class="ri-women-line text-sm" :class="participants[pIdx - 1].gender === 'P' ? 'text-pink-600 dark:text-pink-400 font-bold' : 'text-gray-400'"></i>
-                          <span>Perempuan</span>
-                          <i v-if="participants[pIdx - 1].gender === 'P'" class="ri-checkbox-circle-fill text-pink-600 dark:text-pink-400 text-sm ms-0.5"></i>
+                          <i class="ri-women-line text-sm flex-shrink-0" :class="participants[pIdx - 1].gender === 'P' ? 'text-pink-600 dark:text-pink-400 font-bold' : 'text-gray-400'"></i>
+                          <span class="whitespace-nowrap">Perempuan</span>
+                          <i v-if="participants[pIdx - 1].gender === 'P'" class="ri-checkbox-circle-fill text-pink-600 dark:text-pink-400 text-sm ms-0.5 flex-shrink-0"></i>
                         </label>
                       </div>
                     </div>

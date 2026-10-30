@@ -350,15 +350,15 @@ class AdminPanelController extends Controller
         $competitions = $query->get();
         Category::ensureDefaultsExist();
         $categories = Category::withCount('competitions')->orderBy('id', 'asc')->get();
-        $allComps = Competition::all();
+        $allComps = Competition::orderBy('id', 'asc')->get();
 
         $totalComps = $allComps->count();
         $openComps = $allComps->filter(function ($c) {
             return !$c->isRegistrationClosed();
         })->count();
         $closedComps = $totalComps - $openComps;
-        $totalMaxQuota = $allComps->sum('max_quota');
-        $totalCurrentQuota = $allComps->sum('current_quota');
+        $totalMaxQuota = (int)$allComps->sum('max_quota');
+        $totalCurrentQuota = (int)$allComps->sum('current_quota');
         $quotaPercentage = $totalMaxQuota > 0 ? round(($totalCurrentQuota / $totalMaxQuota) * 100) : 0;
 
         $stats = [
@@ -2578,7 +2578,7 @@ class AdminPanelController extends Controller
         }
 
         // Summary KPI
-        $allCompetitions = Competition::all();
+        $allCompetitions = Competition::orderBy('id', 'asc')->get();
         $totalCompetitions = $allCompetitions->count();
         $scheduledCount = 0;
         $ongoingCount = 0;

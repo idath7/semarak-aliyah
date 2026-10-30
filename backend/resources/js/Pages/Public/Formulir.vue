@@ -44,8 +44,17 @@ const JEMBER_KECAMATAN_LIST = [
   'Jombang', 'Kalisat', 'Kaliwates', 'Kencong', 'Ledokombo', 'Mayang', 'Mumbulsari',
   'Pakusari', 'Panti', 'Patrang', 'Puger', 'Rambipuji', 'Semboro', 'Silo', 'Sukorambi',
   'Sukowono', 'Sumberbaru', 'Sumberjambe', 'Sumbersari', 'Tanggul', 'Tempurejo', 'Umbulsari',
-  'Wuluhan', 'Luar Kabupaten Jember'
+  'Wuluhan', 'Lainnya'
 ];
+
+const kecamatanSelectOptions = computed(() => {
+  return JEMBER_KECAMATAN_LIST.map(k => ({
+    value: k,
+    label: k === 'Lainnya' ? '✍️ Lainnya (Ketik Manual)' : `Kecamatan ${k}`
+  }));
+});
+
+const manualDistrictInput = ref('');
 
 const gradeOptions = [
   'Kelas 9',
@@ -454,6 +463,7 @@ function saveFormDraft() {
         mentor_name: form.mentor_name || '',
         mentor_wa: form.mentor_wa || '',
         school_district: form.custom_fields?.['school_district'] || '',
+        manual_school_district: manualDistrictInput.value || '',
         school_npsn: form.custom_fields?.['school_npsn'] || '',
         school_address: form.custom_fields?.['school_address'] || '',
         mentor_email: form.custom_fields?.['mentor_email'] || '',
@@ -516,7 +526,16 @@ function restoreFormDraft(compId) {
         if (!form.mentor_name && sData.mentor_name) form.mentor_name = sData.mentor_name;
         if (!form.mentor_wa && sData.mentor_wa) form.mentor_wa = sData.mentor_wa;
         if (!form.custom_fields) form.custom_fields = {};
-        if (!form.custom_fields['school_district'] && sData.school_district) form.custom_fields['school_district'] = sData.school_district;
+        if (!form.custom_fields['school_district'] && sData.school_district) {
+          const match = JEMBER_KECAMATAN_LIST.find(k => k.toLowerCase() === sData.school_district.toLowerCase() && k !== 'Lainnya');
+          if (match) {
+            form.custom_fields['school_district'] = match;
+            manualDistrictInput.value = '';
+          } else {
+            form.custom_fields['school_district'] = 'Lainnya';
+            manualDistrictInput.value = sData.manual_school_district || sData.school_district;
+          }
+        }
         if (!form.custom_fields['school_npsn'] && sData.school_npsn) form.custom_fields['school_npsn'] = sData.school_npsn;
         if (!form.custom_fields['school_address'] && sData.school_address) form.custom_fields['school_address'] = sData.school_address;
         if (!form.custom_fields['mentor_email'] && sData.mentor_email) form.custom_fields['mentor_email'] = sData.mentor_email;
@@ -686,7 +705,16 @@ function onSchoolBlur() {
 function selectSchool(s) {
   form.school_name = s.name;
   if (!form.custom_fields) form.custom_fields = {};
-  if (s.kecamatan) form.custom_fields['school_district'] = s.kecamatan;
+  if (s.kecamatan) {
+    const match = JEMBER_KECAMATAN_LIST.find(k => k.toLowerCase() === s.kecamatan.toLowerCase() && k !== 'Lainnya');
+    if (match) {
+      form.custom_fields['school_district'] = match;
+      manualDistrictInput.value = '';
+    } else {
+      form.custom_fields['school_district'] = 'Lainnya';
+      manualDistrictInput.value = s.kecamatan;
+    }
+  }
   if (s.alamat) form.custom_fields['school_address'] = s.alamat;
   showSchoolDropdown.value = false;
   schoolSuggestions.value = [];
@@ -1069,6 +1097,8 @@ function validateForm() {
 
   if (!form.custom_fields?.['school_district']) {
     errs['school_district'] = 'Kecamatan Asal Sekolah wajib dipilih.';
+  } else if (form.custom_fields['school_district'] === 'Lainnya' && !manualDistrictInput.value.trim()) {
+    errs['school_district'] = 'Nama Kecamatan wajib diketik secara manual.';
   }
 
   if (!form.custom_fields?.['school_address'] || !form.custom_fields['school_address'].trim()) {
@@ -1194,6 +1224,9 @@ function handleSubmit() {
   form.custom_fields['school_name'] = form.school_name;
   form.custom_fields['mentor_name'] = form.mentor_name;
   form.custom_fields['mentor_wa'] = form.mentor_wa;
+  if (form.custom_fields['school_district'] === 'Lainnya' && manualDistrictInput.value.trim()) {
+    form.custom_fields['school_district'] = manualDistrictInput.value.trim();
+  }
 
   // Sync nama tim/skuad ke field tim
   if (teamFieldConfig.value) {
@@ -1744,11 +1777,25 @@ onMounted(() => {
                   </label>
                   <CustomSelect
                     v-model="form.custom_fields['school_district']"
-                    :options="JEMBER_KECAMATAN_LIST"
+                    :options="kecamatanSelectOptions"
                     :placeholder="getFieldPlaceholder('school_district', 'Pilih Kecamatan Asal Sekolah...')"
                     size="md"
                     searchable
                   />
+                  <!-- Input manual jika opsi Lainnya dipilih -->
+                  <div v-if="form.custom_fields['school_district'] === 'Lainnya'" class="pt-1.5 space-y-1">
+                    <label class="text-[11px] font-semibold text-on-surface-variant flex items-center gap-1">
+                      <i class="ri-edit-line text-primary"></i>
+                      <span>Ketik Nama Kecamatan <span class="text-red-500">*</span></span>
+                    </label>
+                    <input
+                      v-model="manualDistrictInput"
+                      type="text"
+                      class="w-full h-10 sm:h-11 px-3 sm:px-3.5 rounded-xl border border-border-subtle bg-background/50 text-xs sm:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-gray-400 text-on-surface"
+                      placeholder="Ketik nama kecamatan secara manual..."
+                      required
+                    />
+                  </div>
                   <p v-if="getFieldError('school_district')" class="text-xs text-red-500 font-medium">{{ getFieldError('school_district') }}</p>
                   <p v-else-if="getFieldHelpText('school_district')" class="text-[11px] text-on-surface-variant">{{ getFieldHelpText('school_district') }}</p>
                 </div>

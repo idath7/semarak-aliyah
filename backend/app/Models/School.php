@@ -16,7 +16,7 @@ class School extends Model
         'Mayang', 'Mumbulsari', 'Pakusari', 'Panti', 'Patrang', 'Puger', 
         'Rambipuji', 'Semboro', 'Silo', 'Sukorambi', 'Sukowono', 'Sumberbaru', 
         'Sumberjambe', 'Sumbersari', 'Tanggul', 'Tempurejo', 'Umbulsari', 'Wuluhan',
-        'Luar Kabupaten Jember'
+        'Lainnya'
     ];
 
     public static function getKecamatanList(): array
@@ -24,6 +24,7 @@ class School extends Model
         $db = self::distinct()
             ->whereNotNull('kecamatan')
             ->where('kecamatan', '!=', '')
+            ->where('kecamatan', 'not like', '%luar%')
             ->pluck('kecamatan')
             ->toArray();
 

@@ -670,7 +670,7 @@ const kecamatanList = [
   'Jombang', 'Kalisat', 'Kaliwates', 'Kencong', 'Ledokombo', 'Mayang', 'Mumbulsari', 'Pakusari',
   'Panti', 'Patrang', 'Puger', 'Rambipuji', 'Semboro', 'Silo', 'Sukorambi', 'Sukowono',
   'Sumberbaru', 'Sumberjambe', 'Sumbersari', 'Tanggul', 'Tempurejo', 'Umbulsari', 'Wuluhan',
-  'Luar Kabupaten Jember'
+  'Lainnya'
 ];
 
 // Konfigurasi Rekening Bank Pembayaran Dinamis

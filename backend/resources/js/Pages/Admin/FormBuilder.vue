@@ -256,7 +256,7 @@ const JEMBER_KECAMATAN_LIST = [
   'Tempurejo',
   'Umbulsari',
   'Wuluhan',
-  'Luar Kabupaten Jember'
+  'Lainnya'
 ];
 
 // 7 Standar Wajib Field Identitas Sekolah & Pembina

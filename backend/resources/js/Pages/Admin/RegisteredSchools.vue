@@ -200,43 +200,20 @@ const jenjangOptions = [
   { value: 'Lainnya', label: 'Lainnya / Sederajat' },
 ];
 
-// 31 Kecamatan Resmi Kabupaten Jember + Pilihan Luar Jember (Selaras 100% dengan Halaman Formulir)
+// 31 Kecamatan Resmi Kabupaten Jember + Opsi Lainnya
 const JEMBER_KECAMATAN_LIST = [
   'Ajung', 'Ambulu', 'Arjasa', 'Balung', 'Bangsalsari', 'Gumukmas', 'Jelbuk', 'Jenggawah',
   'Jombang', 'Kalisat', 'Kaliwates', 'Kencong', 'Ledokombo', 'Mayang', 'Mumbulsari',
   'Pakusari', 'Panti', 'Patrang', 'Puger', 'Rambipuji', 'Semboro', 'Silo', 'Sukorambi',
   'Sukowono', 'Sumberbaru', 'Sumberjambe', 'Sumbersari', 'Tanggul', 'Tempurejo', 'Umbulsari',
-  'Wuluhan', 'Luar Kabupaten Jember'
+  'Wuluhan', 'Lainnya'
 ];
 
 // Opsi Kecamatan Lengkap untuk Dropdown CustomSelect
 const kecamatanOptions = computed(() => {
-  const merged = [...JEMBER_KECAMATAN_LIST];
-
-  // Tambahkan kecamatan dari master_schools atau props.districts jika ada data variasi lain
-  if (Array.isArray(props.districts)) {
-    props.districts.forEach(d => {
-      if (d && !merged.includes(d)) merged.push(d);
-    });
-  }
-  if (Array.isArray(props.master_schools)) {
-    props.master_schools.forEach(s => {
-      if (s.kecamatan && s.kecamatan !== '-' && !merged.includes(s.kecamatan)) {
-        merged.push(s.kecamatan);
-      }
-    });
-  }
-
-  // Jika nilai manualForm.kecamatan saat ini ada tapi belum ada di list, tambahkan dinamis
-  if (manualForm.value.kecamatan && !merged.includes(manualForm.value.kecamatan)) {
-    merged.push(manualForm.value.kecamatan);
-  }
-
-  return merged.map(k => ({
+  return JEMBER_KECAMATAN_LIST.map(k => ({
     value: k,
-    label: k === 'Luar Kabupaten Jember' || k.toLowerCase().includes('luar')
-      ? '🌐 ' + k
-      : 'Kecamatan ' + k
+    label: k === 'Lainnya' ? '✍️ Lainnya (Ketik Manual)' : `Kecamatan ${k}`
   }));
 });
 
@@ -252,8 +229,9 @@ function onSchoolNameInput() {
     // Auto-detect kecamatan jika belum terpilih
     if (!manualForm.value.kecamatan) {
       for (const k of JEMBER_KECAMATAN_LIST) {
-        if (k !== 'Luar Kabupaten Jember' && new RegExp('\\b' + k + '\\b', 'i').test(manualForm.value.school_name)) {
+        if (k !== 'Lainnya' && new RegExp('\\b' + k + '\\b', 'i').test(manualForm.value.school_name)) {
           manualForm.value.kecamatan = k;
+          manualForm.value.custom_kecamatan = '';
           break;
         }
       }
@@ -305,18 +283,39 @@ function onSelectMasterSchool(schoolId) {
   if (found) {
     manualForm.value.school_name = found.name;
     if (found.jenjang) manualForm.value.jenjang = found.jenjang;
-    if (found.kecamatan) manualForm.value.kecamatan = found.kecamatan;
+    if (found.kecamatan) {
+      const match = JEMBER_KECAMATAN_LIST.find(k => k.toLowerCase() === found.kecamatan.toLowerCase() && k !== 'Lainnya');
+      if (match) {
+        manualForm.value.kecamatan = match;
+        manualForm.value.custom_kecamatan = '';
+      } else {
+        manualForm.value.kecamatan = 'Lainnya';
+        manualForm.value.custom_kecamatan = found.kecamatan;
+      }
+    }
   }
 }
 
 function openManualModal(prefilledSchool = null) {
+  let initKecamatan = '';
+  let initCustomKecamatan = '';
+  if (prefilledSchool?.kecamatan && prefilledSchool.kecamatan !== '-') {
+    const match = JEMBER_KECAMATAN_LIST.find(k => k.toLowerCase() === prefilledSchool.kecamatan.toLowerCase() && k !== 'Lainnya');
+    if (match) {
+      initKecamatan = match;
+    } else {
+      initKecamatan = 'Lainnya';
+      initCustomKecamatan = prefilledSchool.kecamatan;
+    }
+  }
+
   manualForm.value = {
     school_selection_mode: 'master',
     selected_master_id: '',
     school_name: prefilledSchool ? prefilledSchool.school_name : '',
     jenjang: prefilledSchool?.jenjang && prefilledSchool.jenjang !== '-' ? prefilledSchool.jenjang : 'SMP',
-    kecamatan: prefilledSchool?.kecamatan && prefilledSchool.kecamatan !== '-' ? prefilledSchool.kecamatan : '',
-    custom_kecamatan: '',
+    kecamatan: initKecamatan,
+    custom_kecamatan: initCustomKecamatan,
     mentor_name: prefilledSchool?.mentor_name && prefilledSchool.mentor_name !== '-' ? prefilledSchool.mentor_name : '',
     mentor_wa: prefilledSchool?.mentor_wa && prefilledSchool.mentor_wa !== '-' ? prefilledSchool.mentor_wa : '',
     mentor_email: '',
@@ -337,7 +336,14 @@ function openManualModal(prefilledSchool = null) {
     if (found) {
       manualForm.value.selected_master_id = String(found.id);
       if (!manualForm.value.kecamatan && found.kecamatan) {
-        manualForm.value.kecamatan = found.kecamatan;
+        const match = JEMBER_KECAMATAN_LIST.find(k => k.toLowerCase() === found.kecamatan.toLowerCase() && k !== 'Lainnya');
+        if (match) {
+          manualForm.value.kecamatan = match;
+          manualForm.value.custom_kecamatan = '';
+        } else {
+          manualForm.value.kecamatan = 'Lainnya';
+          manualForm.value.custom_kecamatan = found.kecamatan;
+        }
       }
     } else {
       manualForm.value.school_selection_mode = 'custom';
@@ -370,7 +376,11 @@ async function submitManualRegistration() {
     return;
   }
   if (!manualForm.value.kecamatan) {
-    toast.showToast({ type: 'warning', title: 'Perhatian', message: 'Kecamatan asal sekolah wajib dipilih dari database!' });
+    toast.showToast({ type: 'warning', title: 'Perhatian', message: 'Kecamatan asal sekolah wajib dipilih!' });
+    return;
+  }
+  if (manualForm.value.kecamatan === 'Lainnya' && !manualForm.value.custom_kecamatan?.trim()) {
+    toast.showToast({ type: 'warning', title: 'Perhatian', message: 'Silakan ketik nama kecamatan pada kolom isian manual yang muncul!' });
     return;
   }
   if (!manualForm.value.mentor_name.trim() || !manualForm.value.mentor_wa.trim()) {
@@ -388,8 +398,7 @@ async function submitManualRegistration() {
     return;
   }
 
-  const isLuar = manualForm.value.kecamatan === 'Luar Kabupaten Jember' || manualForm.value.kecamatan === 'Luar Jember (Lainnya)';
-  const finalKecamatan = (isLuar && manualForm.value.custom_kecamatan?.trim())
+  const finalKecamatan = manualForm.value.kecamatan === 'Lainnya'
     ? manualForm.value.custom_kecamatan.trim()
     : manualForm.value.kecamatan;
 
@@ -1635,13 +1644,17 @@ function printReport() {
                           placeholder="Pilih Kecamatan..."
                         />
                       </div>
-                      <div v-if="manualForm.kecamatan === 'Luar Kabupaten Jember' || manualForm.kecamatan === 'Luar Jember (Lainnya)'" class="col-12 mt-1">
-                        <label class="form-label fs-10 text-muted fw-semibold">Nama Kecamatan / Wilayah (Luar Jember)</label>
+                      <!-- Input manual jika opsi Lainnya dipilih -->
+                      <div v-if="manualForm.kecamatan === 'Lainnya'" class="col-12 mt-1">
+                        <label class="form-label fs-10 text-muted fw-semibold">
+                          Tuliskan Nama Kecamatan <span class="text-danger">*</span>
+                        </label>
                         <input 
                           type="text" 
                           v-model="manualForm.custom_kecamatan" 
                           class="form-control form-control-sm fs-11 text-dark"
-                          placeholder="Contoh: Kec. Lumajang / Kab. Banyuwangi" 
+                          placeholder="Ketik nama kecamatan manual..." 
+                          required
                         />
                       </div>
                     </div>

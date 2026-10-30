@@ -48,9 +48,9 @@ const JEMBER_KECAMATAN_LIST = [
 ];
 
 const gradeOptions = [
-  'Kelas 9 SMP / MTs',
-  'Kelas 8 SMP / MTs',
-  'Kelas 7 SMP / MTs'
+  'Kelas 9',
+  'Kelas 8',
+  'Kelas 7'
 ];
 
 const MANDATORY_NAMES = [
@@ -336,11 +336,20 @@ const maxParticipants = computed(() => {
 const participantCount = ref(1);
 const participants = ref([]);
 
+function normalizeGrade(g) {
+  if (!g) return 'Kelas 9';
+  const str = String(g).trim();
+  if (str.includes('7')) return 'Kelas 7';
+  if (str.includes('8')) return 'Kelas 8';
+  if (str.includes('9')) return 'Kelas 9';
+  return str;
+}
+
 function createEmptyParticipant(idx = 1) {
   return {
     name: '',
     gender: 'L',
-    grade: 'Kelas 9 SMP / MTs',
+    grade: 'Kelas 9',
     birth_date: '',
     nisn: '',
     custom_id: '',
@@ -514,7 +523,8 @@ function restoreFormDraft(compId) {
             }
             participants.value[idx] = {
               ...participants.value[idx],
-              ...p
+              ...p,
+              grade: normalizeGrade(p.grade)
             };
           });
           if (draft.participantCount) {

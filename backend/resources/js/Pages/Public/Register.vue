@@ -538,7 +538,7 @@ function createEmptyParticipant() {
   return {
     name: '',
     gender: 'L',
-    grade: 'Kelas 9 SMP/MTs',
+    grade: 'Kelas 9',
     birth_date: '',
     nisn: '',
     custom_id: '',

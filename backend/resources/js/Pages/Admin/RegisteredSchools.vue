@@ -218,9 +218,9 @@ const genderOptions = [
 ];
 
 const gradeOptions = [
-  { value: '7', label: 'Kelas 7' },
-  { value: '8', label: 'Kelas 8' },
   { value: '9', label: 'Kelas 9' },
+  { value: '8', label: 'Kelas 8' },
+  { value: '7', label: 'Kelas 7' },
   { value: 'Campuran / Gabungan', label: 'Campuran / Tim' },
 ];
 

@@ -1233,7 +1233,7 @@ function applyOptionPreset(field, type) {
   } else if (type === 'genders') {
     field.options = ['Laki-laki', 'Perempuan'];
   } else if (type === 'classes') {
-    field.options = ['Kelas 7 SMP/MTs', 'Kelas 8 SMP/MTs', 'Kelas 9 SMP/MTs'];
+    field.options = ['Kelas 9', 'Kelas 8', 'Kelas 7'];
   } else if (type === 'kecamatan_jember') {
     field.options = [...JEMBER_KECAMATAN_LIST];
   }
@@ -3279,7 +3279,7 @@ function setParticipantCountDirect(field, val) {
                                 <ul class="dropdown-menu dropdown-menu-end fs-11 shadow border-0">
                                   <li><a class="dropdown-item cursor-pointer" @click="applyOptionPreset(field, 'yesno')">Ya / Tidak</a></li>
                                   <li><a class="dropdown-item cursor-pointer" @click="applyOptionPreset(field, 'genders')">Laki-laki / Perempuan</a></li>
-                                  <li><a class="dropdown-item cursor-pointer" @click="applyOptionPreset(field, 'classes')">Kelas 7 / 8 / 9 SMP</a></li>
+                                  <li><a class="dropdown-item cursor-pointer" @click="applyOptionPreset(field, 'classes')">Kelas 9 / 8 / 7</a></li>
                                   <li><hr class="dropdown-divider my-1"></li>
                                   <li><a class="dropdown-item cursor-pointer text-primary fw-medium" @click="applyOptionPreset(field, 'kecamatan_jember')"><i class="ri-map-pin-line me-1 text-primary"></i> 31 Kecamatan Jember</a></li>
                                 </ul>
@@ -3807,7 +3807,7 @@ function setParticipantCountDirect(field, val) {
                                     <label class="block text-[10px] text-slate-400 mb-0.5">Kelas / Tingkat</label>
                                     <CustomSelect 
                                       v-model="previewValues[field.name + '_grade_' + pIdx]"
-                                      :options="['Kelas 7', 'Kelas 8', 'Kelas 9']"
+                                      :options="['Kelas 9', 'Kelas 8', 'Kelas 7']"
                                       placeholder="Kelas 9"
                                       size="xs"
                                       variant="dark-slate"
@@ -4277,8 +4277,8 @@ function setParticipantCountDirect(field, val) {
                               <label class="block text-[11px] text-slate-400 mb-1">Kelas / Tingkat *</label>
                               <CustomSelect 
                                 v-model="previewValues[field.name + '_grade_' + pIdx]"
-                                :options="['Kelas 7 SMP/MTs', 'Kelas 8 SMP/MTs', 'Kelas 9 SMP/MTs']"
-                                :placeholder="field.sub_fields?.grade?.placeholder || 'Kelas 9 SMP/MTs'"
+                                :options="['Kelas 9', 'Kelas 8', 'Kelas 7']"
+                                :placeholder="field.sub_fields?.grade?.placeholder || 'Pilih Kelas...'"
                                 size="sm"
                                 variant="dark-slate"
                               />

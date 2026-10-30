@@ -51,9 +51,9 @@ const manualCodeSuccessData = ref(props.allInRegCode ? {
 
 // Grade options for team members (Rule 1: CustomSelect)
 const gradeOptions = [
-  { value: 'Kelas 7 SMP/MTs', label: 'Kelas 7 SMP/MTs' },
-  { value: 'Kelas 8 SMP/MTs', label: 'Kelas 8 SMP/MTs' },
-  { value: 'Kelas 9 SMP/MTs', label: 'Kelas 9 SMP/MTs' },
+  { value: 'Kelas 9', label: 'Kelas 9' },
+  { value: 'Kelas 8', label: 'Kelas 8' },
+  { value: 'Kelas 7', label: 'Kelas 7' },
 ];
 
 // 31 Kecamatan Kabupaten Jember for CustomSelect (Rule 1: No native select, search enabled)
@@ -436,11 +436,20 @@ function getTeamComposition(comp, rf) {
 const teamInfo = computed(() => getTeamComposition(currentCompetition.value, repeaterField.value));
 const participantCount = ref(1);
 
+function normalizeGrade(g) {
+  if (!g) return 'Kelas 9';
+  const str = String(g).trim();
+  if (str.includes('7')) return 'Kelas 7';
+  if (str.includes('8')) return 'Kelas 8';
+  if (str.includes('9')) return 'Kelas 9';
+  return str;
+}
+
 function createEmptyParticipant() {
   return {
     name: '',
     gender: 'L',
-    grade: 'Kelas 9 SMP/MTs',
+    grade: 'Kelas 9',
     birth_date: '',
     nisn: '',
     custom_id: '',
@@ -614,7 +623,7 @@ function restoreRegDraft(compId) {
       participantsList.value = data.participantsList.map(p => ({
         name: p.name || '',
         gender: p.gender || 'L',
-        grade: p.grade || 'Kelas 9 SMP/MTs',
+        grade: normalizeGrade(p.grade) || 'Kelas 9',
         birth_date: p.birth_date || '',
         nisn: p.nisn || '',
         custom_id: p.custom_id || '',

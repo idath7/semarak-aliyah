@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
+import ManualRegistrationModal from '@/Components/ManualRegistrationModal.vue';
 import { initEcho } from '@/echo';
 import { useToast } from '@/Composables/useToast';
 import { useConfirmDialog } from '@/Composables/useConfirmDialog';
@@ -12,6 +13,8 @@ const props = defineProps({
   stats: { type: Object, default: () => ({}) },
   registrations: { type: Array, default: () => [] },
   competitions: { type: Array, default: () => [] },
+  master_schools: { type: Array, default: () => [] },
+  package_allin_price: { type: Number, default: 200000 },
   filters: { type: Object, default: () => ({}) },
 });
 
@@ -20,6 +23,15 @@ const selectedStatus = ref(props.filters.status || 'all');
 const selectedCompetition = ref(props.filters.competition || 'all');
 const registrationsList = ref([...props.registrations]);
 const competitionsList = ref([...props.competitions]);
+
+// Input Manual modal state
+const showManualModal = ref(false);
+function openManualModal() {
+  showManualModal.value = true;
+}
+function onManualSaved() {
+  router.reload({ preserveScroll: true });
+}
 
 // Detail modal state
 const showDetailModal = ref(false);
@@ -250,9 +262,9 @@ onMounted(() => {
         </p>
       </div>
       <div class="col-12 col-md-6 text-start text-md-end mt-2 mt-md-0 d-flex flex-wrap justify-content-start justify-content-md-end align-items-center gap-1.5">
-        <Link href="/admin/sekolah-terdaftar" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm fs-11 fs-sm-12">
+        <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm fs-11 fs-sm-12" @click="openManualModal">
           <i class="ri-user-add-line"></i> + Input Manual (Meja Panitia)
-        </Link>
+        </button>
         <Link href="/admin/sekolah-terdaftar" class="btn btn-sm btn-info text-white d-inline-flex align-items-center gap-1 shadow-xs fs-11 fs-sm-12">
           <i class="ri-community-line"></i> Sekolah Terdaftar
         </Link>
@@ -1208,5 +1220,14 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- MODAL: INPUT MANUAL PENDAFTARAN & DELEGASI (MEJA PANITIA) -->
+    <ManualRegistrationModal 
+      v-model:show="showManualModal" 
+      :competitions="competitionsList" 
+      :master-schools="master_schools" 
+      :package-allin-price="package_allin_price" 
+      @saved="onManualSaved"
+    />
   </VelzonLayout>
 </template>

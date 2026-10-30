@@ -2077,7 +2077,7 @@ function printReport() {
                           >
                             <i class="ri-medal-line fs-20 d-block mb-1"></i>
                             <span>Paket Satuan</span>
-                            <span class="d-block fs-10 text-muted">Per cabang lomba</span>
+                            <span class="d-block fs-10 text-muted">Tarif per cabang lomba</span>
                           </div>
                         </div>
                         <div class="col-6">
@@ -2088,7 +2088,7 @@ function printReport() {
                           >
                             <i class="ri-vip-crown-fill fs-20 d-block mb-1 text-warning"></i>
                             <span>Paket Komplit (All-In)</span>
-                            <span class="d-block fs-10 text-muted">Semua cabang lomba</span>
+                            <span class="d-block fs-11 text-success fw-bold">{{ formatRupiah(manualForm.package_price || package_allin_price) }}</span>
                           </div>
                         </div>
                       </div>
@@ -2126,6 +2126,25 @@ function printReport() {
 
                       <!-- IF PAKET ALL-IN -->
                       <div v-else class="p-3 rounded-3 border border-warning-subtle bg-warning-subtle bg-opacity-10">
+                        <!-- Banner Keterangan Biaya Paket Komplit (All-In) -->
+                        <div class="p-2.5 rounded-2 bg-white border border-warning-subtle mb-2.5 d-flex align-items-center justify-content-between flex-wrap gap-2 shadow-xs">
+                          <div class="d-flex align-items-center gap-2">
+                            <div class="avatar-xs rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                              <i class="ri-vip-crown-fill fs-18 text-warning"></i>
+                            </div>
+                            <div>
+                              <span class="fs-10 text-muted d-block text-uppercase fw-bold">Biaya Resmi Paket Komplit</span>
+                              <span class="fs-15 fw-bold text-success">{{ formatRupiah(manualForm.package_price || package_allin_price) }}</span>
+                            </div>
+                          </div>
+                          <div class="text-end">
+                            <span class="badge bg-warning text-dark fs-10 px-2 py-0.5 rounded-pill fw-bold d-block mb-0.5">
+                              <i class="ri-sparkling-fill me-0.5"></i> Flat Seluruh Cabang
+                            </span>
+                            <span class="fs-10 text-muted">Bebas ikuti seluruh cabang lomba</span>
+                          </div>
+                        </div>
+
                         <div class="d-flex align-items-center justify-content-between mb-2">
                           <span class="fs-11 fw-bold text-dark">Pilih Cabang Lomba yang Diikuti:</span>
                           <div class="d-flex gap-1">
@@ -2134,7 +2153,7 @@ function printReport() {
                           </div>
                         </div>
 
-                        <div class="row g-1.5 mb-2" style="max-height: 240px; overflow-y: auto;">
+                        <div class="row g-1.5 mb-2" style="max-height: 220px; overflow-y: auto;">
                           <div v-for="comp in competitions" :key="comp.id" class="col-12 col-md-6">
                             <div 
                               class="p-2 rounded-2 border bg-white cursor-pointer d-flex align-items-center gap-2 fs-11 transition-all"
@@ -2152,7 +2171,11 @@ function printReport() {
 
                         <div class="d-flex align-items-center justify-content-between bg-white p-2 rounded border fs-11">
                           <span class="text-muted">Total Cabang Dipilih:</span>
-                          <span class="badge bg-success text-white fs-11">{{ manualForm.competition_ids.length }} Cabang Lomba</span>
+                          <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-success text-white fs-11">{{ manualForm.competition_ids.length }} Cabang Lomba</span>
+                            <span class="text-muted">•</span>
+                            <strong class="text-success">{{ formatRupiah(manualTotalCalculatedFee) }}</strong>
+                          </div>
                         </div>
                       </div>
                     </div>

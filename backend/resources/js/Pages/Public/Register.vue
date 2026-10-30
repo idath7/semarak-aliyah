@@ -659,7 +659,6 @@ const selectedSchool = ref(null);
 const schoolStatusData = ref(null);
 const isCheckingSchoolStatus = ref(false);
 const showHubSchoolDropdown = ref(false);
-const showNewSchoolModal = ref(false);
 const showAllInModal = ref(false);
 const hubSuggestions = ref([]);
 let hubSearchTimeout = null;
@@ -827,19 +826,6 @@ function onAllInCodeInput() {
   codeVerificationError.value = '';
 }
 
-// New School Self-Registration Form
-const newSchoolForm = useForm({
-  name: '',
-  jenjang: 'SMP',
-  status: 'Terdaftar',
-  kecamatan: 'Balung',
-  npsn: '',
-  phone: '',
-  alamat: '',
-});
-const isSubmittingNewSchool = ref(false);
-const newSchoolError = ref('');
-
 // Dedicated Paket All-In Form
 const allInForm = useForm({
   package_type: 'Paket All-In',
@@ -957,39 +943,6 @@ async function checkSchoolStatus(schoolName) {
     console.error('Status check error:', e);
   } finally {
     isCheckingSchoolStatus.value = false;
-  }
-}
-
-async function submitNewSchool() {
-  if (!newSchoolForm.name.trim()) {
-    newSchoolError.value = 'Nama sekolah/madrasah wajib diisi.';
-    return;
-  }
-  isSubmittingNewSchool.value = true;
-  newSchoolError.value = '';
-  try {
-    const res = await fetch('/api/schools/public-register', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-      },
-      body: JSON.stringify(newSchoolForm.data()),
-    });
-    const json = await res.json();
-    if (res.ok && json.status === 'success') {
-      showNewSchoolModal.value = false;
-      const createdSchool = json.data;
-      await selectHubSchool(createdSchool);
-      newSchoolForm.reset();
-    } else {
-      newSchoolError.value = json.message || 'Gagal mendaftarkan sekolah baru.';
-    }
-  } catch (e) {
-    newSchoolError.value = 'Terjadi kendala saat mendaftarkan sekolah baru.';
-  } finally {
-    isSubmittingNewSchool.value = false;
   }
 }
 
@@ -1634,19 +1587,6 @@ function getCompDropdownSuffix(c) {
               >
                 <i class="ri-close-circle-fill"></i>
               </button>
-
-              <div class="command-frame-separator d-none d-md-block"></div>
-
-              <!-- Button Register New School if not found -->
-              <button 
-                type="button" 
-                class="btn-new-school-command flex-shrink-0"
-                @click="showNewSchoolModal = true"
-                title="Daftarkan nama sekolah baru jika belum tersedia di database master"
-              >
-                <i class="ri-add-circle-fill me-1.5"></i>
-                <span>Daftarkan Sekolah Baru</span>
-              </button>
             </div>
 
             <!-- Autocomplete Dropdown List with Glass Elevation -->
@@ -1687,10 +1627,10 @@ function getCompDropdownSuffix(c) {
                 </div>
               </div>
 
-              <div class="dropdown-footer-callout" @click="showNewSchoolModal = true; showHubSchoolDropdown = false;">
-                <div class="d-flex align-items-center justify-content-center gap-2">
-                  <i class="ri-question-line fs-15 text-primary"></i>
-                  <span>Tidak menemukan sekolah asal Anda? <strong class="text-primary text-decoration-underline">Klik di sini untuk mendaftarkan nama sekolah baru</strong></span>
+              <div class="dropdown-footer-callout py-2.5 px-3 text-muted text-center fs-11">
+                <div class="d-flex align-items-center justify-content-center gap-1.5">
+                  <i class="ri-information-line text-primary fs-14"></i>
+                  <span>Sekolah belum ada di daftar? Identitas sekolah akan otomatis terdata lengkap saat Anda mengisi formulir pendaftaran cabang lomba.</span>
                 </div>
               </div>
             </div>
@@ -2098,135 +2038,6 @@ function getCompDropdownSuffix(c) {
     </template>
 
     
-
-    <!-- ==========================================================================
-         MODAL: DAFTAR SEKOLAH / MADRASAH BARU
-         ========================================================================== -->
-    <div 
-      v-if="showNewSchoolModal" 
-      class="modal-overlay reg-modal-overlay" 
-      role="dialog" 
-      aria-modal="true" 
-      @click.self="showNewSchoolModal = false"
-    >
-      <div class="modal-card reg-modal-card" style="max-width: 580px;">
-        <div class="reg-modal-header">
-          <div class="reg-modal-header-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-            <i class="ri-community-line"></i>
-          </div>
-          <div class="reg-modal-header-info">
-            <div class="reg-modal-header-tags">
-              <span class="reg-badge-tag" style="background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;">
-                <i class="ri-add-line"></i> Master Database Sekolah
-              </span>
-            </div>
-            <h3 class="reg-modal-title mb-0">Daftarkan Sekolah Baru</h3>
-          </div>
-          <button type="button" class="btn-modal-close" @click="showNewSchoolModal = false">
-            <i class="ri-close-line"></i>
-          </button>
-        </div>
-
-        <div class="reg-modal-body p-4" style="overflow-y: auto; max-height: calc(88vh - 140px);">
-          <p class="text-muted fs-12 mb-3">
-            Silakan lengkapi data sekolah/madrasah Anda jika belum ada dalam database Kabupaten Jember. Setelah disimpan, sekolah Anda otomatis aktif dan siap dipilih untuk pendaftaran lomba.
-          </p>
-
-          <div v-if="newSchoolError" class="alert alert-danger py-2 px-3 fs-12 mb-3">
-            <i class="ri-error-warning-line me-1"></i> {{ newSchoolError }}
-          </div>
-
-          <div class="form-group mb-3">
-            <label class="form-label">
-              <span>Nama Sekolah / Madrasah</span>
-              <span class="required-star">*</span>
-            </label>
-            <input 
-              v-model="newSchoolForm.name"
-              type="text" 
-              class="form-control" 
-              placeholder="Contoh: SMP Unggulan Jember / MTs Nurul Huda"
-              required
-            />
-          </div>
-
-          <div class="row g-2 mb-3">
-            <div class="col-md-6">
-              <label class="form-label">
-                <span>Jenjang Pendidikan</span>
-                <span class="required-star">*</span>
-              </label>
-              <CustomSelect v-model="newSchoolForm.jenjang">
-                <option value="SMP">SMP (Sekolah Menengah Pertama)</option>
-                <option value="MTs">MTs (Madrasah Tsanawiyah)</option>
-              </CustomSelect>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">
-                <span>Wilayah Kecamatan</span>
-                <span class="required-star">*</span>
-              </label>
-              <CustomSelect v-model="newSchoolForm.kecamatan">
-                <option v-for="kec in kecamatanList" :key="kec" :value="kec">Kec. {{ kec }}</option>
-              </CustomSelect>
-            </div>
-          </div>
-
-          <div class="row g-2 mb-3">
-            <div class="col-md-6">
-              <label class="form-label">
-                <span>NPSN Sekolah (Opsional)</span>
-              </label>
-              <input 
-                v-model="newSchoolForm.npsn"
-                type="text" 
-                class="form-control font-mono" 
-                placeholder="Nomor Pokok Sekolah..."
-              />
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">
-                <span>No. WhatsApp / Telepon Sekolah (Opsional)</span>
-              </label>
-              <input 
-                v-model="newSchoolForm.phone"
-                type="text" 
-                class="form-control" 
-                placeholder="08xxxxxxxxxx"
-              />
-            </div>
-          </div>
-
-          <div class="form-group mb-0">
-            <label class="form-label">
-              <span>Alamat Lengkap Sekolah (Opsional)</span>
-            </label>
-            <textarea 
-              v-model="newSchoolForm.alamat"
-              rows="2" 
-              class="form-control" 
-              placeholder="Jl. ..., Desa/Kelurahan, Kecamatan..."
-            ></textarea>
-          </div>
-        </div>
-
-        <div class="reg-modal-footer">
-          <div class="d-flex justify-content-end gap-2 w-100">
-            <button type="button" class="btn-cancel" @click="showNewSchoolModal = false">Batal</button>
-            <button 
-              type="button" 
-              class="btn-submit"
-              :disabled="isSubmittingNewSchool"
-              @click="submitNewSchool"
-            >
-              <i v-if="isSubmittingNewSchool" class="ri-loader-4-line ri-spin"></i>
-              <i v-else class="ri-check-line"></i>
-              <span>{{ isSubmittingNewSchool ? 'Menyimpan...' : 'Simpan & Pilih Sekolah' }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- ==========================================================================
          MODAL: PENDAFTARAN PAKET ALL-IN KOMPLIT

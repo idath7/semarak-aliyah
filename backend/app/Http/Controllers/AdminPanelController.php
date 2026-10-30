@@ -229,9 +229,14 @@ class AdminPanelController extends Controller
             'total_fee' => $totalDana,
         ];
 
+        $masterSchools = \App\Models\School::orderBy('name', 'asc')->get(['id', 'npsn', 'name', 'jenjang', 'kecamatan', 'alamat']);
+        $packageAllinPrice = (int)\App\Models\Setting::get('package_allin_price', 200000);
+
         return \Inertia\Inertia::render('Admin/Pendaftar', [
             'registrations' => $registrations,
             'competitions' => $competitions,
+            'master_schools' => $masterSchools,
+            'package_allin_price' => $packageAllinPrice,
             'stats' => $stats,
             'filters' => $request->only(['search', 'status', 'competition']),
         ]);

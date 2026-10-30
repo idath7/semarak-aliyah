@@ -3639,21 +3639,6 @@ function setParticipantCountDirect(field, val) {
                     </p>
                   </div>
 
-                  <!-- Optional Package Type -->
-                  <div v-if="formSettings.show_package_type" class="mb-4 pb-4 border-b border-slate-800">
-                    <label class="block text-[11px] font-bold text-slate-300 mb-1.5">Pilihan Paket:</label>
-                    <div class="grid grid-cols-2 gap-2">
-                      <div class="p-2 rounded-lg border border-amber-500 bg-amber-500/10 text-white text-[11px]">
-                        <div class="font-bold">Satuan</div>
-                        <div class="text-emerald-400 font-mono text-[10px]">Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}</div>
-                      </div>
-                      <div class="p-2 rounded-lg border border-slate-800 bg-slate-950 text-slate-400 text-[11px]">
-                        <div class="font-bold">Paket All-In</div>
-                        <div class="text-amber-400 font-mono text-[10px]">Rp 200.000</div>
-                      </div>
-                    </div>
-                  </div>
-
                   <!-- Dynamic Fields Preview with Real-Time Logic Evaluation -->
                   <div class="space-y-3.5 text-xs">
                     <div v-if="fields.length === 0" class="p-3 rounded-xl bg-slate-950 border border-slate-800 text-center text-slate-500 text-[11px]">
@@ -4039,6 +4024,21 @@ function setParticipantCountDirect(field, val) {
                       </div>
                     </template>
 
+                    <!-- Optional Package Type Simulation (Sebelum Metode Pembayaran) -->
+                    <div v-if="formSettings.show_package_type" class="pt-3 mt-3 border-t border-slate-800">
+                      <label class="block text-[11px] font-bold text-slate-300 mb-1.5">Pilihan Skema Paket:</label>
+                      <div class="grid grid-cols-2 gap-2">
+                        <div class="p-2 rounded-lg border border-amber-500 bg-amber-500/10 text-white text-[11px]">
+                          <div class="font-bold">Paket Satuan</div>
+                          <div class="text-emerald-400 font-mono text-[10px]">Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}</div>
+                        </div>
+                        <div class="p-2 rounded-lg border border-slate-800 bg-slate-950 text-slate-400 text-[11px]">
+                          <div class="font-bold">Paket All-In</div>
+                          <div class="text-amber-400 font-mono text-[10px]">Rp 200.000</div>
+                        </div>
+                      </div>
+                    </div>
+
                     <!-- Submit Button Simulation -->
                     <div class="pt-2 mt-4 border-t border-slate-800">
                       <button 
@@ -4116,21 +4116,6 @@ function setParticipantCountDirect(field, val) {
                 <p class="text-xs text-slate-400 mt-1">
                   {{ formSettings.form_subtitle || `Biaya Pendaftaran: Rp ${Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID')} • Kuota: ${selectedCompetition?.current_quota || 0}/${selectedCompetition?.max_quota || 0}` }}
                 </p>
-              </div>
-
-              <!-- Package Type Simulation -->
-              <div v-if="formSettings.show_package_type" class="mb-6 pb-6 border-b border-slate-800">
-                <label class="block text-xs font-bold text-slate-300 mb-2">Pilihan Paket:</label>
-                <div class="grid grid-cols-2 gap-3">
-                  <div class="p-3 rounded-xl border border-amber-500 bg-amber-500/10 text-white text-xs">
-                    <div class="font-bold">Paket Satuan</div>
-                    <div class="text-emerald-400 font-mono mt-0.5">Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}</div>
-                  </div>
-                  <div class="p-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-xs">
-                    <div class="font-bold">Paket All-In</div>
-                    <div class="text-amber-400 font-mono mt-0.5">Rp 200.000</div>
-                  </div>
-                </div>
               </div>
 
               <!-- Fields List with Logic Evaluation in Full Preview -->
@@ -4505,6 +4490,21 @@ function setParticipantCountDirect(field, val) {
                     </div>
                   </div>
                 </template>
+
+                <!-- Package Type Simulation (Sebelum Metode Pembayaran) -->
+                <div v-if="formSettings.show_package_type" class="pt-4 mt-6 border-t border-slate-800">
+                  <label class="block text-xs font-bold text-slate-300 mb-2">Pilihan Skema Paket:</label>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3 rounded-xl border border-amber-500 bg-amber-500/10 text-white text-xs">
+                      <div class="font-bold">Paket Satuan</div>
+                      <div class="text-emerald-400 font-mono mt-0.5">Rp {{ Number(selectedCompetition?.fee || 50000).toLocaleString('id-ID') }}</div>
+                    </div>
+                    <div class="p-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-xs">
+                      <div class="font-bold">Paket All-In</div>
+                      <div class="text-amber-400 font-mono mt-0.5">Rp 200.000</div>
+                    </div>
+                  </div>
+                </div>
 
                 <!-- Submit Button simulation -->
                 <div class="pt-4 mt-6 border-t border-slate-800">

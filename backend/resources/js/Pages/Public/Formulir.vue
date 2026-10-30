@@ -69,12 +69,28 @@ const MANDATORY_NAMES = [
   'school_address', 'alamat_sekolah', 'alamat_lengkap_sekolah', 'alamat',
   'mentor_name', 'nama_pendamping', 'nama_guru_pendamping', 'nama_pembina',
   'mentor_wa', 'nomor_wa', 'whatsapp', 'nomor_whatsapp', 'nomor_whatsapp_pendamping',
-  'mentor_email', 'contact_email', 'email', 'alamat_email', 'email_pendamping',
-  'allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code'
+  'mentor_email', 'contact_email', 'email', 'alamat_email', 'email_pendamping'
 ];
+
+const ALLIN_CODE_NAMES = [
+  'allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 
+  'package_code', 'all_in_code', 'kode_paket_allin'
+];
+
+function isAllInCodeField(field) {
+  if (!field) return false;
+  const name = String(field.name || '').toLowerCase().trim();
+  const defName = String(field.default_name || '').toLowerCase().trim();
+  const label = String(field.label || '').toLowerCase();
+  return ALLIN_CODE_NAMES.includes(name) || 
+         ALLIN_CODE_NAMES.includes(defName) || 
+         label.includes('kode paket') || 
+         label.includes('kode all-in');
+}
 
 function isMandatoryIdentity(field) {
   if (!field) return false;
+  if (isAllInCodeField(field)) return false; // allin_code is package-related, follows custom field sequence
   if (field.is_mandatory_identity) return true;
   return MANDATORY_NAMES.includes(field.name);
 }
@@ -338,6 +354,33 @@ const teamFieldConfig = computed(() => {
   return null;
 });
 
+// Field Kode Paket Komplit dari Form Builder
+const allinCodeField = computed(() => {
+  const fields = activeComp.value?.custom_fields || [];
+  return fields.find(f => isAllInCodeField(f)) || null;
+});
+
+// Mengecek apakah posisi Kode Paket Komplit berada sebelum repeater/peserta (misal di Section 1)
+const isAllInCodeBeforeRepeater = computed(() => {
+  const fields = activeComp.value?.custom_fields || [];
+  const allinIdx = fields.findIndex(f => isAllInCodeField(f));
+  if (allinIdx === -1) return true; // Default tetap di Section 1 jika tidak diatur khusus
+
+  const repIdx = fields.findIndex(f => f && f.type === 'participant_repeater');
+  if (repIdx !== -1) {
+    return allinIdx < repIdx;
+  }
+
+  // Jika tidak ada participant_repeater, bandingkan dengan field identitas terakhir
+  let lastIdIdx = -1;
+  fields.forEach((f, idx) => {
+    if (isMandatoryIdentity(f)) {
+      lastIdIdx = Math.max(lastIdIdx, idx);
+    }
+  });
+  return allinIdx <= lastIdIdx;
+});
+
 // Additional Custom Fields (non-identity, non-repeater, dan BUKAN field tim)
 const otherCustomFields = computed(() => {
   const fields = activeComp.value?.custom_fields || [];
@@ -345,6 +388,8 @@ const otherCustomFields = computed(() => {
     if (isMandatoryIdentity(f)) return false;
     if (f.type === 'participant_repeater') return false;
     if (teamFieldConfig.value && (f.name === teamFieldConfig.value.name || isTeamFieldName(f.name, f.label))) return false;
+    // Jika field adalah kode paket komplit dan posisinya sebelum repeater, maka dirender di Section 1
+    if (isAllInCodeField(f) && isAllInCodeBeforeRepeater.value) return false;
     return true;
   });
 });
@@ -807,7 +852,19 @@ function setPackageType(type) {
 }
 
 async function verifyPackageCodeManual() {
-  const code = (form.custom_fields?.['allin_code'] || '').trim();
+  let code = (form.custom_fields?.['allin_code'] || '').trim();
+  if (!code && allinCodeField.value && form.custom_fields?.[allinCodeField.value.name]) {
+    code = String(form.custom_fields[allinCodeField.value.name]).trim();
+  }
+  if (!code) {
+    for (const k of ALLIN_CODE_NAMES) {
+      if (form.custom_fields?.[k]) {
+        code = String(form.custom_fields[k]).trim();
+        break;
+      }
+    }
+  }
+
   if (!code) {
     codeVerificationError.value = 'Silakan masukkan Kode Paket Komplit terlebih dahulu.';
     return;
@@ -823,6 +880,10 @@ async function verifyPackageCodeManual() {
       manualCodeSuccessData.value = json.data;
       codeVerificationError.value = '';
       form.package_type = 'Paket All-In';
+      form.custom_fields['allin_code'] = code;
+      if (allinCodeField.value && allinCodeField.value.name) {
+        form.custom_fields[allinCodeField.value.name] = code;
+      }
       if (json.data.school_name && !form.school_name) form.school_name = json.data.school_name;
       showToast('Kode Paket Komplit terverifikasi! Biaya pendaftaran Rp 0.');
     } else {
@@ -1887,21 +1948,21 @@ onMounted(() => {
                 </div>
               </div>
 
-              <!-- Input & Verifikasi Kode Paket Komplit (All-In) -->
-              <div class="p-3 sm:p-4 rounded-xl border border-dashed border-primary/40 bg-emerald-light/30 space-y-2 sm:space-y-2.5">
+              <!-- Input & Verifikasi Kode Paket Komplit (All-In) Jika Posisi di Section 1 -->
+              <div v-if="isAllInCodeBeforeRepeater" class="p-3 sm:p-4 rounded-xl border border-dashed border-primary/40 bg-emerald-light/30 space-y-2 sm:space-y-2.5">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                   <label class="form-label-aligned">
                     <i class="ri-vip-crown-line text-primary"></i>
-                    <span>{{ getFieldLabel('allin_code', 'Punya Kode Paket Komplit (All-In)?') }}</span>
+                    <span>{{ allinCodeField?.label || getFieldLabel('allin_code', 'Punya Kode Paket Komplit (All-In)?') }}</span>
                   </label>
                   <span class="text-[11px] text-amber-dark font-medium bg-amber-soft px-2 py-0.5 rounded w-fit">Gratis Biaya Cabang (Rp 0)</span>
                 </div>
                 <div class="flex items-center gap-2">
                   <div class="relative flex-1">
                     <input 
-                      v-model="form.custom_fields['allin_code']"
+                      v-model="form.custom_fields[allinCodeField?.name || 'allin_code']"
                       type="text" 
-                      :placeholder="getFieldPlaceholder('allin_code', 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)')" 
+                      :placeholder="allinCodeField?.placeholder || getFieldPlaceholder('allin_code', 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)')" 
                       class="w-full h-10 px-3 sm:px-3.5 rounded-lg border border-border-subtle bg-white dark:bg-[#111d17] text-xs font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:font-body placeholder:normal-case placeholder:text-gray-400 text-on-surface"
                     >
                   </div>
@@ -1923,13 +1984,13 @@ onMounted(() => {
                 </div>
                 <p v-else class="text-[11px] text-on-surface-variant flex items-center gap-1">
                   <i class="ri-information-line text-[14px] text-primary leading-none"></i>
-                  <span>Jika sekolah Anda telah mendaftar Paket Komplit, masukkan kode paket agar pendaftaran cabang ini bebas biaya.</span>
+                  <span>{{ allinCodeField?.help_text || 'Jika sekolah Anda telah mendaftar Paket Komplit, masukkan kode paket agar pendaftaran cabang ini bebas biaya.' }}</span>
                 </p>
               </div>
             </div>
 
             <!-- ============================================================== -->
-            <!-- SECTION 2: Data Peserta & Skema Paket (Dinamis Form Builder)    -->
+            <!-- SECTION 2: Biodata Peserta & Delegasi (Dinamis Form Builder)    -->
             <!-- ============================================================== -->
             <div class="space-y-3.5 sm:space-y-4" id="sectionDataPeserta">
               <div class="flex items-center justify-between pb-2 border-b border-border-subtle flex-wrap gap-2">
@@ -1943,58 +2004,6 @@ onMounted(() => {
                   <span v-if="minParticipants === maxParticipants">Format: {{ minParticipants }} Siswa</span>
                   <span v-else>Kuota: {{ minParticipants }} s.d. {{ maxParticipants }} Peserta</span>
                 </span>
-              </div>
-
-              <!-- Pilihan Skema Paket Pendaftaran (Hanya jika diaktifkan di Form Builder) -->
-              <div v-if="formSettings.show_package_type" class="p-3.5 sm:p-4 rounded-xl bg-background/50 border border-border-subtle space-y-2 sm:space-y-2.5">
-                <div class="flex items-center justify-between">
-                  <label class="form-label-aligned">
-                    <i class="ri-price-tag-3-line text-primary"></i>
-                    <span>Pilihan Skema Paket Pendaftaran <span class="text-red-500">*</span></span>
-                  </label>
-                  <span class="text-[11px] text-primary font-semibold bg-emerald-light px-2 py-0.5 rounded-full">Biaya Fleksibel</span>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-                  <!-- Paket Satuan -->
-                  <label 
-                    class="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all"
-                    :class="{ 'border-primary bg-emerald-light/50 shadow-xs ring-1 ring-primary': form.package_type === 'Paket Satuan' }"
-                    @click="setPackageType('Paket Satuan')"
-                  >
-                    <div class="flex items-center gap-2.5">
-                      <input type="radio" name="skema_paket" value="Paket Satuan" :checked="form.package_type === 'Paket Satuan'" class="w-4 h-4 text-primary focus:ring-primary shrink-0">
-                      <div class="text-left">
-                        <div class="flex items-center gap-1.5">
-                          <p class="text-xs sm:text-sm font-bold text-on-surface">Paket Satuan</p>
-                          <span class="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded">Cabang Ini</span>
-                        </div>
-                        <p class="text-xs font-semibold text-primary mt-0.5">Rp {{ baseCompFee.toLocaleString('id-ID') }}</p>
-                        <p class="text-[11px] text-on-surface-variant">Khusus pendaftaran cabang {{ activeComp?.title || 'ini' }}</p>
-                      </div>
-                    </div>
-                    <i class="ri-price-tag-3-line text-primary text-[20px] shrink-0"></i>
-                  </label>
-
-                  <!-- Paket All-In Komplit -->
-                  <label 
-                    class="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all"
-                    :class="{ 'border-primary bg-emerald-light/50 shadow-xs ring-1 ring-primary': form.package_type === 'Paket All-In' }"
-                    @click="setPackageType('Paket All-In')"
-                  >
-                    <div class="flex items-center gap-2.5">
-                      <input type="radio" name="skema_paket" value="Paket All-In" :checked="form.package_type === 'Paket All-In'" class="w-4 h-4 text-primary focus:ring-primary shrink-0">
-                      <div class="text-left">
-                        <div class="flex items-center gap-1.5">
-                          <p class="text-xs sm:text-sm font-bold text-on-surface">Paket All-In Komplit</p>
-                          <span class="text-[10px] bg-amber-soft text-amber-dark font-bold px-1.5 py-0.5 rounded">Terlaris</span>
-                        </div>
-                        <p class="text-xs font-semibold text-emerald-dark mt-0.5">Rp {{ Number(pricingSettings?.allin_price || 250000).toLocaleString('id-ID') }}</p>
-                        <p class="text-[11px] text-on-surface-variant">Semua cabang lomba kontingen sekolah</p>
-                      </div>
-                    </div>
-                    <i class="ri-verified-badge-line text-primary text-[20px] shrink-0"></i>
-                  </label>
-                </div>
               </div>
 
               <!-- Kolom Nama Tim / Skuad (Jika Aktif, Ditampilkan SEBELUM Data Siswa) -->
@@ -2530,7 +2539,7 @@ onMounted(() => {
                 <div class="flex items-center gap-2.5 form-section-header">
                   <i class="ri-file-upload-line text-primary form-section-icon"></i>
                   <h2 class="font-headline font-bold text-base sm:text-lg text-on-surface m-0 form-section-title">
-                    3. Berkas &amp; Informasi Khusus Cabang
+                    3. {{ otherCustomFields.every(f => isAllInCodeField(f)) ? 'Kode Paket Komplit (All-In)' : 'Berkas &amp; Informasi Khusus Cabang' }}
                   </h2>
                 </div>
                 <span class="text-xs text-on-surface-variant">Sesuai Juknis Panitia</span>
@@ -2770,6 +2779,46 @@ onMounted(() => {
                     />
                   </div>
 
+                  <!-- Type: KODE PAKET KOMPLIT (ALL-IN) DINAMIS DARI FORM BUILDER -->
+                  <div v-else-if="isAllInCodeField(field)" class="p-3 sm:p-4 rounded-xl border border-dashed border-primary/40 bg-emerald-light/30 space-y-2 sm:space-y-2.5">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                      <label class="form-label-aligned">
+                        <i class="ri-vip-crown-line text-primary"></i>
+                        <span>{{ field.label || 'Punya Kode Paket Komplit (All-In)?' }}</span>
+                      </label>
+                      <span class="text-[11px] text-amber-dark font-medium bg-amber-soft px-2 py-0.5 rounded w-fit">Gratis Biaya Cabang (Rp 0)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <div class="relative flex-1">
+                        <input 
+                          v-model="form.custom_fields[field.name || 'allin_code']"
+                          type="text" 
+                          :placeholder="field.placeholder || 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)'" 
+                          class="w-full h-10 px-3 sm:px-3.5 rounded-lg border border-border-subtle bg-white dark:bg-[#111d17] text-xs font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:font-body placeholder:normal-case placeholder:text-gray-400 text-on-surface"
+                        >
+                      </div>
+                      <button 
+                        type="button" 
+                        @click="verifyPackageCodeManual" 
+                        :disabled="isCheckingPackageCode"
+                        class="h-10 px-3.5 sm:px-4 rounded-lg bg-primary hover:bg-primary-container text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-colors shadow-xs cursor-pointer border-none"
+                      >
+                        <i v-if="isCheckingPackageCode" class="ri-loader-4-line animate-spin text-[16px]"></i>
+                        <i v-else class="ri-checkbox-circle-line text-[16px]"></i>
+                        <span>Cek Kode</span>
+                      </button>
+                    </div>
+                    <p v-if="codeVerificationError" class="text-xs text-red-500 font-medium">{{ codeVerificationError }}</p>
+                    <div v-else-if="isAllInFree" class="text-xs text-emerald-dark font-bold flex items-center gap-1.5">
+                      <i class="ri-checkbox-circle-fill text-primary text-[16px]"></i>
+                      <span>Kode Paket Komplit terverifikasi! Biaya pendaftaran cabang ini menjadi Rp 0 (Bebas Biaya).</span>
+                    </div>
+                    <p v-else class="text-[11px] text-on-surface-variant flex items-center gap-1">
+                      <i class="ri-information-line text-[14px] text-primary leading-none"></i>
+                      <span>{{ field.help_text || 'Jika sekolah Anda telah mendaftar Paket Komplit, masukkan kode paket agar pendaftaran cabang ini bebas biaya.' }}</span>
+                    </p>
+                  </div>
+
                   <!-- Type: STANDARD INPUTS (text, number, email, url) -->
                   <div v-else>
                     <input 
@@ -2804,6 +2853,58 @@ onMounted(() => {
                 <span class="text-xs font-bold text-primary bg-emerald-light px-2.5 py-1 rounded-full">
                   Biaya: Rp {{ totalCalculatedFee.toLocaleString('id-ID') }}
                 </span>
+              </div>
+
+              <!-- PILIHAN SKEMA PAKET PENDAFTARAN (SEBELUM METODE PEMBAYARAN) -->
+              <div v-if="formSettings.show_package_type" class="p-3.5 sm:p-4 rounded-xl bg-background/50 border border-border-subtle space-y-2 sm:space-y-2.5">
+                <div class="flex items-center justify-between">
+                  <label class="form-label-aligned">
+                    <i class="ri-price-tag-3-line text-primary"></i>
+                    <span>Pilihan Skema Paket Pendaftaran <span class="text-red-500">*</span></span>
+                  </label>
+                  <span class="text-[11px] text-primary font-semibold bg-emerald-light px-2 py-0.5 rounded-full">Biaya Fleksibel</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                  <!-- Paket Satuan -->
+                  <label 
+                    class="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all"
+                    :class="{ 'border-primary bg-emerald-light/50 shadow-xs ring-1 ring-primary': form.package_type === 'Paket Satuan' }"
+                    @click="setPackageType('Paket Satuan')"
+                  >
+                    <div class="flex items-center gap-2.5">
+                      <input type="radio" name="skema_paket" value="Paket Satuan" :checked="form.package_type === 'Paket Satuan'" class="w-4 h-4 text-primary focus:ring-primary shrink-0">
+                      <div class="text-left">
+                        <div class="flex items-center gap-1.5">
+                          <p class="text-xs sm:text-sm font-bold text-on-surface">Paket Satuan</p>
+                          <span class="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded">Cabang Ini</span>
+                        </div>
+                        <p class="text-xs font-semibold text-primary mt-0.5">Rp {{ baseCompFee.toLocaleString('id-ID') }}</p>
+                        <p class="text-[11px] text-on-surface-variant">Khusus pendaftaran cabang {{ activeComp?.title || 'ini' }}</p>
+                      </div>
+                    </div>
+                    <i class="ri-price-tag-3-line text-primary text-[20px] shrink-0"></i>
+                  </label>
+
+                  <!-- Paket All-In Komplit -->
+                  <label 
+                    class="flex items-center justify-between p-3 sm:p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all"
+                    :class="{ 'border-primary bg-emerald-light/50 shadow-xs ring-1 ring-primary': form.package_type === 'Paket All-In' }"
+                    @click="setPackageType('Paket All-In')"
+                  >
+                    <div class="flex items-center gap-2.5">
+                      <input type="radio" name="skema_paket" value="Paket All-In" :checked="form.package_type === 'Paket All-In'" class="w-4 h-4 text-primary focus:ring-primary shrink-0">
+                      <div class="text-left">
+                        <div class="flex items-center gap-1.5">
+                          <p class="text-xs sm:text-sm font-bold text-on-surface">Paket All-In Komplit</p>
+                          <span class="text-[10px] bg-amber-soft text-amber-dark font-bold px-1.5 py-0.5 rounded">Terlaris</span>
+                        </div>
+                        <p class="text-xs font-semibold text-emerald-dark mt-0.5">Rp {{ Number(pricingSettings?.allin_price || 200000).toLocaleString('id-ID') }}</p>
+                        <p class="text-[11px] text-on-surface-variant">Semua cabang lomba kontingen sekolah</p>
+                      </div>
+                    </div>
+                    <i class="ri-verified-badge-line text-primary text-[20px] shrink-0"></i>
+                  </label>
+                </div>
               </div>
 
               <!-- JIKA BIAYA > 0 (PILIHAN SALURAN PEMBAYARAN) -->

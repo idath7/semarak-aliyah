@@ -1240,7 +1240,6 @@ class AdminPanelController extends Controller
             'mentor_name' => ['mentor_name', 'nama_pendamping', 'nama_guru_pendamping', 'nama_pembina', 'nama_guru_pembina_pendamping', 'nama_pelatih_official'],
             'mentor_wa' => ['mentor_wa', 'nomor_wa', 'whatsapp', 'nomor_whatsapp', 'nomor_whatsapp_pendamping', 'nomor_whatsapp_kontak', 'nomor_whatsapp_pembina', 'no_whatsapp_pelatih_official', 'no_whatsapp_kapten_kontak_tim'],
             'mentor_email' => ['mentor_email', 'contact_email', 'email', 'alamat_email', 'email_pendamping', 'alamat_email_aktif', 'email_kontak', 'alamat_email_resmi_sekolah_pembina'],
-            'allin_code' => ['allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code', 'all_in_code', 'kode_paket_allin'],
         ];
 
         // Find existing field objects matching each mandatory key
@@ -1300,6 +1299,10 @@ class AdminPanelController extends Controller
         foreach ($remainingFields as $rf) {
             if (($rf['type'] ?? '') === 'participant_repeater') {
                 $rf['sub_fields'] = self::normalizeRepeaterSubFields($rf['sub_fields'] ?? null);
+            }
+            $rfName = $rf['name'] ?? '';
+            if (in_array($rfName, ['allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code', 'all_in_code', 'kode_paket_allin'], true)) {
+                $rf['is_mandatory_identity'] = false;
             }
             $clean[] = $rf;
         }
@@ -1679,7 +1682,7 @@ class AdminPanelController extends Controller
                 'max_date' => !empty($f['max_date']) ? (string)$f['max_date'] : null,
                 'date_default' => !empty($f['date_default']) ? (string)$f['date_default'] : null,
                 'conditional_logic' => is_array($f['conditional_logic'] ?? null) ? $f['conditional_logic'] : null,
-                'is_mandatory_identity' => !empty($f['is_mandatory_identity']),
+                'is_mandatory_identity' => in_array($name, ['allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code', 'all_in_code', 'kode_paket_allin'], true) ? false : !empty($f['is_mandatory_identity']),
             ];
         }
 

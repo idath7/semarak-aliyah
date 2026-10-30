@@ -120,19 +120,6 @@ class FormFieldSeeder extends Seeder
                 'max_size_mb' => null,
                 'is_mandatory_identity' => true,
             ],
-            [
-                'id' => 'cf_allin_code',
-                'name' => 'allin_code',
-                'label' => 'Kode Paket Komplit (All-In)',
-                'type' => 'text',
-                'placeholder' => 'Contoh: SA26-XXXXXX (Otomatis jika sekolah terverifikasi All-In)',
-                'help_text' => 'Masukkan kode paket jika sekolah Anda mendaftar Paket Komplit agar pendaftaran cabang mandiri ini bebas biaya (Rp 0).',
-                'required' => false,
-                'options' => [],
-                'allowed_extensions' => [],
-                'max_size_mb' => null,
-                'is_mandatory_identity' => true,
-            ],
         ];
     }
 

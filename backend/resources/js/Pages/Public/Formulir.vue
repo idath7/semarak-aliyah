@@ -2493,7 +2493,7 @@ onMounted(() => {
                   v-if="evaluateCondition(field.conditional_logic, form.custom_fields)" 
                   class="space-y-1.5 transition-all"
                 >
-                  <div class="flex items-center justify-between">
+                  <div v-if="!isAllInCodeField(field)" class="flex items-center justify-between">
                     <label class="form-label-aligned">
                       <i class="ri-file-text-line text-primary"></i>
                       <span>

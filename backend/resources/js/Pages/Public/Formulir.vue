@@ -475,6 +475,40 @@ const subFieldsConfig = computed(() => {
       };
     }
   }
+  // Otomatis sinkronisasi sub-fields sesuai jenis dan kategori cabang lomba aktif
+  const isTeam = activeComp.value?.participant_type === 'tim';
+  const compId = String(activeComp.value?.id || '').toLowerCase();
+  const compTitle = String(activeComp.value?.title || '').toLowerCase();
+
+  if (isTeam) {
+    result.team_name.active = true;
+    result.team_name.required = true;
+    result.captain_option.active = true;
+
+    if (compId === 'mobile-legends') {
+      result.team_name.label = 'Nama Tim / Skuad MLBB';
+      result.custom_id.active = true;
+      result.custom_id.required = true;
+      result.custom_id.label = 'ID Akun MLBB';
+      result.custom_id.placeholder = 'ID Game (Server ID)';
+    } else if (compId.includes('volleyball') || compTitle.includes('voli')) {
+      result.team_name.label = 'Nama Tim Bola Voli';
+      result.custom_id.active = true;
+      result.custom_id.label = 'No. Punggung / Posisi';
+      result.custom_id.placeholder = 'Contoh: 10 / Spiker';
+    } else if (compId === 'albanjari' || compTitle.includes('banjari')) {
+      result.team_name.label = 'Nama Grup Albanjari';
+      result.captain_option.label = 'Tandai Ketua Grup & No. WhatsApp';
+      result.custom_id.active = true;
+      result.custom_id.label = 'Peran / Alat Musik';
+      result.custom_id.placeholder = 'Contoh: Vokal Utama / Terbang 1 / Bass';
+    }
+  } else {
+    result.team_name.active = false;
+    result.captain_option.active = false;
+    result.custom_id.active = false;
+  }
+
   return result;
 });
 
@@ -532,19 +566,58 @@ const otherCustomFields = computed(() => {
   });
 });
 
-// Participant Count Calculation & Bounds
-const minParticipants = computed(() => {
-  if (repeaterField.value && repeaterField.value.min_items) {
-    return Math.max(1, Number(repeaterField.value.min_items));
+// Participant Count Calculation & Bounds (Otomatis Tersinkron dengan Aturan Lomba)
+function getCompetitionParticipantLimits(comp, repeater) {
+  if (!comp) {
+    const min = repeater?.min_items ? Math.max(1, Number(repeater.min_items)) : 1;
+    const max = repeater?.max_items ? Math.max(min, Number(repeater.max_items)) : min;
+    return { min, max };
   }
-  return Math.max(1, Number(activeComp.value?.min_delegates) || 1);
+
+  const isTeam = comp.participant_type === 'tim';
+  const rule = String(comp.participants_rule || '').trim();
+  let max = comp.max_participants ? Number(comp.max_participants) : (isTeam ? 10 : 1);
+  let min = isTeam ? Math.min(max, 5) : 1;
+
+  if (rule) {
+    const matchInti = rule.match(/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*inti/i);
+    const matchCadangan = rule.match(/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*cadangan/i);
+    const matchRange = rule.match(/(\d+)\s*(?:s\.d|sampai|-)\s*(\d+)\s*(?:siswa|orang|pemain|peserta|personel)?/i);
+    const matchMaksimal = rule.match(/maksimal\s*(\d+)\s*(?:siswa|orang|pemain|peserta|personel)?/i);
+
+    if (matchInti) {
+      const main = parseInt(matchInti[1], 10);
+      min = main;
+      const reserve = matchCadangan ? parseInt(matchCadangan[1], 10) : 0;
+      max = main + reserve;
+    } else if (matchRange) {
+      min = parseInt(matchRange[1], 10);
+      max = parseInt(matchRange[2], 10);
+    } else if (matchMaksimal) {
+      max = parseInt(matchMaksimal[1], 10);
+      min = isTeam ? Math.min(max, 5) : 1;
+    }
+  }
+
+  if (repeater?.min_items && Number(repeater.min_items) > 0) {
+    min = Number(repeater.min_items);
+  }
+  if (repeater?.max_items && Number(repeater.max_items) > 0) {
+    max = Number(repeater.max_items);
+  }
+
+  if (min > max) min = max;
+  if (min < 1) min = 1;
+
+  return { min, max };
+}
+
+const minParticipants = computed(() => {
+  return getCompetitionParticipantLimits(activeComp.value, repeaterField.value).min;
 });
 
 const maxParticipants = computed(() => {
-  if (repeaterField.value && repeaterField.value.max_items) {
-    return Math.max(minParticipants.value, Number(repeaterField.value.max_items));
-  }
-  return Math.max(minParticipants.value, Number(activeComp.value?.max_delegates) || minParticipants.value);
+  return getCompetitionParticipantLimits(activeComp.value, repeaterField.value).max;
 });
 
 // Participant Reactive State

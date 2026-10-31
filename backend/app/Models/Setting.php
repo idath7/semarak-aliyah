@@ -129,6 +129,25 @@ class Setting extends Model
         ];
     }
 
+    public static function getPrimaryBankAccount(): array
+    {
+        $accounts = static::getBankAccounts();
+        foreach ($accounts as $acc) {
+            if (!empty($acc['is_primary'])) {
+                return $acc;
+            }
+        }
+        return $accounts[0] ?? [
+            'id' => 'acc-1',
+            'bank_name' => static::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'),
+            'account_number' => static::get('payment_account_number', '7123456789'),
+            'account_holder' => static::get('payment_account_holder', 'Semarak Aliyah'),
+            'is_primary' => true,
+            'is_active' => true,
+            'notes' => 'Rekening Utama Panitia',
+        ];
+    }
+
     /**
      * Save list of bank accounts and sync primary account to legacy keys.
      */

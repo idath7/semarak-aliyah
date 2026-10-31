@@ -784,6 +784,12 @@ class AdminPanelController extends Controller
             'tm_settings' => $updatedTm,
         ]);
 
+        // Auto-synchronize custom_fields repeater with updated competition rules
+        if (is_array($comp->custom_fields) && !empty($comp->custom_fields)) {
+            $comp->custom_fields = self::syncRepeaterWithCompetition($comp->custom_fields, $comp);
+            $comp->save();
+        }
+
         // Sinkronisasi seluruh koordinator lomba (koordinator ke-1, ke-2, ke-3, dst)
         $newCoordUserIds = $comp->getAllCoordinatorUserIds();
         $coordRole = \App\Models\Role::where('name', 'koordinator_lomba')->first();
@@ -1222,6 +1228,110 @@ class AdminPanelController extends Controller
         return $subFields;
     }
 
+    public static function syncRepeaterWithCompetition(array $fields, Competition $comp): array
+    {
+        $isTeam = $comp->participant_type === 'tim';
+        $rule = trim((string)($comp->participants_rule ?? ''));
+        $compId = strtolower((string)$comp->id);
+        $compTitle = strtolower((string)$comp->title);
+
+        $max = (int)($comp->max_participants ?: ($isTeam ? 10 : 1));
+        $min = $isTeam ? min($max, 5) : 1;
+        $main = $max;
+        $reserve = 0;
+
+        if (!empty($rule)) {
+            if (preg_match('/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*inti/i', $rule, $mInti)) {
+                $main = (int)$mInti[1];
+                $min = $main;
+                if (preg_match('/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*cadangan/i', $rule, $mCadangan)) {
+                    $reserve = (int)$mCadangan[1];
+                }
+                $max = $main + $reserve;
+            } elseif (preg_match('/(\d+)\s*(?:s\.d|sampai|-)\s*(\d+)\s*(?:siswa|orang|pemain|peserta|personel)?/i', $rule, $mRange)) {
+                $min = (int)$mRange[1];
+                $max = (int)$mRange[2];
+                $main = $min;
+                $reserve = max(0, $max - $min);
+            } elseif (preg_match('/maksimal\s*(\d+)\s*(?:siswa|orang|pemain|peserta|personel)?/i', $rule, $mMaksimal)) {
+                $max = (int)$mMaksimal[1];
+                if ($isTeam) {
+                    $min = min($max, 5);
+                    $main = $max;
+                    $reserve = 0;
+                } else {
+                    $min = 1;
+                    $main = $max;
+                    $reserve = 0;
+                }
+            }
+        }
+
+        if ($min > $max) $min = $max;
+        if ($min < 1) $min = 1;
+
+        foreach ($fields as &$f) {
+            if (($f['type'] ?? '') === 'participant_repeater') {
+                $f['min_items'] = $min;
+                $f['max_items'] = $max;
+                $f['main_members'] = $main;
+                $f['reserve_members'] = $reserve;
+                $f['name'] = $isTeam ? 'roster_tim' : 'biodata_peserta';
+                $f['auto_synced'] = true;
+                $f['synced_rule'] = $comp->participants_rule;
+
+                if ($isTeam) {
+                    $f['label'] = $compId === 'mobile-legends'
+                        ? "Roster Skuad Tim Mobile Legends ({$main} Inti + {$reserve} Cadangan)"
+                        : (str_contains($compId, 'volleyball')
+                            ? "Roster Skuad Tim Bola Voli ({$main} Inti + {$reserve} Cadangan)"
+                            : "Biodata Personel Grup {$comp->title} (Maksimal {$max} Personel)");
+                } else {
+                    $f['label'] = "Biodata Peserta {$comp->title} (Maksimal {$max} Siswa)";
+                }
+                $f['help_text'] = "Aturan: {$comp->participants_rule} (Minimal {$min}, Maksimal {$max} peserta)";
+
+                if (!isset($f['sub_fields']) || !is_array($f['sub_fields'])) {
+                    $f['sub_fields'] = [];
+                }
+
+                $f['sub_fields']['name'] = array_merge(['active' => true, 'required' => true, 'label' => 'Nama Lengkap Siswa'], $f['sub_fields']['name'] ?? []);
+                $f['sub_fields']['gender'] = array_merge(['active' => true, 'required' => true, 'label' => 'Jenis Kelamin (L/P)'], $f['sub_fields']['gender'] ?? []);
+                $f['sub_fields']['birth_date'] = array_merge(['active' => true, 'required' => false, 'label' => 'Tanggal Lahir Siswa'], $f['sub_fields']['birth_date'] ?? []);
+                $f['sub_fields']['grade'] = array_merge(['active' => true, 'required' => true, 'label' => 'Kelas / Tingkat'], $f['sub_fields']['grade'] ?? []);
+                $f['sub_fields']['nisn'] = array_merge(['active' => true, 'required' => true, 'label' => 'Nomor Induk Siswa Nasional (NISN)'], $f['sub_fields']['nisn'] ?? []);
+                $f['sub_fields']['photo_formal'] = array_merge(['active' => true, 'required' => false, 'label' => 'Pas Foto Formal (3x4)'], $f['sub_fields']['photo_formal'] ?? []);
+
+                if ($isTeam) {
+                    if ($compId === 'mobile-legends') {
+                        $f['sub_fields']['team_name'] = ['active' => true, 'required' => true, 'label' => 'Nama Tim / Skuad MLBB', 'placeholder' => 'Contoh: Garuda Squad / RRQ Reborn'];
+                        $f['sub_fields']['captain_option'] = ['active' => true, 'required' => false, 'label' => 'Tandai Kapten Tim & No. WhatsApp', 'placeholder' => '08xxxxxxxxxx (Untuk koordinasi panitia turnamen)'];
+                        $f['sub_fields']['custom_id'] = ['active' => true, 'required' => true, 'label' => 'ID Akun MLBB', 'placeholder' => 'ID Game (Server ID)'];
+                    } elseif (str_contains($compId, 'volleyball') || str_contains($compTitle, 'voli')) {
+                        $f['sub_fields']['team_name'] = ['active' => true, 'required' => true, 'label' => 'Nama Tim Bola Voli', 'placeholder' => 'Contoh: Spiker Utama / Tim Voli'];
+                        $f['sub_fields']['captain_option'] = ['active' => true, 'required' => false, 'label' => 'Tandai Kapten Tim & No. WhatsApp', 'placeholder' => '08xxxxxxxxxx (Untuk koordinasi kapten voli)'];
+                        $f['sub_fields']['custom_id'] = ['active' => true, 'required' => false, 'label' => 'No. Punggung / Posisi', 'placeholder' => 'Contoh: 10 / Spiker'];
+                    } elseif ($compId === 'albanjari' || str_contains($compTitle, 'banjari')) {
+                        $f['sub_fields']['team_name'] = ['active' => true, 'required' => true, 'label' => 'Nama Grup Albanjari', 'placeholder' => 'Contoh: Syauqul Habib / Al-Fath'];
+                        $f['sub_fields']['captain_option'] = ['active' => true, 'required' => false, 'label' => 'Tandai Ketua Grup & No. WhatsApp', 'placeholder' => '08xxxxxxxxxx (Untuk koordinasi ketua grup banjari)'];
+                        $f['sub_fields']['custom_id'] = ['active' => true, 'required' => false, 'label' => 'Peran / Alat Musik', 'placeholder' => 'Contoh: Vokal Utama / Terbang 1 / Bass'];
+                    } else {
+                        $f['sub_fields']['team_name'] = ['active' => true, 'required' => true, 'label' => 'Nama Tim / Regu', 'placeholder' => 'Contoh: Regu Utama / Tim Kontingen'];
+                        $f['sub_fields']['captain_option'] = ['active' => true, 'required' => false, 'label' => 'Tandai Kapten Tim & No. WhatsApp', 'placeholder' => '08xxxxxxxxxx'];
+                        $f['sub_fields']['custom_id'] = ['active' => true, 'required' => false, 'label' => 'ID Anggota / Nomor', 'placeholder' => ''];
+                    }
+                } else {
+                    $f['sub_fields']['team_name'] = ['active' => false, 'required' => false, 'label' => 'Nama Tim / Skuad'];
+                    $f['sub_fields']['captain_option'] = ['active' => false, 'required' => false, 'label' => 'Tandai Kapten Tim'];
+                    $f['sub_fields']['custom_id'] = ['active' => false, 'required' => false, 'label' => 'ID Siswa / No. Identitas'];
+                }
+            }
+        }
+        unset($f);
+
+        return $fields;
+    }
+
     public static function getMandatoryIdentityFields(): array
     {
         return \Database\Seeders\FormFieldSeeder::getMandatoryIdentityFields();
@@ -1365,7 +1475,7 @@ class AdminPanelController extends Controller
 
         $competitions = Competition::orderBy('id', 'asc')->get();
         foreach ($competitions as $comp) {
-            $comp->custom_fields = self::ensureMandatoryFields($comp->custom_fields ?? []);
+            $comp->custom_fields = self::syncRepeaterWithCompetition(self::ensureMandatoryFields($comp->custom_fields ?? []), $comp);
             $isCoordinated = in_array((string)$comp->id, $coordinatedIds, true);
             $comp->is_coordinated = $isCoordinated;
             $comp->is_form_inactive = $comp->isFormInactive();
@@ -1382,7 +1492,7 @@ class AdminPanelController extends Controller
 
         $selectedComp = $selectedId ? $competitions->firstWhere('id', $selectedId) : $competitions->first();
         if ($selectedComp) {
-            $selectedComp->custom_fields = self::ensureMandatoryFields($selectedComp->custom_fields ?? []);
+            $selectedComp->custom_fields = self::syncRepeaterWithCompetition(self::ensureMandatoryFields($selectedComp->custom_fields ?? []), $selectedComp);
         }
 
         $isCoordinatedSelected = $selectedComp ? in_array((string)$selectedComp->id, $coordinatedIds, true) : false;
@@ -1413,7 +1523,7 @@ class AdminPanelController extends Controller
 
         $competitions = Competition::orderBy('id', 'asc')->get();
         foreach ($competitions as $comp) {
-            $comp->custom_fields = self::ensureMandatoryFields($comp->custom_fields ?? []);
+            $comp->custom_fields = self::syncRepeaterWithCompetition(self::ensureMandatoryFields($comp->custom_fields ?? []), $comp);
             $isCoordinated = in_array((string)$comp->id, $coordinatedIds, true);
             $comp->is_coordinated = $isCoordinated;
             $comp->is_form_inactive = $comp->isFormInactive();
@@ -1421,7 +1531,7 @@ class AdminPanelController extends Controller
         }
 
         $selectedComp = Competition::findOrFail($competitionId);
-        $selectedComp->custom_fields = self::ensureMandatoryFields($selectedComp->custom_fields ?? []);
+        $selectedComp->custom_fields = self::syncRepeaterWithCompetition(self::ensureMandatoryFields($selectedComp->custom_fields ?? []), $selectedComp);
 
         $isCoordinatedSelected = in_array((string)$selectedComp->id, $coordinatedIds, true);
         $isFormInactiveSelected = $selectedComp->isFormInactive();
@@ -1471,6 +1581,7 @@ class AdminPanelController extends Controller
 
         $cleanFields = $this->cleanFormFields($fields);
         $cleanFields = self::ensureMandatoryFields($cleanFields);
+        $cleanFields = self::syncRepeaterWithCompetition($cleanFields, $comp);
 
         $comp->custom_fields = $cleanFields;
         if (is_array($settings)) {
@@ -1543,6 +1654,7 @@ class AdminPanelController extends Controller
         $fields = is_array($presetData) && isset($presetData['fields']) ? $presetData['fields'] : $presetData;
         $cleanFields = $this->cleanFormFields($fields);
         $cleanFields = self::ensureMandatoryFields($cleanFields);
+        $cleanFields = self::syncRepeaterWithCompetition($cleanFields, $comp);
         $comp->custom_fields = $cleanFields;
         $comp->save();
 
@@ -1753,7 +1865,11 @@ class AdminPanelController extends Controller
         $sourceId = $request->input('source_competition_id');
         $sourceComp = Competition::findOrFail($sourceId);
 
-        $comp->custom_fields = $sourceComp->custom_fields ?? [];
+        $copiedFields = $sourceComp->custom_fields ?? [];
+        $copiedFields = self::ensureMandatoryFields($copiedFields);
+        $copiedFields = self::syncRepeaterWithCompetition($copiedFields, $comp);
+
+        $comp->custom_fields = $copiedFields;
         $comp->form_settings = $sourceComp->form_settings ?? [];
         $comp->save();
 

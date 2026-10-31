@@ -539,8 +539,7 @@ function initializeData() {
       };
     }
     if (f.type === 'participant_repeater') {
-      if (!f.min_items) f.min_items = 1;
-      f.sub_fields = normalizeSubFields(f.sub_fields);
+      syncWithCompetitionRules(f);
     }
   });
 
@@ -1100,11 +1099,12 @@ function addField(typeObj) {
     }
   };
 
+  if (typeObj.type === 'participant_repeater') {
+    syncWithCompetitionRules(newField);
+    previewValues.value[newField.name + '_count'] = newField.min_items || 1;
+  }
   fields.value.push(newField);
   expandedMap.value[id] = !isDistrictField(newField);
-  if (typeObj.type === 'participant_repeater') {
-    previewValues.value[name + '_count'] = 3;
-  }
   toast.info(`Field "${typeObj.label}" ditambahkan.`);
 }
 
@@ -1476,6 +1476,13 @@ function saveFormFields() {
     toast.info('7 Field Identitas Standar otomatis dilengkapi sebelum penyimpanan.');
   }
 
+  // Pastikan field repeater selalu tersinkron presisi dengan aturan lomba sebelum disimpan
+  fields.value.forEach(f => {
+    if (f.type === 'participant_repeater') {
+      syncWithCompetitionRules(f);
+    }
+  });
+
   // Validation
   for (let i = 0; i < fields.value.length; i++) {
     const f = fields.value[i];
@@ -1716,7 +1723,7 @@ async function resetAllPresetsToDefault() {
   }
 }
 
-function syncWithCompetitionRules(field) {
+function syncWithCompetitionRules(field, isManualRefresh = false) {
   const comp = props.selectedCompetition;
   if (!comp) return;
 
@@ -1733,7 +1740,7 @@ function syncWithCompetitionRules(field) {
   const compCategory = (comp.category || '').toLowerCase();
 
   let max = comp.max_participants ? Number(comp.max_participants) : (isTeam ? 10 : 1);
-  let min = isTeam ? Math.min(max, 3) : 1;
+  let min = isTeam ? Math.min(max, 5) : 1;
   let main = max;
   let reserve = 0;
 
@@ -1777,6 +1784,17 @@ function syncWithCompetitionRules(field) {
   field.max_items = max;
   field.main_members = main;
   field.reserve_members = reserve;
+  field.name = isTeam ? 'roster_tim' : 'biodata_peserta';
+
+  if (isTeam) {
+    field.label = compId === 'mobile-legends'
+      ? `Roster Skuad Tim Mobile Legends (${main} Inti + ${reserve} Cadangan)`
+      : (compId.includes('volleyball')
+        ? `Roster Skuad Tim Bola Voli (${main} Inti + ${reserve} Cadangan)`
+        : `Biodata Personel Grup ${comp.title || 'Banjari'} (Maksimal ${max} Personel)`);
+  } else {
+    field.label = `Biodata Peserta ${comp.title || 'Lomba'} (Maksimal ${max} Siswa)`;
+  }
 
   // Sinkronisasi sub-fields sesuai jenis dan kategori lomba
   if (isTeam) {
@@ -1785,10 +1803,10 @@ function syncWithCompetitionRules(field) {
     field.sub_fields.captain_option.active = true;
 
     if (compId === 'mobile-legends' || compTitle.includes('mobile legends') || compCategory === 'teknologi') {
-      field.sub_fields.team_name.label = 'Nama Tim / Skuad';
+      field.sub_fields.team_name.label = 'Nama Tim / Skuad MLBB';
       field.sub_fields.team_name.placeholder = 'Contoh: Garuda Squad / RRQ Reborn';
       field.sub_fields.custom_id.active = true;
-      field.sub_fields.custom_id.required = false;
+      field.sub_fields.custom_id.required = true;
       field.sub_fields.custom_id.label = 'ID Akun MLBB';
       field.sub_fields.custom_id.placeholder = 'ID Game (Server ID)';
       field.sub_fields.captain_option.label = 'Tandai Kapten Tim & No. WhatsApp';
@@ -1803,7 +1821,7 @@ function syncWithCompetitionRules(field) {
       field.sub_fields.captain_option.label = 'Tandai Kapten Tim & No. WhatsApp';
       field.sub_fields.captain_option.placeholder = '08xxxxxxxxxx (Untuk koordinasi kapten voli)';
     } else if (compId === 'albanjari' || compTitle.includes('banjari') || compCategory === 'keagamaan') {
-      field.sub_fields.team_name.label = 'Nama Grup Banjari';
+      field.sub_fields.team_name.label = 'Nama Grup Albanjari';
       field.sub_fields.team_name.placeholder = 'Contoh: Syauqul Habib / Al-Fath';
       field.sub_fields.custom_id.active = true;
       field.sub_fields.custom_id.required = false;
@@ -1819,20 +1837,17 @@ function syncWithCompetitionRules(field) {
     // Lomba Individu (MIPA, IPS, Storytelling, Singer)
     field.sub_fields.team_name.active = false;
     field.sub_fields.captain_option.active = false;
-    if (field.sub_fields.custom_id && !field.sub_fields.custom_id.label?.toLowerCase().includes('nisn')) {
-      field.sub_fields.custom_id.active = false;
-    }
+    field.sub_fields.custom_id.active = false;
   }
 
   // Update petunjuk pengisian jika ada
   if (comp.participants_rule) {
-    field.help_text = comp.participants_rule;
+    field.help_text = `Aturan: ${comp.participants_rule} (Minimal ${min}, Maksimal ${max} peserta)`;
   }
 
-  isDirty.value = true;
-  toast.success(
-    `Berhasil disinkronkan dengan ${comp.title}: Kuota ${min} s.d ${max} siswa (${main} Inti${reserve ? ' + ' + reserve + ' Cadangan' : ''}). Pengaturan tim & kapten telah disesuaikan.`
-  );
+  if (isManualRefresh) {
+    toast.success(`Pengaturan kuota (${min} s.d ${max} peserta) & roster berhasil disegarkan sesuai aturan resmi lomba!`);
+  }
 }
 
 async function applyPreset(presetKey) {
@@ -3209,8 +3224,8 @@ function setParticipantCountDirect(field, val) {
                           <!-- Sinkronisasi Otomatis dengan Manajemen Lomba -->
                           <div class="mb-3 p-2.5 rounded-3 border bg-body d-flex align-items-center justify-content-between flex-wrap gap-2">
                             <div class="d-flex align-items-center gap-2">
-                              <div class="avatar-xs rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px;">
-                                <i class="ri-refresh-line fs-14"></i>
+                              <div class="avatar-xs rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px;">
+                                <i class="ri-checkbox-circle-fill fs-14"></i>
                               </div>
                               <div>
                                 <div class="fs-11 fw-bold text-dark d-flex align-items-center gap-1.5">
@@ -3218,23 +3233,26 @@ function setParticipantCountDirect(field, val) {
                                   <span class="badge" :class="selectedCompetition?.participant_type === 'tim' ? 'bg-info-subtle text-info' : 'bg-secondary-subtle text-secondary'" style="font-size: 9px;">
                                     {{ selectedCompetition?.participant_type === 'tim' ? 'Tim / Beregu' : 'Individu' }}
                                   </span>
+                                  <span class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1 py-0 px-1.5" style="font-size: 9px;">
+                                    <i class="ri-magic-line"></i> Otomatis Tersinkron
+                                  </span>
                                 </div>
                                 <div class="fs-10 text-muted">
                                   Kapasitas: Maks. {{ selectedCompetition?.max_participants || 1 }} Siswa
                                   <template v-if="selectedCompetition?.participants_rule">
-                                    • Aturan: <strong class="text-warning-emphasis">{{ selectedCompetition?.participants_rule }}</strong>
+                                    • Aturan: <strong class="text-success-emphasis">{{ selectedCompetition?.participants_rule }}</strong>
                                   </template>
                                 </div>
                               </div>
                             </div>
                             <button 
                               type="button" 
-                              class="btn btn-xs btn-primary d-flex align-items-center gap-1 fw-semibold py-1 px-2"
-                              @click="syncWithCompetitionRules(field)"
-                              title="Terapkan kuota peserta, anggota inti & cadangan dari Manajemen Lomba"
+                              class="btn btn-xs btn-outline-success d-flex align-items-center gap-1 fw-semibold py-1 px-2.5 rounded-pill"
+                              @click="syncWithCompetitionRules(field, true)"
+                              title="Segarkan sinkronisasi kuota dari Manajemen Lomba"
                             >
-                              <i class="ri-sync-line"></i>
-                              <span>Sinkronkan Pengaturan Lomba</span>
+                              <i class="ri-refresh-line"></i>
+                              <span>Segarkan Kuota</span>
                             </button>
                           </div>
 

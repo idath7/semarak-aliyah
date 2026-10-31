@@ -481,5 +481,13 @@ class FormFieldSeeder extends Seeder
         Competition::whereNull('custom_fields')->orWhere('custom_fields', '[]')->update([
             'custom_fields' => $presets['umum']
         ]);
+
+        // 7. Calibrate all competitions so repeater fields 100% align with competition rules
+        foreach (Competition::all() as $comp) {
+            if (is_array($comp->custom_fields) && !empty($comp->custom_fields)) {
+                $comp->custom_fields = \App\Http\Controllers\AdminPanelController::syncRepeaterWithCompetition($comp->custom_fields, $comp);
+                $comp->save();
+            }
+        }
     }
 }

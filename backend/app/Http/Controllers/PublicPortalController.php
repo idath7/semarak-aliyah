@@ -146,7 +146,7 @@ class PublicPortalController extends Controller
         }
 
         $bankAccounts = Setting::getBankAccounts();
-        $primaryAccount = collect($bankAccounts)->firstWhere('is_primary', true) ?? ($bankAccounts[0] ?? null);
+        $primaryAccount = Setting::getPrimaryBankAccount();
 
         $pricingSettings = [
             'allin_is_active' => Setting::get('package_allin_is_active', '1') === '1',
@@ -248,7 +248,7 @@ class PublicPortalController extends Controller
         ));
     }
 
-    public function register(?string $competition = null, Request $request = null)
+    public function register(?string $competition = null, ?Request $request = null)
     {
         $request = $request ?: request();
         $isLoginRequired = Setting::get('registration_login_required', '0') === '1';
@@ -279,6 +279,11 @@ class PublicPortalController extends Controller
         }
 
         $competitions = Competition::orderBy('id')->get();
+        foreach ($competitions as $c) {
+            if (is_array($c->custom_fields) && !empty($c->custom_fields)) {
+                $c->custom_fields = \App\Http\Controllers\AdminPanelController::syncRepeaterWithCompetition($c->custom_fields, $c);
+            }
+        }
         $preselectedLomba = $lomba;
 
         $sumCompFees = (int)Competition::sum('fee');
@@ -289,7 +294,7 @@ class PublicPortalController extends Controller
         }
 
         $bankAccounts = Setting::getBankAccounts();
-        $primaryAccount = collect($bankAccounts)->firstWhere('is_primary', true) ?? ($bankAccounts[0] ?? null);
+        $primaryAccount = Setting::getPrimaryBankAccount();
 
         $pricingSettings = [
             'allin_is_active' => Setting::get('package_allin_is_active', '1') === '1',
@@ -336,7 +341,7 @@ class PublicPortalController extends Controller
         ));
     }
 
-    public function formulir(?string $competition = null, Request $request = null)
+    public function formulir(?string $competition = null, ?Request $request = null)
     {
         $request = $request ?: request();
         $isLoginRequired = Setting::get('registration_login_required', '0') === '1';
@@ -358,6 +363,11 @@ class PublicPortalController extends Controller
         }
 
         $competitions = Competition::orderBy('id')->get();
+        foreach ($competitions as $c) {
+            if (is_array($c->custom_fields) && !empty($c->custom_fields)) {
+                $c->custom_fields = \App\Http\Controllers\AdminPanelController::syncRepeaterWithCompetition($c->custom_fields, $c);
+            }
+        }
         $preselectedLomba = $lomba;
 
         $sumCompFees = (int)Competition::sum('fee');
@@ -368,7 +378,7 @@ class PublicPortalController extends Controller
         }
 
         $bankAccounts = Setting::getBankAccounts();
-        $primaryAccount = collect($bankAccounts)->firstWhere('is_primary', true) ?? ($bankAccounts[0] ?? null);
+        $primaryAccount = Setting::getPrimaryBankAccount();
 
         $pricingSettings = [
             'allin_is_active' => Setting::get('package_allin_is_active', '1') === '1',
@@ -1099,7 +1109,7 @@ class PublicPortalController extends Controller
             'registration_status' => $regStatus,
             'payment_status' => $paymentStatus,
             'checkin_status' => 'belum_hadir',
-            'payment_method' => $validated['payment_method'] ?? ('Transfer ' . (collect(Setting::getBankAccounts())->firstWhere('is_primary', true)['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'))),
+            'payment_method' => $validated['payment_method'] ?? ('Transfer ' . (Setting::getPrimaryBankAccount()['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'))),
             'custom_fields' => !empty($processedCustomFields) ? $processedCustomFields : null,
             'file_documents' => !empty($fileDocuments) ? $fileDocuments : null,
         ]);

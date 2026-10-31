@@ -1831,6 +1831,26 @@ p, span, a, label, li, td, th {
     padding-bottom: 9px !important;
 }
 
+/* Compact / Refined Table Header for Form Repeater & Modal Tables */
+.table-manual-repeater thead th {
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    text-transform: uppercase !important;
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+    line-height: 1.25 !important;
+    color: #475569 !important;
+}
+
+[data-bs-theme="dark"] .table-manual-repeater thead th {
+    color: #cbd5e1 !important;
+    background-color: #212529 !important;
+    border-color: #373b3e !important;
+}
+
 /* ==========================================================================
    Text Contrast for Warning Badges & Text (Text Color Only)
    ========================================================================== */

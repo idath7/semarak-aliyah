@@ -2638,8 +2638,8 @@ function printReport() {
                 <div class="card-body p-3">
                   <!-- Tabel Repeater Delegasi Tunggal -->
                   <div class="table-responsive mb-2" style="min-height: 240px;">
-                    <table class="table table-sm table-bordered align-middle mb-0 fs-11">
-                    <thead class="table-light text-uppercase fw-semibold" style="font-size: 10px; letter-spacing: 0.3px;">
+                    <table class="table table-sm table-bordered align-middle mb-0 fs-11 table-manual-repeater">
+                    <thead class="table-light text-uppercase fw-semibold">
                       <tr>
                         <th style="width: 32px;" class="text-center py-2 px-1">#</th>
                         <th style="min-width: 280px; width: 300px;" class="py-2 px-2">
@@ -2873,8 +2873,8 @@ function printReport() {
 
                     <!-- Tabel Repeater untuk Cabang Aktif di All-In -->
                     <div class="table-responsive mb-2" style="min-height: 240px;">
-                      <table class="table table-sm table-bordered align-middle mb-0 fs-11 bg-white">
-                        <thead class="table-light text-uppercase fw-semibold" style="font-size: 10px; letter-spacing: 0.3px;">
+                      <table class="table table-sm table-bordered align-middle mb-0 fs-11 bg-white table-manual-repeater">
+                        <thead class="table-light text-uppercase fw-semibold">
                           <tr>
                             <th style="width: 32px;" class="text-center py-2 px-1">#</th>
                             <th style="min-width: 280px; width: 300px;" class="py-2 px-2">

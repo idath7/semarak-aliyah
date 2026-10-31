@@ -427,6 +427,12 @@ class AdminPanelController extends Controller
             'max_quota.integer' => 'Kapasitas kuota harus berupa angka bilangan bulat.',
             'max_quota.min' => 'Kapasitas kuota minimal adalah 1 delegasi.',
             'participant_type.in' => 'Aturan peserta harus berupa pilihan Individu atau Tim/Regu.',
+            'max_teams.integer' => 'Jumlah maksimal tim harus berupa bilangan bulat.',
+            'max_teams.min' => 'Jumlah maksimal tim minimal 1 tim.',
+            'min_participants.integer' => 'Jumlah minimal anggota harus berupa bilangan bulat.',
+            'min_participants.min' => 'Jumlah minimal anggota minimal 1 orang.',
+            'reserve_participants.integer' => 'Jumlah pemain cadangan harus berupa bilangan bulat.',
+            'reserve_participants.min' => 'Jumlah pemain cadangan minimal 0 orang.',
             'max_participants.integer' => 'Jumlah maksimal peserta harus berupa bilangan bulat.',
             'max_participants.min' => 'Jumlah maksimal peserta minimal 1 orang.',
             'registration_deadline.max' => 'Tanggal tutup pendaftaran tidak boleh melebihi 100 karakter.',
@@ -441,6 +447,7 @@ class AdminPanelController extends Controller
             'participant_type' => 'nullable|in:individu,tim',
             'max_teams' => 'nullable|integer|min:1',
             'min_participants' => 'nullable|integer|min:1',
+            'reserve_participants' => 'nullable|integer|min:0',
             'max_participants' => 'nullable|integer|min:1',
             'registration_deadline' => 'nullable|string|max:100',
             'participants_rule' => 'nullable|string|max:255',
@@ -472,14 +479,29 @@ class AdminPanelController extends Controller
         $maxTeams = (int) ($validated['max_teams'] ?? 1);
         $maxParts = (int) ($validated['max_participants'] ?? ($partType === 'tim' ? 10 : 1));
         $minParts = (int) ($validated['min_participants'] ?? ($partType === 'tim' ? min(5, $maxParts) : 1));
+        $reserveParts = isset($validated['reserve_participants']) && $validated['reserve_participants'] !== '' ? (int)$validated['reserve_participants'] : 0;
+
         if ($minParts > $maxParts) {
             $maxParts = $minParts;
         }
+
+        if ($reserveParts > $maxParts) {
+            return back()->withErrors(['reserve_participants' => 'Jumlah pemain cadangan tidak boleh melebihi maksimal anggota per tim.'])->withInput();
+        }
+
         $partRule = $validated['participants_rule'] ?? '';
         if (empty($partRule)) {
-            $partRule = $partType === 'tim'
-                ? "Tim / Regu (Maks {$maxTeams} Tim) & ({$minParts}-{$maxParts} Anggota per Tim)"
-                : ($minParts === $maxParts ? "Individu ({$maxParts} Peserta)" : "Individu ({$minParts}-{$maxParts} Peserta)");
+            if ($partType === 'tim') {
+                if ($reserveParts > 0) {
+                    $partRule = "{$maxTeams} Tim ({$minParts} Inti + {$reserveParts} Cadangan)";
+                } else if ($minParts === $maxParts) {
+                    $partRule = "{$maxTeams} Tim ({$maxParts} Orang)";
+                } else {
+                    $partRule = "{$maxTeams} Tim ({$minParts}-{$maxParts} Anggota)";
+                }
+            } else {
+                $partRule = $minParts === $maxParts ? "Individu ({$maxParts} Peserta)" : "Individu ({$minParts}-{$maxParts} Peserta)";
+            }
         }
 
         // Format deadline strictly to dd/mm/yyyy
@@ -563,6 +585,7 @@ class AdminPanelController extends Controller
             'direct_registration_template' => $validated['direct_registration_template'] ?? null,
             'participant_type' => $partType,
             'min_participants' => $minParts,
+            'reserve_participants' => $reserveParts,
             'max_teams' => $maxTeams,
             'max_participants' => $maxParts,
             'registration_deadline' => $deadline,
@@ -634,6 +657,10 @@ class AdminPanelController extends Controller
             'participant_type.in' => 'Aturan peserta harus berupa pilihan Individu atau Tim/Regu.',
             'max_teams.integer' => 'Jumlah maksimal tim harus berupa bilangan bulat.',
             'max_teams.min' => 'Jumlah maksimal tim minimal 1 tim.',
+            'min_participants.integer' => 'Jumlah minimal anggota harus berupa bilangan bulat.',
+            'min_participants.min' => 'Jumlah minimal anggota minimal 1 orang.',
+            'reserve_participants.integer' => 'Jumlah pemain cadangan harus berupa bilangan bulat.',
+            'reserve_participants.min' => 'Jumlah pemain cadangan minimal 0 orang.',
             'max_participants.integer' => 'Jumlah maksimal peserta harus berupa bilangan bulat.',
             'max_participants.min' => 'Jumlah maksimal peserta minimal 1 orang.',
             'registration_deadline.max' => 'Tanggal tutup pendaftaran tidak boleh melebihi 100 karakter.',
@@ -647,6 +674,7 @@ class AdminPanelController extends Controller
             'participant_type' => 'nullable|in:individu,tim',
             'max_teams' => 'nullable|integer|min:1',
             'min_participants' => 'nullable|integer|min:1',
+            'reserve_participants' => 'nullable|integer|min:0',
             'max_participants' => 'nullable|integer|min:1',
             'registration_deadline' => 'nullable|string|max:100',
             'participants_rule' => 'nullable|string|max:255',
@@ -669,14 +697,31 @@ class AdminPanelController extends Controller
         $maxTeams = (int) ($validated['max_teams'] ?? ($comp->max_teams ?: 1));
         $maxParts = (int) ($validated['max_participants'] ?? ($comp->max_participants ?: 1));
         $minParts = (int) ($validated['min_participants'] ?? ($comp->min_participants ?: ($partType === 'tim' ? min(5, $maxParts) : 1)));
+        $reserveParts = isset($validated['reserve_participants']) && $validated['reserve_participants'] !== '' 
+            ? (int)$validated['reserve_participants'] 
+            : ($partType === 'tim' ? (int)($comp->reserve_participants ?? 0) : 0);
+
         if ($minParts > $maxParts) {
             $maxParts = $minParts;
         }
+
+        if ($reserveParts > $maxParts) {
+            return back()->withErrors(['reserve_participants' => 'Jumlah pemain cadangan tidak boleh melebihi maksimal anggota per tim.'])->withInput();
+        }
+
         $partRule = $validated['participants_rule'] ?? '';
         if (empty($partRule)) {
-            $partRule = $partType === 'tim'
-                ? "Tim / Regu (Maks {$maxTeams} Tim) & ({$minParts}-{$maxParts} Anggota per Tim)"
-                : ($minParts === $maxParts ? "Individu ({$maxParts} Peserta)" : "Individu ({$minParts}-{$maxParts} Peserta)");
+            if ($partType === 'tim') {
+                if ($reserveParts > 0) {
+                    $partRule = "{$maxTeams} Tim ({$minParts} Inti + {$reserveParts} Cadangan)";
+                } else if ($minParts === $maxParts) {
+                    $partRule = "{$maxTeams} Tim ({$maxParts} Orang)";
+                } else {
+                    $partRule = "{$maxTeams} Tim ({$minParts}-{$maxParts} Anggota)";
+                }
+            } else {
+                $partRule = $minParts === $maxParts ? "Individu ({$maxParts} Peserta)" : "Individu ({$minParts}-{$maxParts} Peserta)";
+            }
         }
 
         // Format deadline strictly to dd/mm/yyyy
@@ -784,6 +829,7 @@ class AdminPanelController extends Controller
             'direct_registration_template' => array_key_exists('direct_registration_template', $validated) ? $validated['direct_registration_template'] : $comp->direct_registration_template,
             'participant_type' => $partType,
             'min_participants' => $minParts,
+            'reserve_participants' => $reserveParts,
             'max_teams' => $maxTeams,
             'max_participants' => $maxParts,
             'registration_deadline' => $deadline,
@@ -1292,7 +1338,11 @@ class AdminPanelController extends Controller
             $max = (int)$comp->max_participants;
         }
         $main = $min;
-        $reserve = max(0, $max - $min);
+        if (isset($comp->reserve_participants) && $comp->reserve_participants !== null) {
+            $reserve = (int)$comp->reserve_participants;
+        } else {
+            $reserve = max(0, $max - $min);
+        }
 
         if ($min > $max) $min = $max;
         if ($min < 1) $min = 1;

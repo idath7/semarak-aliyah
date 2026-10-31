@@ -633,35 +633,27 @@ function openCreateModal() {
   showCreateModal.value = true;
 }
 
-// Sinkronisasi Anggota Tim (Pemain Inti + Pemain Cadangan = Total Skuad)
-function syncTeamMembers(targetForm) {
-  const min = Math.max(1, Number(targetForm.min_participants || 1));
-  const reserve = Math.max(0, Number(targetForm.reserve_participants || 0));
-  targetForm.min_participants = min;
-  targetForm.reserve_participants = reserve;
-  targetForm.max_participants = min + reserve;
-
+// Generator Saran Teks Aturan Delegasi (Hanya berjalan ketika tombol Saran diklik)
+function applySuggestedTeamRule(targetForm) {
   const teams = targetForm.max_teams || 1;
-  if (reserve > 0) {
-    targetForm.participants_rule = `${teams} Tim (${min} Inti + ${reserve} Cadangan)`;
-  } else {
-    targetForm.participants_rule = `${teams} Tim (${min} Pemain)`;
-  }
-}
+  const min = targetForm.min_participants;
+  const max = targetForm.max_participants;
+  const reserve = Number(targetForm.reserve_participants || 0);
 
-// Sinkronisasi jika Total Skuad diedit langsung
-function onTotalMembersChange(targetForm) {
-  const min = Math.max(1, Number(targetForm.min_participants || 1));
-  const total = Math.max(min, Number(targetForm.max_participants || min));
-  targetForm.max_participants = total;
-  targetForm.reserve_participants = Math.max(0, total - min);
-
-  const teams = targetForm.max_teams || 1;
-  const reserve = targetForm.reserve_participants;
-  if (reserve > 0) {
-    targetForm.participants_rule = `${teams} Tim (${min} Inti + ${reserve} Cadangan)`;
+  if (targetForm.participant_type === 'tim') {
+    if (reserve > 0) {
+      targetForm.participants_rule = `${teams} Tim (${min} Inti + ${reserve} Cadangan)`;
+    } else if (min && max && min === max) {
+      targetForm.participants_rule = `${teams} Tim (${max} Orang)`;
+    } else if (min && max) {
+      targetForm.participants_rule = `${teams} Tim (${min} s.d. ${max} Orang)`;
+    } else {
+      targetForm.participants_rule = `${teams} Tim (${max || 10} Orang)`;
+    }
   } else {
-    targetForm.participants_rule = `${teams} Tim (${min} Pemain)`;
+    targetForm.participants_rule = min === max
+      ? `Maksimal ${max} Siswa per Lembaga`
+      : `${min} s.d. ${max} Siswa per Lembaga`;
   }
 }
 
@@ -717,6 +709,9 @@ function submitCreate() {
   if (createForm.min_participants && createForm.max_participants && Number(createForm.min_participants) > Number(createForm.max_participants)) {
     createForm.setError('min_participants', 'Jumlah minimal tidak boleh melebihi jumlah maksimal.');
   }
+  if (createForm.reserve_participants && createForm.max_participants && Number(createForm.reserve_participants) > Number(createForm.max_participants)) {
+    createForm.setError('reserve_participants', 'Jumlah pemain cadangan tidak boleh melebihi maksimal anggota per tim.');
+  }
   if (createForm.hasErrors) {
     toast.error('Mohon perbaiki kolom isian yang belum lengkap atau bertanda merah.', 'Periksa Formulir');
     return;
@@ -765,8 +760,10 @@ function openEditModal(comp) {
   editForm.min_participants = comp.min_participants || (detectedType === 'tim' ? 5 : 1);
   editForm.max_participants = comp.max_participants || (detectedType === 'tim' ? 10 : 1);
 
-  let cadangan = Math.max(0, Number(editForm.max_participants) - Number(editForm.min_participants));
-  if (comp.participants_rule) {
+  let cadangan = 0;
+  if (comp.reserve_participants !== undefined && comp.reserve_participants !== null) {
+    cadangan = Number(comp.reserve_participants);
+  } else if (comp.participants_rule) {
     const mCadangan = comp.participants_rule.match(/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*cadangan/i);
     if (mCadangan) {
       cadangan = parseInt(mCadangan[1], 10);
@@ -807,6 +804,9 @@ function submitEdit() {
   }
   if (editForm.min_participants && editForm.max_participants && Number(editForm.min_participants) > Number(editForm.max_participants)) {
     editForm.setError('min_participants', 'Jumlah minimal tidak boleh melebihi jumlah maksimal.');
+  }
+  if (editForm.reserve_participants && editForm.max_participants && Number(editForm.reserve_participants) > Number(editForm.max_participants)) {
+    editForm.setError('reserve_participants', 'Jumlah pemain cadangan tidak boleh melebihi maksimal anggota per tim.');
   }
   if (editForm.hasErrors) {
     toast.error('Mohon perbaiki kolom isian yang belum lengkap atau bertanda merah.', 'Periksa Formulir');
@@ -1731,7 +1731,7 @@ function confirmDelete() {
                           <div 
                             class="p-3 rounded border cursor-pointer h-100 transition-all bg-white"
                             :class="createForm.participant_type === 'tim' ? 'border-info shadow-xs' : 'border-light'"
-                            @click="createForm.participant_type = 'tim'; if(createForm.min_participants < 2) createForm.min_participants = 6; if(!createForm.reserve_participants) createForm.reserve_participants = 4; syncTeamMembers(createForm);"
+                            @click="createForm.participant_type = 'tim'; if(createForm.min_participants < 2) createForm.min_participants = 6; if(!createForm.max_participants || createForm.max_participants < createForm.min_participants) createForm.max_participants = 10;"
                           >
                             <div class="d-flex align-items-center justify-content-between mb-1">
                               <div class="d-flex align-items-center gap-2">
@@ -1842,7 +1842,6 @@ function confirmDelete() {
                                 class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': createForm.errors.max_teams }"
                                 placeholder="1" 
-                                @input="syncTeamMembers(createForm)"
                                 required
                               />
                               <span class="input-group-text fs-12 bg-light px-2.5">Tim</span>
@@ -1853,7 +1852,7 @@ function confirmDelete() {
 
                           <div class="col-6 col-md-3">
                             <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
-                              Pemain Inti (Wajib) *
+                              Minimal Anggota (per Tim) *
                             </label>
                             <div class="input-group">
                               <input 
@@ -1864,18 +1863,17 @@ function confirmDelete() {
                                 class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': createForm.errors.min_participants }"
                                 placeholder="6" 
-                                @input="syncTeamMembers(createForm)"
                                 required
                               />
-                              <span class="input-group-text fs-12 bg-light px-2.5">Pemain</span>
+                              <span class="input-group-text fs-12 bg-light px-2.5">Orang</span>
                             </div>
                             <div v-if="createForm.errors.min_participants" class="invalid-feedback d-block fs-11">{{ createForm.errors.min_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Jumlah personel minimal pemain inti.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Jumlah minimal anggota tim / pemain inti.</small>
                           </div>
 
                           <div class="col-6 col-md-3">
                             <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
-                              Pemain Cadangan (Opsional)
+                              Pemain Cadangan (Maksimal)
                             </label>
                             <div class="input-group">
                               <input 
@@ -1884,17 +1882,18 @@ function confirmDelete() {
                                 min="0" 
                                 max="50"
                                 class="form-control fs-13 text-center fw-bold" 
-                                placeholder="4" 
-                                @input="syncTeamMembers(createForm)"
+                                :class="{ 'is-invalid': createForm.errors.reserve_participants }"
+                                placeholder="0" 
                               />
-                              <span class="input-group-text fs-12 bg-light px-2.5">Pemain</span>
+                              <span class="input-group-text fs-12 bg-light px-2.5">Orang</span>
                             </div>
-                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Kapasitas personel cadangan tim.</small>
+                            <div v-if="createForm.errors.reserve_participants" class="invalid-feedback d-block fs-11">{{ createForm.errors.reserve_participants }}</div>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas pemain cadangan jika ada (isi 0 jika tanpa cadangan).</small>
                           </div>
 
                           <div class="col-6 col-md-3">
                             <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
-                              Total Skuad (Maksimal) *
+                              Maksimal Anggota (per Tim) *
                             </label>
                             <div class="input-group">
                               <input 
@@ -1905,13 +1904,12 @@ function confirmDelete() {
                                 class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': createForm.errors.max_participants }"
                                 placeholder="10" 
-                                @input="onTotalMembersChange(createForm)"
                                 required
                               />
-                              <span class="input-group-text fs-12 bg-light px-2.5">Pemain</span>
+                              <span class="input-group-text fs-12 bg-light px-2.5">Orang</span>
                             </div>
                             <div v-if="createForm.errors.max_participants" class="invalid-feedback d-block fs-11">{{ createForm.errors.max_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Total kapasitas tim (Inti + Cadangan).</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas maksimal seluruh anggota tim yang didaftarkan.</small>
                           </div>
 
                           <!-- Baris 2: Keterangan Aturan Delegasi (Lebar Penuh) -->
@@ -1923,7 +1921,7 @@ function confirmDelete() {
                               <button 
                                 type="button" 
                                 class="btn btn-link btn-sm p-0 fs-11 text-decoration-none text-primary"
-                                @click="syncTeamMembers(createForm)"
+                                @click="applySuggestedTeamRule(createForm)"
                               >
                                 <i class="ri-magic-line me-0.5"></i> Gunakan Saran Teks
                               </button>
@@ -2409,7 +2407,7 @@ function confirmDelete() {
                           <div 
                             class="p-3 rounded border cursor-pointer h-100 transition-all bg-white"
                             :class="editForm.participant_type === 'tim' ? 'border-info shadow-xs' : 'border-light'"
-                            @click="editForm.participant_type = 'tim'; if(editForm.min_participants < 2) editForm.min_participants = 6; if(!editForm.reserve_participants) editForm.reserve_participants = 4; syncTeamMembers(editForm);"
+                            @click="editForm.participant_type = 'tim'; if(editForm.min_participants < 2) editForm.min_participants = 6; if(!editForm.max_participants || editForm.max_participants < editForm.min_participants) editForm.max_participants = 10;"
                           >
                             <div class="d-flex align-items-center justify-content-between mb-1">
                               <div class="d-flex align-items-center gap-2">
@@ -2520,7 +2518,6 @@ function confirmDelete() {
                                 class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': editForm.errors.max_teams }"
                                 placeholder="1" 
-                                @input="syncTeamMembers(editForm)"
                                 required
                               />
                               <span class="input-group-text fs-12 bg-light px-2.5">Tim</span>
@@ -2531,7 +2528,7 @@ function confirmDelete() {
 
                           <div class="col-6 col-md-3">
                             <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
-                              Pemain Inti (Wajib) *
+                              Minimal Anggota (per Tim) *
                             </label>
                             <div class="input-group">
                               <input 
@@ -2542,18 +2539,17 @@ function confirmDelete() {
                                 class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': editForm.errors.min_participants }"
                                 placeholder="6" 
-                                @input="syncTeamMembers(editForm)"
                                 required
                               />
-                              <span class="input-group-text fs-12 bg-light px-2.5">Pemain</span>
+                              <span class="input-group-text fs-12 bg-light px-2.5">Orang</span>
                             </div>
                             <div v-if="editForm.errors.min_participants" class="invalid-feedback d-block fs-11">{{ editForm.errors.min_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Jumlah personel minimal pemain inti.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Jumlah minimal anggota tim / pemain inti.</small>
                           </div>
 
                           <div class="col-6 col-md-3">
                             <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
-                              Pemain Cadangan (Opsional)
+                              Pemain Cadangan (Maksimal)
                             </label>
                             <div class="input-group">
                               <input 
@@ -2562,17 +2558,18 @@ function confirmDelete() {
                                 min="0" 
                                 max="50"
                                 class="form-control fs-13 text-center fw-bold" 
-                                placeholder="4" 
-                                @input="syncTeamMembers(editForm)"
+                                :class="{ 'is-invalid': editForm.errors.reserve_participants }"
+                                placeholder="0" 
                               />
-                              <span class="input-group-text fs-12 bg-light px-2.5">Pemain</span>
+                              <span class="input-group-text fs-12 bg-light px-2.5">Orang</span>
                             </div>
-                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Kapasitas personel cadangan tim.</small>
+                            <div v-if="editForm.errors.reserve_participants" class="invalid-feedback d-block fs-11">{{ editForm.errors.reserve_participants }}</div>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas pemain cadangan jika ada (isi 0 jika tanpa cadangan).</small>
                           </div>
 
                           <div class="col-6 col-md-3">
                             <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
-                              Total Skuad (Maksimal) *
+                              Maksimal Anggota (per Tim) *
                             </label>
                             <div class="input-group">
                               <input 
@@ -2583,13 +2580,12 @@ function confirmDelete() {
                                 class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': editForm.errors.max_participants }"
                                 placeholder="10" 
-                                @input="onTotalMembersChange(editForm)"
                                 required
                               />
-                              <span class="input-group-text fs-12 bg-light px-2.5">Pemain</span>
+                              <span class="input-group-text fs-12 bg-light px-2.5">Orang</span>
                             </div>
                             <div v-if="editForm.errors.max_participants" class="invalid-feedback d-block fs-11">{{ editForm.errors.max_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Total kapasitas tim (Inti + Cadangan).</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas maksimal seluruh anggota tim yang didaftarkan.</small>
                           </div>
 
                           <!-- Baris 2: Keterangan Aturan Delegasi (Lebar Penuh) -->
@@ -2601,7 +2597,7 @@ function confirmDelete() {
                               <button 
                                 type="button" 
                                 class="btn btn-link btn-sm p-0 fs-11 text-decoration-none text-primary"
-                                @click="syncTeamMembers(editForm)"
+                                @click="applySuggestedTeamRule(editForm)"
                               >
                                 <i class="ri-magic-line me-0.5"></i> Gunakan Saran Teks
                               </button>

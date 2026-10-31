@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+import IndoDatePicker from '@/Components/IndoDatePicker.vue';
 import { useToast } from '@/Composables/useToast';
 import { useConfirmDialog } from '@/Composables/useConfirmDialog';
 
@@ -9,11 +10,13 @@ const props = defineProps({
   competitions: { type: Array, default: () => [] },
   masterSchools: { type: Array, default: () => [] },
   packageAllinPrice: { type: Number, default: 200000 },
+  bankAccounts: { type: Array, default: () => [] },
   prefilledSchool: { type: Object, default: null },
 });
 
 const emit = defineEmits(['update:show', 'saved']);
 
+const page = usePage();
 const toast = useToast();
 const { confirm: confirmDialog } = useConfirmDialog();
 
@@ -48,13 +51,37 @@ const manualPaymentStatusOptions = [
   { value: 'Belum Bayar', label: 'Belum Bayar (Pending)' },
 ];
 
-const manualPaymentMethodOptions = [
-  { value: 'Tunai di Meja Panitia', label: 'Tunai / Cash (Meja Panitia)' },
-  { value: 'Transfer Bank BSI', label: 'Transfer Bank BSI (444.777.2026 a.n. SEMARAK)' },
-  { value: 'Transfer Bank Mandiri', label: 'Transfer Bank Mandiri' },
-  { value: 'QRIS Dinamis', label: 'QRIS Semarak Aliyah' },
-  { value: 'Lainnya', label: 'Metode Pembayaran Lainnya' },
-];
+const manualPaymentMethodOptions = computed(() => {
+  const options = [
+    { value: 'Tunai di Meja Panitia', label: 'Tunai / Cash (Meja Panitia)' }
+  ];
+
+  const bankAccounts = props.bankAccounts?.length 
+    ? props.bankAccounts 
+    : (page?.props?.paymentBankAccounts || []);
+
+  const activeBanks = (bankAccounts || []).filter(b => b.is_active !== false);
+
+  if (activeBanks.length > 0) {
+    activeBanks.forEach(b => {
+      const bankTitle = b.bank_name || 'Bank';
+      const num = b.account_number ? ` (${b.account_number}${b.account_holder ? ' a.n. ' + b.account_holder : ''})` : '';
+      options.push({
+        value: `Transfer ${bankTitle}`,
+        label: `Transfer ${bankTitle}${num}`
+      });
+    });
+  } else {
+    options.push({ value: 'Transfer Bank BSI', label: 'Transfer Bank BSI' });
+  }
+
+  options.push(
+    { value: 'QRIS Semarak Aliyah', label: 'QRIS Semarak Aliyah' },
+    { value: 'Lainnya', label: 'Metode Pembayaran Lainnya' }
+  );
+
+  return options;
+});
 
 const genderOptions = [
   { value: 'Laki-laki', label: 'Laki-laki' },
@@ -152,10 +179,30 @@ function onSchoolNameInput() {
   }
 }
 
+function createEmptyManualDelegate(builder = null) {
+  const customCols = {};
+  if (builder?.sub_fields?.custom_columns && Array.isArray(builder.sub_fields.custom_columns)) {
+    builder.sub_fields.custom_columns.forEach(col => {
+      customCols[col.name || col.label] = '';
+    });
+  }
+  return {
+    name: '',
+    nisn: '',
+    gender: 'Laki-laki',
+    grade: '7',
+    birth_date: '',
+    custom_id: '',
+    wa_number: '',
+    is_captain: false,
+    custom_columns: customCols,
+  };
+}
+
 function initModalData(prefilledSchool = null) {
   manualStep.value = 1;
   manualSingleDelegates.value = [
-    { name: '', nisn: '', gender: 'Laki-laki', grade: '7', is_captain: false }
+    createEmptyManualDelegate(activeManualFormBuilder.value)
   ];
   manualAllInDelegates.value = {};
 
@@ -288,16 +335,96 @@ function goToManualStep(targetStep) {
 
     if (manualForm.value.package_type === 'Paket Satuan') {
       if (!manualSingleDelegates.value || manualSingleDelegates.value.length === 0) {
-        manualSingleDelegates.value = [{ name: '', nisn: '', gender: 'Laki-laki', grade: '7', is_captain: false }];
+        manualSingleDelegates.value = [createEmptyManualDelegate(activeManualFormBuilder.value)];
       }
     } else {
       manualForm.value.competition_ids.forEach(cId => {
         if (!manualAllInDelegates.value[cId] || manualAllInDelegates.value[cId].length === 0) {
-          manualAllInDelegates.value[cId] = [{ name: '', nisn: '', gender: 'Laki-laki', grade: '7', is_captain: false }];
+          manualAllInDelegates.value[cId] = [createEmptyManualDelegate(getAllInBuilder(cId))];
         }
       });
       if (!activeAllInTab.value || !manualForm.value.competition_ids.includes(activeAllInTab.value)) {
         activeAllInTab.value = manualForm.value.competition_ids[0] || null;
+      }
+    }
+  }
+
+  // Validasi sebelum melangkah ke Langkah 3 (Pembayaran)
+  if (targetStep === 3) {
+    if (manualForm.value.package_type === 'Paket Satuan') {
+      const rules = activeManualFormBuilder.value;
+      if (rules && rules.sub_fields) {
+        for (let i = 0; i < manualSingleDelegates.value.length; i++) {
+          const st = manualSingleDelegates.value[i];
+          if (st.name && st.name.trim()) {
+            if (rules.sub_fields.nisn?.active && rules.sub_fields.nisn?.required && !st.nisn?.trim()) {
+              toast.warning(`NISN untuk siswa "${st.name}" wajib diisi!`, 'NISN Wajib Diisi');
+              return;
+            }
+            if (rules.sub_fields.birth_date?.active && rules.sub_fields.birth_date?.required && !st.birth_date?.trim()) {
+              toast.warning(`Tanggal lahir untuk siswa "${st.name}" wajib diisi!`, 'Tanggal Lahir Wajib');
+              return;
+            }
+            if (rules.sub_fields.custom_id?.active && rules.sub_fields.custom_id?.required && !st.custom_id?.trim()) {
+              toast.warning(`${rules.sub_fields.custom_id.label} untuk siswa "${st.name}" wajib diisi!`, `${rules.sub_fields.custom_id.label} Wajib`);
+              return;
+            }
+            if (rules.sub_fields.wa_number?.active && rules.sub_fields.wa_number?.required && !st.wa_number?.trim()) {
+              toast.warning(`Nomor WhatsApp untuk siswa "${st.name}" wajib diisi!`, 'No. WA Wajib');
+              return;
+            }
+            if (rules.sub_fields.custom_columns?.length) {
+              for (const col of rules.sub_fields.custom_columns) {
+                if (col.required && (!st.custom_columns || !st.custom_columns[col.name || col.label]?.trim())) {
+                  toast.warning(`${col.label || col.name} untuk siswa "${st.name}" wajib diisi!`, `${col.label || col.name} Wajib`);
+                  return;
+                }
+              }
+            }
+          }
+        }
+      }
+    } else {
+      // Paket All-In
+      for (const cId of manualForm.value.competition_ids) {
+        const rules = getAllInBuilder(cId);
+        const delegates = manualAllInDelegates.value[cId] || [];
+        if (rules && rules.sub_fields) {
+          for (let i = 0; i < delegates.length; i++) {
+            const st = delegates[i];
+            if (st.name && st.name.trim()) {
+              if (rules.sub_fields.nisn?.active && rules.sub_fields.nisn?.required && !st.nisn?.trim()) {
+                toast.warning(`[${rules.comp?.title}] NISN untuk siswa "${st.name}" wajib diisi!`, 'NISN Wajib Diisi');
+                activeAllInTab.value = cId;
+                return;
+              }
+              if (rules.sub_fields.birth_date?.active && rules.sub_fields.birth_date?.required && !st.birth_date?.trim()) {
+                toast.warning(`[${rules.comp?.title}] Tanggal lahir untuk siswa "${st.name}" wajib diisi!`, 'Tanggal Lahir Wajib');
+                activeAllInTab.value = cId;
+                return;
+              }
+              if (rules.sub_fields.custom_id?.active && rules.sub_fields.custom_id?.required && !st.custom_id?.trim()) {
+                toast.warning(`[${rules.comp?.title}] ${rules.sub_fields.custom_id.label} untuk siswa "${st.name}" wajib diisi!`, `${rules.sub_fields.custom_id.label} Wajib`);
+                activeAllInTab.value = cId;
+                return;
+              }
+              if (rules.sub_fields.wa_number?.active && rules.sub_fields.wa_number?.required && !st.wa_number?.trim()) {
+                toast.warning(`[${rules.comp?.title}] Nomor WhatsApp untuk siswa "${st.name}" wajib diisi!`, 'No. WA Wajib');
+                activeAllInTab.value = cId;
+                return;
+              }
+              if (rules.sub_fields.custom_columns?.length) {
+                for (const col of rules.sub_fields.custom_columns) {
+                  if (col.required && (!st.custom_columns || !st.custom_columns[col.name || col.label]?.trim())) {
+                    toast.warning(`[${rules.comp?.title}] ${col.label || col.name} untuk siswa "${st.name}" wajib diisi!`, `${col.label || col.name} Wajib`);
+                    activeAllInTab.value = cId;
+                    return;
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -406,11 +533,25 @@ const activeManualFormBuilder = computed(() => {
 
   const minItems = repeater?.min_items ? Number(repeater.min_items) : Math.max(1, Number(comp.min_participants || 1));
   const maxItems = repeater?.max_items ? Number(repeater.max_items) : Math.max(minItems, Number(comp.max_participants || 1));
+  const isTeam = maxItems > 1 || hasTeamName || comp.participant_type === 'team' || comp.participant_type === 'regu' || !!rawSubs.captain_option?.active;
+
+  const subFields = {
+    name: { active: true, required: true, label: rawSubs.name?.label || 'Nama Siswa', placeholder: rawSubs.name?.placeholder || 'Nama lengkap siswa...' },
+    gender: { active: rawSubs.gender?.active !== false, required: rawSubs.gender?.required !== false, label: rawSubs.gender?.label || 'L/P' },
+    grade: { active: rawSubs.grade?.active !== false, required: rawSubs.grade?.required !== false, label: rawSubs.grade?.label || 'Kelas' },
+    nisn: { active: rawSubs.nisn?.active !== false, required: !!rawSubs.nisn?.required, label: rawSubs.nisn?.label || 'NISN', placeholder: rawSubs.nisn?.placeholder || 'NISN...' },
+    birth_date: { active: !!rawSubs.birth_date?.active, required: !!rawSubs.birth_date?.required, label: rawSubs.birth_date?.label || 'Tgl Lahir' },
+    custom_id: { active: !!rawSubs.custom_id?.active, required: !!rawSubs.custom_id?.required, label: rawSubs.custom_id?.label || 'No. Dada / ID Game', placeholder: rawSubs.custom_id?.placeholder || 'ID Peserta / Akun...' },
+    wa_number: { active: !!rawSubs.wa_number?.active, required: !!rawSubs.wa_number?.required, label: rawSubs.wa_number?.label || 'WhatsApp Siswa', placeholder: rawSubs.wa_number?.placeholder || '08xxxxxxxxxx' },
+    captain_option: { active: !!rawSubs.captain_option?.active || isTeam, required: false, label: rawSubs.captain_option?.label || 'Kapten' },
+    custom_columns: Array.isArray(rawSubs.custom_columns) ? rawSubs.custom_columns : [],
+  };
 
   return {
     comp,
     repeater,
     rawSubs,
+    sub_fields: subFields,
     hasTeamName,
     teamLabel,
     teamPlaceholder,
@@ -420,7 +561,7 @@ const activeManualFormBuilder = computed(() => {
     otherFields,
     minItems,
     maxItems,
-    isTeam: maxItems > 1 || hasTeamName || comp.participant_type === 'team' || comp.participant_type === 'regu',
+    isTeam,
   };
 });
 
@@ -444,14 +585,14 @@ function addSingleDelegate() {
     toast.warning(`Maksimal peserta untuk cabang ini adalah ${max} siswa.`, 'Batas Kuota');
     return;
   }
-  manualSingleDelegates.value.push({ name: '', nisn: '', gender: 'Laki-laki', grade: '7', is_captain: false });
+  manualSingleDelegates.value.push(createEmptyManualDelegate(activeManualFormBuilder.value));
 }
 
 function removeSingleDelegate(idx) {
   if (manualSingleDelegates.value.length > 1) {
     manualSingleDelegates.value.splice(idx, 1);
   } else {
-    manualSingleDelegates.value[0] = { name: '', nisn: '', gender: 'Laki-laki', grade: '7', is_captain: false };
+    manualSingleDelegates.value[0] = createEmptyManualDelegate(activeManualFormBuilder.value);
   }
 }
 
@@ -468,14 +609,47 @@ function getAllInComp(cId) {
 
 function getAllInBuilder(cId) {
   const comp = getAllInComp(cId);
-  if (!comp) return { minItems: 1, maxItems: 1, isTeam: false, teamLabel: 'Tim' };
+  if (!comp) {
+    return {
+      comp: null,
+      minItems: 1,
+      maxItems: 1,
+      isTeam: false,
+      teamLabel: 'Tim',
+      rawSubs: {},
+      sub_fields: {
+        name: { active: true, required: true, label: 'Nama Siswa', placeholder: 'Nama lengkap siswa...' },
+        gender: { active: true, required: true, label: 'L/P' },
+        grade: { active: true, required: true, label: 'Kelas' },
+        nisn: { active: true, required: false, label: 'NISN', placeholder: 'NISN...' },
+        birth_date: { active: false, required: false, label: 'Tgl Lahir' },
+        custom_id: { active: false, required: false, label: 'No. Dada / ID Game', placeholder: 'ID...' },
+        wa_number: { active: false, required: false, label: 'WhatsApp', placeholder: '08...' },
+        captain_option: { active: false, required: false, label: 'Kapten' },
+        custom_columns: [],
+      }
+    };
+  }
   const customFields = Array.isArray(comp.custom_fields) ? comp.custom_fields : [];
   const repeater = customFields.find(f => f.type === 'participant_repeater');
   const rawSubs = repeater?.sub_fields || {};
   const minItems = repeater?.min_items ? Number(repeater.min_items) : Math.max(1, Number(comp.min_participants || 1));
   const maxItems = repeater?.max_items ? Number(repeater.max_items) : Math.max(minItems, Number(comp.max_participants || 1));
-  const isTeam = maxItems > 1 || comp.participant_type === 'team' || comp.participant_type === 'regu';
-  return { comp, minItems, maxItems, isTeam, rawSubs };
+  const isTeam = maxItems > 1 || comp.participant_type === 'team' || comp.participant_type === 'regu' || !!rawSubs.captain_option?.active;
+
+  const subFields = {
+    name: { active: true, required: true, label: rawSubs.name?.label || 'Nama Siswa', placeholder: rawSubs.name?.placeholder || 'Nama lengkap siswa...' },
+    gender: { active: rawSubs.gender?.active !== false, required: rawSubs.gender?.required !== false, label: rawSubs.gender?.label || 'L/P' },
+    grade: { active: rawSubs.grade?.active !== false, required: rawSubs.grade?.required !== false, label: rawSubs.grade?.label || 'Kelas' },
+    nisn: { active: rawSubs.nisn?.active !== false, required: !!rawSubs.nisn?.required, label: rawSubs.nisn?.label || 'NISN', placeholder: rawSubs.nisn?.placeholder || 'NISN...' },
+    birth_date: { active: !!rawSubs.birth_date?.active, required: !!rawSubs.birth_date?.required, label: rawSubs.birth_date?.label || 'Tgl Lahir' },
+    custom_id: { active: !!rawSubs.custom_id?.active, required: !!rawSubs.custom_id?.required, label: rawSubs.custom_id?.label || 'No. Dada / ID Game', placeholder: rawSubs.custom_id?.placeholder || 'ID Peserta / Akun...' },
+    wa_number: { active: !!rawSubs.wa_number?.active, required: !!rawSubs.wa_number?.required, label: rawSubs.wa_number?.label || 'WhatsApp Siswa', placeholder: rawSubs.wa_number?.placeholder || '08xxxxxxxxxx' },
+    captain_option: { active: !!rawSubs.captain_option?.active || isTeam, required: false, label: rawSubs.captain_option?.label || 'Kapten' },
+    custom_columns: Array.isArray(rawSubs.custom_columns) ? rawSubs.custom_columns : [],
+  };
+
+  return { comp, minItems, maxItems, isTeam, rawSubs, sub_fields: subFields };
 }
 
 function addAllInDelegate(cId) {
@@ -487,14 +661,15 @@ function addAllInDelegate(cId) {
     toast.warning(`Maksimal peserta untuk cabang ${builder.comp?.title} adalah ${builder.maxItems} siswa.`, 'Batas Kuota');
     return;
   }
-  manualAllInDelegates.value[cId].push({ name: '', nisn: '', gender: 'Laki-laki', grade: '7', is_captain: false });
+  manualAllInDelegates.value[cId].push(createEmptyManualDelegate(builder));
 }
 
 function removeAllInDelegate(cId, idx) {
+  const builder = getAllInBuilder(cId);
   if (manualAllInDelegates.value[cId] && manualAllInDelegates.value[cId].length > 1) {
     manualAllInDelegates.value[cId].splice(idx, 1);
   } else if (manualAllInDelegates.value[cId]) {
-    manualAllInDelegates.value[cId][0] = { name: '', nisn: '', gender: 'Laki-laki', grade: '7', is_captain: false };
+    manualAllInDelegates.value[cId][0] = createEmptyManualDelegate(builder);
   }
 }
 
@@ -1094,16 +1269,51 @@ async function submitManualRegistration(saveMode = 'final') {
               </div>
 
               <div class="card-body p-3">
+                <!-- Tabel Repeater Delegasi Tunggal -->
                 <div class="table-responsive mb-2">
                   <table class="table table-sm table-bordered align-middle mb-0 fs-11">
                     <thead class="table-light">
                       <tr>
-                        <th style="width: 30px;" class="text-center">#</th>
-                        <th style="min-width: 140px;">Nama Siswa <span class="text-danger">*</span></th>
-                        <th style="width: 95px;">NISN</th>
-                        <th style="width: 110px;">L/P</th>
-                        <th style="width: 110px;">Kelas</th>
-                        <th v-if="activeManualFormBuilder?.isTeam" style="width: 70px;" class="text-center">Kapten</th>
+                        <th style="width: 32px;" class="text-center">#</th>
+                        <th style="min-width: 140px;">
+                          {{ activeManualFormBuilder?.sub_fields?.name?.label || 'Nama Siswa' }}
+                          <span class="text-danger">*</span>
+                        </th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.nisn?.active" style="width: 110px;">
+                          {{ activeManualFormBuilder?.sub_fields?.nisn?.label || 'NISN' }}
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.nisn?.required">*</span>
+                        </th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.gender?.active" style="width: 110px;">
+                          {{ activeManualFormBuilder?.sub_fields?.gender?.label || 'L/P' }}
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.gender?.required">*</span>
+                        </th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.grade?.active" style="width: 110px;">
+                          {{ activeManualFormBuilder?.sub_fields?.grade?.label || 'Kelas' }}
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.grade?.required">*</span>
+                        </th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.birth_date?.active" style="width: 125px;">
+                          {{ activeManualFormBuilder?.sub_fields?.birth_date?.label || 'Tgl Lahir' }}
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.birth_date?.required">*</span>
+                        </th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.custom_id?.active" style="min-width: 130px;">
+                          {{ activeManualFormBuilder?.sub_fields?.custom_id?.label || 'No. Dada / ID' }}
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.custom_id?.required">*</span>
+                        </th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.wa_number?.active" style="width: 120px;">
+                          {{ activeManualFormBuilder?.sub_fields?.wa_number?.label || 'No. WA' }}
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.wa_number?.required">*</span>
+                        </th>
+                        <template v-if="activeManualFormBuilder?.sub_fields?.custom_columns?.length">
+                          <th 
+                            v-for="(col, cIdx) in activeManualFormBuilder.sub_fields.custom_columns" 
+                            :key="col.id || col.name || cIdx"
+                            style="min-width: 120px;"
+                          >
+                            {{ col.label || col.name }}
+                            <span class="text-danger" v-if="col.required">*</span>
+                          </th>
+                        </template>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active || activeManualFormBuilder?.isTeam" style="width: 60px;" class="text-center">Kapten</th>
                         <th style="width: 35px;" class="text-center">Hapus</th>
                       </tr>
                     </thead>
@@ -1115,32 +1325,78 @@ async function submitManualRegistration(saveMode = 'final') {
                             type="text" 
                             v-model="st.name" 
                             class="form-control form-control-sm fs-11" 
-                            placeholder="Nama lengkap siswa..." 
+                            :placeholder="activeManualFormBuilder?.sub_fields?.name?.placeholder || 'Nama lengkap siswa...'" 
                           />
                         </td>
-                        <td>
+                        <td v-if="activeManualFormBuilder?.sub_fields?.nisn?.active">
                           <input 
                             type="text" 
                             v-model="st.nisn" 
                             class="form-control form-control-sm fs-11 font-monospace" 
-                            placeholder="NISN..." 
+                            :placeholder="activeManualFormBuilder?.sub_fields?.nisn?.placeholder || 'NISN...'" 
                           />
                         </td>
-                        <td>
+                        <td v-if="activeManualFormBuilder?.sub_fields?.gender?.active">
                           <CustomSelect 
                             v-model="st.gender" 
                             :options="genderOptions" 
                             size="sm"
+                            placeholder="Pilih L/P"
                           />
                         </td>
-                        <td>
+                        <td v-if="activeManualFormBuilder?.sub_fields?.grade?.active">
                           <CustomSelect 
                             v-model="st.grade" 
                             :options="gradeOptions" 
                             size="sm"
+                            placeholder="Pilih Kelas"
                           />
                         </td>
-                        <td v-if="activeManualFormBuilder?.isTeam" class="text-center">
+                        <td v-if="activeManualFormBuilder?.sub_fields?.birth_date?.active">
+                          <IndoDatePicker 
+                            v-model="st.birth_date" 
+                            placeholder="dd/mm/yyyy"
+                            inputClass="form-control form-control-sm fs-11 font-monospace"
+                          />
+                        </td>
+                        <td v-if="activeManualFormBuilder?.sub_fields?.custom_id?.active">
+                          <input 
+                            type="text" 
+                            v-model="st.custom_id" 
+                            class="form-control form-control-sm fs-11 font-monospace" 
+                            :placeholder="activeManualFormBuilder?.sub_fields?.custom_id?.placeholder || 'ID Peserta / Akun...'" 
+                          />
+                        </td>
+                        <td v-if="activeManualFormBuilder?.sub_fields?.wa_number?.active">
+                          <input 
+                            type="text" 
+                            v-model="st.wa_number" 
+                            class="form-control form-control-sm fs-11 font-monospace" 
+                            :placeholder="activeManualFormBuilder?.sub_fields?.wa_number?.placeholder || '08xxxxxxxxxx'" 
+                          />
+                        </td>
+                        <template v-if="activeManualFormBuilder?.sub_fields?.custom_columns?.length">
+                          <td 
+                            v-for="(col, cIdx) in activeManualFormBuilder.sub_fields.custom_columns" 
+                            :key="col.id || col.name || cIdx"
+                          >
+                            <CustomSelect 
+                              v-if="col.type === 'select'"
+                              v-model="(st.custom_columns = st.custom_columns || {})[col.name || col.label]"
+                              :options="(col.options || []).map(opt => typeof opt === 'object' ? opt : { value: opt, label: opt })"
+                              size="sm"
+                              :placeholder="col.placeholder || col.label || 'Pilih...'"
+                            />
+                            <input 
+                              v-else
+                              :type="col.type === 'number' ? 'number' : 'text'"
+                              v-model="(st.custom_columns = st.custom_columns || {})[col.name || col.label]"
+                              class="form-control form-control-sm fs-11"
+                              :placeholder="col.placeholder || col.label || 'Isi data...'" 
+                            />
+                          </td>
+                        </template>
+                        <td v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active || activeManualFormBuilder?.isTeam" class="text-center">
                           <button 
                             type="button" 
                             class="btn btn-xs py-0.5 px-1.5"
@@ -1229,16 +1485,51 @@ async function submitManualRegistration(saveMode = 'final') {
                     </span>
                   </div>
 
+                  <!-- Tabel Repeater untuk Cabang Aktif di All-In -->
                   <div class="table-responsive mb-2">
                     <table class="table table-sm table-bordered align-middle mb-0 fs-11 bg-white">
                       <thead class="table-light">
                         <tr>
-                          <th style="width: 30px;" class="text-center">#</th>
-                          <th style="min-width: 140px;">Nama Siswa</th>
-                          <th style="width: 95px;">NISN</th>
-                          <th style="width: 110px;">L/P</th>
-                          <th style="width: 110px;">Kelas</th>
-                          <th v-if="getAllInBuilder(activeAllInTab).isTeam" style="width: 65px;" class="text-center">Kapten</th>
+                          <th style="width: 32px;" class="text-center">#</th>
+                          <th style="min-width: 140px;">
+                            {{ getAllInBuilder(activeAllInTab).sub_fields.name.label || 'Nama Siswa' }}
+                            <span class="text-danger">*</span>
+                          </th>
+                          <th v-if="getAllInBuilder(activeAllInTab).sub_fields.nisn.active" style="width: 110px;">
+                            {{ getAllInBuilder(activeAllInTab).sub_fields.nisn.label || 'NISN' }}
+                            <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.nisn.required">*</span>
+                          </th>
+                          <th v-if="getAllInBuilder(activeAllInTab).sub_fields.gender.active" style="width: 110px;">
+                            {{ getAllInBuilder(activeAllInTab).sub_fields.gender.label || 'L/P' }}
+                            <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.gender.required">*</span>
+                          </th>
+                          <th v-if="getAllInBuilder(activeAllInTab).sub_fields.grade.active" style="width: 110px;">
+                            {{ getAllInBuilder(activeAllInTab).sub_fields.grade.label || 'Kelas' }}
+                            <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.grade.required">*</span>
+                          </th>
+                          <th v-if="getAllInBuilder(activeAllInTab).sub_fields.birth_date.active" style="width: 125px;">
+                            {{ getAllInBuilder(activeAllInTab).sub_fields.birth_date.label || 'Tgl Lahir' }}
+                            <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.birth_date.required">*</span>
+                          </th>
+                          <th v-if="getAllInBuilder(activeAllInTab).sub_fields.custom_id.active" style="min-width: 130px;">
+                            {{ getAllInBuilder(activeAllInTab).sub_fields.custom_id.label || 'No. Dada / ID' }}
+                            <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.custom_id.required">*</span>
+                          </th>
+                          <th v-if="getAllInBuilder(activeAllInTab).sub_fields.wa_number.active" style="width: 120px;">
+                            {{ getAllInBuilder(activeAllInTab).sub_fields.wa_number.label || 'No. WA' }}
+                            <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.wa_number.required">*</span>
+                          </th>
+                          <template v-if="getAllInBuilder(activeAllInTab).sub_fields.custom_columns?.length">
+                            <th 
+                              v-for="(col, cIdx) in getAllInBuilder(activeAllInTab).sub_fields.custom_columns" 
+                              :key="col.id || col.name || cIdx"
+                              style="min-width: 120px;"
+                            >
+                              {{ col.label || col.name }}
+                              <span class="text-danger" v-if="col.required">*</span>
+                            </th>
+                          </template>
+                          <th v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active || getAllInBuilder(activeAllInTab).isTeam" style="width: 60px;" class="text-center">Kapten</th>
                           <th style="width: 35px;" class="text-center">Hapus</th>
                         </tr>
                       </thead>
@@ -1250,32 +1541,78 @@ async function submitManualRegistration(saveMode = 'final') {
                               type="text" 
                               v-model="st.name" 
                               class="form-control form-control-sm fs-11" 
-                              placeholder="Nama siswa..." 
+                              :placeholder="getAllInBuilder(activeAllInTab).sub_fields.name.placeholder || 'Nama siswa...'" 
                             />
                           </td>
-                          <td>
+                          <td v-if="getAllInBuilder(activeAllInTab).sub_fields.nisn.active">
                             <input 
                               type="text" 
                               v-model="st.nisn" 
                               class="form-control form-control-sm fs-11 font-monospace" 
-                              placeholder="NISN..." 
+                              :placeholder="getAllInBuilder(activeAllInTab).sub_fields.nisn.placeholder || 'NISN...'" 
                             />
                           </td>
-                          <td>
+                          <td v-if="getAllInBuilder(activeAllInTab).sub_fields.gender.active">
                             <CustomSelect 
                               v-model="st.gender" 
                               :options="genderOptions" 
                               size="sm"
+                              placeholder="Pilih L/P"
                             />
                           </td>
-                          <td>
+                          <td v-if="getAllInBuilder(activeAllInTab).sub_fields.grade.active">
                             <CustomSelect 
                               v-model="st.grade" 
                               :options="gradeOptions" 
                               size="sm"
+                              placeholder="Pilih Kelas"
                             />
                           </td>
-                          <td v-if="getAllInBuilder(activeAllInTab).isTeam" class="text-center">
+                          <td v-if="getAllInBuilder(activeAllInTab).sub_fields.birth_date.active">
+                            <IndoDatePicker 
+                              v-model="st.birth_date" 
+                              placeholder="dd/mm/yyyy"
+                              inputClass="form-control form-control-sm fs-11 font-monospace"
+                            />
+                          </td>
+                          <td v-if="getAllInBuilder(activeAllInTab).sub_fields.custom_id.active">
+                            <input 
+                              type="text" 
+                              v-model="st.custom_id" 
+                              class="form-control form-control-sm fs-11 font-monospace" 
+                              :placeholder="getAllInBuilder(activeAllInTab).sub_fields.custom_id.placeholder || 'ID Peserta / Akun...'" 
+                            />
+                          </td>
+                          <td v-if="getAllInBuilder(activeAllInTab).sub_fields.wa_number.active">
+                            <input 
+                              type="text" 
+                              v-model="st.wa_number" 
+                              class="form-control form-control-sm fs-11 font-monospace" 
+                              :placeholder="getAllInBuilder(activeAllInTab).sub_fields.wa_number.placeholder || '08xxxxxxxxxx'" 
+                            />
+                          </td>
+                          <template v-if="getAllInBuilder(activeAllInTab).sub_fields.custom_columns?.length">
+                            <td 
+                              v-for="(col, cIdx) in getAllInBuilder(activeAllInTab).sub_fields.custom_columns" 
+                              :key="col.id || col.name || cIdx"
+                            >
+                              <CustomSelect 
+                                v-if="col.type === 'select'"
+                                v-model="(st.custom_columns = st.custom_columns || {})[col.name || col.label]"
+                                :options="(col.options || []).map(opt => typeof opt === 'object' ? opt : { value: opt, label: opt })"
+                                size="sm"
+                                :placeholder="col.placeholder || col.label || 'Pilih...'"
+                              />
+                              <input 
+                                v-else
+                                :type="col.type === 'number' ? 'number' : 'text'"
+                                v-model="(st.custom_columns = st.custom_columns || {})[col.name || col.label]"
+                                class="form-control form-control-sm fs-11"
+                                :placeholder="col.placeholder || col.label || 'Isi data...'" 
+                              />
+                            </td>
+                          </template>
+                          <td v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active || getAllInBuilder(activeAllInTab).isTeam" class="text-center">
                             <button 
                               type="button" 
                               class="btn btn-xs py-0.5 px-1.5"

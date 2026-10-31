@@ -237,6 +237,7 @@ class AdminPanelController extends Controller
             'competitions' => $competitions,
             'master_schools' => $masterSchools,
             'package_allin_price' => $packageAllinPrice,
+            'bank_accounts' => Setting::getBankAccounts(),
             'stats' => $stats,
             'filters' => $request->only(['search', 'status', 'competition']),
         ]);
@@ -3908,6 +3909,7 @@ class AdminPanelController extends Controller
             'districts' => $districts,
             'all_registered_school_names' => $allRegisteredSchoolNames,
             'package_allin_price' => $packageAllinPrice,
+            'bank_accounts' => Setting::getBankAccounts(),
             'stats' => [
                 'total_schools' => count($grouped),
                 'total_all_in' => $totalAllInSchools,
@@ -3988,14 +3990,20 @@ class AdminPanelController extends Controller
                 $stName = trim($st['name'] ?? '');
                 if (!empty($stName)) {
                     $nisnText = !empty($st['nisn']) && $st['nisn'] !== '-' ? " (NISN: {$st['nisn']})" : "";
+                    $customIdText = !empty($st['custom_id']) && $st['custom_id'] !== '-' ? " [ID: {$st['custom_id']}]" : "";
                     $roleText = !empty($st['is_captain']) ? " [Kapten]" : "";
-                    $namesList[] = ($idx + 1) . ". " . $stName . $roleText . $nisnText;
+                    $namesList[] = ($idx + 1) . ". " . $stName . $roleText . $customIdText . $nisnText;
                     $cleanedStudents[] = [
                         'name' => $stName,
-                        'nisn' => $st['nisn'] ?? '',
                         'gender' => $st['gender'] ?? 'Laki-laki',
                         'grade' => $st['grade'] ?? '7',
+                        'nisn' => $st['nisn'] ?? '',
+                        'birth_date' => $st['birth_date'] ?? '',
+                        'custom_id' => $st['custom_id'] ?? '',
+                        'wa_number' => $st['wa_number'] ?? '',
                         'is_captain' => !empty($st['is_captain']),
+                        'captain_wa' => $st['captain_wa'] ?? '',
+                        'custom_columns' => isset($st['custom_columns']) && is_array($st['custom_columns']) ? $st['custom_columns'] : [],
                     ];
                 }
             }
@@ -4119,10 +4127,15 @@ class AdminPanelController extends Controller
                             if (!empty($stName)) {
                                 $compStudents[] = [
                                     'name' => $stName,
-                                    'nisn' => $st['nisn'] ?? '',
                                     'gender' => $st['gender'] ?? 'Laki-laki',
                                     'grade' => $st['grade'] ?? '7',
+                                    'nisn' => $st['nisn'] ?? '',
+                                    'birth_date' => $st['birth_date'] ?? '',
+                                    'custom_id' => $st['custom_id'] ?? '',
+                                    'wa_number' => $st['wa_number'] ?? '',
                                     'is_captain' => !empty($st['is_captain']),
+                                    'captain_wa' => $st['captain_wa'] ?? '',
+                                    'custom_columns' => isset($st['custom_columns']) && is_array($st['custom_columns']) ? $st['custom_columns'] : [],
                                 ];
                             }
                         }
@@ -4135,14 +4148,20 @@ class AdminPanelController extends Controller
                             $stName = trim($st['name'] ?? '');
                             if (!empty($stName)) {
                                 $nisnText = !empty($st['nisn']) && $st['nisn'] !== '-' ? " (NISN: {$st['nisn']})" : "";
+                                $customIdText = !empty($st['custom_id']) && $st['custom_id'] !== '-' ? " [ID: {$st['custom_id']}]" : "";
                                 $roleText = !empty($st['is_captain']) ? " [Kapten]" : "";
-                                $compNames[] = ($idx + 1) . ". " . $stName . $roleText . $nisnText;
+                                $compNames[] = ($idx + 1) . ". " . $stName . $roleText . $customIdText . $nisnText;
                                 $compStudents[] = [
                                     'name' => $stName,
-                                    'nisn' => $st['nisn'] ?? '',
                                     'gender' => $st['gender'] ?? 'Laki-laki',
                                     'grade' => $st['grade'] ?? '7',
+                                    'nisn' => $st['nisn'] ?? '',
+                                    'birth_date' => $st['birth_date'] ?? '',
+                                    'custom_id' => $st['custom_id'] ?? '',
+                                    'wa_number' => $st['wa_number'] ?? '',
                                     'is_captain' => !empty($st['is_captain']),
+                                    'captain_wa' => $st['captain_wa'] ?? '',
+                                    'custom_columns' => isset($st['custom_columns']) && is_array($st['custom_columns']) ? $st['custom_columns'] : [],
                                 ];
                             }
                         }

@@ -15,6 +15,7 @@ const props = defineProps({
   competitions: { type: Array, default: () => [] },
   master_schools: { type: Array, default: () => [] },
   package_allin_price: { type: Number, default: 200000 },
+  bank_accounts: { type: Array, default: () => [] },
   filters: { type: Object, default: () => ({}) },
 });
 
@@ -1227,6 +1228,7 @@ onMounted(() => {
       :competitions="competitionsList" 
       :master-schools="master_schools" 
       :package-allin-price="package_allin_price" 
+      :bank-accounts="bank_accounts"
       @saved="onManualSaved"
     />
   </VelzonLayout>

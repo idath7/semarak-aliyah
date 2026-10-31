@@ -63,6 +63,7 @@ const emit = defineEmits(['update:modelValue', 'change']);
 
 const slots = useSlots();
 const isOpen = ref(false);
+const openUpward = ref(false);
 const searchQuery = ref('');
 const dropdownRef = ref(null);
 const searchInputRef = ref(null);
@@ -177,10 +178,39 @@ const filteredOptions = computed(() => {
   });
 });
 
+function updatePlacement() {
+  if (!dropdownRef.value) return;
+  const rect = dropdownRef.value.getBoundingClientRect();
+  const estimatedMenuHeight = 220;
+
+  const spaceBelowViewport = window.innerHeight - rect.bottom;
+  const spaceAboveViewport = rect.top;
+
+  const scrollContainer = dropdownRef.value.closest('.modal-body') || dropdownRef.value.closest('.table-responsive') || null;
+  let spaceBelowContainer = spaceBelowViewport;
+  let spaceAboveContainer = spaceAboveViewport;
+
+  if (scrollContainer) {
+    const containerRect = scrollContainer.getBoundingClientRect();
+    spaceBelowContainer = containerRect.bottom - rect.bottom;
+    spaceAboveContainer = rect.top - containerRect.top;
+  }
+
+  const effectiveSpaceBelow = Math.min(spaceBelowViewport, spaceBelowContainer);
+  const effectiveSpaceAbove = Math.min(spaceAboveViewport, spaceAboveContainer);
+
+  if (effectiveSpaceBelow < estimatedMenuHeight && effectiveSpaceAbove > effectiveSpaceBelow) {
+    openUpward.value = true;
+  } else {
+    openUpward.value = false;
+  }
+}
+
 function toggleDropdown() {
   if (props.disabled) return;
   isOpen.value = !isOpen.value;
   if (isOpen.value) {
+    updatePlacement();
     searchQuery.value = '';
     if (props.searchable) {
       nextTick(() => {
@@ -277,6 +307,7 @@ onUnmounted(() => {
         menuClass,
         `align-${dropdownAlign}`,
         `variant-${variant}`,
+        { 'open-upward': openUpward },
         'animate__animated animate__fadeIn animate__faster'
       ]"
     >
@@ -460,6 +491,13 @@ onUnmounted(() => {
   border-color: #e2e8f0;
   z-index: 1060;
   overflow: hidden;
+}
+
+.custom-select-menu.open-upward {
+  top: auto !important;
+  bottom: 100% !important;
+  margin-top: 0 !important;
+  margin-bottom: 4px !important;
 }
 
 .custom-select-menu.align-end {

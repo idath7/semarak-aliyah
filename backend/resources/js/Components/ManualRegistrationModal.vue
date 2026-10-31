@@ -102,7 +102,7 @@ const manualStep = ref(1); // 1: Paket & Sekolah, 2: Delegasi Siswa, 3: Pembayar
 const isSubmittingManual = ref(false);
 
 const manualSingleDelegates = ref([
-  { name: '', nisn: '', gender: 'Laki-laki', grade: '7', is_captain: false }
+  { name: '', nisn: '', gender: 'Laki-laki', grade: '7', is_captain: false, captain_wa: '' }
 ]);
 const manualAllInDelegates = ref({});
 const activeAllInTab = ref(null);
@@ -195,6 +195,7 @@ function createEmptyManualDelegate(builder = null) {
     custom_id: '',
     wa_number: '',
     is_captain: false,
+    captain_wa: '',
     custom_columns: customCols,
   };
 }
@@ -373,6 +374,10 @@ function goToManualStep(targetStep) {
               toast.warning(`Nomor WhatsApp untuk siswa "${st.name}" wajib diisi!`, 'No. WA Wajib');
               return;
             }
+            if (rules.sub_fields.captain_option?.active && rules.sub_fields.captain_option?.required && st.is_captain && !st.captain_wa?.trim()) {
+              toast.warning(`Nomor WhatsApp Kapten untuk siswa "${st.name}" wajib diisi!`, 'No. WA Kapten Wajib');
+              return;
+            }
             if (rules.sub_fields.custom_columns?.length) {
               for (const col of rules.sub_fields.custom_columns) {
                 if (col.required && (!st.custom_columns || !st.custom_columns[col.name || col.label]?.trim())) {
@@ -410,6 +415,11 @@ function goToManualStep(targetStep) {
               }
               if (rules.sub_fields.wa_number?.active && rules.sub_fields.wa_number?.required && !st.wa_number?.trim()) {
                 toast.warning(`[${rules.comp?.title}] Nomor WhatsApp untuk siswa "${st.name}" wajib diisi!`, 'No. WA Wajib');
+                activeAllInTab.value = cId;
+                return;
+              }
+              if (rules.sub_fields.captain_option?.active && rules.sub_fields.captain_option?.required && st.is_captain && !st.captain_wa?.trim()) {
+                toast.warning(`[${rules.comp?.title}] Nomor WhatsApp Kapten untuk siswa "${st.name}" wajib diisi!`, 'No. WA Kapten Wajib');
                 activeAllInTab.value = cId;
                 return;
               }
@@ -543,7 +553,7 @@ const activeManualFormBuilder = computed(() => {
     birth_date: { active: !!rawSubs.birth_date?.active, required: !!rawSubs.birth_date?.required, label: rawSubs.birth_date?.label || 'Tgl Lahir' },
     custom_id: { active: !!rawSubs.custom_id?.active, required: !!rawSubs.custom_id?.required, label: rawSubs.custom_id?.label || 'No. Dada / ID Game', placeholder: rawSubs.custom_id?.placeholder || 'ID Peserta / Akun...' },
     wa_number: { active: !!rawSubs.wa_number?.active, required: !!rawSubs.wa_number?.required, label: rawSubs.wa_number?.label || 'WhatsApp Siswa', placeholder: rawSubs.wa_number?.placeholder || '08xxxxxxxxxx' },
-    captain_option: { active: !!rawSubs.captain_option?.active || isTeam, required: false, label: rawSubs.captain_option?.label || 'Kapten' },
+    captain_option: { active: !!rawSubs.captain_option?.active, required: !!rawSubs.captain_option?.required, label: rawSubs.captain_option?.label || 'Kapten', placeholder: rawSubs.captain_option?.placeholder || '08xxxxxxxxxx' },
     custom_columns: Array.isArray(rawSubs.custom_columns) ? rawSubs.custom_columns : [],
   };
 
@@ -597,8 +607,17 @@ function removeSingleDelegate(idx) {
 }
 
 function setSingleCaptain(idx) {
+  let previousCaptainWa = '';
+  manualSingleDelegates.value.forEach((d) => {
+    if (d.is_captain && d.captain_wa) {
+      previousCaptainWa = d.captain_wa;
+    }
+  });
   manualSingleDelegates.value.forEach((d, i) => {
     d.is_captain = (i === idx);
+    if (d.is_captain && !d.captain_wa && previousCaptainWa) {
+      d.captain_wa = previousCaptainWa;
+    }
   });
 }
 
@@ -645,7 +664,7 @@ function getAllInBuilder(cId) {
     birth_date: { active: !!rawSubs.birth_date?.active, required: !!rawSubs.birth_date?.required, label: rawSubs.birth_date?.label || 'Tgl Lahir' },
     custom_id: { active: !!rawSubs.custom_id?.active, required: !!rawSubs.custom_id?.required, label: rawSubs.custom_id?.label || 'No. Dada / ID Game', placeholder: rawSubs.custom_id?.placeholder || 'ID Peserta / Akun...' },
     wa_number: { active: !!rawSubs.wa_number?.active, required: !!rawSubs.wa_number?.required, label: rawSubs.wa_number?.label || 'WhatsApp Siswa', placeholder: rawSubs.wa_number?.placeholder || '08xxxxxxxxxx' },
-    captain_option: { active: !!rawSubs.captain_option?.active || isTeam, required: false, label: rawSubs.captain_option?.label || 'Kapten' },
+    captain_option: { active: !!rawSubs.captain_option?.active, required: !!rawSubs.captain_option?.required, label: rawSubs.captain_option?.label || 'Kapten', placeholder: rawSubs.captain_option?.placeholder || '08xxxxxxxxxx' },
     custom_columns: Array.isArray(rawSubs.custom_columns) ? rawSubs.custom_columns : [],
   };
 
@@ -675,8 +694,17 @@ function removeAllInDelegate(cId, idx) {
 
 function setAllInCaptain(cId, idx) {
   if (manualAllInDelegates.value[cId]) {
+    let previousCaptainWa = '';
+    manualAllInDelegates.value[cId].forEach((d) => {
+      if (d.is_captain && d.captain_wa) {
+        previousCaptainWa = d.captain_wa;
+      }
+    });
     manualAllInDelegates.value[cId].forEach((d, i) => {
       d.is_captain = (i === idx);
+      if (d.is_captain && !d.captain_wa && previousCaptainWa) {
+        d.captain_wa = previousCaptainWa;
+      }
     });
   }
 }
@@ -815,10 +843,10 @@ async function submitManualRegistration(saveMode = 'final') {
 
 <template>
   <div v-if="show" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.65); z-index: 1055;">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content shadow-lg border-0">
+    <div class="modal-dialog modal-dialog-centered" style="width: 96vw; max-width: 1420px; height: calc(100vh - 3.5rem); margin: 1.75rem auto;">
+      <div class="modal-content shadow-lg border-0 h-100 d-flex flex-column overflow-hidden">
         <!-- Modal Header -->
-        <div class="modal-header py-2.5 px-3 px-md-4 border-bottom bg-white d-flex align-items-center justify-content-between">
+        <div class="modal-header py-2.5 px-3 px-md-4 border-bottom bg-white d-flex align-items-center justify-content-between flex-shrink-0">
           <div>
             <h6 class="modal-title fw-bold mb-0 text-dark fs-14 d-flex align-items-center gap-2">
               <i class="ri-user-add-line text-primary fs-18"></i>
@@ -837,7 +865,7 @@ async function submitManualRegistration(saveMode = 'final') {
         </div>
 
         <!-- Modal Body -->
-        <div class="modal-body p-3 p-md-4 bg-light">
+        <div class="modal-body p-3 p-md-4 bg-light flex-grow-1 overflow-y-auto">
           <!-- Top Step Navigation Bar Indicator (3 Langkah Jelas) -->
           <div class="card border-0 shadow-xs mb-3 bg-white">
             <div class="card-body p-2 px-3">
@@ -1270,7 +1298,7 @@ async function submitManualRegistration(saveMode = 'final') {
 
               <div class="card-body p-3">
                 <!-- Tabel Repeater Delegasi Tunggal -->
-                <div class="table-responsive mb-2">
+                <div class="table-responsive mb-2" style="min-height: 240px;">
                   <table class="table table-sm table-bordered align-middle mb-0 fs-11">
                     <thead class="table-light">
                       <tr>
@@ -1313,7 +1341,11 @@ async function submitManualRegistration(saveMode = 'final') {
                             <span class="text-danger" v-if="col.required">*</span>
                           </th>
                         </template>
-                        <th v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active || activeManualFormBuilder?.isTeam" style="width: 60px;" class="text-center">Kapten</th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active" style="width: 65px;" class="text-center">Kapten</th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active" style="min-width: 140px; width: 155px;">
+                          No. WA Kapten
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.captain_option?.required">*</span>
+                        </th>
                         <th style="width: 35px;" class="text-center">Hapus</th>
                       </tr>
                     </thead>
@@ -1396,16 +1428,30 @@ async function submitManualRegistration(saveMode = 'final') {
                             />
                           </td>
                         </template>
-                        <td v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active || activeManualFormBuilder?.isTeam" class="text-center">
+                        <td v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active" class="text-center">
                           <button 
                             type="button" 
                             class="btn btn-xs py-0.5 px-1.5"
-                            :class="st.is_captain ? 'btn-primary text-white' : 'btn-light border text-muted'"
+                            :class="st.is_captain ? 'btn-primary text-white shadow-xs' : 'btn-light border text-muted'"
                             @click="setSingleCaptain(idx)"
                             :title="st.is_captain ? 'Kapten terpilih' : 'Set sebagai kapten'"
                           >
                             <i :class="st.is_captain ? 'ri-shield-star-fill' : 'ri-shield-star-line'"></i>
                           </button>
+                        </td>
+                        <td v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active">
+                          <div v-if="st.is_captain" class="d-flex align-items-center">
+                            <input 
+                              type="tel" 
+                              v-model="st.captain_wa" 
+                              class="form-control form-control-sm fs-11 font-monospace border-warning shadow-xs" 
+                              :placeholder="activeManualFormBuilder?.sub_fields?.captain_option?.placeholder || '08xxxxxxxxxx'" 
+                              title="Nomor WhatsApp Kapten Tim"
+                            />
+                          </div>
+                          <div v-else class="text-center text-muted fs-11 py-1 user-select-none">
+                            <span class="text-muted">—</span>
+                          </div>
                         </td>
                         <td class="text-center">
                           <button 
@@ -1486,7 +1532,7 @@ async function submitManualRegistration(saveMode = 'final') {
                   </div>
 
                   <!-- Tabel Repeater untuk Cabang Aktif di All-In -->
-                  <div class="table-responsive mb-2">
+                  <div class="table-responsive mb-2" style="min-height: 240px;">
                     <table class="table table-sm table-bordered align-middle mb-0 fs-11 bg-white">
                       <thead class="table-light">
                         <tr>
@@ -1529,7 +1575,11 @@ async function submitManualRegistration(saveMode = 'final') {
                               <span class="text-danger" v-if="col.required">*</span>
                             </th>
                           </template>
-                          <th v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active || getAllInBuilder(activeAllInTab).isTeam" style="width: 60px;" class="text-center">Kapten</th>
+                          <th v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active" style="width: 65px;" class="text-center">Kapten</th>
+                          <th v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active" style="min-width: 140px; width: 155px;">
+                            No. WA Kapten
+                            <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.required">*</span>
+                          </th>
                           <th style="width: 35px;" class="text-center">Hapus</th>
                         </tr>
                       </thead>
@@ -1612,16 +1662,30 @@ async function submitManualRegistration(saveMode = 'final') {
                               />
                             </td>
                           </template>
-                          <td v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active || getAllInBuilder(activeAllInTab).isTeam" class="text-center">
+                          <td v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active" class="text-center">
                             <button 
                               type="button" 
                               class="btn btn-xs py-0.5 px-1.5"
-                              :class="st.is_captain ? 'btn-primary text-white' : 'btn-light border text-muted'"
+                              :class="st.is_captain ? 'btn-primary text-white shadow-xs' : 'btn-light border text-muted'"
                               @click="setAllInCaptain(activeAllInTab, idx)"
                               :title="st.is_captain ? 'Kapten terpilih' : 'Set kapten'"
                             >
                               <i :class="st.is_captain ? 'ri-shield-star-fill' : 'ri-shield-star-line'"></i>
                             </button>
+                          </td>
+                          <td v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active">
+                            <div v-if="st.is_captain" class="d-flex align-items-center">
+                              <input 
+                                type="tel" 
+                                v-model="st.captain_wa" 
+                                class="form-control form-control-sm fs-11 font-monospace border-warning shadow-xs" 
+                                :placeholder="getAllInBuilder(activeAllInTab).sub_fields.captain_option.placeholder || '08xxxxxxxxxx'" 
+                                title="Nomor WhatsApp Kapten Tim"
+                              />
+                            </div>
+                            <div v-else class="text-center text-muted fs-11 py-1 user-select-none">
+                              <span class="text-muted">—</span>
+                            </div>
                           </td>
                           <td class="text-center">
                             <button 
@@ -1859,7 +1923,7 @@ async function submitManualRegistration(saveMode = 'final') {
         </div>
 
         <!-- Modal Footer -->
-        <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between flex-wrap gap-2 flex-shrink-0">
           <!-- FOOTER LANGKAH 1 -->
           <template v-if="manualStep === 1">
             <button type="button" class="btn btn-sm btn-secondary" @click="closeModal">Batal</button>

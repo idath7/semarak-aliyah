@@ -177,7 +177,7 @@ const manualStep = ref(1); // 1: Pilihan Paket & Cabang, 2: Identitas Sekolah & 
 
 // Delegasi Peserta di Langkah 3 (Client-side in memory sampai langkah final)
 const manualSingleDelegates = ref([
-  { name: '', nisn: '', gender: 'Laki-laki', grade: '7', is_captain: false }
+  { name: '', nisn: '', gender: 'Laki-laki', grade: '7', is_captain: false, captain_wa: '' }
 ]);
 const manualAllInDelegates = ref({}); // { [compId]: [ { name: '', nisn: '', gender: 'Laki-laki', grade: '7', is_captain: false } ] }
 const activeAllInTab = ref(null);
@@ -334,6 +334,7 @@ function createEmptyManualDelegate(builder = null) {
     custom_id: '',
     wa_number: '',
     is_captain: false,
+    captain_wa: '',
     custom_columns: customCols,
   };
 }
@@ -513,6 +514,10 @@ function goToManualStep(targetStep) {
               toast.showToast({ type: 'warning', title: 'No. WA Wajib', message: `Nomor WhatsApp untuk siswa "${st.name}" wajib diisi!` });
               return;
             }
+            if (rules.sub_fields.captain_option?.active && rules.sub_fields.captain_option?.required && st.is_captain && !st.captain_wa?.trim()) {
+              toast.showToast({ type: 'warning', title: 'No. WA Kapten Wajib', message: `Nomor WhatsApp Kapten untuk siswa "${st.name}" wajib diisi!` });
+              return;
+            }
             if (rules.sub_fields.custom_columns?.length) {
               for (const col of rules.sub_fields.custom_columns) {
                 if (col.required && (!st.custom_columns || !st.custom_columns[col.name || col.label]?.trim())) {
@@ -550,6 +555,11 @@ function goToManualStep(targetStep) {
               }
               if (rules.sub_fields.wa_number?.active && rules.sub_fields.wa_number?.required && !st.wa_number?.trim()) {
                 toast.showToast({ type: 'warning', title: 'No. WA Wajib', message: `[${rules.comp?.title}] Nomor WhatsApp untuk siswa "${st.name}" wajib diisi!` });
+                activeAllInTab.value = cId;
+                return;
+              }
+              if (rules.sub_fields.captain_option?.active && rules.sub_fields.captain_option?.required && st.is_captain && !st.captain_wa?.trim()) {
+                toast.showToast({ type: 'warning', title: 'No. WA Kapten Wajib', message: `[${rules.comp?.title}] Nomor WhatsApp Kapten untuk siswa "${st.name}" wajib diisi!` });
                 activeAllInTab.value = cId;
                 return;
               }
@@ -685,7 +695,7 @@ const activeManualFormBuilder = computed(() => {
     birth_date: { active: !!rawSubs.birth_date?.active, required: !!rawSubs.birth_date?.required, label: rawSubs.birth_date?.label || 'Tgl Lahir' },
     custom_id: { active: !!rawSubs.custom_id?.active, required: !!rawSubs.custom_id?.required, label: rawSubs.custom_id?.label || 'No. Dada / ID Game', placeholder: rawSubs.custom_id?.placeholder || 'ID Peserta / Akun...' },
     wa_number: { active: !!rawSubs.wa_number?.active, required: !!rawSubs.wa_number?.required, label: rawSubs.wa_number?.label || 'WhatsApp Siswa', placeholder: rawSubs.wa_number?.placeholder || '08xxxxxxxxxx' },
-    captain_option: { active: !!rawSubs.captain_option?.active || isTeam, required: false, label: rawSubs.captain_option?.label || 'Kapten' },
+    captain_option: { active: !!rawSubs.captain_option?.active, required: !!rawSubs.captain_option?.required, label: rawSubs.captain_option?.label || 'Kapten', placeholder: rawSubs.captain_option?.placeholder || '08xxxxxxxxxx' },
     custom_columns: Array.isArray(rawSubs.custom_columns) ? rawSubs.custom_columns : [],
   };
 
@@ -739,8 +749,17 @@ function removeSingleDelegate(idx) {
 }
 
 function setSingleCaptain(idx) {
+  let previousCaptainWa = '';
+  manualSingleDelegates.value.forEach((d) => {
+    if (d.is_captain && d.captain_wa) {
+      previousCaptainWa = d.captain_wa;
+    }
+  });
   manualSingleDelegates.value.forEach((d, i) => {
     d.is_captain = (i === idx);
+    if (d.is_captain && !d.captain_wa && previousCaptainWa) {
+      d.captain_wa = previousCaptainWa;
+    }
   });
 }
 
@@ -787,7 +806,7 @@ function getAllInBuilder(cId) {
     birth_date: { active: !!rawSubs.birth_date?.active, required: !!rawSubs.birth_date?.required, label: rawSubs.birth_date?.label || 'Tgl Lahir' },
     custom_id: { active: !!rawSubs.custom_id?.active, required: !!rawSubs.custom_id?.required, label: rawSubs.custom_id?.label || 'No. Dada / ID Game', placeholder: rawSubs.custom_id?.placeholder || 'ID Peserta / Akun...' },
     wa_number: { active: !!rawSubs.wa_number?.active, required: !!rawSubs.wa_number?.required, label: rawSubs.wa_number?.label || 'WhatsApp Siswa', placeholder: rawSubs.wa_number?.placeholder || '08xxxxxxxxxx' },
-    captain_option: { active: !!rawSubs.captain_option?.active || isTeam, required: false, label: rawSubs.captain_option?.label || 'Kapten' },
+    captain_option: { active: !!rawSubs.captain_option?.active, required: !!rawSubs.captain_option?.required, label: rawSubs.captain_option?.label || 'Kapten', placeholder: rawSubs.captain_option?.placeholder || '08xxxxxxxxxx' },
     custom_columns: Array.isArray(rawSubs.custom_columns) ? rawSubs.custom_columns : [],
   };
 
@@ -817,8 +836,17 @@ function removeAllInDelegate(cId, idx) {
 
 function setAllInCaptain(cId, idx) {
   if (manualAllInDelegates.value[cId]) {
+    let previousCaptainWa = '';
+    manualAllInDelegates.value[cId].forEach((d) => {
+      if (d.is_captain && d.captain_wa) {
+        previousCaptainWa = d.captain_wa;
+      }
+    });
     manualAllInDelegates.value[cId].forEach((d, i) => {
       d.is_captain = (i === idx);
+      if (d.is_captain && !d.captain_wa && previousCaptainWa) {
+        d.captain_wa = previousCaptainWa;
+      }
     });
   }
 }
@@ -2142,10 +2170,10 @@ function printReport() {
     <!-- MODAL 2: INPUT MANUAL PENDAFTARAN & DELEGASI (MEJA PANITIA)           -->
     <!-- ===================================================================== -->
     <div v-if="showManualModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.6); z-index: 1060;">
-      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 1260px; width: 96%;">
-        <div class="modal-content shadow-lg border-0">
+      <div class="modal-dialog modal-dialog-centered" style="width: 96vw; max-width: 1420px; height: calc(100vh - 3.5rem); margin: 1.75rem auto;">
+        <div class="modal-content shadow-lg border-0 h-100 d-flex flex-column overflow-hidden">
           <!-- Modal Header -->
-          <div class="modal-header py-2.5 px-3 px-md-4 border-bottom d-flex align-items-center justify-content-between">
+          <div class="modal-header py-2.5 px-3 px-md-4 border-bottom d-flex align-items-center justify-content-between flex-shrink-0">
             <div>
               <h6 class="modal-title fw-bold mb-0 d-flex align-items-center gap-2 fs-14">
                 <i class="ri-user-add-line text-primary fs-18"></i>
@@ -2164,7 +2192,7 @@ function printReport() {
           </div>
 
           <!-- Modal Body -->
-          <div class="modal-body p-3 p-md-4 bg-light">
+          <div class="modal-body p-3 p-md-4 bg-light flex-grow-1 overflow-y-auto">
             <!-- Top Step Navigation Bar Indicator (3 Langkah Jelas) -->
             <div class="card border-0 shadow-xs mb-3 bg-white">
               <div class="card-body p-2 px-3">
@@ -2599,7 +2627,7 @@ function printReport() {
 
                 <div class="card-body p-3">
                   <!-- Tabel Repeater Delegasi Tunggal -->
-                  <div class="table-responsive mb-2">
+                  <div class="table-responsive mb-2" style="min-height: 240px;">
                     <table class="table table-sm table-bordered align-middle mb-0 fs-11">
                       <thead class="table-light">
                         <tr>
@@ -2642,7 +2670,11 @@ function printReport() {
                               <span class="text-danger" v-if="col.required">*</span>
                             </th>
                           </template>
-                          <th v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active || activeManualFormBuilder?.isTeam" style="width: 60px;" class="text-center">Kapten</th>
+                          <th v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active" style="width: 65px;" class="text-center">Kapten</th>
+                          <th v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active" style="min-width: 140px; width: 155px;">
+                            No. WA Kapten
+                            <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.captain_option?.required">*</span>
+                          </th>
                           <th style="width: 35px;" class="text-center">Hapus</th>
                         </tr>
                       </thead>
@@ -2725,16 +2757,30 @@ function printReport() {
                               />
                             </td>
                           </template>
-                          <td v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active || activeManualFormBuilder?.isTeam" class="text-center">
+                          <td v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active" class="text-center">
                             <button 
                               type="button" 
                               class="btn btn-xs py-0.5 px-1.5"
-                              :class="st.is_captain ? 'btn-primary text-white' : 'btn-light border text-muted'"
+                              :class="st.is_captain ? 'btn-primary text-white shadow-xs' : 'btn-light border text-muted'"
                               @click="setSingleCaptain(idx)"
                               :title="st.is_captain ? 'Kapten terpilih' : 'Set sebagai kapten'"
                             >
                               <i :class="st.is_captain ? 'ri-shield-star-fill' : 'ri-shield-star-line'"></i>
                             </button>
+                          </td>
+                          <td v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active">
+                            <div v-if="st.is_captain" class="d-flex align-items-center">
+                              <input 
+                                type="tel" 
+                                v-model="st.captain_wa" 
+                                class="form-control form-control-sm fs-11 font-monospace border-warning shadow-xs" 
+                                :placeholder="activeManualFormBuilder?.sub_fields?.captain_option?.placeholder || '08xxxxxxxxxx'" 
+                                title="Nomor WhatsApp Kapten Tim"
+                              />
+                            </div>
+                            <div v-else class="text-center text-muted fs-11 py-1 user-select-none">
+                              <span class="text-muted">—</span>
+                            </div>
                           </td>
                           <td class="text-center">
                             <button 
@@ -2815,7 +2861,7 @@ function printReport() {
                     </div>
 
                     <!-- Tabel Repeater untuk Cabang Aktif di All-In -->
-                    <div class="table-responsive mb-2">
+                    <div class="table-responsive mb-2" style="min-height: 240px;">
                       <table class="table table-sm table-bordered align-middle mb-0 fs-11 bg-white">
                         <thead class="table-light">
                           <tr>
@@ -2858,7 +2904,11 @@ function printReport() {
                                 <span class="text-danger" v-if="col.required">*</span>
                               </th>
                             </template>
-                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active || getAllInBuilder(activeAllInTab).isTeam" style="width: 60px;" class="text-center">Kapten</th>
+                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active" style="width: 65px;" class="text-center">Kapten</th>
+                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active" style="min-width: 140px; width: 155px;">
+                              No. WA Kapten
+                              <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.required">*</span>
+                            </th>
                             <th style="width: 35px;" class="text-center">Hapus</th>
                           </tr>
                         </thead>
@@ -2941,16 +2991,30 @@ function printReport() {
                                 />
                               </td>
                             </template>
-                            <td v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active || getAllInBuilder(activeAllInTab).isTeam" class="text-center">
+                            <td v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active" class="text-center">
                               <button 
                                 type="button" 
                                 class="btn btn-xs py-0.5 px-1.5"
-                                :class="st.is_captain ? 'btn-primary text-white' : 'btn-light border text-muted'"
+                                :class="st.is_captain ? 'btn-primary text-white shadow-xs' : 'btn-light border text-muted'"
                                 @click="setAllInCaptain(activeAllInTab, idx)"
                                 :title="st.is_captain ? 'Kapten terpilih' : 'Set kapten'"
                               >
                                 <i :class="st.is_captain ? 'ri-shield-star-fill' : 'ri-shield-star-line'"></i>
                               </button>
+                            </td>
+                            <td v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active">
+                              <div v-if="st.is_captain" class="d-flex align-items-center">
+                                <input 
+                                  type="tel" 
+                                  v-model="st.captain_wa" 
+                                  class="form-control form-control-sm fs-11 font-monospace border-warning shadow-xs" 
+                                  :placeholder="getAllInBuilder(activeAllInTab).sub_fields.captain_option.placeholder || '08xxxxxxxxxx'" 
+                                  title="Nomor WhatsApp Kapten Tim"
+                                />
+                              </div>
+                              <div v-else class="text-center text-muted fs-11 py-1 user-select-none">
+                                <span class="text-muted">—</span>
+                              </div>
                             </td>
                             <td class="text-center">
                               <button 
@@ -3190,7 +3254,7 @@ function printReport() {
           </div>
 
           <!-- Modal Footer -->
-          <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between flex-wrap gap-2 flex-shrink-0">
             <!-- FOOTER LANGKAH 1 (SKEMA LOMBA & DATA SEKOLAH - TIDAK ADA SIMPAN KE DATABASE) -->
             <template v-if="manualStep === 1">
               <button type="button" class="btn btn-sm btn-secondary" @click="showManualModal = false">Batal</button>
@@ -3659,7 +3723,7 @@ function printReport() {
           </div>
 
           <!-- Modal Footer -->
-          <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between flex-wrap gap-2 flex-shrink-0">
             <button type="button" class="btn btn-sm btn-secondary" @click="showParticipantModal = false">
               {{ contingentRegistrations.length > 1 ? 'Selesai Kelola Kontingen' : 'Tutup' }}
             </button>

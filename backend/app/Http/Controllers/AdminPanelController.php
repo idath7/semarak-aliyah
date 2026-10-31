@@ -3991,7 +3991,7 @@ class AdminPanelController extends Controller
                 if (!empty($stName)) {
                     $nisnText = !empty($st['nisn']) && $st['nisn'] !== '-' ? " (NISN: {$st['nisn']})" : "";
                     $customIdText = !empty($st['custom_id']) && $st['custom_id'] !== '-' ? " [ID: {$st['custom_id']}]" : "";
-                    $roleText = !empty($st['is_captain']) ? " [Kapten]" : "";
+                    $roleText = !empty($st['is_captain']) ? (" [Kapten" . (!empty($st['captain_wa']) ? " - WA: {$st['captain_wa']}" : "") . "]") : "";
                     $namesList[] = ($idx + 1) . ". " . $stName . $roleText . $customIdText . $nisnText;
                     $cleanedStudents[] = [
                         'name' => $stName,
@@ -4149,7 +4149,7 @@ class AdminPanelController extends Controller
                             if (!empty($stName)) {
                                 $nisnText = !empty($st['nisn']) && $st['nisn'] !== '-' ? " (NISN: {$st['nisn']})" : "";
                                 $customIdText = !empty($st['custom_id']) && $st['custom_id'] !== '-' ? " [ID: {$st['custom_id']}]" : "";
-                                $roleText = !empty($st['is_captain']) ? " [Kapten]" : "";
+                                $roleText = !empty($st['is_captain']) ? (" [Kapten" . (!empty($st['captain_wa']) ? " - WA: {$st['captain_wa']}" : "") . "]") : "";
                                 $compNames[] = ($idx + 1) . ". " . $stName . $roleText . $customIdText . $nisnText;
                                 $compStudents[] = [
                                     'name' => $stName,

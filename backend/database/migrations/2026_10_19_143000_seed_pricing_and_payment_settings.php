@@ -39,8 +39,8 @@ return new class extends Migration
 
             // Rekening & Petunjuk Pembayaran
             'payment_bank_name' => 'Bank Syariah Indonesia (BSI)',
-            'payment_account_number' => '7123456789',
-            'payment_account_holder' => 'Semarak Aliyah',
+            'payment_account_number' => '7124686746',
+            'payment_account_holder' => 'MARIATUL AWALIYAH',
             'payment_confirmation_wa' => '0838 5007 0767',
             'payment_instructions' => '<p>Transfer sesuai nominal total tagihan ke rekening resmi panitia. Simpan tangkapan layar (screenshot) atau foto struk bukti pembayaran asli untuk diunggah pada form pendaftaran atau konfirmasikan ke WhatsApp panitia.</p>',
             'payment_cash_enabled' => '1',

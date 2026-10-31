@@ -41,7 +41,7 @@ const activeBankAccounts = computed(() => {
     {
       id: 'default',
       bank_name: props.paymentInfo?.bank_name || 'Bank Syariah Indonesia (BSI)',
-      account_number: props.paymentInfo?.account_number || '7123456789',
+      account_number: props.paymentInfo?.account_number || '',
       account_holder: props.paymentInfo?.account_holder || 'Semarak Aliyah',
       is_primary: true,
       notes: 'Rekening Resmi Panitia'
@@ -52,7 +52,7 @@ const activeBankAccounts = computed(() => {
 const primaryBankAccount = computed(() => {
   return activeBankAccounts.value.find(a => a.is_primary) || activeBankAccounts.value[0] || {
     bank_name: props.paymentInfo?.bank_name || 'Bank Syariah Indonesia (BSI)',
-    account_number: props.paymentInfo?.account_number || '7123456789',
+    account_number: props.paymentInfo?.account_number || '',
     account_holder: props.paymentInfo?.account_holder || 'Semarak Aliyah',
   };
 });

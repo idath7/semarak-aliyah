@@ -686,7 +686,7 @@ const activeBankAccounts = computed(() => {
     {
       id: 'default',
       bank_name: props.pricingSettings?.bank_name || 'Bank Syariah Indonesia (BSI)',
-      account_number: props.pricingSettings?.account_number || '7123456789',
+      account_number: props.pricingSettings?.account_number || '',
       account_holder: props.pricingSettings?.account_holder || (school.value?.event_name || 'Semarak Aliyah'),
       is_primary: true,
       notes: 'Rekening Resmi Panitia'
@@ -697,14 +697,14 @@ const activeBankAccounts = computed(() => {
 const primaryBankAccount = computed(() => {
   return activeBankAccounts.value.find(a => a.is_primary) || activeBankAccounts.value[0] || {
     bank_name: props.pricingSettings?.bank_name || 'Bank Syariah Indonesia (BSI)',
-    account_number: props.pricingSettings?.account_number || '7123456789',
+    account_number: props.pricingSettings?.account_number || '',
     account_holder: props.pricingSettings?.account_holder || (school.value?.event_name || 'Semarak Aliyah'),
   };
 });
 
 const defaultPaymentMethod = computed(() => {
   const primary = primaryBankAccount.value;
-  return primary ? ('Transfer ' + primary.bank_name) : 'Transfer Bank Syariah Indonesia (BSI)';
+  return primary ? ('Transfer ' + primary.bank_name) : 'Transfer Bank';
 });
 
 // Rekening Bank yang aktif dipilih oleh pendaftar (Dinamis dari Pilihan Bank)
@@ -735,7 +735,8 @@ const selectedAllInBankAccount = computed(() => {
 
 const copiedAccId = ref(null);
 function copySpecificAccountNumber(acc) {
-  const num = acc.account_number || props.pricingSettings?.account_number || '7123456789';
+  const num = acc.account_number || props.pricingSettings?.account_number || '';
+  if (!num) return;
   if (navigator?.clipboard) {
     navigator.clipboard.writeText(num);
     copiedAccId.value = acc.id || acc.account_number;

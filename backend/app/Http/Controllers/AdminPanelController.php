@@ -1593,6 +1593,8 @@ class AdminPanelController extends Controller
             'isCoordinator' => $isCoordinatedSelected,
             'isGlobalAdmin' => $isGlobalAdmin,
             'hasManagePermission' => $hasManagePermission,
+            'paymentBankAccounts' => Setting::getBankAccounts(),
+            'packageAllinPrice' => (int)Setting::get('package_allin_price', 200000),
         ]);
     }
 
@@ -1631,6 +1633,8 @@ class AdminPanelController extends Controller
             'isCoordinator' => $isCoordinatedSelected,
             'isGlobalAdmin' => $isGlobalAdmin,
             'hasManagePermission' => $hasManagePermission,
+            'paymentBankAccounts' => Setting::getBankAccounts(),
+            'packageAllinPrice' => (int)Setting::get('package_allin_price', 200000),
         ]);
     }
 
@@ -3237,8 +3241,8 @@ class AdminPanelController extends Controller
 
         $paymentSettings = [
             'bank_name' => Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'),
-            'account_number' => Setting::get('payment_account_number', '7123456789'),
-            'account_holder' => Setting::get('payment_account_holder', 'Semarak Aliyah'),
+            'account_number' => Setting::get('payment_account_number', ''),
+            'account_holder' => Setting::get('payment_account_holder', 'Panitia Semarak Aliyah'),
             'confirmation_wa' => Setting::get('payment_confirmation_wa', '0838 5007 0767'),
             'instructions' => Setting::get('payment_instructions', '<p>Transfer sesuai nominal total tagihan ke rekening resmi panitia. Simpan tangkapan layar (screenshot) atau foto struk bukti pembayaran asli untuk diunggah pada form pendaftaran atau konfirmasikan ke WhatsApp panitia.</p>'),
             'cash_enabled' => Setting::get('payment_cash_enabled', '1') === '1',

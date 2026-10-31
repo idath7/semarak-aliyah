@@ -116,15 +116,20 @@ class Setting extends Model
         }
 
         // Fallback default from legacy keys
+        $accNum = static::get('payment_account_number', '');
+        if (empty($accNum)) {
+            return [];
+        }
+
         return [
             [
                 'id' => 'acc-1',
-                'bank_name' => static::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'),
-                'account_number' => static::get('payment_account_number', '7123456789'),
-                'account_holder' => static::get('payment_account_holder', 'Semarak Aliyah'),
+                'bank_name' => static::get('payment_bank_name', 'Bank'),
+                'account_number' => $accNum,
+                'account_holder' => static::get('payment_account_holder', 'Panitia Semarak Aliyah'),
                 'is_primary' => true,
                 'is_active' => true,
-                'notes' => 'Rekening Utama Panitia (Bebas Biaya Transfer Antar BSI)',
+                'notes' => 'Rekening Utama Panitia',
             ]
         ];
     }
@@ -139,9 +144,9 @@ class Setting extends Model
         }
         return $accounts[0] ?? [
             'id' => 'acc-1',
-            'bank_name' => static::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'),
-            'account_number' => static::get('payment_account_number', '7123456789'),
-            'account_holder' => static::get('payment_account_holder', 'Semarak Aliyah'),
+            'bank_name' => static::get('payment_bank_name', 'Bank'),
+            'account_number' => static::get('payment_account_number', ''),
+            'account_holder' => static::get('payment_account_holder', 'Panitia Semarak Aliyah'),
             'is_primary' => true,
             'is_active' => true,
             'notes' => 'Rekening Utama Panitia',

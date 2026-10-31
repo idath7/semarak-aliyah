@@ -803,9 +803,11 @@ const computedFaqs = computed(() => {
           bankListHtml = accounts.map(a => `<li><strong>${a.bank_name}</strong>: <strong>${a.account_number}</strong> a.n <strong>${a.account_holder}</strong>${a.is_primary ? ' <em>(Rekening Utama)</em>' : ''}</li>`).join('');
         } else {
           const bName = props.pricingSettings?.bank_name || 'Bank Syariah Indonesia (BSI)';
-          const bNum = props.pricingSettings?.account_number || '7123456789';
-          const bHolder = props.pricingSettings?.account_holder || (school.value.event_name || 'Semarak Aliyah');
-          bankListHtml = `<li><strong>${bName}</strong>: <strong>${bNum}</strong> a.n <strong>${bHolder}</strong></li>`;
+          const bNum = props.pricingSettings?.account_number || '';
+          const bHolder = props.pricingSettings?.account_holder || (school.value?.event_name || 'Semarak Aliyah');
+          bankListHtml = bNum 
+            ? `<li><strong>${bName}</strong>: <strong>${bNum}</strong> a.n <strong>${bHolder}</strong></li>`
+            : `<li><strong>${bName}</strong>: a.n <strong>${bHolder}</strong> (Nomor rekening dikonfirmasi panitia)</li>`;
         }
         return `<p>Pembayaran dapat ditransfer melalui rekening resmi panitia pelaksana:</p><ul>${bankListHtml}</ul><p>Setelah transfer berhasil, bukti pembayaran dapat langsung diunggah melalui formulir pendaftaran online atau dikonfirmasikan via WhatsApp ke tim bendahara panitia.</p>`;
       })(),

@@ -1218,16 +1218,16 @@
                             @if(!empty($bankAccounts))
                                 @foreach($bankAccounts as $acc)
                                     <div class="bank-card">
-                                        <div class="bank-name">{{ $acc['bank_name'] ?? 'Bank Syariah Indonesia' }}</div>
-                                        <div class="bank-acc">{{ $acc['account_number'] ?? '7123456789' }}</div>
-                                        <div class="bank-holder">a.n {{ $acc['account_holder'] ?? 'Semarak Aliyah MA Wahid Hasyim' }}</div>
+                                        <div class="bank-name">{{ $acc['bank_name'] ?? 'Bank' }}</div>
+                                        <div class="bank-acc">{{ $acc['account_number'] ?? '-' }}</div>
+                                        <div class="bank-holder">a.n {{ $acc['account_holder'] ?? 'Panitia Semarak Aliyah' }}</div>
                                     </div>
                                 @endforeach
                             @else
                                 <div class="bank-card">
-                                    <div class="bank-name">Bank Syariah Indonesia (BSI)</div>
-                                    <div class="bank-acc">7123456789</div>
-                                    <div class="bank-holder">a.n Semarak Aliyah MA Wahid Hasyim</div>
+                                    <div class="bank-name">Rekening Panitia</div>
+                                    <div class="bank-acc" style="font-size: 8pt; color: #64748b;">(Hubungi Bendahara)</div>
+                                    <div class="bank-holder">Panitia Semarak Aliyah</div>
                                 </div>
                             @endif
                         </div>
@@ -1478,16 +1478,16 @@
                             @if(!empty($bankAccounts))
                                 @foreach($bankAccounts as $acc)
                                     <div class="bank-card" style="border: 1px solid #a7f3d0; background: #ffffff;">
-                                        <div class="bank-name">{{ $acc['bank_name'] ?? 'Bank Syariah Indonesia' }}</div>
-                                        <div class="bank-acc" style="color: #065f46;">{{ $acc['account_number'] ?? '7123456789' }}</div>
-                                        <div class="bank-holder">a.n {{ $acc['account_holder'] ?? 'Semarak Aliyah MA Wahid Hasyim' }}</div>
+                                        <div class="bank-name">{{ $acc['bank_name'] ?? 'Bank' }}</div>
+                                        <div class="bank-acc" style="color: #065f46;">{{ $acc['account_number'] ?? '-' }}</div>
+                                        <div class="bank-holder">a.n {{ $acc['account_holder'] ?? 'Panitia Semarak Aliyah' }}</div>
                                     </div>
                                 @endforeach
                             @else
                                 <div class="bank-card" style="border: 1px solid #a7f3d0; background: #ffffff;">
-                                    <div class="bank-name">Bank Syariah Indonesia (BSI)</div>
-                                    <div class="bank-acc" style="color: #065f46;">7123456789</div>
-                                    <div class="bank-holder">a.n Semarak Aliyah MA Wahid Hasyim</div>
+                                    <div class="bank-name">Rekening Panitia</div>
+                                    <div class="bank-acc" style="color: #065f46; font-size: 8pt;">(Hubungi Bendahara)</div>
+                                    <div class="bank-holder">Panitia Semarak Aliyah</div>
                                 </div>
                             @endif
                         </div>

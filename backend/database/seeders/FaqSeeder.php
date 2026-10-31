@@ -21,7 +21,7 @@ class FaqSeeder extends Seeder
             [
                 'id' => 2,
                 'question' => 'Bagaimana sistem pembayaran dan konfirmasi biaya pendaftaran?',
-                'answer' => '<p>Pembayaran dapat ditransfer melalui rekening resmi <strong>Bank Syariah Indonesia (BSI)</strong>:</p><ul><li>No. Rekening : <strong>7123456789</strong></li><li>Atas Nama : <strong>Semarak Aliyah</strong></li></ul><p>Setelah transfer berhasil, bukti pembayaran dapat langsung diunggah melalui formulir pendaftaran online atau dikonfirmasikan via WhatsApp ke tim bendahara panitia.</p>',
+                'answer' => '<p>Pembayaran dapat ditransfer melalui rekening resmi <strong>Bank Syariah Indonesia (BSI)</strong>:</p><ul><li>No. Rekening : <strong>7124686746</strong></li><li>Atas Nama : <strong>MARIATUL AWALIYAH</strong></li></ul><p>Setelah transfer berhasil, bukti pembayaran dapat langsung diunggah melalui formulir pendaftaran online atau dikonfirmasikan via WhatsApp ke tim bendahara panitia.</p>',
                 'category' => 'Pembayaran & Biaya',
                 'sort_order' => 2,
                 'is_active' => true,

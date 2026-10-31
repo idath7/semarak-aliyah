@@ -72,7 +72,7 @@ const manualPaymentMethodOptions = computed(() => {
       });
     });
   } else {
-    options.push({ value: 'Transfer Bank BSI', label: 'Transfer Bank BSI' });
+    options.push({ value: 'Transfer Bank', label: 'Transfer Bank (Sesuai Petunjuk Panitia)' });
   }
 
   options.push(

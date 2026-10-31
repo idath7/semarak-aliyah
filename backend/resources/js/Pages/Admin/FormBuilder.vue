@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import CustomSelect from '@/Components/CustomSelect.vue';
 import { useToast } from '@/Composables/useToast';
@@ -15,6 +15,24 @@ const props = defineProps({
   isCoordinator: { type: Boolean, default: false },
   isGlobalAdmin: { type: Boolean, default: false },
   hasManagePermission: { type: Boolean, default: false },
+  paymentBankAccounts: { type: Array, default: () => [] },
+  packageAllinPrice: { type: Number, default: 200000 },
+});
+
+const page = usePage();
+
+const bankAccounts = computed(() => {
+  return (props.paymentBankAccounts && props.paymentBankAccounts.length > 0)
+    ? props.paymentBankAccounts
+    : (page.props.paymentBankAccounts || []);
+});
+
+const activeBankAccounts = computed(() => {
+  return bankAccounts.value.filter(b => b.is_active !== false);
+});
+
+const primaryBank = computed(() => {
+  return activeBankAccounts.value.find(b => b.is_primary) || activeBankAccounts.value[0] || null;
 });
 
 const toast = useToast();
@@ -1488,10 +1506,23 @@ async function applyHeadlineAll() {
               <div class="col-md-6">
                 <div class="card border shadow-xs rounded-3 p-2.5 bg-body h-100">
                   <div class="fs-11 fw-bold text-muted mb-1">Rekening Transfer Panitia:</div>
-                  <div class="fs-13 fw-bold text-dark">
-                    Bank Syariah Indonesia (BSI)
-                  </div>
-                  <div class="fs-11 font-mono text-muted">7123456789 a.n Semarak Aliyah</div>
+                  <template v-if="primaryBank">
+                    <div class="fs-13 fw-bold text-dark">
+                      {{ primaryBank.bank_name }}
+                    </div>
+                    <div class="fs-11 font-mono text-muted">
+                      {{ primaryBank.account_number }} a.n {{ primaryBank.account_holder }}
+                    </div>
+                    <div v-if="activeBankAccounts.length > 1" class="fs-10 text-muted mt-0.5">
+                      +{{ activeBankAccounts.length - 1 }} rekening alternatif lainnya
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="fs-12 text-muted fst-italic">
+                      Belum ada rekening transfer aktif
+                    </div>
+                    <div class="fs-10 text-muted mt-0.5">Dapat diatur di Pengaturan Biaya & Pembayaran</div>
+                  </template>
                 </div>
               </div>
             </div>
@@ -1631,7 +1662,7 @@ async function applyHeadlineAll() {
                       </div>
                       <div v-if="formSettings.show_package_type" class="d-flex justify-content-between pt-1 border-top">
                         <span class="text-muted">Paket All-In Komplit (8 Lomba):</span>
-                        <span class="font-mono fw-bold text-warning">Rp 200.000</span>
+                        <span class="font-mono fw-bold text-warning">Rp {{ Number(packageAllinPrice || 200000).toLocaleString('id-ID') }}</span>
                       </div>
                     </div>
 

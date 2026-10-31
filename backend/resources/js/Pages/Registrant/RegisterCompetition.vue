@@ -869,7 +869,7 @@ const activeBankAccounts = computed(() => {
     {
       id: 'default',
       bank_name: props.pricingSettings?.bank_name || 'Bank Syariah Indonesia (BSI)',
-      account_number: props.pricingSettings?.account_number || '7123456789',
+      account_number: props.pricingSettings?.account_number || '',
       account_holder: props.pricingSettings?.account_holder || 'Semarak Aliyah',
       is_primary: true,
       notes: 'Rekening Resmi Panitia'
@@ -880,7 +880,8 @@ const activeBankAccounts = computed(() => {
 // Copy Bank Account
 function copyAccountNumber() {
   const primary = activeBankAccounts.value.find(a => a.is_primary) || activeBankAccounts.value[0];
-  const num = primary?.account_number || props.pricingSettings.account_number || '7123456789';
+  const num = primary?.account_number || props.pricingSettings?.account_number || '';
+  if (!num) return;
   if (navigator.clipboard) {
     navigator.clipboard.writeText(num);
     toast.success('Nomor rekening berhasil disalin!');
@@ -888,7 +889,8 @@ function copyAccountNumber() {
 }
 
 function copySpecificAccountNumber(acc) {
-  const num = acc.account_number || '7123456789';
+  const num = acc.account_number || '';
+  if (!num) return;
   if (navigator.clipboard) {
     navigator.clipboard.writeText(num);
     toast.success(`Nomor rekening ${acc.bank_name} (${num}) berhasil disalin!`);

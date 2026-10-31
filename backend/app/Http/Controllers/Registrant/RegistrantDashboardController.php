@@ -120,9 +120,9 @@ class RegistrantDashboardController extends Controller
         }
 
         $bankAccounts = Setting::getBankAccounts();
-        $primaryAccount = collect($bankAccounts)->firstWhere('is_primary', true) ?? ($bankAccounts[0] ?? null);
+        $primaryAccount = Setting::getPrimaryBankAccount();
         $bankName = $primaryAccount['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)');
-        $accountNumber = $primaryAccount['account_number'] ?? Setting::get('payment_account_number', '7123456789');
+        $accountNumber = $primaryAccount['account_number'] ?? Setting::get('payment_account_number', '');
         $accountHolder = $primaryAccount['account_holder'] ?? Setting::get('payment_account_holder', 'Semarak Aliyah');
 
         $registrations = $rawCollection->map(function ($reg) use ($user, $cleanPhone, $sharedAllInProofUrl, $masterAllInId, $allInPaymentStatus, $bankName) {
@@ -749,7 +749,7 @@ class RegistrantDashboardController extends Controller
                 'total_fee' => $fee,
                 'registration_status' => 'Menunggu Verifikasi',
                 'payment_status' => $paymentStatus,
-                'payment_method' => 'Transfer ' . (collect(Setting::getBankAccounts())->firstWhere('is_primary', true)['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)')),
+                'payment_method' => 'Transfer ' . (Setting::getPrimaryBankAccount()['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)')),
                 'checkin_status' => 'belum_hadir',
                 'file_documents' => $fileDocs,
             ]);
@@ -802,7 +802,7 @@ class RegistrantDashboardController extends Controller
         $regCode = $masterReg->reg_code;
         $path = $proof->storeAs("uploads/registrations/{$regCode}", time() . "_bukti_{$safeName}", 'public');
         $fileUrl = '/storage/' . $path;
-        $primaryBankName = collect(Setting::getBankAccounts())->firstWhere('is_primary', true)['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)');
+        $primaryBankName = Setting::getPrimaryBankAccount()['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)');
         $paymentMethod = $request->input('payment_method') ?: ('Transfer ' . $primaryBankName);
 
         foreach ($allInRegs as $reg) {
@@ -900,7 +900,7 @@ class RegistrantDashboardController extends Controller
         $allinOriginalPrice = $isAutoOriginalPrice ? $sumCompFees : (int)Setting::get('package_allin_original_price', $sumCompFees);
 
         $bankAccounts = Setting::getBankAccounts();
-        $primaryAccount = collect($bankAccounts)->firstWhere('is_primary', true) ?? ($bankAccounts[0] ?? null);
+        $primaryAccount = Setting::getPrimaryBankAccount();
 
         $pricingSettings = [
             'allin_is_active' => Setting::get('package_allin_is_active', '1') === '1',
@@ -908,7 +908,7 @@ class RegistrantDashboardController extends Controller
             'allin_price' => (int)Setting::get('package_allin_price', 200000),
             'allin_original_price' => $allinOriginalPrice ?: 400000,
             'bank_name' => $primaryAccount['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'),
-            'account_number' => $primaryAccount['account_number'] ?? Setting::get('payment_account_number', '7123456789'),
+            'account_number' => $primaryAccount['account_number'] ?? Setting::get('payment_account_number', ''),
             'account_holder' => $primaryAccount['account_holder'] ?? Setting::get('payment_account_holder', 'Semarak Aliyah'),
             'bank_accounts' => $bankAccounts,
             'confirmation_wa' => Setting::get('payment_confirmation_wa', '0838 5007 0767'),
@@ -1029,7 +1029,7 @@ class RegistrantDashboardController extends Controller
                 'total_fee' => $allinPrice,
                 'registration_status' => 'Menunggu Verifikasi',
                 'payment_status' => $hasProof ? 'Menunggu Verifikasi' : 'Menunggu Pembayaran',
-                'payment_method' => $validatedAllIn['payment_method'] ?? ('Transfer ' . (collect(Setting::getBankAccounts())->firstWhere('is_primary', true)['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'))),
+                'payment_method' => $validatedAllIn['payment_method'] ?? ('Transfer ' . (Setting::getPrimaryBankAccount()['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'))),
                 'checkin_status' => 'belum_hadir',
                 'custom_fields' => [
                     'is_package_allin_master' => true,
@@ -1309,7 +1309,13 @@ class RegistrantDashboardController extends Controller
 
         // Process participant repeater photos (photo_formal & photo_freestyle)
         $compCustomFields = ($competition && is_array($competition->custom_fields)) ? $competition->custom_fields : [];
-        $repeaterDef = collect($compCustomFields)->firstWhere('type', 'participant_repeater');
+        $repeaterDef = null;
+        foreach ($compCustomFields as $f) {
+            if (($f['type'] ?? '') === 'participant_repeater') {
+                $repeaterDef = $f;
+                break;
+            }
+        }
         $repeaterKey = $repeaterDef['name'] ?? 'biodata_peserta';
 
         if (!empty($customFields[$repeaterKey]) && is_array($customFields[$repeaterKey])) {
@@ -1405,7 +1411,7 @@ class RegistrantDashboardController extends Controller
             'registration_status' => $isAllInVerified ? 'Terverifikasi' : 'Menunggu Verifikasi',
             'payment_status' => $paymentStatus,
             'checkin_status' => 'belum_hadir',
-            'payment_method' => $validated['payment_method'] ?? ('Transfer ' . (collect(Setting::getBankAccounts())->firstWhere('is_primary', true)['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'))),
+            'payment_method' => $validated['payment_method'] ?? ('Transfer ' . (Setting::getPrimaryBankAccount()['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'))),
             'custom_fields' => !empty($customFields) ? $customFields : null,
             'file_documents' => !empty($fileDocuments) ? $fileDocuments : null,
         ]);

@@ -148,6 +148,38 @@ const registeredData = ref(null);
 const submitAttempted = ref(false);
 const validationErrors = ref({});
 
+const availableBankAccounts = computed(() => {
+  const list = props.pricingSettings?.bank_accounts 
+    || page.props.paymentBankAccounts 
+    || [];
+  const activeList = Array.isArray(list) ? list.filter(a => a && a.is_active !== false) : [];
+  if (activeList.length > 0) return activeList;
+  if (Array.isArray(list) && list.length > 0) return list;
+  if (props.pricingSettings?.bank_name) {
+    return [{
+      id: 'default-primary',
+      bank_name: props.pricingSettings.bank_name,
+      account_number: props.pricingSettings.account_number || '',
+      account_holder: props.pricingSettings.account_holder || (school.value?.event_name || 'Semarak Aliyah'),
+      is_primary: true
+    }];
+  }
+  return [];
+});
+
+const primaryBankAccount = computed(() => {
+  return availableBankAccounts.value.find(a => a.is_primary) || availableBankAccounts.value[0] || null;
+});
+
+function resolveInitialPaymentMethod() {
+  const primary = (props.pricingSettings?.bank_accounts || page.props?.paymentBankAccounts || []).find(a => a && a.is_primary)
+    || (props.pricingSettings?.bank_accounts || page.props?.paymentBankAccounts || [])[0];
+  if (primary && primary.bank_name) {
+    return `Transfer ${primary.bank_name}`;
+  }
+  return 'Transfer Bank';
+}
+
 const form = useForm({
   package_type: 'Paket Satuan', // 'Paket Satuan' | 'Paket All-In'
   competition_id: resolveInitialCompId(),
@@ -158,7 +190,7 @@ const form = useForm({
   custom_fields: {},
   custom_files: {},
   notes: '',
-  payment_method: 'Transfer Bank BSI',
+  payment_method: resolveInitialPaymentMethod(),
   payment_proof: null
 });
 
@@ -3357,56 +3389,49 @@ onMounted(() => {
                     <i class="ri-bank-card-line text-primary"></i>
                     <span>Pilih Saluran Pembayaran <span class="text-red-500">*</span></span>
                   </label>
-                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
-                    <!-- Pilihan 1: BSI -->
+                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+                    <!-- Pilihan Rekening Bank Dinamis Sesuai Pengaturan Sistem -->
                     <label 
+                      v-for="(acc, aIdx) in availableBankAccounts"
+                      :key="acc.id || aIdx"
                       class="p-3 sm:p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
-                      :class="{ 'border-primary bg-emerald-light/40 ring-1 ring-primary': form.payment_method === 'Transfer Bank BSI' }"
-                      @click="selectPaymentMethod('Transfer Bank BSI')"
+                      :class="{ 'border-primary bg-emerald-light/40 ring-1 ring-primary': form.payment_method === `Transfer ${acc.bank_name}` }"
+                      @click="selectPaymentMethod(`Transfer ${acc.bank_name}`)"
                     >
                       <div class="flex items-center justify-between w-full">
                         <div class="flex items-center gap-2">
-                          <input type="radio" name="payment_method" value="Transfer Bank BSI" :checked="form.payment_method === 'Transfer Bank BSI'" class="w-4 h-4 text-primary focus:ring-primary shrink-0">
-                          <span class="text-xs font-bold text-primary uppercase">Transfer BSI</span>
+                          <input 
+                            type="radio" 
+                            name="payment_method" 
+                            :value="`Transfer ${acc.bank_name}`" 
+                            :checked="form.payment_method === `Transfer ${acc.bank_name}`" 
+                            class="w-4 h-4 text-primary focus:ring-primary shrink-0"
+                          >
+                          <span class="text-xs font-bold uppercase" :class="acc.is_primary ? 'text-primary' : 'text-amber-600 dark:text-amber-400'">
+                            Transfer {{ (acc.bank_name || '').replace(/^Bank\s+/i, '') }}
+                          </span>
                         </div>
-                        <i class="ri-bank-line text-primary text-[18px] leading-none shrink-0"></i>
+                        <i class="ri-bank-line text-[18px] leading-none shrink-0" :class="acc.is_primary ? 'text-primary' : 'text-amber-600 dark:text-amber-400'"></i>
                       </div>
                       <div>
                         <div class="flex items-center justify-between">
-                          <p class="font-mono text-sm font-bold text-on-surface m-0">7124686746</p>
-                          <button type="button" @click.stop="copyAccount('7124686746')" class="p-1 text-on-surface-variant hover:text-primary cursor-pointer border-none bg-transparent" title="Salin No. Rekening">
+                          <p class="font-mono text-sm font-bold text-on-surface m-0">{{ acc.account_number }}</p>
+                          <button 
+                            v-if="acc.account_number"
+                            type="button" 
+                            @click.stop="copyAccount(acc.account_number.replace(/\s+/g, ''))" 
+                            class="p-1 text-on-surface-variant hover:text-primary cursor-pointer border-none bg-transparent" 
+                            title="Salin No. Rekening"
+                          >
                             <i class="ri-file-copy-line text-[16px] leading-none"></i>
                           </button>
                         </div>
-                        <p class="text-[11px] text-on-surface-variant m-0 mt-0.5">a.n. MARIATUL AWALIYAH</p>
+                        <p class="text-[11px] text-on-surface-variant m-0 mt-0.5">a.n. {{ acc.account_holder }}</p>
+                        <p v-if="acc.notes" class="text-[10px] text-primary/80 mt-1 mb-0 italic line-clamp-1">{{ acc.notes }}</p>
                       </div>
                     </label>
 
-                    <!-- Pilihan 2: BRI -->
-                    <label 
-                      class="p-3 sm:p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
-                      :class="{ 'border-primary bg-emerald-light/40 ring-1 ring-primary': form.payment_method === 'Transfer Bank BRI' }"
-                      @click="selectPaymentMethod('Transfer Bank BRI')"
-                    >
-                      <div class="flex items-center justify-between w-full">
-                        <div class="flex items-center gap-2">
-                          <input type="radio" name="payment_method" value="Transfer Bank BRI" :checked="form.payment_method === 'Transfer Bank BRI'" class="w-4 h-4 text-primary focus:ring-primary shrink-0">
-                          <span class="text-xs font-bold text-amber-dark uppercase">Transfer BRI</span>
-                        </div>
-                        <i class="ri-bank-line text-amber-dark text-[18px] leading-none shrink-0"></i>
-                      </div>
-                      <div>
-                        <div class="flex items-center justify-between">
-                          <p class="font-mono text-sm font-bold text-on-surface m-0">6221 0102 2421 537</p>
-                          <button type="button" @click.stop="copyAccount('622101022421537')" class="p-1 text-on-surface-variant hover:text-primary cursor-pointer border-none bg-transparent" title="Salin No. Rekening">
-                            <i class="ri-file-copy-line text-[16px] leading-none"></i>
-                          </button>
-                        </div>
-                        <p class="text-[11px] text-on-surface-variant m-0 mt-0.5">a.n. MARIATUL AWALIYAH</p>
-                      </div>
-                    </label>
-
-                    <!-- Pilihan 3: Cash / Tunai -->
+                    <!-- Pilihan Cash / Tunai di Sekretariat -->
                     <label 
                       class="p-3 sm:p-3.5 rounded-xl border border-border-subtle bg-white dark:bg-[#111d17] cursor-pointer hover:border-primary/60 transition-all flex flex-col justify-between gap-2"
                       :class="{ 'border-primary bg-emerald-light/40 ring-1 ring-primary': form.payment_method === 'Tunai di Sekretariat' }"
@@ -3415,9 +3440,9 @@ onMounted(() => {
                       <div class="flex items-center justify-between w-full">
                         <div class="flex items-center gap-2">
                           <input type="radio" name="payment_method" value="Tunai di Sekretariat" :checked="form.payment_method === 'Tunai di Sekretariat'" class="w-4 h-4 text-primary focus:ring-primary shrink-0">
-                          <span class="text-xs font-bold text-emerald-dark uppercase">Tunai / Cash</span>
+                          <span class="text-xs font-bold text-emerald-dark dark:text-emerald-400 uppercase">Tunai / Cash</span>
                         </div>
-                        <i class="ri-money-dollar-circle-line text-emerald-dark text-[18px] leading-none shrink-0"></i>
+                        <i class="ri-money-dollar-circle-line text-emerald-dark dark:text-emerald-400 text-[18px] leading-none shrink-0"></i>
                       </div>
                       <div>
                         <p class="text-xs font-bold text-on-surface m-0">Sekretariat Panitia</p>

@@ -1151,7 +1151,7 @@
                   type="text" 
                   v-model="accountForm.account_number" 
                   class="form-control font-monospace fw-bold fs-15 text-primary" 
-                  placeholder="Contoh: 7123456789"
+                  placeholder="Contoh: 7124686746"
                   required
                 />
               </div>
@@ -1448,17 +1448,19 @@ const isSavingPayment = ref(false);
 const bankAccountsList = ref(
   Array.isArray(props.paymentSettings.bank_accounts) && props.paymentSettings.bank_accounts.length > 0
     ? JSON.parse(JSON.stringify(props.paymentSettings.bank_accounts))
-    : [
-        {
-          id: 'acc-1',
-          bank_name: props.paymentSettings.bank_name || 'Bank Syariah Indonesia (BSI)',
-          account_number: props.paymentSettings.account_number || '7123456789',
-          account_holder: props.paymentSettings.account_holder || 'Semarak Aliyah',
-          is_primary: true,
-          is_active: true,
-          notes: 'Rekening Utama Panitia',
-        }
-      ]
+    : (props.paymentSettings.account_number
+        ? [
+            {
+              id: 'acc-1',
+              bank_name: props.paymentSettings.bank_name || 'Bank',
+              account_number: props.paymentSettings.account_number,
+              account_holder: props.paymentSettings.account_holder || 'Panitia Semarak Aliyah',
+              is_primary: true,
+              is_active: true,
+              notes: 'Rekening Utama Panitia',
+            }
+          ]
+        : [])
 );
 
 const activeBankAccounts = computed(() => {
@@ -1467,8 +1469,8 @@ const activeBankAccounts = computed(() => {
 
 const paymentForm = ref({
   payment_bank_name: props.paymentSettings.bank_name || 'Bank Syariah Indonesia (BSI)',
-  payment_account_number: props.paymentSettings.account_number || '7123456789',
-  payment_account_holder: props.paymentSettings.account_holder || 'Semarak Aliyah',
+  payment_account_number: props.paymentSettings.account_number || '',
+  payment_account_holder: props.paymentSettings.account_holder || 'Panitia Semarak Aliyah',
   payment_confirmation_wa: props.paymentSettings.confirmation_wa || '0838 5007 0767',
   payment_instructions: props.paymentSettings.instructions || '',
   payment_cash_enabled: props.paymentSettings.cash_enabled !== false,

@@ -709,8 +709,9 @@ function submitCreate() {
   if (createForm.min_participants && createForm.max_participants && Number(createForm.min_participants) > Number(createForm.max_participants)) {
     createForm.setError('min_participants', 'Jumlah minimal tidak boleh melebihi jumlah maksimal.');
   }
-  if (createForm.reserve_participants && createForm.max_participants && Number(createForm.reserve_participants) > Number(createForm.max_participants)) {
-    createForm.setError('reserve_participants', 'Jumlah pemain cadangan tidak boleh melebihi maksimal anggota per tim.');
+  const maxReserveAllowedCreate = Math.max(0, Number(createForm.max_participants || 0) - Number(createForm.min_participants || 0));
+  if (Number(createForm.reserve_participants || 0) > maxReserveAllowedCreate) {
+    createForm.setError('reserve_participants', `Jumlah cadangan (${createForm.reserve_participants} orang) tidak boleh melebihi sisa kuota maksimal (${maxReserveAllowedCreate} orang).`);
   }
   if (createForm.hasErrors) {
     toast.error('Mohon perbaiki kolom isian yang belum lengkap atau bertanda merah.', 'Periksa Formulir');
@@ -805,8 +806,9 @@ function submitEdit() {
   if (editForm.min_participants && editForm.max_participants && Number(editForm.min_participants) > Number(editForm.max_participants)) {
     editForm.setError('min_participants', 'Jumlah minimal tidak boleh melebihi jumlah maksimal.');
   }
-  if (editForm.reserve_participants && editForm.max_participants && Number(editForm.reserve_participants) > Number(editForm.max_participants)) {
-    editForm.setError('reserve_participants', 'Jumlah pemain cadangan tidak boleh melebihi maksimal anggota per tim.');
+  const maxReserveAllowedEdit = Math.max(0, Number(editForm.max_participants || 0) - Number(editForm.min_participants || 0));
+  if (Number(editForm.reserve_participants || 0) > maxReserveAllowedEdit) {
+    editForm.setError('reserve_participants', `Jumlah cadangan (${editForm.reserve_participants} orang) tidak boleh melebihi sisa kuota maksimal (${maxReserveAllowedEdit} orang).`);
   }
   if (editForm.hasErrors) {
     toast.error('Mohon perbaiki kolom isian yang belum lengkap atau bertanda merah.', 'Periksa Formulir');
@@ -1880,7 +1882,7 @@ function confirmDelete() {
                                 v-model="createForm.reserve_participants" 
                                 type="number" 
                                 min="0" 
-                                max="50"
+                                :max="Math.max(0, Number(createForm.max_participants || 0) - Number(createForm.min_participants || 0))"
                                 class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': createForm.errors.reserve_participants }"
                                 placeholder="0" 
@@ -1888,7 +1890,9 @@ function confirmDelete() {
                               <span class="input-group-text fs-12 bg-light px-2.5">Orang</span>
                             </div>
                             <div v-if="createForm.errors.reserve_participants" class="invalid-feedback d-block fs-11">{{ createForm.errors.reserve_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas pemain cadangan jika ada (isi 0 jika tanpa cadangan).</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">
+                              Batas cadangan (maks. {{ Math.max(0, Number(createForm.max_participants || 0) - Number(createForm.min_participants || 0)) }} orang berdasarkan sisa kuota).
+                            </small>
                           </div>
 
                           <div class="col-6 col-md-3">
@@ -2556,7 +2560,7 @@ function confirmDelete() {
                                 v-model="editForm.reserve_participants" 
                                 type="number" 
                                 min="0" 
-                                max="50"
+                                :max="Math.max(0, Number(editForm.max_participants || 0) - Number(editForm.min_participants || 0))"
                                 class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': editForm.errors.reserve_participants }"
                                 placeholder="0" 
@@ -2564,7 +2568,9 @@ function confirmDelete() {
                               <span class="input-group-text fs-12 bg-light px-2.5">Orang</span>
                             </div>
                             <div v-if="editForm.errors.reserve_participants" class="invalid-feedback d-block fs-11">{{ editForm.errors.reserve_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas pemain cadangan jika ada (isi 0 jika tanpa cadangan).</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">
+                              Batas cadangan (maks. {{ Math.max(0, Number(editForm.max_participants || 0) - Number(editForm.min_participants || 0)) }} orang berdasarkan sisa kuota).
+                            </small>
                           </div>
 
                           <div class="col-6 col-md-3">

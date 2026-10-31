@@ -485,8 +485,11 @@ class AdminPanelController extends Controller
             $maxParts = $minParts;
         }
 
-        if ($reserveParts > $maxParts) {
-            return back()->withErrors(['reserve_participants' => 'Jumlah pemain cadangan tidak boleh melebihi maksimal anggota per tim.'])->withInput();
+        $maxReserveAllowed = max(0, $maxParts - $minParts);
+        if ($reserveParts > $maxReserveAllowed) {
+            return back()->withErrors([
+                'reserve_participants' => "Jumlah pemain cadangan ({$reserveParts} orang) tidak boleh melebihi sisa kuota maksimal anggota tim ({$maxReserveAllowed} orang, dari {$maxParts} maksimal dikurangi {$minParts} minimal)."
+            ])->withInput();
         }
 
         $partRule = $validated['participants_rule'] ?? '';
@@ -705,8 +708,11 @@ class AdminPanelController extends Controller
             $maxParts = $minParts;
         }
 
-        if ($reserveParts > $maxParts) {
-            return back()->withErrors(['reserve_participants' => 'Jumlah pemain cadangan tidak boleh melebihi maksimal anggota per tim.'])->withInput();
+        $maxReserveAllowed = max(0, $maxParts - $minParts);
+        if ($reserveParts > $maxReserveAllowed) {
+            return back()->withErrors([
+                'reserve_participants' => "Jumlah pemain cadangan ({$reserveParts} orang) tidak boleh melebihi sisa kuota maksimal anggota tim ({$maxReserveAllowed} orang, dari {$maxParts} maksimal dikurangi {$minParts} minimal)."
+            ])->withInput();
         }
 
         $partRule = $validated['participants_rule'] ?? '';

@@ -1478,14 +1478,14 @@ function getCompDropdownSuffix(c) {
               </div>
             </div>
             <div class="smart-guest-actions">
-              <Link :href="`/pendaftar/login?redirect_to=register`" class="btn-guest-login">
+              <a :href="`/pendaftar/login?redirect_to=register`" class="btn-guest-login text-decoration-none">
                 <i class="ri-login-box-line me-1.5"></i>
                 <span>Masuk Akun</span>
-              </Link>
-              <Link :href="`/pendaftar/register?redirect_to=register`" class="btn-guest-register">
+              </a>
+              <a :href="`/pendaftar/register?redirect_to=register`" class="btn-guest-register text-decoration-none">
                 <i class="ri-user-add-line me-1.5"></i>
                 <span>Daftar Akun Baru</span>
-              </Link>
+              </a>
             </div>
           </div>
         </div>

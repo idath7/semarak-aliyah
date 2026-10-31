@@ -118,13 +118,13 @@ function submitRegister() {
         
         <!-- Logo & Heading -->
         <div class="text-center mb-4">
-          <Link href="/" class="d-inline-flex align-items-center gap-2 text-decoration-none mb-3">
+          <a href="/" class="d-inline-flex align-items-center gap-2 text-decoration-none mb-3">
             <img src="/assets/img/logo.png" alt="Logo" class="rounded-circle shadow-sm" style="width: 50px; height: 50px; object-fit: contain;" />
             <div class="text-start">
               <div class="fw-black fs-15 tracking-wide text-uppercase auth-title" style="letter-spacing: 0.5px;">SEMARAK ALIYAH XIV</div>
               <div class="fs-12 auth-desc fw-semibold text-truncate" style="max-width: 320px;">{{ schoolName }}</div>
             </div>
-          </Link>
+          </a>
 
           <h1 class="fs-22 fw-bold auth-title mb-1">Daftar Akun Pendaftar</h1>
           <p class="fs-13 auth-desc mb-0">Buat akun untuk mendaftarkan delegasi sekolah, unggah berkas, dan pantau status lomba.</p>

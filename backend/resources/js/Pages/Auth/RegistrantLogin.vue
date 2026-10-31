@@ -224,13 +224,13 @@ onUnmounted(() => {
     
     <!-- Top Utility Header -->
     <header class="w-100 d-flex align-items-center justify-content-between mx-auto mb-2 mb-md-3" style="max-width: 860px;">
-      <Link
+      <a
         href="/"
-        class="btn btn-sm auth-nav-pill rounded-pill d-flex align-items-center gap-1.5 px-2.5 py-1 fs-11.5 fw-semibold"
+        class="btn btn-sm auth-nav-pill rounded-pill d-flex align-items-center gap-1.5 px-2.5 py-1 fs-11.5 fw-semibold text-decoration-none"
       >
         <i class="ri-arrow-left-line"></i>
         <span>Beranda Portal Publik</span>
-      </Link>
+      </a>
 
       <div class="d-flex align-items-center gap-2">
         <span class="badge badge-portal-resmi rounded-pill px-2.5 py-1 fs-11 fw-bold d-none d-sm-inline-flex align-items-center gap-1.5">
@@ -757,9 +757,9 @@ onUnmounted(() => {
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 fs-11.5 px-2 auth-desc">
         <span>© 2026 Semarak Aliyah XIV • MA Unggulan Wahid Hasyim Balung</span>
         <div class="d-flex align-items-center gap-2.5">
-          <Link v-if="!isLoginRequired" href="/layanan-registrasi" class="auth-desc text-decoration-none hover:text-primary">
+          <a v-if="!isLoginRequired" href="/layanan-registrasi" class="auth-desc text-decoration-none hover:text-primary">
             Registrasi Bebas Tanpa Login
-          </Link>
+          </a>
           <span v-if="!isLoginRequired">•</span>
           <a href="https://wa.me/6283850070767" target="_blank" class="auth-desc text-decoration-none hover:text-primary">
             Bantuan Panitia
@@ -831,6 +831,7 @@ onUnmounted(() => {
 .hero-highlight-text {
   background: linear-gradient(90deg, #38bdf8 0%, #a5b4fc 50%, #6ee7b7 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 .hero-feature-item {

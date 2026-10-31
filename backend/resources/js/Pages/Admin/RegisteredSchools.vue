@@ -687,13 +687,18 @@ const activeManualFormBuilder = computed(() => {
   const maxItems = repeater?.max_items ? Number(repeater.max_items) : Math.max(minItems, Number(comp.max_participants || 1));
   const isTeam = maxItems > 1 || hasTeamName || comp.participant_type === 'team' || comp.participant_type === 'regu' || !!rawSubs.captain_option?.active;
 
+  const rawIdLabel = rawSubs.custom_id?.label?.trim();
+  const cleanIdLabel = (!rawIdLabel || rawIdLabel === 'ID Siswa / No. Identitas (Teks)' || rawIdLabel === 'ID Siswa / No. Identitas')
+    ? 'No. Dada / ID'
+    : rawIdLabel;
+
   const subFields = {
     name: { active: true, required: true, label: rawSubs.name?.label || 'Nama Siswa', placeholder: rawSubs.name?.placeholder || 'Nama lengkap siswa...' },
     gender: { active: rawSubs.gender?.active !== false, required: rawSubs.gender?.required !== false, label: rawSubs.gender?.label || 'L/P' },
     grade: { active: rawSubs.grade?.active !== false, required: rawSubs.grade?.required !== false, label: rawSubs.grade?.label || 'Kelas' },
     nisn: { active: rawSubs.nisn?.active !== false, required: !!rawSubs.nisn?.required, label: rawSubs.nisn?.label || 'NISN', placeholder: rawSubs.nisn?.placeholder || 'NISN...' },
     birth_date: { active: !!rawSubs.birth_date?.active, required: !!rawSubs.birth_date?.required, label: rawSubs.birth_date?.label || 'Tgl Lahir' },
-    custom_id: { active: !!rawSubs.custom_id?.active, required: !!rawSubs.custom_id?.required, label: rawSubs.custom_id?.label || 'No. Dada / ID Game', placeholder: rawSubs.custom_id?.placeholder || 'ID Peserta / Akun...' },
+    custom_id: { active: !!rawSubs.custom_id?.active, required: !!rawSubs.custom_id?.required, label: cleanIdLabel, placeholder: rawSubs.custom_id?.placeholder || 'ID Peserta / Akun...' },
     wa_number: { active: !!rawSubs.wa_number?.active, required: !!rawSubs.wa_number?.required, label: rawSubs.wa_number?.label || 'WhatsApp Siswa', placeholder: rawSubs.wa_number?.placeholder || '08xxxxxxxxxx' },
     captain_option: { active: !!rawSubs.captain_option?.active, required: !!rawSubs.captain_option?.required, label: rawSubs.captain_option?.label || 'Kapten', placeholder: rawSubs.captain_option?.placeholder || '08xxxxxxxxxx' },
     custom_columns: Array.isArray(rawSubs.custom_columns) ? rawSubs.custom_columns : [],
@@ -798,13 +803,18 @@ function getAllInBuilder(cId) {
   const maxItems = repeater?.max_items ? Number(repeater.max_items) : Math.max(minItems, Number(comp.max_participants || 1));
   const isTeam = maxItems > 1 || comp.participant_type === 'team' || comp.participant_type === 'regu' || !!rawSubs.captain_option?.active;
 
+  const rawIdLabel = rawSubs.custom_id?.label?.trim();
+  const cleanIdLabel = (!rawIdLabel || rawIdLabel === 'ID Siswa / No. Identitas (Teks)' || rawIdLabel === 'ID Siswa / No. Identitas')
+    ? 'No. Dada / ID'
+    : rawIdLabel;
+
   const subFields = {
     name: { active: true, required: true, label: rawSubs.name?.label || 'Nama Siswa', placeholder: rawSubs.name?.placeholder || 'Nama lengkap siswa...' },
     gender: { active: rawSubs.gender?.active !== false, required: rawSubs.gender?.required !== false, label: rawSubs.gender?.label || 'L/P' },
     grade: { active: rawSubs.grade?.active !== false, required: rawSubs.grade?.required !== false, label: rawSubs.grade?.label || 'Kelas' },
     nisn: { active: rawSubs.nisn?.active !== false, required: !!rawSubs.nisn?.required, label: rawSubs.nisn?.label || 'NISN', placeholder: rawSubs.nisn?.placeholder || 'NISN...' },
     birth_date: { active: !!rawSubs.birth_date?.active, required: !!rawSubs.birth_date?.required, label: rawSubs.birth_date?.label || 'Tgl Lahir' },
-    custom_id: { active: !!rawSubs.custom_id?.active, required: !!rawSubs.custom_id?.required, label: rawSubs.custom_id?.label || 'No. Dada / ID Game', placeholder: rawSubs.custom_id?.placeholder || 'ID Peserta / Akun...' },
+    custom_id: { active: !!rawSubs.custom_id?.active, required: !!rawSubs.custom_id?.required, label: cleanIdLabel, placeholder: rawSubs.custom_id?.placeholder || 'ID Peserta / Akun...' },
     wa_number: { active: !!rawSubs.wa_number?.active, required: !!rawSubs.wa_number?.required, label: rawSubs.wa_number?.label || 'WhatsApp Siswa', placeholder: rawSubs.wa_number?.placeholder || '08xxxxxxxxxx' },
     captain_option: { active: !!rawSubs.captain_option?.active, required: !!rawSubs.captain_option?.required, label: rawSubs.captain_option?.label || 'Kapten', placeholder: rawSubs.captain_option?.placeholder || '08xxxxxxxxxx' },
     custom_columns: Array.isArray(rawSubs.custom_columns) ? rawSubs.custom_columns : [],
@@ -2629,55 +2639,56 @@ function printReport() {
                   <!-- Tabel Repeater Delegasi Tunggal -->
                   <div class="table-responsive mb-2" style="min-height: 240px;">
                     <table class="table table-sm table-bordered align-middle mb-0 fs-11">
-                      <thead class="table-light">
-                        <tr>
-                          <th style="width: 32px;" class="text-center">#</th>
-                          <th style="min-width: 140px;">
-                            {{ activeManualFormBuilder?.sub_fields?.name?.label || 'Nama Siswa' }}
-                            <span class="text-danger">*</span>
+                    <thead class="table-light text-uppercase fw-semibold" style="font-size: 10px; letter-spacing: 0.3px;">
+                      <tr>
+                        <th style="width: 32px;" class="text-center py-2 px-1">#</th>
+                        <th style="min-width: 220px;" class="py-2 px-2">
+                          {{ activeManualFormBuilder?.sub_fields?.name?.label || 'Nama Siswa' }}
+                          <span class="text-danger">*</span>
+                        </th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.nisn?.active" style="width: 105px; min-width: 100px;" class="py-2 px-1.5">
+                          {{ activeManualFormBuilder?.sub_fields?.nisn?.label || 'NISN' }}
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.nisn?.required">*</span>
+                        </th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.gender?.active" style="width: 80px; min-width: 75px;" class="py-2 px-1.5">
+                          {{ activeManualFormBuilder?.sub_fields?.gender?.label || 'L/P' }}
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.gender?.required">*</span>
+                        </th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.grade?.active" style="width: 90px; min-width: 85px;" class="py-2 px-1.5">
+                          {{ activeManualFormBuilder?.sub_fields?.grade?.label || 'Kelas' }}
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.grade?.required">*</span>
+                        </th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.birth_date?.active" style="width: 115px; min-width: 110px;" class="py-2 px-1.5">
+                          {{ activeManualFormBuilder?.sub_fields?.birth_date?.label || 'Tgl Lahir' }}
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.birth_date?.required">*</span>
+                        </th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.custom_id?.active" style="width: 105px; min-width: 95px;" class="py-2 px-1.5">
+                          {{ activeManualFormBuilder?.sub_fields?.custom_id?.label || 'No. Dada / ID' }}
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.custom_id?.required">*</span>
+                        </th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.wa_number?.active" style="width: 115px; min-width: 110px;" class="py-2 px-1.5">
+                          {{ activeManualFormBuilder?.sub_fields?.wa_number?.label || 'No. WA' }}
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.wa_number?.required">*</span>
+                        </th>
+                        <template v-if="activeManualFormBuilder?.sub_fields?.custom_columns?.length">
+                          <th 
+                            v-for="(col, cIdx) in activeManualFormBuilder.sub_fields.custom_columns" 
+                            :key="col.id || col.name || cIdx"
+                            style="min-width: 110px; width: 120px;"
+                            class="py-2 px-1.5"
+                          >
+                            {{ col.label || col.name }}
+                            <span class="text-danger" v-if="col.required">*</span>
                           </th>
-                          <th v-if="activeManualFormBuilder?.sub_fields?.nisn?.active" style="width: 110px;">
-                            {{ activeManualFormBuilder?.sub_fields?.nisn?.label || 'NISN' }}
-                            <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.nisn?.required">*</span>
-                          </th>
-                          <th v-if="activeManualFormBuilder?.sub_fields?.gender?.active" style="width: 110px;">
-                            {{ activeManualFormBuilder?.sub_fields?.gender?.label || 'L/P' }}
-                            <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.gender?.required">*</span>
-                          </th>
-                          <th v-if="activeManualFormBuilder?.sub_fields?.grade?.active" style="width: 110px;">
-                            {{ activeManualFormBuilder?.sub_fields?.grade?.label || 'Kelas' }}
-                            <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.grade?.required">*</span>
-                          </th>
-                          <th v-if="activeManualFormBuilder?.sub_fields?.birth_date?.active" style="width: 125px;">
-                            {{ activeManualFormBuilder?.sub_fields?.birth_date?.label || 'Tgl Lahir' }}
-                            <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.birth_date?.required">*</span>
-                          </th>
-                          <th v-if="activeManualFormBuilder?.sub_fields?.custom_id?.active" style="min-width: 130px;">
-                            {{ activeManualFormBuilder?.sub_fields?.custom_id?.label || 'No. Dada / ID' }}
-                            <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.custom_id?.required">*</span>
-                          </th>
-                          <th v-if="activeManualFormBuilder?.sub_fields?.wa_number?.active" style="width: 120px;">
-                            {{ activeManualFormBuilder?.sub_fields?.wa_number?.label || 'No. WA' }}
-                            <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.wa_number?.required">*</span>
-                          </th>
-                          <template v-if="activeManualFormBuilder?.sub_fields?.custom_columns?.length">
-                            <th 
-                              v-for="(col, cIdx) in activeManualFormBuilder.sub_fields.custom_columns" 
-                              :key="col.id || col.name || cIdx"
-                              style="min-width: 120px;"
-                            >
-                              {{ col.label || col.name }}
-                              <span class="text-danger" v-if="col.required">*</span>
-                            </th>
-                          </template>
-                          <th v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active" style="width: 65px;" class="text-center">Kapten</th>
-                          <th v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active" style="min-width: 140px; width: 155px;">
-                            No. WA Kapten
-                            <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.captain_option?.required">*</span>
-                          </th>
-                          <th style="width: 35px;" class="text-center">Hapus</th>
-                        </tr>
-                      </thead>
+                        </template>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active" style="width: 55px;" class="text-center py-2 px-1">Kapten</th>
+                        <th v-if="activeManualFormBuilder?.sub_fields?.captain_option?.active" style="width: 135px; min-width: 125px;" class="py-2 px-1.5">
+                          No. WA Kapten
+                          <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.captain_option?.required">*</span>
+                        </th>
+                        <th style="width: 35px;" class="text-center py-2 px-1">Hapus</th>
+                      </tr>
+                    </thead>
                       <tbody>
                         <tr v-for="(st, idx) in manualSingleDelegates" :key="idx">
                           <td class="text-center text-muted fw-bold">{{ idx + 1 }}</td>
@@ -2863,34 +2874,34 @@ function printReport() {
                     <!-- Tabel Repeater untuk Cabang Aktif di All-In -->
                     <div class="table-responsive mb-2" style="min-height: 240px;">
                       <table class="table table-sm table-bordered align-middle mb-0 fs-11 bg-white">
-                        <thead class="table-light">
+                        <thead class="table-light text-uppercase fw-semibold" style="font-size: 10px; letter-spacing: 0.3px;">
                           <tr>
-                            <th style="width: 32px;" class="text-center">#</th>
-                            <th style="min-width: 140px;">
+                            <th style="width: 32px;" class="text-center py-2 px-1">#</th>
+                            <th style="min-width: 220px;" class="py-2 px-2">
                               {{ getAllInBuilder(activeAllInTab).sub_fields.name.label || 'Nama Siswa' }}
                               <span class="text-danger">*</span>
                             </th>
-                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.nisn.active" style="width: 110px;">
+                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.nisn.active" style="width: 105px; min-width: 100px;" class="py-2 px-1.5">
                               {{ getAllInBuilder(activeAllInTab).sub_fields.nisn.label || 'NISN' }}
                               <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.nisn.required">*</span>
                             </th>
-                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.gender.active" style="width: 110px;">
+                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.gender.active" style="width: 80px; min-width: 75px;" class="py-2 px-1.5">
                               {{ getAllInBuilder(activeAllInTab).sub_fields.gender.label || 'L/P' }}
                               <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.gender.required">*</span>
                             </th>
-                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.grade.active" style="width: 110px;">
+                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.grade.active" style="width: 90px; min-width: 85px;" class="py-2 px-1.5">
                               {{ getAllInBuilder(activeAllInTab).sub_fields.grade.label || 'Kelas' }}
                               <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.grade.required">*</span>
                             </th>
-                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.birth_date.active" style="width: 125px;">
+                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.birth_date.active" style="width: 115px; min-width: 110px;" class="py-2 px-1.5">
                               {{ getAllInBuilder(activeAllInTab).sub_fields.birth_date.label || 'Tgl Lahir' }}
                               <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.birth_date.required">*</span>
                             </th>
-                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.custom_id.active" style="min-width: 130px;">
+                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.custom_id.active" style="width: 105px; min-width: 95px;" class="py-2 px-1.5">
                               {{ getAllInBuilder(activeAllInTab).sub_fields.custom_id.label || 'No. Dada / ID' }}
                               <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.custom_id.required">*</span>
                             </th>
-                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.wa_number.active" style="width: 120px;">
+                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.wa_number.active" style="width: 115px; min-width: 110px;" class="py-2 px-1.5">
                               {{ getAllInBuilder(activeAllInTab).sub_fields.wa_number.label || 'No. WA' }}
                               <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.wa_number.required">*</span>
                             </th>
@@ -2898,18 +2909,19 @@ function printReport() {
                               <th 
                                 v-for="(col, cIdx) in getAllInBuilder(activeAllInTab).sub_fields.custom_columns" 
                                 :key="col.id || col.name || cIdx"
-                                style="min-width: 120px;"
+                                style="min-width: 110px; width: 120px;"
+                                class="py-2 px-1.5"
                               >
                                 {{ col.label || col.name }}
                                 <span class="text-danger" v-if="col.required">*</span>
                               </th>
                             </template>
-                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active" style="width: 65px;" class="text-center">Kapten</th>
-                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active" style="min-width: 140px; width: 155px;">
+                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active" style="width: 55px;" class="text-center py-2 px-1">Kapten</th>
+                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.active" style="width: 135px; min-width: 125px;" class="py-2 px-1.5">
                               No. WA Kapten
                               <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.captain_option.required">*</span>
                             </th>
-                            <th style="width: 35px;" class="text-center">Hapus</th>
+                            <th style="width: 35px;" class="text-center py-2 px-1">Hapus</th>
                           </tr>
                         </thead>
                         <tbody>

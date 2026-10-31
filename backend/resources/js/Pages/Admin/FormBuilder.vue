@@ -162,7 +162,7 @@ function createDefaultSubFields() {
     grade: { active: true, required: true, label: 'Kelas / Tingkat', placeholder: 'Pilih Kelas...' },
     birth_date: { active: true, required: false, label: 'Tanggal Lahir Siswa', placeholder: 'dd/mm/yyyy' },
     nisn: { active: true, required: false, label: 'Nomor Induk Siswa Nasional (NISN)', placeholder: 'Contoh: 0081234567' },
-    custom_id: { active: false, required: false, label: 'ID Siswa / No. Identitas (Teks)', placeholder: 'Contoh: ID-0912 / User ID Game' },
+    custom_id: { active: false, required: false, label: 'No. Dada / ID Game', placeholder: 'Contoh: ID-0912 / User ID Game' },
     wa_number: { active: false, required: false, label: 'Nomor WhatsApp Siswa (Angka)', placeholder: '08xxxxxxxxxx' },
     captain_option: { active: false, required: false, label: 'Tandai Kapten Tim & Nomor WA Khusus Kapten', placeholder: 'Contoh: 081234567890 (Untuk koordinasi panitia & kapten)' },
     photo_formal: { active: false, required: false, label: 'Upload Pas Foto Siswa Formal', placeholder: 'Unggah pas foto formal 3x4 berwarna siswa' },
@@ -3345,13 +3345,27 @@ function setParticipantCountDirect(field, val) {
                                         </div>
                                         <span class="badge bg-secondary-subtle text-secondary fs-9 ms-auto">Field Text</span>
                                       </label>
-                                      <div v-if="field.sub_fields.custom_id.active" class="mt-1 ps-4">
-                                        <input 
-                                          type="text" 
-                                          v-model="field.sub_fields.custom_id.placeholder" 
-                                          class="form-control form-control-sm fs-11" 
-                                          placeholder="Placeholder ID Siswa (Contoh: ID-0912 / User ID Game)"
-                                        />
+                                      <div v-if="field.sub_fields.custom_id.active" class="row g-2 pt-1.5 mt-1 border-top ps-4">
+                                        <div class="col-md-5">
+                                          <label class="fs-10 fw-semibold text-dark mb-0.5">Label Kolom ID Siswa:</label>
+                                          <input 
+                                            type="text" 
+                                            v-model="field.sub_fields.custom_id.label" 
+                                            @input="isDirty = true"
+                                            class="form-control form-control-sm fs-11" 
+                                            placeholder="Contoh: No. Dada / ID Game"
+                                          />
+                                        </div>
+                                        <div class="col-md-7">
+                                          <label class="fs-10 fw-semibold text-dark mb-0.5">Placeholder Pengisian:</label>
+                                          <input 
+                                            type="text" 
+                                            v-model="field.sub_fields.custom_id.placeholder" 
+                                            @input="isDirty = true"
+                                            class="form-control form-control-sm fs-11" 
+                                            placeholder="Contoh: ID-0912 / User ID Game"
+                                          />
+                                        </div>
                                       </div>
                                     </div>
                                     <div v-if="field.sub_fields?.wa_number">

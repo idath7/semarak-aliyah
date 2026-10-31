@@ -1313,7 +1313,7 @@ async function submitManualRegistration(saveMode = 'final') {
                     <thead class="table-light text-uppercase fw-semibold" style="font-size: 10px; letter-spacing: 0.3px;">
                       <tr>
                         <th style="width: 32px;" class="text-center py-2 px-1">#</th>
-                        <th style="min-width: 215px; width: 225px;" class="py-2 px-2">
+                        <th style="min-width: 280px; width: 300px;" class="py-2 px-2">
                           {{ activeManualFormBuilder?.sub_fields?.name?.label || 'Nama Siswa' }}
                           <span class="text-danger">*</span>
                         </th>
@@ -1548,7 +1548,7 @@ async function submitManualRegistration(saveMode = 'final') {
                       <thead class="table-light text-uppercase fw-semibold" style="font-size: 10px; letter-spacing: 0.3px;">
                         <tr>
                           <th style="width: 32px;" class="text-center py-2 px-1">#</th>
-                          <th style="min-width: 215px; width: 225px;" class="py-2 px-2">
+                          <th style="min-width: 280px; width: 300px;" class="py-2 px-2">
                             {{ getAllInBuilder(activeAllInTab).sub_fields.name.label || 'Nama Siswa' }}
                             <span class="text-danger">*</span>
                           </th>

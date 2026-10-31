@@ -2642,7 +2642,7 @@ function printReport() {
                     <thead class="table-light text-uppercase fw-semibold" style="font-size: 10px; letter-spacing: 0.3px;">
                       <tr>
                         <th style="width: 32px;" class="text-center py-2 px-1">#</th>
-                        <th style="min-width: 220px;" class="py-2 px-2">
+                        <th style="min-width: 180px; width: 190px;" class="py-2 px-2">
                           {{ activeManualFormBuilder?.sub_fields?.name?.label || 'Nama Siswa' }}
                           <span class="text-danger">*</span>
                         </th>
@@ -2658,11 +2658,11 @@ function printReport() {
                           {{ activeManualFormBuilder?.sub_fields?.grade?.label || 'Kelas' }}
                           <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.grade?.required">*</span>
                         </th>
-                        <th v-if="activeManualFormBuilder?.sub_fields?.birth_date?.active" style="width: 115px; min-width: 110px;" class="py-2 px-1.5">
+                        <th v-if="activeManualFormBuilder?.sub_fields?.birth_date?.active" style="width: 130px; min-width: 125px;" class="py-2 px-1.5">
                           {{ activeManualFormBuilder?.sub_fields?.birth_date?.label || 'Tgl Lahir' }}
                           <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.birth_date?.required">*</span>
                         </th>
-                        <th v-if="activeManualFormBuilder?.sub_fields?.custom_id?.active" style="width: 105px; min-width: 95px;" class="py-2 px-1.5">
+                        <th v-if="activeManualFormBuilder?.sub_fields?.custom_id?.active" style="width: 125px; min-width: 115px;" class="py-2 px-1.5">
                           {{ activeManualFormBuilder?.sub_fields?.custom_id?.label || 'No. Dada / ID' }}
                           <span class="text-danger" v-if="activeManualFormBuilder?.sub_fields?.custom_id?.required">*</span>
                         </th>
@@ -2877,7 +2877,7 @@ function printReport() {
                         <thead class="table-light text-uppercase fw-semibold" style="font-size: 10px; letter-spacing: 0.3px;">
                           <tr>
                             <th style="width: 32px;" class="text-center py-2 px-1">#</th>
-                            <th style="min-width: 220px;" class="py-2 px-2">
+                            <th style="min-width: 180px; width: 190px;" class="py-2 px-2">
                               {{ getAllInBuilder(activeAllInTab).sub_fields.name.label || 'Nama Siswa' }}
                               <span class="text-danger">*</span>
                             </th>
@@ -2893,11 +2893,11 @@ function printReport() {
                               {{ getAllInBuilder(activeAllInTab).sub_fields.grade.label || 'Kelas' }}
                               <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.grade.required">*</span>
                             </th>
-                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.birth_date.active" style="width: 115px; min-width: 110px;" class="py-2 px-1.5">
+                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.birth_date.active" style="width: 130px; min-width: 125px;" class="py-2 px-1.5">
                               {{ getAllInBuilder(activeAllInTab).sub_fields.birth_date.label || 'Tgl Lahir' }}
                               <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.birth_date.required">*</span>
                             </th>
-                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.custom_id.active" style="width: 105px; min-width: 95px;" class="py-2 px-1.5">
+                            <th v-if="getAllInBuilder(activeAllInTab).sub_fields.custom_id.active" style="width: 125px; min-width: 115px;" class="py-2 px-1.5">
                               {{ getAllInBuilder(activeAllInTab).sub_fields.custom_id.label || 'No. Dada / ID' }}
                               <span class="text-danger" v-if="getAllInBuilder(activeAllInTab).sub_fields.custom_id.required">*</span>
                             </th>

@@ -174,20 +174,22 @@ function syncWithCompetitionRules(field, isManualRefresh = false) {
   const comp = props.selectedCompetition;
   if (!comp || !field) return;
 
-  field.sub_fields = normalizeSubFields(field.sub_fields);
-
   const isTeam = comp.participant_type === 'tim';
   const rule = (comp.participants_rule || '').trim();
   const compId = (comp.id || '').toLowerCase();
   const compTitle = (comp.title || '').toLowerCase();
   const compCategory = (comp.category || '').toLowerCase();
 
+  // 1. Ambil data primer langsung dari atribut numerik lomba (Manajemen Lomba)
   let max = comp.max_participants ? Number(comp.max_participants) : (isTeam ? 10 : 1);
-  let min = isTeam ? Math.min(max, 5) : 1;
-  let main = max;
-  let reserve = 0;
+  let min = comp.min_participants ? Number(comp.min_participants) : (isTeam ? Math.min(max, 5) : 1);
+  let reserve = (comp.reserve_participants !== undefined && comp.reserve_participants !== null && comp.reserve_participants !== '')
+    ? Number(comp.reserve_participants)
+    : 0;
+  let main = min;
 
-  if (rule) {
+  // Fallback regex HANYA jika data min_participants tidak terdefinisi di database
+  if (!comp.min_participants && rule) {
     const matchInti = rule.match(/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*inti/i);
     const matchCadangan = rule.match(/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*cadangan/i);
     const matchRange = rule.match(/(\d+)\s*(?:s\.d|sampai|-)\s*(\d+)\s*(?:siswa|orang|pemain|peserta|personel)?/i);
@@ -197,28 +199,25 @@ function syncWithCompetitionRules(field, isManualRefresh = false) {
       main = parseInt(matchInti[1], 10);
       min = main;
       if (matchCadangan) reserve = parseInt(matchCadangan[1], 10);
-      max = main + reserve;
+      if (!comp.max_participants) max = main + reserve;
     } else if (matchRange) {
       min = parseInt(matchRange[1], 10);
-      max = parseInt(matchRange[2], 10);
+      if (!comp.max_participants) max = parseInt(matchRange[2], 10);
       main = min;
       reserve = Math.max(0, max - min);
     } else if (matchMaksimal) {
-      max = parseInt(matchMaksimal[1], 10);
-      if (isTeam) {
-        min = Math.min(max, 5);
-        main = max;
-        reserve = 0;
-      } else {
-        min = 1;
-        main = max;
-        reserve = 0;
-      }
+      if (!comp.max_participants) max = parseInt(matchMaksimal[1], 10);
+      min = isTeam ? Math.min(max, 5) : 1;
+      main = min;
+      reserve = 0;
     }
   }
 
   if (min > max) min = max;
   if (min < 1) min = 1;
+  const maxReserveAllowed = Math.max(0, max - min);
+  if (reserve > maxReserveAllowed) reserve = maxReserveAllowed;
+  main = min;
 
   field.min_items = min;
   field.max_items = max;
@@ -226,60 +225,70 @@ function syncWithCompetitionRules(field, isManualRefresh = false) {
   field.reserve_members = reserve;
   field.name = isTeam ? 'roster_tim' : 'biodata_peserta';
 
-  if (isTeam) {
-    field.label = compId === 'mobile-legends'
-      ? `Roster Skuad Tim Mobile Legends (${main} Inti + ${reserve} Cadangan)`
-      : (compId.includes('volleyball')
-        ? `Roster Skuad Tim Bola Voli (${main} Inti + ${reserve} Cadangan)`
-        : `Biodata Personel Grup ${comp.title || 'Banjari'} (Maksimal ${max} Personel)`);
-  } else {
-    field.label = `Biodata Peserta ${comp.title || 'Lomba'} (Maksimal ${max} Siswa)`;
-  }
-
-  if (isTeam) {
-    field.sub_fields.team_name.active = true;
-    field.sub_fields.team_name.required = true;
-    field.sub_fields.captain_option.active = true;
-
-    if (compId === 'mobile-legends' || compTitle.includes('mobile legends') || compCategory === 'teknologi') {
-      field.sub_fields.team_name.label = 'Nama Tim / Skuad MLBB';
-      field.sub_fields.team_name.placeholder = 'Contoh: Garuda Squad / RRQ Reborn';
-      field.sub_fields.custom_id.active = true;
-      field.sub_fields.custom_id.required = true;
-      field.sub_fields.custom_id.label = 'ID Akun MLBB';
-      field.sub_fields.custom_id.placeholder = 'ID Game (Server ID)';
-      field.sub_fields.captain_option.label = 'Tandai Kapten Tim & No. WhatsApp';
-      field.sub_fields.captain_option.placeholder = '08xxxxxxxxxx (Untuk koordinasi panitia turnamen)';
-    } else if (compId.includes('volleyball') || compTitle.includes('volleyball') || compTitle.includes('voli') || compCategory === 'olahraga') {
-      field.sub_fields.team_name.label = 'Nama Tim Bola Voli';
-      field.sub_fields.team_name.placeholder = 'Contoh: Spiker Utama / Tim Voli Putra';
-      field.sub_fields.custom_id.active = true;
-      field.sub_fields.custom_id.required = false;
-      field.sub_fields.custom_id.label = 'No. Punggung / Posisi';
-      field.sub_fields.custom_id.placeholder = 'Contoh: 10 / Spiker';
-      field.sub_fields.captain_option.label = 'Tandai Kapten Tim & No. WhatsApp';
-      field.sub_fields.captain_option.placeholder = '08xxxxxxxxxx (Untuk koordinasi kapten voli)';
-    } else if (compId === 'albanjari' || compTitle.includes('banjari') || compCategory === 'keagamaan') {
-      field.sub_fields.team_name.label = 'Nama Grup Albanjari';
-      field.sub_fields.team_name.placeholder = 'Contoh: Syauqul Habib / Al-Fath';
-      field.sub_fields.custom_id.active = true;
-      field.sub_fields.custom_id.required = false;
-      field.sub_fields.custom_id.label = 'Peran / Alat Musik';
-      field.sub_fields.custom_id.placeholder = 'Contoh: Vokal Utama / Terbang 1 / Bass';
-      field.sub_fields.captain_option.label = 'Tandai Ketua Grup & No. WhatsApp';
-      field.sub_fields.captain_option.placeholder = '08xxxxxxxxxx (Untuk koordinasi ketua grup banjari)';
+  // Hanya set default label jika label masih kosong
+  if (!field.label || !field.label.trim()) {
+    if (isTeam) {
+      field.label = compId === 'mobile-legends'
+        ? `Roster Skuad Tim Mobile Legends (${main} Inti + ${reserve} Cadangan)`
+        : (compId.includes('volleyball') || compTitle.includes('voli')
+          ? `Roster Skuad Tim Bola Voli (${main} Inti + ${reserve} Cadangan)`
+          : `Biodata Personel Grup ${comp.title || 'Banjari'} (Maksimal ${max} Personel)`);
     } else {
-      field.sub_fields.team_name.label = 'Nama Tim / Regu';
-      field.sub_fields.team_name.placeholder = 'Contoh: Regu Utama / Tim Kontingen';
+      field.label = `Biodata Peserta ${comp.title || 'Lomba'} (Maksimal ${max} Siswa)`;
     }
-  } else {
-    field.sub_fields.team_name.active = false;
-    field.sub_fields.captain_option.active = false;
-    field.sub_fields.custom_id.active = false;
   }
 
   if (comp.participants_rule) {
     field.help_text = `Aturan: ${comp.participants_rule} (Minimal ${min}, Maksimal ${max} peserta)`;
+  }
+
+  // Normalisasi sub_fields TANPA menimpa kustomisasi yang sudah ada
+  const hadExistingSubs = field.sub_fields && typeof field.sub_fields === 'object' && Object.keys(field.sub_fields).length > 0;
+  field.sub_fields = normalizeSubFields(field.sub_fields);
+
+  // Default preset cerdas HANYA jika field belum pernah memiliki sub_fields atau tombol Segarkan Kuota ditekan secara manual
+  if (!hadExistingSubs || isManualRefresh) {
+    if (isTeam) {
+      field.sub_fields.team_name.active = true;
+      field.sub_fields.team_name.required = true;
+      field.sub_fields.captain_option.active = true;
+
+      if (compId === 'mobile-legends' || compTitle.includes('mobile legends') || compCategory === 'teknologi') {
+        field.sub_fields.team_name.label = 'Nama Tim / Skuad MLBB';
+        field.sub_fields.team_name.placeholder = 'Contoh: Garuda Squad / RRQ Reborn';
+        field.sub_fields.custom_id.active = true;
+        field.sub_fields.custom_id.required = true;
+        field.sub_fields.custom_id.label = 'ID Akun MLBB';
+        field.sub_fields.custom_id.placeholder = 'ID Game (Server ID)';
+        field.sub_fields.captain_option.label = 'Tandai Kapten Tim & No. WhatsApp';
+        field.sub_fields.captain_option.placeholder = '08xxxxxxxxxx (Untuk koordinasi panitia turnamen)';
+      } else if (compId.includes('volleyball') || compTitle.includes('volleyball') || compTitle.includes('voli') || compCategory === 'olahraga') {
+        field.sub_fields.team_name.label = 'Nama Tim Bola Voli';
+        field.sub_fields.team_name.placeholder = 'Contoh: Spiker Utama / Tim Voli Putra';
+        field.sub_fields.custom_id.active = true;
+        field.sub_fields.custom_id.required = false;
+        field.sub_fields.custom_id.label = 'No. Punggung / Posisi';
+        field.sub_fields.custom_id.placeholder = 'Contoh: 10 / Spiker';
+        field.sub_fields.captain_option.label = 'Tandai Kapten Tim & No. WhatsApp';
+        field.sub_fields.captain_option.placeholder = '08xxxxxxxxxx (Untuk koordinasi kapten voli)';
+      } else if (compId === 'albanjari' || compTitle.includes('banjari') || compCategory === 'keagamaan') {
+        field.sub_fields.team_name.label = 'Nama Grup Albanjari';
+        field.sub_fields.team_name.placeholder = 'Contoh: Syauqul Habib / Al-Fath';
+        field.sub_fields.custom_id.active = true;
+        field.sub_fields.custom_id.required = false;
+        field.sub_fields.custom_id.label = 'Peran / Alat Musik';
+        field.sub_fields.custom_id.placeholder = 'Contoh: Vokal Utama / Terbang 1 / Bass';
+        field.sub_fields.captain_option.label = 'Tandai Ketua Grup & No. WhatsApp';
+        field.sub_fields.captain_option.placeholder = '08xxxxxxxxxx (Untuk koordinasi ketua grup banjari)';
+      } else {
+        field.sub_fields.team_name.label = 'Nama Tim / Regu';
+        field.sub_fields.team_name.placeholder = 'Contoh: Regu Utama / Tim Kontingen';
+      }
+    } else if (isManualRefresh) {
+      field.sub_fields.team_name.active = false;
+      field.sub_fields.captain_option.active = false;
+      field.sub_fields.custom_id.active = false;
+    }
   }
 
   if (isManualRefresh) {
@@ -524,7 +533,6 @@ function saveFormFields() {
   }
 
   if (repeaterField.value) {
-    syncWithCompetitionRules(repeaterField.value);
     if (!repeaterField.value.label || !repeaterField.value.label.trim()) {
       activeSectionTab.value = 'section_2';
       toast.warning('Label Bagian Multi-Peserta wajib diisi.');

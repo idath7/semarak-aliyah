@@ -607,10 +607,13 @@ function getCompetitionParticipantLimits(comp, repeater) {
 
   const isTeam = comp.participant_type === 'tim';
   const rule = String(comp.participants_rule || '').trim();
+
+  // 1. Prioritaskan langsung data numerik dari model Competition
   let max = comp.max_participants ? Number(comp.max_participants) : (isTeam ? 10 : 1);
   let min = comp.min_participants ? Number(comp.min_participants) : (isTeam ? Math.min(max, 5) : 1);
 
-  if (rule) {
+  // Fallback regex HANYA jika data numerik min_participants belum terisi di database
+  if (!comp.min_participants && rule) {
     const matchInti = rule.match(/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*inti/i);
     const matchCadangan = rule.match(/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*cadangan/i);
     const matchRange = rule.match(/(\d+)\s*(?:s\.d|sampai|-)\s*(\d+)\s*(?:siswa|orang|pemain|peserta|personel)?/i);
@@ -620,12 +623,12 @@ function getCompetitionParticipantLimits(comp, repeater) {
       const main = parseInt(matchInti[1], 10);
       min = main;
       const reserve = matchCadangan ? parseInt(matchCadangan[1], 10) : 0;
-      max = main + reserve;
+      if (!comp.max_participants) max = main + reserve;
     } else if (matchRange) {
       min = parseInt(matchRange[1], 10);
-      max = parseInt(matchRange[2], 10);
+      if (!comp.max_participants) max = parseInt(matchRange[2], 10);
     } else if (matchMaksimal) {
-      max = parseInt(matchMaksimal[1], 10);
+      if (!comp.max_participants) max = parseInt(matchMaksimal[1], 10);
       min = isTeam ? Math.min(max, 5) : 1;
     }
   }

@@ -1266,8 +1266,8 @@ class AdminPanelController extends Controller
             'birth_date' => ['active' => true, 'required' => false, 'label' => 'Tanggal Lahir Siswa'],
             'grade' => ['active' => true, 'required' => true, 'label' => 'Kelas / Tingkat'],
             'nisn' => ['active' => true, 'required' => true, 'label' => 'Nomor Induk Siswa Nasional (NISN)'],
-            'custom_id' => ['active' => false, 'required' => false, 'label' => 'ID Siswa / No. Identitas (Teks)'],
-            'wa_number' => ['active' => false, 'required' => false, 'label' => 'Nomor WhatsApp Siswa (Angka)'],
+            'custom_id' => ['active' => false, 'required' => false, 'label' => 'ID Siswa / No. Identitas'],
+            'wa_number' => ['active' => false, 'required' => false, 'label' => 'Nomor WhatsApp Siswa'],
             'captain_option' => ['active' => false, 'required' => false, 'label' => 'Tandai Kapten Tim & Nomor WA Khusus Kapten'],
             'team_name' => ['active' => false, 'required' => true, 'label' => 'Nama Tim / Skuad', 'placeholder' => 'Contoh: Garuda Squad / Tim Voli Utama'],
             'photo_formal' => ['active' => false, 'required' => false, 'label' => 'Upload Pas Foto Formal Siswa', 'placeholder' => 'Pilih Pas Foto Formal Siswa (JPG/PNG, Maks. 5 MB)'],
@@ -1285,7 +1285,14 @@ class AdminPanelController extends Controller
             } elseif (!isset($subFields[$k]) || !is_array($subFields[$k])) {
                 $subFields[$k] = $defVal;
             } else {
-                $subFields[$k] = array_merge($defVal, $subFields[$k]);
+                $merged = array_merge($defVal, $subFields[$k]);
+                if (isset($subFields[$k]['active'])) {
+                    $merged['active'] = (bool)$subFields[$k]['active'];
+                }
+                if (isset($subFields[$k]['required'])) {
+                    $merged['required'] = (bool)$subFields[$k]['required'];
+                }
+                $subFields[$k] = $merged;
             }
         }
 
@@ -1299,17 +1306,19 @@ class AdminPanelController extends Controller
         $compId = strtolower((string)$comp->id);
         $compTitle = strtolower((string)$comp->title);
 
-        $max = (int)($comp->max_participants ?: ($isTeam ? 10 : 1));
-        $min = (int)($comp->min_participants ?: ($isTeam ? min($max, 5) : 1));
+        // 1. Prioritaskan langsung data numerik dari kolom model Competition
+        $max = !empty($comp->max_participants) ? (int)$comp->max_participants : ($isTeam ? 10 : 1);
+        $min = !empty($comp->min_participants) ? (int)$comp->min_participants : ($isTeam ? min($max, 5) : 1);
+        $reserve = isset($comp->reserve_participants) && $comp->reserve_participants !== null && $comp->reserve_participants !== ''
+            ? (int)$comp->reserve_participants
+            : 0;
         $main = $min;
-        $reserve = max(0, $max - $min);
 
-        if (!empty($rule)) {
+        // Fallback regex ke participants_rule HANYA jika data numerik min_participants belum terisi di database
+        if (empty($comp->min_participants) && !empty($rule)) {
             if (preg_match('/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*inti/i', $rule, $mInti)) {
                 $main = (int)$mInti[1];
-                if (empty($comp->min_participants)) {
-                    $min = $main;
-                }
+                $min = $main;
                 if (preg_match('/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*cadangan/i', $rule, $mCadangan)) {
                     $reserve = (int)$mCadangan[1];
                 }
@@ -1317,9 +1326,7 @@ class AdminPanelController extends Controller
                     $max = $main + $reserve;
                 }
             } elseif (preg_match('/(\d+)\s*(?:s\.d|sampai|-)\s*(\d+)\s*(?:siswa|orang|pemain|peserta|personel)?/i', $rule, $mRange)) {
-                if (empty($comp->min_participants)) {
-                    $min = (int)$mRange[1];
-                }
+                $min = (int)$mRange[1];
                 if (empty($comp->max_participants)) {
                     $max = (int)$mRange[2];
                 }
@@ -1329,29 +1336,19 @@ class AdminPanelController extends Controller
                 if (empty($comp->max_participants)) {
                     $max = (int)$mMaksimal[1];
                 }
-                if (empty($comp->min_participants)) {
-                    $min = $isTeam ? min($max, 5) : 1;
-                }
+                $min = $isTeam ? min($max, 5) : 1;
                 $main = $min;
-                $reserve = max(0, $max - $min);
+                $reserve = 0;
             }
-        }
-
-        if (!empty($comp->min_participants)) {
-            $min = (int)$comp->min_participants;
-        }
-        if (!empty($comp->max_participants)) {
-            $max = (int)$comp->max_participants;
-        }
-        $main = $min;
-        if (isset($comp->reserve_participants) && $comp->reserve_participants !== null) {
-            $reserve = (int)$comp->reserve_participants;
-        } else {
-            $reserve = max(0, $max - $min);
         }
 
         if ($min > $max) $min = $max;
         if ($min < 1) $min = 1;
+        $maxReserveAllowed = max(0, $max - $min);
+        if ($reserve > $maxReserveAllowed) {
+            $reserve = $maxReserveAllowed;
+        }
+        $main = $min;
 
         foreach ($fields as &$f) {
             if (($f['type'] ?? '') === 'participant_repeater') {
@@ -1363,50 +1360,63 @@ class AdminPanelController extends Controller
                 $f['auto_synced'] = true;
                 $f['synced_rule'] = $comp->participants_rule;
 
-                if ($isTeam) {
-                    $f['label'] = $compId === 'mobile-legends'
-                        ? "Roster Skuad Tim Mobile Legends ({$main} Inti + {$reserve} Cadangan)"
-                        : (str_contains($compId, 'volleyball')
-                            ? "Roster Skuad Tim Bola Voli ({$main} Inti + {$reserve} Cadangan)"
-                            : "Biodata Personel Grup {$comp->title} (Maksimal {$max} Personel)");
-                } else {
-                    $f['label'] = "Biodata Peserta {$comp->title} (Maksimal {$max} Siswa)";
-                }
-                $f['help_text'] = "Aturan: {$comp->participants_rule} (Minimal {$min}, Maksimal {$max} peserta)";
-
-                if (!isset($f['sub_fields']) || !is_array($f['sub_fields'])) {
-                    $f['sub_fields'] = [];
-                }
-
-                $f['sub_fields']['name'] = array_merge(['active' => true, 'required' => true, 'label' => 'Nama Lengkap Siswa'], $f['sub_fields']['name'] ?? []);
-                $f['sub_fields']['gender'] = array_merge(['active' => true, 'required' => true, 'label' => 'Jenis Kelamin (L/P)'], $f['sub_fields']['gender'] ?? []);
-                $f['sub_fields']['birth_date'] = array_merge(['active' => true, 'required' => false, 'label' => 'Tanggal Lahir Siswa'], $f['sub_fields']['birth_date'] ?? []);
-                $f['sub_fields']['grade'] = array_merge(['active' => true, 'required' => true, 'label' => 'Kelas / Tingkat'], $f['sub_fields']['grade'] ?? []);
-                $f['sub_fields']['nisn'] = array_merge(['active' => true, 'required' => true, 'label' => 'Nomor Induk Siswa Nasional (NISN)'], $f['sub_fields']['nisn'] ?? []);
-                $f['sub_fields']['photo_formal'] = array_merge(['active' => true, 'required' => false, 'label' => 'Pas Foto Formal (3x4)'], $f['sub_fields']['photo_formal'] ?? []);
-
-                if ($isTeam) {
-                    if ($compId === 'mobile-legends') {
-                        $f['sub_fields']['team_name'] = ['active' => true, 'required' => true, 'label' => 'Nama Tim / Skuad MLBB', 'placeholder' => 'Contoh: Garuda Squad / RRQ Reborn'];
-                        $f['sub_fields']['captain_option'] = ['active' => true, 'required' => false, 'label' => 'Tandai Kapten Tim & No. WhatsApp', 'placeholder' => '08xxxxxxxxxx (Untuk koordinasi panitia turnamen)'];
-                        $f['sub_fields']['custom_id'] = ['active' => true, 'required' => true, 'label' => 'ID Akun MLBB', 'placeholder' => 'ID Game (Server ID)'];
-                    } elseif (str_contains($compId, 'volleyball') || str_contains($compTitle, 'voli')) {
-                        $f['sub_fields']['team_name'] = ['active' => true, 'required' => true, 'label' => 'Nama Tim Bola Voli', 'placeholder' => 'Contoh: Spiker Utama / Tim Voli'];
-                        $f['sub_fields']['captain_option'] = ['active' => true, 'required' => false, 'label' => 'Tandai Kapten Tim & No. WhatsApp', 'placeholder' => '08xxxxxxxxxx (Untuk koordinasi kapten voli)'];
-                        $f['sub_fields']['custom_id'] = ['active' => true, 'required' => false, 'label' => 'No. Punggung / Posisi', 'placeholder' => 'Contoh: 10 / Spiker'];
-                    } elseif ($compId === 'albanjari' || str_contains($compTitle, 'banjari')) {
-                        $f['sub_fields']['team_name'] = ['active' => true, 'required' => true, 'label' => 'Nama Grup Albanjari', 'placeholder' => 'Contoh: Syauqul Habib / Al-Fath'];
-                        $f['sub_fields']['captain_option'] = ['active' => true, 'required' => false, 'label' => 'Tandai Ketua Grup & No. WhatsApp', 'placeholder' => '08xxxxxxxxxx (Untuk koordinasi ketua grup banjari)'];
-                        $f['sub_fields']['custom_id'] = ['active' => true, 'required' => false, 'label' => 'Peran / Alat Musik', 'placeholder' => 'Contoh: Vokal Utama / Terbang 1 / Bass'];
+                // Hanya beri default label jika label belum diset sebelumnya
+                if (empty($f['label'])) {
+                    if ($isTeam) {
+                        $f['label'] = $compId === 'mobile-legends'
+                            ? "Roster Skuad Tim Mobile Legends ({$main} Inti + {$reserve} Cadangan)"
+                            : (str_contains($compId, 'volleyball') || str_contains($compTitle, 'voli')
+                                ? "Roster Skuad Tim Bola Voli ({$main} Inti + {$reserve} Cadangan)"
+                                : "Biodata Personel Grup {$comp->title} (Maksimal {$max} Personel)");
                     } else {
-                        $f['sub_fields']['team_name'] = ['active' => true, 'required' => true, 'label' => 'Nama Tim / Regu', 'placeholder' => 'Contoh: Regu Utama / Tim Kontingen'];
-                        $f['sub_fields']['captain_option'] = ['active' => true, 'required' => false, 'label' => 'Tandai Kapten Tim & No. WhatsApp', 'placeholder' => '08xxxxxxxxxx'];
-                        $f['sub_fields']['custom_id'] = ['active' => true, 'required' => false, 'label' => 'ID Anggota / Nomor', 'placeholder' => ''];
+                        $f['label'] = "Biodata Peserta {$comp->title} (Maksimal {$max} Siswa)";
                     }
-                } else {
-                    $f['sub_fields']['team_name'] = ['active' => false, 'required' => false, 'label' => 'Nama Tim / Skuad'];
-                    $f['sub_fields']['captain_option'] = ['active' => false, 'required' => false, 'label' => 'Tandai Kapten Tim'];
-                    $f['sub_fields']['custom_id'] = ['active' => false, 'required' => false, 'label' => 'ID Siswa / No. Identitas'];
+                }
+                if (empty($f['help_text'])) {
+                    $f['help_text'] = "Aturan: {$comp->participants_rule} (Minimal {$min}, Maksimal {$max} peserta)";
+                }
+
+                // Normalisasikan sub_fields TANPA merusak pengaturan kustomisasi user
+                $existingSubs = isset($f['sub_fields']) && is_array($f['sub_fields']) ? $f['sub_fields'] : [];
+                $hasExistingConfig = !empty($existingSubs);
+                $f['sub_fields'] = self::normalizeRepeaterSubFields($existingSubs);
+
+                // Jika repeater baru pertama kali dibuat (belum pernah dikustomisasi admin), terapkan preset default cerdas
+                if (!$hasExistingConfig) {
+                    if ($isTeam) {
+                        $f['sub_fields']['team_name']['active'] = true;
+                        $f['sub_fields']['team_name']['required'] = true;
+                        $f['sub_fields']['captain_option']['active'] = true;
+
+                        if ($compId === 'mobile-legends') {
+                            $f['sub_fields']['team_name']['label'] = 'Nama Tim / Skuad MLBB';
+                            $f['sub_fields']['team_name']['placeholder'] = 'Contoh: Garuda Squad / RRQ Reborn';
+                            $f['sub_fields']['captain_option']['label'] = 'Tandai Kapten Tim & No. WhatsApp';
+                            $f['sub_fields']['captain_option']['placeholder'] = '08xxxxxxxxxx (Untuk koordinasi panitia turnamen)';
+                            $f['sub_fields']['custom_id']['active'] = true;
+                            $f['sub_fields']['custom_id']['required'] = true;
+                            $f['sub_fields']['custom_id']['label'] = 'ID Akun MLBB';
+                            $f['sub_fields']['custom_id']['placeholder'] = 'ID Game (Server ID)';
+                        } elseif (str_contains($compId, 'volleyball') || str_contains($compTitle, 'voli')) {
+                            $f['sub_fields']['team_name']['label'] = 'Nama Tim Bola Voli';
+                            $f['sub_fields']['team_name']['placeholder'] = 'Contoh: Spiker Utama / Tim Voli';
+                            $f['sub_fields']['captain_option']['label'] = 'Tandai Kapten Tim & No. WhatsApp';
+                            $f['sub_fields']['captain_option']['placeholder'] = '08xxxxxxxxxx (Untuk koordinasi kapten voli)';
+                            $f['sub_fields']['custom_id']['active'] = true;
+                            $f['sub_fields']['custom_id']['required'] = false;
+                            $f['sub_fields']['custom_id']['label'] = 'No. Punggung / Posisi';
+                            $f['sub_fields']['custom_id']['placeholder'] = 'Contoh: 10 / Spiker';
+                        } elseif ($compId === 'albanjari' || str_contains($compTitle, 'banjari')) {
+                            $f['sub_fields']['team_name']['label'] = 'Nama Grup Albanjari';
+                            $f['sub_fields']['team_name']['placeholder'] = 'Contoh: Syauqul Habib / Al-Fath';
+                            $f['sub_fields']['captain_option']['label'] = 'Tandai Ketua Grup & No. WhatsApp';
+                            $f['sub_fields']['captain_option']['placeholder'] = '08xxxxxxxxxx (Untuk koordinasi ketua grup banjari)';
+                            $f['sub_fields']['custom_id']['active'] = true;
+                            $f['sub_fields']['custom_id']['required'] = false;
+                            $f['sub_fields']['custom_id']['label'] = 'Peran / Alat Musik';
+                            $f['sub_fields']['custom_id']['placeholder'] = 'Contoh: Vokal Utama / Terbang 1 / Bass';
+                        }
+                    }
                 }
             }
         }

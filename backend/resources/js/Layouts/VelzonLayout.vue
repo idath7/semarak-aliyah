@@ -626,7 +626,7 @@ onUnmounted(() => {
               :class="{ 'active': currentUrl.startsWith('/admin/form-builder') }"
             >
               <i class="ri-survey-line text-warning"></i>
-              <span v-show="!isSidebarCollapsed">Formulir Builder</span>
+              <span v-show="!isSidebarCollapsed">Kelola Formulir</span>
             </Link>
           </li>
 

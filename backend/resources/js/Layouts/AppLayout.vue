@@ -260,7 +260,7 @@ function logout() {
                   ]"
                 >
                   <i class="ri-survey-line text-base text-orange-400"></i>
-                  <span>Formulir Builder</span>
+                  <span>Kelola Formulir</span>
                 </Link>
                 <a 
                   href="/admin/export" 

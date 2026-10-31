@@ -237,7 +237,7 @@ function formatSectionTitle(custom, defaultNum, fallbackText) {
 }
 
 const section1DisplayTitle = computed(() => {
-  return formatSectionTitle(formSettings.value.section_1_title, 1, 'Delegasi & Asal Sekolah');
+  return formatSectionTitle(formSettings.value.section_1_title, 1, 'Identitas Sekolah / Madrasah');
 });
 
 const section2DisplayTitle = computed(() => {
@@ -246,13 +246,12 @@ const section2DisplayTitle = computed(() => {
 });
 
 const section3DisplayTitle = computed(() => {
-  return formatSectionTitle(formSettings.value.section_3_title, 3, 'Berkas & Informasi Khusus Cabang');
+  return formatSectionTitle(formSettings.value.section_3_title, 3, 'Berkas Dokumen Pendukung');
 });
 
 const section4DisplayTitle = computed(() => {
-  const defaultNum = otherCustomFields.value.length > 0 ? 4 : 3;
   const defaultFallback = formSettings.value.show_package_type ? 'Skema Paket & Metode Pembayaran' : 'Metode Pembayaran';
-  return formatSectionTitle(formSettings.value.section_4_title, defaultNum, defaultFallback);
+  return formatSectionTitle(formSettings.value.section_4_title, 4, defaultFallback);
 });
 
 // Field aliases mapping to support customized names & default names from Form Builder
@@ -2954,9 +2953,9 @@ onMounted(() => {
             </div>
 
             <!-- ============================================================== -->
-            <!-- SECTION 3: Pertanyaan & Berkas Khusus Cabang (Dinamis Form)    -->
+            <!-- SECTION 3: Berkas Dokumen Pendukung                           -->
             <!-- ============================================================== -->
-            <div v-if="otherCustomFields.length > 0" class="space-y-5">
+            <div class="space-y-5">
               <div class="flex items-center justify-between pb-2 border-b border-border-subtle flex-wrap gap-2">
                 <div class="flex items-center gap-2.5 form-section-header">
                   <i class="ri-file-upload-line text-primary form-section-icon"></i>
@@ -2970,6 +2969,7 @@ onMounted(() => {
               </div>
 
               <!-- Loop Dynamic Fields -->
+              <template v-if="otherCustomFields.length > 0">
               <template v-for="field in otherCustomFields" :key="field.id || field.name">
                 <div 
                   v-if="evaluateCondition(field.conditional_logic, form.custom_fields)" 
@@ -3221,6 +3221,11 @@ onMounted(() => {
                   <p v-else-if="field.help_text" class="text-[11px] text-on-surface-variant">{{ field.help_text }}</p>
                 </div>
               </template>
+              </template>
+              <div v-else class="p-4 rounded-xl border border-dashed border-border-subtle bg-surface-container-low/40 text-center text-xs text-on-surface-variant">
+                <i class="ri-checkbox-circle-line text-emerald-500 mr-1.5"></i>
+                Tidak ada persyaratan unggahan berkas dokumen tambahan untuk cabang lomba ini.
+              </div>
             </div>
 
             <!-- ============================================================== -->

@@ -1387,7 +1387,7 @@ class AdminPanelController extends Controller
                     'type' => $m['type'],
                     'placeholder' => !empty($f['placeholder']) ? $f['placeholder'] : $m['placeholder'],
                     'help_text' => !empty($f['help_text']) ? $f['help_text'] : $m['help_text'],
-                    'required' => $m['required'],
+                    'required' => isset($f['required']) ? (bool)$f['required'] : (bool)$m['required'],
                     'options' => $m['type'] === 'select' ? $m['options'] : ($f['options'] ?? []),
                     'allowed_extensions' => $f['allowed_extensions'] ?? [],
                     'max_size_mb' => $f['max_size_mb'] ?? null,

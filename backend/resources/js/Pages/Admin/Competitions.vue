@@ -45,6 +45,7 @@ const createForm = useForm({
   participant_type: 'individu',
   max_teams: 1,
   min_participants: 1,
+  reserve_participants: 0,
   max_participants: 1,
   registration_deadline: '25/10/2026',
   participants_rule: '',
@@ -74,6 +75,7 @@ const editForm = useForm({
   participant_type: 'individu',
   max_teams: 1,
   min_participants: 1,
+  reserve_participants: 0,
   max_participants: 1,
   registration_deadline: '',
   participants_rule: '',
@@ -615,6 +617,7 @@ function openCreateModal() {
   createForm.participant_type = 'individu';
   createForm.max_teams = 1;
   createForm.min_participants = 1;
+  createForm.reserve_participants = 0;
   createForm.max_participants = 1;
   createForm.registration_deadline = '25/10/2026';
   createForm.tm_date_date = '26/10/2026';
@@ -628,6 +631,38 @@ function openCreateModal() {
   createForm.direct_registration_note = '';
   createForm.direct_registration_template = '';
   showCreateModal.value = true;
+}
+
+// Sinkronisasi Anggota Tim (Pemain Inti + Pemain Cadangan = Total Skuad)
+function syncTeamMembers(targetForm) {
+  const min = Math.max(1, Number(targetForm.min_participants || 1));
+  const reserve = Math.max(0, Number(targetForm.reserve_participants || 0));
+  targetForm.min_participants = min;
+  targetForm.reserve_participants = reserve;
+  targetForm.max_participants = min + reserve;
+
+  const teams = targetForm.max_teams || 1;
+  if (reserve > 0) {
+    targetForm.participants_rule = `${teams} Tim (${min} Inti + ${reserve} Cadangan)`;
+  } else {
+    targetForm.participants_rule = `${teams} Tim (${min} Pemain)`;
+  }
+}
+
+// Sinkronisasi jika Total Skuad diedit langsung
+function onTotalMembersChange(targetForm) {
+  const min = Math.max(1, Number(targetForm.min_participants || 1));
+  const total = Math.max(min, Number(targetForm.max_participants || min));
+  targetForm.max_participants = total;
+  targetForm.reserve_participants = Math.max(0, total - min);
+
+  const teams = targetForm.max_teams || 1;
+  const reserve = targetForm.reserve_participants;
+  if (reserve > 0) {
+    targetForm.participants_rule = `${teams} Tim (${min} Inti + ${reserve} Cadangan)`;
+  } else {
+    targetForm.participants_rule = `${teams} Tim (${min} Pemain)`;
+  }
 }
 
 const defaultDirectTemplate = "Assalamu'alaikum Wr. Wb. Kak {nama_pj},\\n\\nSaya perwakilan dari {nama_sekolah}, bermaksud mendaftarkan delegasi sekolah kami untuk cabang lomba *{cabang_lomba}* pada agenda *{nama_event}*.\\n\\n• Asal Lembaga: {nama_sekolah}\\n• Cabang Lomba: {cabang_lomba}\\n• Biaya Pendaftaran: {biaya}\\n• Narahubung/Pembina: {nama_pendaftar} ({nomor_wa})\\n\\nMohon petunjuk teknis pendaftaran langsung, persyaratan berkas, serta ketersediaan kuota delegasi. Terima kasih.\\n\\nWassalamu'alaikum Wr. Wb.";
@@ -729,6 +764,15 @@ function openEditModal(comp) {
   editForm.max_teams = comp.max_teams || 1;
   editForm.min_participants = comp.min_participants || (detectedType === 'tim' ? 5 : 1);
   editForm.max_participants = comp.max_participants || (detectedType === 'tim' ? 10 : 1);
+
+  let cadangan = Math.max(0, Number(editForm.max_participants) - Number(editForm.min_participants));
+  if (comp.participants_rule) {
+    const mCadangan = comp.participants_rule.match(/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*cadangan/i);
+    if (mCadangan) {
+      cadangan = parseInt(mCadangan[1], 10);
+    }
+  }
+  editForm.reserve_participants = cadangan;
   editForm.registration_deadline = formatDate(comp.registration_deadline) || '25/10/2026';
   editForm.participants_rule = comp.participants_rule || '';
   
@@ -1662,7 +1706,7 @@ function confirmDelete() {
                           <div 
                             class="p-3 rounded border cursor-pointer h-100 transition-all bg-white"
                             :class="createForm.participant_type === 'individu' ? 'border-primary shadow-xs' : 'border-light'"
-                            @click="createForm.participant_type = 'individu'; createForm.min_participants = 1; if(createForm.max_participants > 10) createForm.max_participants = 1;"
+                            @click="createForm.participant_type = 'individu'; createForm.min_participants = 1; createForm.reserve_participants = 0; if(createForm.max_participants > 10) createForm.max_participants = 1; createForm.participants_rule = (createForm.min_participants === createForm.max_participants ? `Maksimal ${createForm.max_participants} Siswa per Lembaga` : `${createForm.min_participants} s.d. ${createForm.max_participants} Siswa per Lembaga`);"
                           >
                             <div class="d-flex align-items-center justify-content-between mb-1">
                               <div class="d-flex align-items-center gap-2">
@@ -1687,7 +1731,7 @@ function confirmDelete() {
                           <div 
                             class="p-3 rounded border cursor-pointer h-100 transition-all bg-white"
                             :class="createForm.participant_type === 'tim' ? 'border-info shadow-xs' : 'border-light'"
-                            @click="createForm.participant_type = 'tim'; if(createForm.min_participants < 2) createForm.min_participants = 5; if(createForm.max_participants < 2) createForm.max_participants = 10;"
+                            @click="createForm.participant_type = 'tim'; if(createForm.min_participants < 2) createForm.min_participants = 6; if(!createForm.reserve_participants) createForm.reserve_participants = 4; syncTeamMembers(createForm);"
                           >
                             <div class="d-flex align-items-center justify-content-between mb-1">
                               <div class="d-flex align-items-center gap-2">
@@ -1714,16 +1758,16 @@ function confirmDelete() {
                         <template v-if="createForm.participant_type === 'individu'">
                           <!-- Baris 1: Angka Kuota (2 Kolom Seimbang) -->
                           <div class="col-12 col-sm-6">
-                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-center" style="min-height: 34px;">
+                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
                               Minimal Peserta (per Lembaga) *
                             </label>
-                            <div class="input-group input-group-sm">
+                            <div class="input-group">
                               <input 
                                 v-model="createForm.min_participants" 
                                 type="number" 
                                 min="1" 
                                 max="50"
-                                class="form-control fs-12 text-center fw-bold" 
+                                class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': createForm.errors.min_participants }"
                                 placeholder="1" 
                                 required
@@ -1731,20 +1775,20 @@ function confirmDelete() {
                               <span class="input-group-text fs-12 bg-light px-2.5">Siswa</span>
                             </div>
                             <div v-if="createForm.errors.min_participants" class="invalid-feedback d-block fs-11">{{ createForm.errors.min_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block">Batas minimal delegasi yang wajib didaftarkan.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas minimal delegasi yang wajib didaftarkan.</small>
                           </div>
 
                           <div class="col-12 col-sm-6">
-                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-center" style="min-height: 34px;">
+                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
                               Maksimal Peserta (per Lembaga) *
                             </label>
-                            <div class="input-group input-group-sm">
+                            <div class="input-group">
                               <input 
                                 v-model="createForm.max_participants" 
                                 type="number" 
                                 min="1" 
                                 max="50"
-                                class="form-control fs-12 text-center fw-bold" 
+                                class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': createForm.errors.max_participants }"
                                 placeholder="2" 
                                 required
@@ -1752,7 +1796,7 @@ function confirmDelete() {
                               <span class="input-group-text fs-12 bg-light px-2.5">Siswa</span>
                             </div>
                             <div v-if="createForm.errors.max_participants" class="invalid-feedback d-block fs-11">{{ createForm.errors.max_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block">Batas kuota maksimal peserta individu.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas kuota maksimal peserta individu.</small>
                           </div>
 
                           <!-- Baris 2: Keterangan Aturan Delegasi (Lebar Penuh) -->
@@ -1769,12 +1813,12 @@ function confirmDelete() {
                                 <i class="ri-magic-line me-0.5"></i> Gunakan Saran Teks
                               </button>
                             </div>
-                            <div class="input-group input-group-sm">
-                              <span class="input-group-text bg-light text-muted fs-12"><i class="ri-edit-line"></i></span>
+                            <div class="input-group">
+                              <span class="input-group-text bg-light text-muted fs-13"><i class="ri-edit-line"></i></span>
                               <input 
                                 v-model="createForm.participants_rule" 
                                 type="text" 
-                                class="form-control fs-12" 
+                                class="form-control fs-13" 
                                 placeholder="Contoh: Maksimal 2 Siswa per Madrasah" 
                               />
                             </div>
@@ -1784,68 +1828,90 @@ function confirmDelete() {
 
                         <!-- Tim / Regu -->
                         <template v-else>
-                          <!-- Baris 1: Angka Kuota (3 Kolom Seimbang & Sejajar) -->
-                          <div class="col-12 col-sm-4">
-                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-center" style="min-height: 34px;">
+                          <!-- Baris 1: Angka Kuota (4 Kolom Seimbang & Sejajar Presisi) -->
+                          <div class="col-6 col-md-3">
+                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
                               Maksimal Tim (per Lembaga) *
                             </label>
-                            <div class="input-group input-group-sm">
+                            <div class="input-group">
                               <input 
                                 v-model="createForm.max_teams" 
                                 type="number" 
                                 min="1" 
                                 max="20"
-                                class="form-control fs-12 text-center fw-bold" 
+                                class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': createForm.errors.max_teams }"
                                 placeholder="1" 
+                                @input="syncTeamMembers(createForm)"
                                 required
                               />
                               <span class="input-group-text fs-12 bg-light px-2.5">Tim</span>
                             </div>
                             <div v-if="createForm.errors.max_teams" class="invalid-feedback d-block fs-11">{{ createForm.errors.max_teams }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block">Batas regu yang boleh dikirim 1 madrasah/sekolah.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas regu yang boleh dikirim 1 madrasah.</small>
                           </div>
 
-                          <div class="col-12 col-sm-4">
-                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-center" style="min-height: 34px;">
-                              Minimal Anggota (Pemain Inti) *
+                          <div class="col-6 col-md-3">
+                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
+                              Pemain Inti (Wajib) *
                             </label>
-                            <div class="input-group input-group-sm">
+                            <div class="input-group">
                               <input 
                                 v-model="createForm.min_participants" 
                                 type="number" 
                                 min="1" 
                                 max="50"
-                                class="form-control fs-12 text-center fw-bold" 
+                                class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': createForm.errors.min_participants }"
-                                placeholder="5" 
+                                placeholder="6" 
+                                @input="syncTeamMembers(createForm)"
                                 required
                               />
-                              <span class="input-group-text fs-12 bg-light px-2.5">Orang</span>
+                              <span class="input-group-text fs-12 bg-light px-2.5">Pemain</span>
                             </div>
                             <div v-if="createForm.errors.min_participants" class="invalid-feedback d-block fs-11">{{ createForm.errors.min_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block">Personel minimal pemain inti.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Jumlah personel minimal pemain inti.</small>
                           </div>
 
-                          <div class="col-12 col-sm-4">
-                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-center" style="min-height: 34px;">
-                              Maksimal Anggota (Total Skuad) *
+                          <div class="col-6 col-md-3">
+                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
+                              Pemain Cadangan (Opsional)
                             </label>
-                            <div class="input-group input-group-sm">
+                            <div class="input-group">
+                              <input 
+                                v-model="createForm.reserve_participants" 
+                                type="number" 
+                                min="0" 
+                                max="50"
+                                class="form-control fs-13 text-center fw-bold" 
+                                placeholder="4" 
+                                @input="syncTeamMembers(createForm)"
+                              />
+                              <span class="input-group-text fs-12 bg-light px-2.5">Pemain</span>
+                            </div>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Kapasitas personel cadangan tim.</small>
+                          </div>
+
+                          <div class="col-6 col-md-3">
+                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
+                              Total Skuad (Maksimal) *
+                            </label>
+                            <div class="input-group">
                               <input 
                                 v-model="createForm.max_participants" 
                                 type="number" 
-                                min="2" 
+                                min="1" 
                                 max="50"
-                                class="form-control fs-12 text-center fw-bold" 
+                                class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': createForm.errors.max_participants }"
                                 placeholder="10" 
+                                @input="onTotalMembersChange(createForm)"
                                 required
                               />
-                              <span class="input-group-text fs-12 bg-light px-2.5">Orang</span>
+                              <span class="input-group-text fs-12 bg-light px-2.5">Pemain</span>
                             </div>
                             <div v-if="createForm.errors.max_participants" class="invalid-feedback d-block fs-11">{{ createForm.errors.max_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block">Kapasitas total termasuk pemain cadangan.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Total kapasitas tim (Inti + Cadangan).</small>
                           </div>
 
                           <!-- Baris 2: Keterangan Aturan Delegasi (Lebar Penuh) -->
@@ -1857,17 +1923,17 @@ function confirmDelete() {
                               <button 
                                 type="button" 
                                 class="btn btn-link btn-sm p-0 fs-11 text-decoration-none text-primary"
-                                @click="createForm.participants_rule = `1 Tim (${createForm.min_participants || 5} Inti + ${Math.max(0, (createForm.max_participants || 10) - (createForm.min_participants || 5))} Cadangan)`"
+                                @click="syncTeamMembers(createForm)"
                               >
                                 <i class="ri-magic-line me-0.5"></i> Gunakan Saran Teks
                               </button>
                             </div>
-                            <div class="input-group input-group-sm">
-                              <span class="input-group-text bg-light text-muted fs-12"><i class="ri-edit-line"></i></span>
+                            <div class="input-group">
+                              <span class="input-group-text bg-light text-muted fs-13"><i class="ri-edit-line"></i></span>
                               <input 
                                 v-model="createForm.participants_rule" 
                                 type="text" 
-                                class="form-control fs-12" 
+                                class="form-control fs-13" 
                                 placeholder="Contoh: 1 Tim (6 Inti + 4 Cadangan)" 
                               />
                             </div>
@@ -2193,9 +2259,9 @@ function confirmDelete() {
                 </div>
               </div>
 
-              <div class="modal-footer bg-light border-top py-2.5 px-3 px-sm-4 d-flex flex-column-reverse flex-sm-row justify-content-end gap-2">
-                <button type="button" class="btn btn-sm btn-secondary w-100 w-sm-auto" @click="showCreateModal = false">Batal</button>
-                <button type="submit" class="btn btn-sm btn-primary w-100 w-sm-auto" :disabled="createForm.processing">
+              <div class="modal-footer bg-light border-top py-2 px-3 px-sm-4 d-flex justify-content-end align-items-center gap-2 flex-nowrap">
+                <button type="button" class="btn btn-sm btn-secondary px-3" @click="showCreateModal = false">Batal</button>
+                <button type="submit" class="btn btn-sm btn-primary px-3" :disabled="createForm.processing">
                   <i class="ri-save-line me-1"></i> {{ createForm.processing ? 'Menyimpan...' : 'Simpan Cabang Lomba' }}
                 </button>
               </div>
@@ -2318,7 +2384,7 @@ function confirmDelete() {
                           <div 
                             class="p-3 rounded border cursor-pointer h-100 transition-all bg-white"
                             :class="editForm.participant_type === 'individu' ? 'border-primary shadow-xs' : 'border-light'"
-                            @click="editForm.participant_type = 'individu'; editForm.min_participants = 1; if(editForm.max_participants > 10) editForm.max_participants = 1;"
+                            @click="editForm.participant_type = 'individu'; editForm.min_participants = 1; editForm.reserve_participants = 0; if(editForm.max_participants > 10) editForm.max_participants = 1; editForm.participants_rule = (editForm.min_participants === editForm.max_participants ? `Maksimal ${editForm.max_participants} Siswa per Lembaga` : `${editForm.min_participants} s.d. ${editForm.max_participants} Siswa per Lembaga`);"
                           >
                             <div class="d-flex align-items-center justify-content-between mb-1">
                               <div class="d-flex align-items-center gap-2">
@@ -2343,7 +2409,7 @@ function confirmDelete() {
                           <div 
                             class="p-3 rounded border cursor-pointer h-100 transition-all bg-white"
                             :class="editForm.participant_type === 'tim' ? 'border-info shadow-xs' : 'border-light'"
-                            @click="editForm.participant_type = 'tim'; if(editForm.min_participants < 2) editForm.min_participants = 5; if(editForm.max_participants < 2) editForm.max_participants = 10;"
+                            @click="editForm.participant_type = 'tim'; if(editForm.min_participants < 2) editForm.min_participants = 6; if(!editForm.reserve_participants) editForm.reserve_participants = 4; syncTeamMembers(editForm);"
                           >
                             <div class="d-flex align-items-center justify-content-between mb-1">
                               <div class="d-flex align-items-center gap-2">
@@ -2370,16 +2436,16 @@ function confirmDelete() {
                         <template v-if="editForm.participant_type === 'individu'">
                           <!-- Baris 1: Angka Kuota (2 Kolom Seimbang) -->
                           <div class="col-12 col-sm-6">
-                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-center" style="min-height: 34px;">
+                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
                               Minimal Peserta (per Lembaga) *
                             </label>
-                            <div class="input-group input-group-sm">
+                            <div class="input-group">
                               <input 
                                 v-model="editForm.min_participants" 
                                 type="number" 
                                 min="1" 
                                 max="50"
-                                class="form-control fs-12 text-center fw-bold" 
+                                class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': editForm.errors.min_participants }"
                                 placeholder="1" 
                                 required
@@ -2387,20 +2453,20 @@ function confirmDelete() {
                               <span class="input-group-text fs-12 bg-light px-2.5">Siswa</span>
                             </div>
                             <div v-if="editForm.errors.min_participants" class="invalid-feedback d-block fs-11">{{ editForm.errors.min_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block">Batas minimal delegasi yang wajib didaftarkan.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas minimal delegasi yang wajib didaftarkan.</small>
                           </div>
 
                           <div class="col-12 col-sm-6">
-                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-center" style="min-height: 34px;">
+                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
                               Maksimal Peserta (per Lembaga) *
                             </label>
-                            <div class="input-group input-group-sm">
+                            <div class="input-group">
                               <input 
                                 v-model="editForm.max_participants" 
                                 type="number" 
                                 min="1" 
                                 max="50"
-                                class="form-control fs-12 text-center fw-bold" 
+                                class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': editForm.errors.max_participants }"
                                 placeholder="2" 
                                 required
@@ -2408,7 +2474,7 @@ function confirmDelete() {
                               <span class="input-group-text fs-12 bg-light px-2.5">Siswa</span>
                             </div>
                             <div v-if="editForm.errors.max_participants" class="invalid-feedback d-block fs-11">{{ editForm.errors.max_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block">Batas kuota maksimal peserta individu.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas kuota maksimal peserta individu.</small>
                           </div>
 
                           <!-- Baris 2: Keterangan Aturan Delegasi (Lebar Penuh) -->
@@ -2425,12 +2491,12 @@ function confirmDelete() {
                                 <i class="ri-magic-line me-0.5"></i> Gunakan Saran Teks
                               </button>
                             </div>
-                            <div class="input-group input-group-sm">
-                              <span class="input-group-text bg-light text-muted fs-12"><i class="ri-edit-line"></i></span>
+                            <div class="input-group">
+                              <span class="input-group-text bg-light text-muted fs-13"><i class="ri-edit-line"></i></span>
                               <input 
                                 v-model="editForm.participants_rule" 
                                 type="text" 
-                                class="form-control fs-12" 
+                                class="form-control fs-13" 
                                 placeholder="Contoh: Maksimal 2 Siswa per Madrasah" 
                               />
                             </div>
@@ -2440,68 +2506,90 @@ function confirmDelete() {
 
                         <!-- Tim / Regu -->
                         <template v-else>
-                          <!-- Baris 1: Angka Kuota (3 Kolom Seimbang & Sejajar) -->
-                          <div class="col-12 col-sm-4">
-                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-center" style="min-height: 34px;">
+                          <!-- Baris 1: Angka Kuota (4 Kolom Seimbang & Sejajar Presisi) -->
+                          <div class="col-6 col-md-3">
+                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
                               Maksimal Tim (per Lembaga) *
                             </label>
-                            <div class="input-group input-group-sm">
+                            <div class="input-group">
                               <input 
                                 v-model="editForm.max_teams" 
                                 type="number" 
                                 min="1" 
                                 max="20"
-                                class="form-control fs-12 text-center fw-bold" 
+                                class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': editForm.errors.max_teams }"
                                 placeholder="1" 
+                                @input="syncTeamMembers(editForm)"
                                 required
                               />
                               <span class="input-group-text fs-12 bg-light px-2.5">Tim</span>
                             </div>
                             <div v-if="editForm.errors.max_teams" class="invalid-feedback d-block fs-11">{{ editForm.errors.max_teams }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block">Batas regu yang boleh dikirim 1 madrasah/sekolah.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas regu yang boleh dikirim 1 madrasah.</small>
                           </div>
 
-                          <div class="col-12 col-sm-4">
-                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-center" style="min-height: 34px;">
-                              Minimal Anggota (Pemain Inti) *
+                          <div class="col-6 col-md-3">
+                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
+                              Pemain Inti (Wajib) *
                             </label>
-                            <div class="input-group input-group-sm">
+                            <div class="input-group">
                               <input 
                                 v-model="editForm.min_participants" 
                                 type="number" 
                                 min="1" 
                                 max="50"
-                                class="form-control fs-12 text-center fw-bold" 
+                                class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': editForm.errors.min_participants }"
-                                placeholder="5" 
+                                placeholder="6" 
+                                @input="syncTeamMembers(editForm)"
                                 required
                               />
-                              <span class="input-group-text fs-12 bg-light px-2.5">Orang</span>
+                              <span class="input-group-text fs-12 bg-light px-2.5">Pemain</span>
                             </div>
                             <div v-if="editForm.errors.min_participants" class="invalid-feedback d-block fs-11">{{ editForm.errors.min_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block">Personel minimal pemain inti.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Jumlah personel minimal pemain inti.</small>
                           </div>
 
-                          <div class="col-12 col-sm-4">
-                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-center" style="min-height: 34px;">
-                              Maksimal Anggota (Total Skuad) *
+                          <div class="col-6 col-md-3">
+                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
+                              Pemain Cadangan (Opsional)
                             </label>
-                            <div class="input-group input-group-sm">
+                            <div class="input-group">
+                              <input 
+                                v-model="editForm.reserve_participants" 
+                                type="number" 
+                                min="0" 
+                                max="50"
+                                class="form-control fs-13 text-center fw-bold" 
+                                placeholder="4" 
+                                @input="syncTeamMembers(editForm)"
+                              />
+                              <span class="input-group-text fs-12 bg-light px-2.5">Pemain</span>
+                            </div>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Kapasitas personel cadangan tim.</small>
+                          </div>
+
+                          <div class="col-6 col-md-3">
+                            <label class="form-label fs-12 fw-semibold text-dark mb-1 d-flex align-items-end" style="height: 38px; line-height: 1.25;">
+                              Total Skuad (Maksimal) *
+                            </label>
+                            <div class="input-group">
                               <input 
                                 v-model="editForm.max_participants" 
                                 type="number" 
-                                min="2" 
+                                min="1" 
                                 max="50"
-                                class="form-control fs-12 text-center fw-bold" 
+                                class="form-control fs-13 text-center fw-bold" 
                                 :class="{ 'is-invalid': editForm.errors.max_participants }"
                                 placeholder="10" 
+                                @input="onTotalMembersChange(editForm)"
                                 required
                               />
-                              <span class="input-group-text fs-12 bg-light px-2.5">Orang</span>
+                              <span class="input-group-text fs-12 bg-light px-2.5">Pemain</span>
                             </div>
                             <div v-if="editForm.errors.max_participants" class="invalid-feedback d-block fs-11">{{ editForm.errors.max_participants }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block">Kapasitas total termasuk pemain cadangan.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Total kapasitas tim (Inti + Cadangan).</small>
                           </div>
 
                           <!-- Baris 2: Keterangan Aturan Delegasi (Lebar Penuh) -->
@@ -2513,17 +2601,17 @@ function confirmDelete() {
                               <button 
                                 type="button" 
                                 class="btn btn-link btn-sm p-0 fs-11 text-decoration-none text-primary"
-                                @click="editForm.participants_rule = `1 Tim (${editForm.min_participants || 5} Inti + ${Math.max(0, (editForm.max_participants || 10) - (editForm.min_participants || 5))} Cadangan)`"
+                                @click="syncTeamMembers(editForm)"
                               >
                                 <i class="ri-magic-line me-0.5"></i> Gunakan Saran Teks
                               </button>
                             </div>
-                            <div class="input-group input-group-sm">
-                              <span class="input-group-text bg-light text-muted fs-12"><i class="ri-edit-line"></i></span>
+                            <div class="input-group">
+                              <span class="input-group-text bg-light text-muted fs-13"><i class="ri-edit-line"></i></span>
                               <input 
                                 v-model="editForm.participants_rule" 
                                 type="text" 
-                                class="form-control fs-12" 
+                                class="form-control fs-13" 
                                 placeholder="Contoh: 1 Tim (6 Inti + 4 Cadangan)" 
                               />
                             </div>
@@ -2847,9 +2935,9 @@ function confirmDelete() {
                 </div>
               </div>
 
-              <div class="modal-footer bg-light border-top py-2.5 px-3 px-sm-4 d-flex flex-column-reverse flex-sm-row justify-content-end gap-2">
-                <button type="button" class="btn btn-sm btn-secondary w-100 w-sm-auto" @click="showEditModal = false">Batal</button>
-                <button type="submit" class="btn btn-sm btn-primary w-100 w-sm-auto" :disabled="editForm.processing">
+              <div class="modal-footer bg-light border-top py-2 px-3 px-sm-4 d-flex justify-content-end align-items-center gap-2 flex-nowrap">
+                <button type="button" class="btn btn-sm btn-secondary px-3" @click="showEditModal = false">Batal</button>
+                <button type="submit" class="btn btn-sm btn-primary px-3" :disabled="editForm.processing">
                   <i class="ri-check-line me-1"></i> {{ editForm.processing ? 'Menyimpan...' : 'Perbarui Cabang Lomba' }}
                 </button>
               </div>

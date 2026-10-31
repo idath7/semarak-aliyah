@@ -297,13 +297,137 @@ function getFieldHelpText(canonicalName, fallback = '') {
   return fallback;
 }
 
-// Cabang Lomba Options for CustomSelect
+// Status Pendaftaran Cabang Lomba Aktif
+const isDirectRegistration = computed(() => {
+  return activeComp.value?.registration_type === 'direct_contact' || !!activeComp.value?.is_direct_registration;
+});
+
+const isQuotaFull = computed(() => {
+  return !!activeComp.value?.is_quota_full;
+});
+
+const isDeadlinePassed = computed(() => {
+  return !!activeComp.value?.is_deadline_passed;
+});
+
+const isRegistrationClosed = computed(() => {
+  return activeComp.value?.status === 'closed' || !!activeComp.value?.is_registration_closed || isQuotaFull.value || isDeadlinePassed.value;
+});
+
+const quotaStatusText = computed(() => {
+  if (isQuotaFull.value) return 'Kuota Penuh';
+  if (isDeadlinePassed.value) return 'Waktu Habis';
+  if (activeComp.value?.status === 'closed') return 'Ditutup Panitia';
+  return activeComp.value?.quota_status_text || 'Ditutup';
+});
+
+// Koordinator & Narahubung Resmi
+const primaryCoordinator = computed(() => {
+  if (activeComp.value?.primary_coordinator) {
+    return activeComp.value.primary_coordinator;
+  }
+  const coords = activeComp.value?.coordinators;
+  if (Array.isArray(coords) && coords.length > 0) {
+    return coords[0];
+  }
+  return {
+    name: activeComp.value?.contact_person || 'Koordinator Lomba',
+    contact: school.value?.contact_wa || '0838 5007 0767',
+    role: 'Koordinator Lomba'
+  };
+});
+
+// Direct Contact WhatsApp URL & Message Template
+const directContactMessage = computed(() => {
+  const coordName = primaryCoordinator.value?.name || ('Koordinator ' + (activeComp.value?.title || 'Lomba'));
+  const compTitle = activeComp.value?.title || 'Lomba';
+  const eventName = school.value?.event_name || 'Semarak Aliyah XIV 2026';
+  const feeText = Number(activeComp.value?.fee) > 0 ? `Rp ${Number(activeComp.value?.fee).toLocaleString('id-ID')}` : 'Gratis';
+
+  if (activeComp.value?.direct_registration_template && activeComp.value.direct_registration_template.trim()) {
+    return activeComp.value.direct_registration_template
+      .replace(/{nama_pj}|{nama_koordinator}/g, coordName)
+      .replace(/{cabang_lomba}/g, compTitle)
+      .replace(/{nama_event}/g, eventName)
+      .replace(/{nama_sekolah}/g, form.school_name || '[Nama Sekolah]')
+      .replace(/{nama_pendaftar}/g, form.mentor_name || '[Nama Pendaftar]')
+      .replace(/{nomor_wa}/g, form.mentor_wa || '[Nomor WA]')
+      .replace(/{biaya}/g, feeText);
+  }
+
+  return `Assalamu'alaikum Wr. Wb. Kak ${coordName},\n\nSaya perwakilan dari ${form.school_name || '[Nama Sekolah]'}, bermaksud mendaftarkan delegasi sekolah kami untuk cabang lomba *${compTitle}* pada agenda *${eventName}*.\n\n• Asal Lembaga: ${form.school_name || '[Nama Sekolah]'}\n• Cabang Lomba: ${compTitle}\n• Biaya Pendaftaran: ${feeText}\n• Narahubung: ${form.mentor_name || '[Nama Pendaftar]'} (${form.mentor_wa || '[Nomor WA]'})\n\nMohon petunjuk teknis pendaftaran langsung, persyaratan berkas, serta ketersediaan slot kuota. Terima kasih.\n\nWassalamu'alaikum Wr. Wb.`;
+});
+
+const directContactWaUrl = computed(() => {
+  if (activeComp.value?.direct_contact_wa_url) {
+    return activeComp.value.direct_contact_wa_url;
+  }
+  const phone = primaryCoordinator.value?.contact || '083850070767';
+  return getWaChatUrl(phone, directContactMessage.value);
+});
+
+async function copyWaTemplate() {
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(directContactMessage.value);
+    } else {
+      const textarea = document.createElement('textarea');
+      textarea.value = directContactMessage.value;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+    showToast('Format pesan WhatsApp berhasil disalin ke clipboard!', 'ri-file-copy-line');
+  } catch (e) {
+    showToast('Gagal menyalin pesan. Silakan salin teks secara manual.', 'ri-error-warning-line');
+  }
+}
+
+function selectFirstOnlineCompetition() {
+  const onlineComp = (props.competitions || []).find(c => {
+    const isDirect = c.registration_type === 'direct_contact' || !!c.is_direct_registration;
+    const isClosed = c.status === 'closed' || !!c.is_registration_closed || !!c.is_quota_full || !!c.is_deadline_passed;
+    return !isDirect && !isClosed;
+  });
+  if (onlineComp) {
+    form.competition_id = onlineComp.id;
+  }
+}
+
+// Cabang Lomba Options for CustomSelect with status badges and details
 const competitionOptions = computed(() => {
   return (props.competitions || []).map(c => {
     const feeText = Number(c.fee) > 0 ? `Rp ${Number(c.fee).toLocaleString('id-ID')}` : 'Gratis';
+    const isDirect = c.registration_type === 'direct_contact' || !!c.is_direct_registration;
+    const isClosed = c.status === 'closed' || !!c.is_registration_closed || !!c.is_quota_full || !!c.is_deadline_passed;
+
+    let badge = feeText;
+    let badgeClass = 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-emerald-300 border border-primary/20';
+    let desc = `${c.participant_type === 'tim' ? 'Beregu / Tim' : 'Individu'} • ${feeText}`;
+    let icon = c.icon || 'ri-award-line';
+
+    if (isDirect) {
+      badge = 'Via PJ (WA)';
+      badgeClass = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800';
+      desc = `Pendaftaran khusus via Narahubung/PJ • ${feeText}`;
+      icon = 'ri-whatsapp-line';
+    } else if (isClosed) {
+      badge = c.quota_status_text || 'Ditutup';
+      badgeClass = 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 border border-red-300 dark:border-red-800';
+      desc = c.quota_status_text === 'Kuota Penuh' ? 'Kuota peserta utama telah terpenuhi' : 'Pendaftaran cabang ini telah ditutup';
+      icon = 'ri-close-circle-line';
+    }
+
     return {
       value: c.id,
-      label: `${c.title} • ${feeText}`
+      label: c.title,
+      badge,
+      badgeClass,
+      desc,
+      icon,
     };
   });
 });
@@ -1737,7 +1861,7 @@ onMounted(() => {
                   <i class="ri-arrow-left-right-line text-primary"></i>
                   <span class="text-on-surface-variant font-medium whitespace-nowrap">Ganti Cabang:</span>
                 </div>
-                <div class="flex-1 sm:w-60 max-w-full min-w-0">
+                <div class="flex-1 sm:w-72 md:w-80 max-w-full min-w-0">
                   <CustomSelect
                     v-model="form.competition_id"
                     :options="competitionOptions"
@@ -1754,8 +1878,244 @@ onMounted(() => {
             </p>
           </div>
 
+          <!-- TAMPILAN KHUSUS METODE VIA PJ / KONTAK LANGSUNG -->
+          <div 
+            v-if="isDirectRegistration" 
+            class="bg-surface-card rounded-2xl border border-emerald-500/30 shadow-xl shadow-emerald-500/5 p-4 sm:p-8 md:p-10 space-y-6 sm:space-y-8 animate__animated animate__fadeIn"
+          >
+            <!-- Card Header / Status Badge -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-border-subtle">
+              <div class="flex items-center gap-2.5 sm:gap-3">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <i class="ri-whatsapp-line text-xl sm:text-2xl"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60">
+                      <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Pendaftaran Khusus: Via PJ / Koordinator Lomba
+                    </span>
+                    <span class="text-xs text-on-surface-variant font-medium">
+                      Cabang: <strong class="text-on-surface">{{ activeComp?.title }}</strong>
+                    </span>
+                  </div>
+                  <p class="text-xs sm:text-sm text-on-surface-variant m-0 mt-1">
+                    Pendaftaran cabang lomba ini dilayani langsung melalui komunikasi khusus dengan Koordinator / PJ Lomba via WhatsApp.
+                  </p>
+                </div>
+              </div>
+              <div class="shrink-0 flex items-center gap-2">
+                <span class="text-xs sm:text-sm font-bold px-3 py-1.5 rounded-xl bg-emerald-light text-emerald-dark border border-primary/20">
+                  {{ Number(activeComp?.fee) > 0 ? ('Rp ' + Number(activeComp?.fee).toLocaleString('id-ID')) : 'Gratis / Bebas Biaya' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Notice Alert -->
+            <div class="p-3.5 sm:p-4 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-xs sm:text-sm text-on-surface leading-relaxed flex items-start gap-3">
+              <i class="ri-information-fill text-emerald-600 dark:text-emerald-400 text-base sm:text-lg shrink-0 mt-0.5"></i>
+              <div>
+                <strong class="font-bold text-emerald-950 dark:text-emerald-200 block mb-1">
+                  Mengapa Pendaftaran Dilakukan via Kontak Langsung?
+                </strong>
+                <span class="text-on-surface-variant">
+                  {{ activeComp?.direct_registration_note || 'Untuk kelancaran koordinasi teknis, verifikasi slot kuota, dan petunjuk teknis spesifik, panitia memfasilitasi koordinasi langsung antara pembina/pendaftar sekolah dengan koordinator resmi cabang lomba.' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Narahubung & Template Pesan -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-stretch">
+              <!-- Kolom Kiri: Profil Koordinator & CTA -->
+              <div class="lg:col-span-7 flex flex-col justify-between p-4 sm:p-6 rounded-xl bg-background/50 border border-border-subtle space-y-4">
+                <div class="space-y-3">
+                  <span class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
+                    <i class="ri-user-star-line text-emerald-600 dark:text-emerald-400"></i>
+                    <span>Narahubung & Koordinator Resmi</span>
+                  </span>
+                  <div class="flex items-center gap-3.5">
+                    <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/40 border border-emerald-300 dark:border-emerald-700/50 flex items-center justify-center text-emerald-700 dark:text-emerald-300 shrink-0">
+                      <i class="ri-user-voice-line text-2xl"></i>
+                    </div>
+                    <div>
+                      <h3 class="font-bold text-sm sm:text-base text-on-surface m-0">
+                        {{ primaryCoordinator.name }}
+                      </h3>
+                      <p class="text-xs text-on-surface-variant m-0 mt-0.5">
+                        {{ primaryCoordinator.role || 'Koordinator Cabang Lomba' }} • {{ activeComp?.title }}
+                      </p>
+                      <div class="inline-flex items-center gap-1.5 mt-1 text-xs font-mono font-bold text-emerald-700 dark:text-emerald-300">
+                        <i class="ri-whatsapp-fill text-emerald-600"></i>
+                        <span>{{ primaryCoordinator.contact }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="pt-3 border-t border-border-subtle flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                  <a 
+                    :href="directContactWaUrl" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    class="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow-md transition-all text-center cursor-pointer no-underline"
+                  >
+                    <i class="ri-whatsapp-line text-lg"></i>
+                    <span>Hubungi PJ via WhatsApp</span>
+                  </a>
+                  <button 
+                    type="button" 
+                    @click="copyWaTemplate"
+                    class="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl border border-border-subtle hover:border-emerald-500 bg-white dark:bg-[#111d17] text-on-surface font-semibold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+                    title="Salin template pesan pendaftaran"
+                  >
+                    <i class="ri-file-copy-line text-base text-emerald-600 dark:text-emerald-400"></i>
+                    <span>Salin Format Pesan</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Kolom Kanan: Preview Pesan WA -->
+              <div class="lg:col-span-5 flex flex-col justify-between p-4 sm:p-5 rounded-xl bg-surface-variant/30 border border-border-subtle space-y-2.5">
+                <div class="flex items-center justify-between pb-1.5 border-b border-border-subtle">
+                  <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="ri-chat-1-line text-primary"></i>
+                    <span>Preview Pesan Otomatis</span>
+                  </span>
+                  <button 
+                    type="button" 
+                    @click="copyWaTemplate" 
+                    class="text-[11px] text-primary hover:underline font-semibold inline-flex items-center gap-1 cursor-pointer bg-transparent border-none p-0"
+                  >
+                    <i class="ri-clipboard-line"></i>
+                    <span>Salin Teks</span>
+                  </button>
+                </div>
+                <pre class="p-3 rounded-lg bg-white dark:bg-[#0b1410] border border-border-subtle text-[11px] sm:text-xs text-on-surface font-mono leading-relaxed whitespace-pre-wrap max-h-44 overflow-y-auto m-0 select-all">{{ directContactMessage }}</pre>
+                <span class="text-[10px] sm:text-[11px] text-on-surface-variant">
+                  Format pesan di atas otomatis tersalin saat Anda mengklik tombol <strong>Hubungi PJ via WhatsApp</strong>.
+                </span>
+              </div>
+            </div>
+
+            <!-- Ringkasan Ketentuan & Juknis -->
+            <div class="p-4 sm:p-6 rounded-xl bg-background/40 border border-border-subtle space-y-3.5">
+              <h4 class="font-bold text-xs sm:text-sm text-on-surface m-0 uppercase tracking-wider flex items-center gap-2">
+                <i class="ri-file-list-3-line text-primary"></i>
+                <span>Ringkasan Ketentuan & Petunjuk Teknis</span>
+              </h4>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="p-3 rounded-lg bg-white dark:bg-[#111d17] border border-border-subtle">
+                  <span class="text-[10px] text-on-surface-variant block">Kategori / Tipe Lomba</span>
+                  <span class="text-xs sm:text-sm font-bold text-on-surface capitalize">
+                    {{ activeComp?.participant_type === 'tim' ? 'Beregu / Tim' : 'Perorangan (Individu)' }}
+                  </span>
+                </div>
+                <div class="p-3 rounded-lg bg-white dark:bg-[#111d17] border border-border-subtle">
+                  <span class="text-[10px] text-on-surface-variant block">Aturan Delegasi</span>
+                  <span class="text-xs sm:text-sm font-bold text-on-surface">
+                    {{ activeComp?.participants_rule || 'Sesuai Juknis Resmi' }}
+                  </span>
+                </div>
+                <div class="p-3 rounded-lg bg-white dark:bg-[#111d17] border border-border-subtle">
+                  <span class="text-[10px] text-on-surface-variant block">Biaya Registrasi</span>
+                  <span class="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                    {{ Number(activeComp?.fee) > 0 ? ('Rp ' + Number(activeComp?.fee).toLocaleString('id-ID')) : 'Gratis / Bebas Biaya' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Unduh Juknis & Navigasi -->
+              <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-border-subtle">
+                <a 
+                  v-if="activeComp?.juknis_url" 
+                  :href="activeComp.juknis_url" 
+                  target="_blank"
+                  class="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline cursor-pointer no-underline"
+                >
+                  <i class="ri-download-2-line"></i>
+                  <span>Unduh Dokumen Petunjuk Teknis (Juknis) {{ activeComp?.title }}</span>
+                </a>
+                <span v-else class="text-xs text-on-surface-variant">
+                  <i class="ri-information-line me-1"></i> Petunjuk teknis lengkap dapat dimintakan langsung kepada PJ.
+                </span>
+
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-on-surface-variant">Ingin daftar lomba online lain?</span>
+                  <button 
+                    type="button" 
+                    @click="selectFirstOnlineCompetition"
+                    class="text-xs font-bold text-primary hover:underline cursor-pointer inline-flex items-center gap-1 bg-transparent border-none p-0"
+                  >
+                    <span>Pilih Cabang Lain</span>
+                    <i class="ri-arrow-right-line"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAMPILAN JIKA PENDAFTARAN DITUTUP / KUOTA PENUH -->
+          <div 
+            v-else-if="isRegistrationClosed" 
+            class="bg-surface-card rounded-2xl border border-red-500/30 shadow-xl shadow-red-500/5 p-4 sm:p-8 md:p-10 space-y-6 sm:space-y-8 animate__animated animate__fadeIn"
+          >
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-border-subtle">
+              <div class="flex items-center gap-2.5 sm:gap-3">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <i class="ri-lock-line text-xl sm:text-2xl"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 dark:bg-red-950/80 dark:text-red-300 border border-red-300 dark:border-red-700/60">
+                      <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                      {{ quotaStatusText || 'Pendaftaran Ditutup' }}
+                    </span>
+                    <span class="text-xs text-on-surface-variant font-medium">
+                      Cabang: <strong class="text-on-surface">{{ activeComp?.title }}</strong>
+                    </span>
+                  </div>
+                  <p class="text-xs sm:text-sm text-on-surface-variant m-0 mt-1">
+                    Pendaftaran untuk cabang lomba ini saat ini sudah tidak menerima delegasi baru.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-4 sm:p-6 rounded-xl bg-red-50/80 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-xs sm:text-sm text-on-surface leading-relaxed flex items-start gap-3">
+              <i class="ri-error-warning-fill text-red-600 dark:text-red-400 text-lg shrink-0 mt-0.5"></i>
+              <div>
+                <strong class="font-bold text-red-950 dark:text-red-200 block mb-1">
+                  {{ isQuotaFull ? 'Kuota Peserta Utama Telah Terpenuhi' : (isDeadlinePassed ? 'Batas Waktu Pendaftaran Berakhir' : 'Pendaftaran Resmi Telah Ditutup Panitia') }}
+                </strong>
+                <p class="m-0 text-on-surface-variant">
+                  Terima kasih atas antusiasme yang luar biasa. Anda dapat beralih ke cabang lomba lain yang masih membuka kuota pendaftaran melalui dropdown <strong>Ganti Cabang</strong> di atas.
+                </p>
+              </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-border-subtle">
+              <a 
+                :href="helpWaUrl" 
+                target="_blank" 
+                class="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:underline cursor-pointer no-underline"
+              >
+                <i class="ri-whatsapp-line"></i>
+                <span>Konsultasi / Bantuan Panitia (Waiting List)</span>
+              </a>
+              <button 
+                type="button" 
+                @click="selectFirstOnlineCompetition"
+                class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer border-none"
+              >
+                <span>Lihat Cabang Lomba yang Masih Buka</span>
+                <i class="ri-arrow-right-line"></i>
+              </button>
+            </div>
+          </div>
+
           <!-- FORMULIR TERPUSAT (CLEAN & TO-THE-POINT) -->
           <form 
+            v-else
             id="publicRegisterForm" 
             class="bg-surface-card rounded-2xl border border-border-subtle shadow-xl shadow-primary/5 p-3.5 sm:p-8 md:p-10 space-y-6 sm:space-y-8" 
             novalidate 

@@ -2631,7 +2631,7 @@ function printReport() {
                     class="badge fs-10 px-2 py-0.5"
                     :class="manualSingleDelegates.filter(d => d.name?.trim()).length >= (activeManualFormBuilder?.minItems || 1) ? 'bg-success text-white' : 'bg-warning text-dark'"
                   >
-                    Terisi: {{ manualSingleDelegates.filter(d => d.name?.trim()).length }}/{{ activeManualFormBuilder?.minItems || 1 }} Siswa
+                    Terisi: {{ manualSingleDelegates.filter(d => d.name?.trim()).length }}/{{ activeManualFormBuilder?.maxItems || activeManualFormBuilder?.minItems || 1 }} Siswa{{ (activeManualFormBuilder?.minItems && activeManualFormBuilder?.maxItems && activeManualFormBuilder.minItems < activeManualFormBuilder.maxItems) ? ` (Min. ${activeManualFormBuilder.minItems})` : '' }}
                   </span>
                 </div>
 
@@ -3054,7 +3054,7 @@ function printReport() {
                         <span>Tambah Baris Siswa ({{ getAllInComp(activeAllInTab)?.title }})</span>
                       </button>
                       <span class="fs-10 text-muted">
-                        Terisi: <strong>{{ getAllInFilledCount(activeAllInTab) }}</strong> / {{ getAllInBuilder(activeAllInTab).minItems }} Siswa
+                        Terisi: <strong>{{ getAllInFilledCount(activeAllInTab) }}</strong> / {{ getAllInBuilder(activeAllInTab).maxItems || getAllInBuilder(activeAllInTab).minItems }} Siswa{{ (getAllInBuilder(activeAllInTab).minItems < getAllInBuilder(activeAllInTab).maxItems) ? ` (Min. ${getAllInBuilder(activeAllInTab).minItems})` : '' }}
                       </span>
                     </div>
                   </div>
@@ -3117,7 +3117,7 @@ function printReport() {
                             class="badge fs-10"
                             :class="manualSingleDelegates.filter(d => d.name?.trim()).length >= (activeManualFormBuilder?.minItems || 1) ? 'bg-success text-white' : 'bg-warning text-dark'"
                           >
-                            {{ manualSingleDelegates.filter(d => d.name?.trim()).length }}/{{ activeManualFormBuilder?.minItems || 1 }} Siswa
+                            {{ manualSingleDelegates.filter(d => d.name?.trim()).length }}/{{ activeManualFormBuilder?.maxItems || activeManualFormBuilder?.minItems || 1 }} Siswa{{ (activeManualFormBuilder?.minItems && activeManualFormBuilder?.maxItems && activeManualFormBuilder.minItems < activeManualFormBuilder.maxItems) ? ` (Min. ${activeManualFormBuilder.minItems})` : '' }}
                           </span>
                         </div>
                         <div class="d-flex flex-wrap gap-1 mt-1" v-if="manualSingleDelegates.filter(d => d.name?.trim()).length > 0">

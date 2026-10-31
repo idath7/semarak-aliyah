@@ -440,6 +440,7 @@ class AdminPanelController extends Controller
             'max_quota' => 'required|integer|min:1',
             'participant_type' => 'nullable|in:individu,tim',
             'max_teams' => 'nullable|integer|min:1',
+            'min_participants' => 'nullable|integer|min:1',
             'max_participants' => 'nullable|integer|min:1',
             'registration_deadline' => 'nullable|string|max:100',
             'participants_rule' => 'nullable|string|max:255',
@@ -470,11 +471,15 @@ class AdminPanelController extends Controller
         $partType = $validated['participant_type'] ?? 'individu';
         $maxTeams = (int) ($validated['max_teams'] ?? 1);
         $maxParts = (int) ($validated['max_participants'] ?? ($partType === 'tim' ? 10 : 1));
+        $minParts = (int) ($validated['min_participants'] ?? ($partType === 'tim' ? min(5, $maxParts) : 1));
+        if ($minParts > $maxParts) {
+            $maxParts = $minParts;
+        }
         $partRule = $validated['participants_rule'] ?? '';
         if (empty($partRule)) {
             $partRule = $partType === 'tim'
-                ? "Tim / Regu (Maks {$maxTeams} Tim) & (Maks {$maxParts} Anggota)"
-                : "Individu (Maks {$maxParts} Peserta)";
+                ? "Tim / Regu (Maks {$maxTeams} Tim) & ({$minParts}-{$maxParts} Anggota per Tim)"
+                : ($minParts === $maxParts ? "Individu ({$maxParts} Peserta)" : "Individu ({$minParts}-{$maxParts} Peserta)");
         }
 
         // Format deadline strictly to dd/mm/yyyy
@@ -557,6 +562,7 @@ class AdminPanelController extends Controller
             'direct_registration_note' => $validated['direct_registration_note'] ?? null,
             'direct_registration_template' => $validated['direct_registration_template'] ?? null,
             'participant_type' => $partType,
+            'min_participants' => $minParts,
             'max_teams' => $maxTeams,
             'max_participants' => $maxParts,
             'registration_deadline' => $deadline,
@@ -640,6 +646,7 @@ class AdminPanelController extends Controller
             'max_quota' => 'required|integer|min:1',
             'participant_type' => 'nullable|in:individu,tim',
             'max_teams' => 'nullable|integer|min:1',
+            'min_participants' => 'nullable|integer|min:1',
             'max_participants' => 'nullable|integer|min:1',
             'registration_deadline' => 'nullable|string|max:100',
             'participants_rule' => 'nullable|string|max:255',
@@ -661,11 +668,15 @@ class AdminPanelController extends Controller
         $partType = $validated['participant_type'] ?? ($comp->participant_type ?: 'individu');
         $maxTeams = (int) ($validated['max_teams'] ?? ($comp->max_teams ?: 1));
         $maxParts = (int) ($validated['max_participants'] ?? ($comp->max_participants ?: 1));
+        $minParts = (int) ($validated['min_participants'] ?? ($comp->min_participants ?: ($partType === 'tim' ? min(5, $maxParts) : 1)));
+        if ($minParts > $maxParts) {
+            $maxParts = $minParts;
+        }
         $partRule = $validated['participants_rule'] ?? '';
         if (empty($partRule)) {
             $partRule = $partType === 'tim'
-                ? "Tim / Regu (Maks {$maxTeams} Tim) & (Maks {$maxParts} Anggota)"
-                : "Individu (Maks {$maxParts} Peserta)";
+                ? "Tim / Regu (Maks {$maxTeams} Tim) & ({$minParts}-{$maxParts} Anggota per Tim)"
+                : ($minParts === $maxParts ? "Individu ({$maxParts} Peserta)" : "Individu ({$minParts}-{$maxParts} Peserta)");
         }
 
         // Format deadline strictly to dd/mm/yyyy
@@ -772,6 +783,7 @@ class AdminPanelController extends Controller
             'direct_registration_note' => array_key_exists('direct_registration_note', $validated) ? $validated['direct_registration_note'] : $comp->direct_registration_note,
             'direct_registration_template' => array_key_exists('direct_registration_template', $validated) ? $validated['direct_registration_template'] : $comp->direct_registration_template,
             'participant_type' => $partType,
+            'min_participants' => $minParts,
             'max_teams' => $maxTeams,
             'max_participants' => $maxParts,
             'registration_deadline' => $deadline,
@@ -1236,36 +1248,51 @@ class AdminPanelController extends Controller
         $compTitle = strtolower((string)$comp->title);
 
         $max = (int)($comp->max_participants ?: ($isTeam ? 10 : 1));
-        $min = $isTeam ? min($max, 5) : 1;
-        $main = $max;
-        $reserve = 0;
+        $min = (int)($comp->min_participants ?: ($isTeam ? min($max, 5) : 1));
+        $main = $min;
+        $reserve = max(0, $max - $min);
 
         if (!empty($rule)) {
             if (preg_match('/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*inti/i', $rule, $mInti)) {
                 $main = (int)$mInti[1];
-                $min = $main;
+                if (empty($comp->min_participants)) {
+                    $min = $main;
+                }
                 if (preg_match('/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*cadangan/i', $rule, $mCadangan)) {
                     $reserve = (int)$mCadangan[1];
                 }
-                $max = $main + $reserve;
+                if (empty($comp->max_participants)) {
+                    $max = $main + $reserve;
+                }
             } elseif (preg_match('/(\d+)\s*(?:s\.d|sampai|-)\s*(\d+)\s*(?:siswa|orang|pemain|peserta|personel)?/i', $rule, $mRange)) {
-                $min = (int)$mRange[1];
-                $max = (int)$mRange[2];
+                if (empty($comp->min_participants)) {
+                    $min = (int)$mRange[1];
+                }
+                if (empty($comp->max_participants)) {
+                    $max = (int)$mRange[2];
+                }
                 $main = $min;
                 $reserve = max(0, $max - $min);
             } elseif (preg_match('/maksimal\s*(\d+)\s*(?:siswa|orang|pemain|peserta|personel)?/i', $rule, $mMaksimal)) {
-                $max = (int)$mMaksimal[1];
-                if ($isTeam) {
-                    $min = min($max, 5);
-                    $main = $max;
-                    $reserve = 0;
-                } else {
-                    $min = 1;
-                    $main = $max;
-                    $reserve = 0;
+                if (empty($comp->max_participants)) {
+                    $max = (int)$mMaksimal[1];
                 }
+                if (empty($comp->min_participants)) {
+                    $min = $isTeam ? min($max, 5) : 1;
+                }
+                $main = $min;
+                $reserve = max(0, $max - $min);
             }
         }
+
+        if (!empty($comp->min_participants)) {
+            $min = (int)$comp->min_participants;
+        }
+        if (!empty($comp->max_participants)) {
+            $max = (int)$comp->max_participants;
+        }
+        $main = $min;
+        $reserve = max(0, $max - $min);
 
         if ($min > $max) $min = $max;
         if ($min < 1) $min = 1;

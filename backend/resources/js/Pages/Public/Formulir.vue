@@ -576,7 +576,7 @@ function getCompetitionParticipantLimits(comp, repeater) {
   const isTeam = comp.participant_type === 'tim';
   const rule = String(comp.participants_rule || '').trim();
   let max = comp.max_participants ? Number(comp.max_participants) : (isTeam ? 10 : 1);
-  let min = isTeam ? Math.min(max, 5) : 1;
+  let min = comp.min_participants ? Number(comp.min_participants) : (isTeam ? Math.min(max, 5) : 1);
 
   if (rule) {
     const matchInti = rule.match(/(\d+)\s*(?:pemain|orang|siswa|anggota|personel)?\s*inti/i);

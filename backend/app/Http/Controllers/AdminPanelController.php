@@ -1505,6 +1505,11 @@ class AdminPanelController extends Controller
             if (($rf['type'] ?? '') === 'participant_repeater') {
                 $rf['sub_fields'] = self::normalizeRepeaterSubFields($rf['sub_fields'] ?? null);
             }
+            if (($rf['type'] ?? '') === 'file') {
+                $rf['max_files'] = isset($rf['max_files']) && $rf['max_files'] !== null && $rf['max_files'] !== ''
+                    ? max(1, (int)$rf['max_files'])
+                    : 1;
+            }
             $rfName = $rf['name'] ?? '';
             if (in_array($rfName, ['allin_code', 'kode_paket_komplit', 'kode_paket', 'kode_allin', 'package_code', 'all_in_code', 'kode_paket_allin'], true)) {
                 $rf['is_mandatory_identity'] = false;

@@ -367,7 +367,7 @@ function initializeData() {
     required: f.required !== undefined ? !!f.required : true,
     allowed_extensions: Array.isArray(f.allowed_extensions) && f.allowed_extensions.length > 0 ? f.allowed_extensions : ['pdf', 'jpg', 'jpeg', 'png'],
     max_size_mb: f.max_size_mb ? Number(f.max_size_mb) : 5,
-    max_files: 1
+    max_files: f.max_files ? Math.max(1, Number(f.max_files)) : 1
   }));
   documentFields.value = parsedDocs;
 
@@ -515,6 +515,15 @@ function toggleExtension(doc, ext) {
   }
 }
 
+// Toggle multi-file mode for Document
+function toggleMultiFile(doc, isMulti) {
+  if (isMulti) {
+    doc.max_files = (doc.max_files && Number(doc.max_files) > 1) ? Number(doc.max_files) : 5;
+  } else {
+    doc.max_files = 1;
+  }
+}
+
 // Save All 4 Sections
 function saveFormFields() {
   if (!canManageForm.value) {
@@ -547,6 +556,8 @@ function saveFormFields() {
       toast.warning(`Dokumen ke-${i + 1} belum memiliki Label Berkas.`);
       return;
     }
+    // Normalize max_files
+    doc.max_files = (doc.max_files && Number(doc.max_files) > 1) ? Number(doc.max_files) : 1;
   }
 
   // Construct combined custom_fields: Section 1 + Section 2 + Section 3 + Section 4
@@ -1319,11 +1330,17 @@ async function applyHeadlineAll() {
                 class="card border shadow-xs rounded-3 p-3 bg-body"
               >
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                  <div class="d-flex align-items-center gap-2">
+                  <div class="d-flex align-items-center gap-2 flex-wrap">
                     <span class="badge bg-primary text-white font-mono fw-bold fs-11">
                       Berkas #{{ dIdx + 1 }}
                     </span>
                     <span class="fs-12 fw-bold text-dark">{{ doc.label }}</span>
+                    <span v-if="Number(doc.max_files || 1) > 1" class="badge bg-info-subtle text-info border border-info-subtle font-mono fs-11">
+                      <i class="ri-folders-line me-1"></i>Multi-File: Maks. {{ doc.max_files }} Berkas
+                    </span>
+                    <span v-else class="badge bg-secondary-subtle text-secondary font-mono fs-11">
+                      1 Berkas Tunggal
+                    </span>
                   </div>
 
                   <div class="d-flex align-items-center gap-2">
@@ -1382,6 +1399,47 @@ async function applyHeadlineAll() {
                       class="form-control form-control-sm fs-11 text-muted"
                       placeholder="Contoh: Gabungkan seluruh berkas dalam 1 file PDF resmi, maksimal 5 MB."
                     />
+                  </div>
+
+                  <!-- Mode Multi-File / Jumlah Berkas -->
+                  <div class="col-12">
+                    <div class="p-2 rounded-2 border bg-light-subtle d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2">
+                      <div class="d-flex align-items-center gap-2">
+                        <div class="form-check form-switch mb-0 fs-12">
+                          <input 
+                            class="form-check-input cursor-pointer" 
+                            type="checkbox" 
+                            :id="`doc_multi_${doc.id}`"
+                            :checked="Number(doc.max_files || 1) > 1"
+                            @change="toggleMultiFile(doc, $event.target.checked)"
+                          />
+                          <label class="form-check-label fs-12 fw-semibold text-dark cursor-pointer ms-1" :for="`doc_multi_${doc.id}`">
+                            Izinkan Unggah Lebih Dari 1 Berkas (Multi-File)
+                          </label>
+                        </div>
+                      </div>
+
+                      <div v-if="Number(doc.max_files || 1) > 1" class="d-flex align-items-center gap-1.5 ms-sm-auto">
+                        <label class="fs-11 fw-semibold text-muted text-nowrap mb-0" :for="`doc_maxf_${doc.id}`">
+                          Batas Maksimal:
+                        </label>
+                        <div class="input-group input-group-sm" style="width: 120px;">
+                          <input 
+                            type="number" 
+                            :id="`doc_maxf_${doc.id}`"
+                            v-model.number="doc.max_files" 
+                            class="form-control font-mono fs-12 text-center"
+                            min="2"
+                            max="20"
+                            step="1"
+                          />
+                          <span class="input-group-text bg-light text-muted fs-11">Berkas</span>
+                        </div>
+                      </div>
+                      <div v-else class="fs-11 text-muted">
+                        <i class="ri-information-line me-0.5"></i> Mode standar (1 berkas tunggal).
+                      </div>
+                    </div>
                   </div>
 
                   <!-- Allowed format checkboxes -->
@@ -1646,9 +1704,16 @@ async function applyHeadlineAll() {
                       <div v-for="doc in documentFields" :key="doc.id" class="p-1.5 rounded-2 bg-light border d-flex align-items-center justify-content-between">
                         <div>
                           <div class="fw-semibold text-dark fs-10">{{ doc.label }}</div>
-                          <div class="text-muted fs-9">{{ doc.allowed_extensions?.join(', ').toUpperCase() }} • Maks {{ doc.max_size_mb }} MB</div>
+                          <div class="text-muted fs-9">
+                            {{ doc.allowed_extensions?.join(', ').toUpperCase() }} • Maks {{ doc.max_size_mb }} MB • {{ Number(doc.max_files || 1) > 1 ? `Maks. ${doc.max_files} Berkas` : '1 Berkas' }}
+                          </div>
                         </div>
-                        <span class="badge bg-secondary-subtle text-secondary fs-9">{{ doc.required ? 'Wajib' : 'Opsional' }}</span>
+                        <div class="d-flex align-items-center gap-1">
+                          <span v-if="Number(doc.max_files || 1) > 1" class="badge bg-info-subtle text-info fs-9 font-mono">
+                            Multi ({{ doc.max_files }})
+                          </span>
+                          <span class="badge bg-secondary-subtle text-secondary fs-9">{{ doc.required ? 'Wajib' : 'Opsional' }}</span>
+                        </div>
                       </div>
                     </div>
                   </div>

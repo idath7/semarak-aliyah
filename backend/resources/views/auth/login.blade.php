@@ -1,4 +1,5 @@
 @php
+$errors = $errors ?? new \Illuminate\Support\ViewErrorBag;
 $bgImage = \App\Models\Setting::get('admin_login_bg_image', '/assets/images/auth-one-bg.jpg');
 $bgOverlay = \App\Models\Setting::get('admin_login_bg_overlay_type', 'gradient_velzon');
 $bgOpacity = (int)\App\Models\Setting::get('admin_login_bg_overlay_opacity', 85);
@@ -184,13 +185,19 @@ $bgTransform = $bgBlur > 0 ? "scale(1.03)" : "none";
         .card.card-bg-fill {
             background-color: #ffffff !important;
             border: 1px solid #e2e8f0 !important;
-            border-radius: 0.5rem !important;
+            border-radius: 0.75rem !important;
             box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08) !important;
             margin-bottom: 1.5rem;
         }
 
         .card-body {
-            padding: 2.25rem !important;
+            padding: 1.5rem !important;
+        }
+
+        @media (min-width: 576px) {
+            .card-body {
+                padding: 1.75rem 2rem !important;
+            }
         }
 
         /* High-Contrast Typography */
@@ -616,12 +623,241 @@ $bgTransform = $bgBlur > 0 ? "scale(1.03)" : "none";
             border-color: rgba(34, 197, 94, 0.3);
             color: #86efac;
         }
+
+        /* High Contrast Dark Mode Adjustments */
+        [data-bs-theme="dark"] .card.card-bg-fill {
+            background-color: #1e293b !important;
+            border-color: #334155 !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        [data-bs-theme="dark"] .signin-title {
+            color: #93c5fd !important;
+        }
+
+        [data-bs-theme="dark"] .signin-subtitle {
+            color: #cbd5e1 !important;
+        }
+
+        [data-bs-theme="dark"] .form-label {
+            color: #f1f5f9 !important;
+        }
+
+        [data-bs-theme="dark"] .form-control {
+            background-color: #0f172a !important;
+            border-color: #334155 !important;
+            color: #f8fafc !important;
+        }
+
+        [data-bs-theme="dark"] .form-control::placeholder {
+            color: #64748b !important;
+        }
+
+        [data-bs-theme="dark"] .remember-label {
+            color: #cbd5e1 !important;
+        }
+
+        [data-bs-theme="dark"] .forgot-password-link {
+            color: #93c5fd !important;
+        }
+
+        [data-bs-theme="dark"] .forgot-password-link:hover {
+            color: #bfdbfe !important;
+        }
+
+        [data-bs-theme="dark"] .signin-other-title:after {
+            background-color: #334155 !important;
+        }
+
+        [data-bs-theme="dark"] .signin-other-title .title {
+            background-color: #1e293b !important;
+            color: #94a3b8 !important;
+        }
+
+        /* Desktop HD Widescreen Optimization (>= 992px) */
+        @media (min-width: 992px) {
+            html, body {
+                height: 100%;
+            }
+
+            .auth-page-wrapper {
+                min-height: 100vh;
+                height: 100vh;
+                overflow-x: hidden;
+                overflow-y: auto;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                padding-top: 0 !important;
+            }
+
+            /* Lock vertical overflow on standard HD desktop (height >= 600px) */
+            @media (min-height: 600px) {
+                .auth-page-wrapper {
+                    overflow-y: hidden;
+                }
+            }
+
+            .auth-one-bg-position {
+                height: 100% !important;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+            }
+
+            .auth-one-bg .shape {
+                opacity: 0.75;
+            }
+
+            .auth-one-bg .shape>svg {
+                fill: rgba(15, 23, 42, 0.45) !important;
+            }
+
+            [data-bs-theme="dark"] .auth-one-bg .shape>svg {
+                fill: rgba(10, 15, 29, 0.7) !important;
+            }
+
+            .auth-page-content {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 1rem 0;
+                position: relative;
+                z-index: 2;
+            }
+
+            .card.card-bg-fill {
+                margin-bottom: 0 !important;
+                border-radius: 1rem !important;
+                box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.12) !important;
+            }
+
+            .card-body {
+                padding: 1.5rem 1.75rem !important;
+            }
+
+            .footer {
+                position: relative;
+                z-index: 2;
+                background: rgba(15, 23, 42, 0.4);
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 10px 0;
+            }
+
+            .footer p {
+                color: rgba(255, 255, 255, 0.85) !important;
+            }
+        }
+
+        /* Desktop HD Hero Showcase Styling */
+        .auth-desktop-hero {
+            position: relative;
+            z-index: 3;
+        }
+
+        .auth-desktop-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 14px;
+            border-radius: 50rem;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 600;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            margin-bottom: 1.25rem;
+        }
+
+        .auth-desktop-logo {
+            width: 68px;
+            height: 68px;
+            object-fit: contain;
+            filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.4));
+        }
+
+        .auth-desktop-title {
+            font-size: 1.85rem;
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: -0.01em;
+            line-height: 1.15;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+        }
+
+        .auth-desktop-subtitle {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.92);
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+        }
+
+        .auth-desktop-lead {
+            line-height: 1.6;
+            max-width: 520px;
+            color: rgba(255, 255, 255, 0.88);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+            margin-top: 0.85rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .auth-feature-pill {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 9px 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: all 0.2s ease;
+        }
+
+        .auth-feature-pill:hover {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn-shortcut-hero {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 13px;
+            font-size: 11.5px;
+            font-weight: 600;
+            border-radius: 50rem;
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff !important;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-shortcut-hero:hover {
+            background: #ffffff;
+            color: #0f172a !important;
+            border-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 
 <body>
 
-    <div class="auth-page-wrapper pt-5">
+    <div class="auth-page-wrapper pt-4 pt-lg-0">
         <!-- auth page bg (Velzon Hero Image Overlay & Wave Shape) -->
         <div class="auth-one-bg-position auth-one-bg" id="auth-particles" data-particles="{{ $particlesActive ? '1' : '0' }}" style="--auth-bg-img: url('{{ $bgImage }}'); --auth-bg-filter: {{ $bgFilter }}; --auth-bg-transform: {{ $bgTransform }};">
             <div class="bg-overlay" style="--auth-bg-overlay: {{ $overlayBackground }};"></div>
@@ -637,10 +873,11 @@ $bgTransform = $bgBlur > 0 ? "scale(1.03)" : "none";
 
         <!-- auth page content -->
         <div class="auth-page-content">
-            <div class="container">
-                <div class="row">
+            <div class="container-xl">
+                <!-- Mobile Only Header (< 992px) -->
+                <div class="row d-lg-none">
                     <div class="col-lg-12">
-                        <div class="text-center mt-sm-4 mb-4">
+                        <div class="text-center mt-sm-2 mb-3">
                             <div>
                                 <a href="/" class="auth-logo">
                                     <img src="/assets/img/logo.png" alt="Logo Semarak">
@@ -651,13 +888,94 @@ $bgTransform = $bgBlur > 0 ? "scale(1.03)" : "none";
                         </div>
                     </div>
                 </div>
-                <!-- end row -->
+                <!-- end mobile header row -->
 
-                <div class="row justify-content-center">
+                <div class="row align-items-center justify-content-center g-4 g-xl-5">
+                    <!-- KOLOM KIRI (DESKTOP HD ONLY): BRANDING & HIGHLIGHT HERO -->
+                    <div class="col-lg-6 col-xl-7 d-none d-lg-block text-white">
+                        <div class="auth-desktop-hero pe-xl-4">
+                            <!-- Badge Status Panitia -->
+                            <div class="auth-desktop-badge">
+                                <i class="ri-shield-star-line text-warning fs-14"></i>
+                                <span>Portal Resmi Panitia Pelaksana</span>
+                            </div>
+
+                            <!-- Logo & Judul Event -->
+                            <div class="d-flex align-items-center gap-3 mb-2">
+                                <img src="/assets/img/logo.png" alt="Logo Semarak" class="auth-desktop-logo" />
+                                <div>
+                                    <h1 class="auth-desktop-title mb-0">{{ $eventName }}</h1>
+                                    <p class="auth-desktop-subtitle mb-0">{{ $schoolName }}</p>
+                                </div>
+                            </div>
+
+                            <p class="auth-desktop-lead">
+                                Sistem manajemen terpadu kompetisi, verifikasi pendaftaran delegasi, sinkronisasi presensi guru dan panitia, serta administrasi event real-time.
+                            </p>
+
+                            <!-- 4 Fitur Highlight Badges / Chips -->
+                            <div class="row g-2 mb-4">
+                                <div class="col-sm-6">
+                                    <div class="auth-feature-pill">
+                                        <i class="ri-shield-keyhole-line text-success fs-18 flex-shrink-0"></i>
+                                        <div>
+                                            <div class="fw-semibold fs-12 text-white">4 Metode Login</div>
+                                            <div class="text-white-50 fs-11">Username, SSO, OTP WA, Google</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="auth-feature-pill">
+                                        <i class="ri-fingerprint-line text-info fs-18 flex-shrink-0"></i>
+                                        <div>
+                                            <div class="fw-semibold fs-12 text-white">SSO Sipresensi Guru</div>
+                                            <div class="text-white-50 fs-11">Otentikasi langsung ke server MA</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="auth-feature-pill">
+                                        <i class="ri-whatsapp-line text-success fs-18 flex-shrink-0"></i>
+                                        <div>
+                                            <div class="fw-semibold fs-12 text-white">OTP WhatsApp Bebas Sandi</div>
+                                            <div class="text-white-50 fs-11">Akses cepat via token nomor HP</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="auth-feature-pill">
+                                        <i class="ri-dashboard-3-line text-warning fs-18 flex-shrink-0"></i>
+                                        <div>
+                                            <div class="fw-semibold fs-12 text-white">Dashboard Operasional</div>
+                                            <div class="text-white-50 fs-11">Pantau kuota & berkas delegasi</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pintasan Akses Cepat di Kolom Kiri -->
+                            <div class="pt-3 border-top border-white border-opacity-15">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <span class="fs-12 text-white-50 fw-medium me-1">Pintasan Cepat:</span>
+                                    <a href="{{ $publicPortalUrl ?? \App\Models\Setting::getPublicPortalUrl() }}" target="_blank" class="btn-shortcut-hero" title="Buka Portal Publik">
+                                        <i class="ri-earth-line"></i> Web Publik
+                                    </a>
+                                    <a href="{{ $publicPortalUrl ?? \App\Models\Setting::getPublicPortalUrl() }}/layanan-registrasi" target="_blank" class="btn-shortcut-hero" title="Form Pendaftaran">
+                                        <i class="ri-user-add-line"></i> Form Pendaftaran
+                                    </a>
+                                    <a href="{{ $publicPortalUrl ?? \App\Models\Setting::getPublicPortalUrl() }}/assets/JUKNIS-SEMARAK-2026.pdf" target="_blank" class="btn-shortcut-hero" title="Petunjuk Teknis">
+                                        <i class="ri-file-pdf-line"></i> Juknis PDF
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KOLOM KANAN: KARTU LOGIN (DESKTOP & MOBILE) -->
                     <div class="col-md-8 col-lg-6 col-xl-5">
-                        <div class="card mt-2 card-bg-fill">
+                        <div class="card mt-2 mt-lg-0 card-bg-fill shadow-lg border-0 rounded-4 my-auto">
 
-                            <div class="card-body p-3 p-sm-4">
+                            <div class="card-body p-3 p-sm-4 p-xl-4">
                                 <div class="text-center mt-1">
                                     <h5 class="signin-title">{{ $loginTitle }}</h5>
                                     <p class="signin-subtitle">{{ $loginSubtitle }}</p>
@@ -892,13 +1210,13 @@ $bgTransform = $bgBlur > 0 ? "scale(1.03)" : "none";
                                         </p>
                                     </div>
 
-                                    <div class="mt-4 text-center">
+                                    <div class="mt-3 text-center">
                                         <p class="mb-0 text-muted fs-12">
                                             Bukan Panitia? <a href="{{ $publicPortalUrl ?? \App\Models\Setting::getPublicPortalUrl() }}/pendaftar/login" class="fw-semibold text-primary text-decoration-underline">Masuk Portal Pendaftar di Sini</a>
                                         </p>
                                     </div>
 
-                                    <div class="mt-4 text-center">
+                                    <div class="mt-3 text-center d-lg-none">
                                         <div class="signin-other-title">
                                             <h5 class="title">Pintasan Semarak</h5>
                                         </div>

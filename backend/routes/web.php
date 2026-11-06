@@ -24,6 +24,17 @@ Route::post('/formulir-pendaftaran', [PublicPortalController::class, 'storeRegis
 Route::get('/scoreboard', [LiveScoreboardController::class, 'index'])->name('public.scoreboard');
 Route::get('/portal/live-scoreboard', [LiveScoreboardController::class, 'index'])->name('portal.scoreboard');
 
+// Universal Shortcut & Alias Nota / Invoice Resmi
+Route::get('/invoice/{id}', function ($id) {
+    if (auth('pendaftar')->check()) {
+        return redirect()->route('pendaftar.invoice.print', ['id' => $id]);
+    }
+    if (auth('web')->check()) {
+        return redirect()->route('admin.invoice.print', ['id' => $id]);
+    }
+    return redirect()->route('pendaftar.invoice.print', ['id' => $id]);
+})->name('invoice.print');
+
 // Operational Command Center (Pusat Komando Lapangan Hari-H - Dark UI) - Protected with Auth & Admin Role
 Route::middleware(['auth:web', 'admin'])->group(function () {
     Route::get('/operasional', [\App\Http\Controllers\OperasionalHubController::class, 'index'])->name('operasional');
@@ -62,17 +73,19 @@ Route::prefix('pendaftar')->name('pendaftar.')->group(function () {
     Route::get('/lupa-password', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'showForgotPassword'])->name('forgot-password');
     Route::post('/lupa-password/send-otp', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'sendResetOtp'])->middleware('throttle:6,1')->name('forgot-password.send-otp');
     Route::post('/lupa-password/reset', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'resetPasswordWithOtp'])->middleware('throttle:10,1')->name('forgot-password.reset');
-    Route::post('/logout', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'logout'])->name('logout');
+    Route::match(['get', 'post'], '/logout', [\App\Http\Controllers\Registrant\RegistrantAuthController::class, 'logout'])->name('logout');
 
     // Protected Registrant Portal Routes
     Route::middleware(['auth:pendaftar', 'registrant'])->group(function () {
         Route::get('/dashboard', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'index'])->name('dashboard');
         Route::get('/daftar-lomba', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'createRegistration'])->name('registrations.create');
         Route::post('/daftar-lomba', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'storeRegistration'])->name('registrations.store');
+        Route::get('/registrations/{id}/edit', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'editRegistration'])->name('registrations.edit');
         Route::post('/registrations/{id}/update', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'updateRegistration'])->name('registrations.update');
         Route::post('/registrations/{id}/assign-pic', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'assignPic'])->name('registrations.assign-pic');
         Route::post('/registrations/{id}/remove-pic', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'removePic'])->name('registrations.remove-pic');
         Route::post('/paket/all-in/activate', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'activateAllInPackage'])->name('paket.all-in.activate');
+        Route::post('/paket/satuan/activate', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'activateSinglePackage'])->name('paket.satuan.activate');
         Route::post('/paket/all-in/upload-proof', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'uploadPackageProof'])->name('paket.all-in.upload-proof');
         Route::post('/profile/update', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'updateProfile'])->name('profile.update');
         Route::post('/profile/avatar', [\App\Http\Controllers\Registrant\RegistrantDashboardController::class, 'updateAvatar'])->name('profile.avatar.update');
@@ -97,6 +110,16 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
     Route::post('/pendaftar/merge-schools', [AdminPanelController::class, 'mergeSchools'])->name('pendaftar.merge-schools');
     Route::get('/sekolah-terdaftar', [AdminPanelController::class, 'registeredSchoolsIndex'])->name('sekolah-terdaftar.index');
     Route::post('/sekolah-terdaftar/destroy', [AdminPanelController::class, 'destroyRegisteredSchool'])->name('sekolah-terdaftar.destroy');
+
+    // Manajemen Akun Pendaftar (Peserta, Pembina, & Koordinator)
+    Route::prefix('akun-pendaftar')->name('registrant-accounts.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\RegistrantAccountController::class, 'index'])->name('index');
+        Route::get('/export-csv', [\App\Http\Controllers\Admin\RegistrantAccountController::class, 'exportCsv'])->name('export-csv');
+        Route::post('/{id}/toggle-status', [\App\Http\Controllers\Admin\RegistrantAccountController::class, 'toggleStatus'])->name('toggle-status');
+        Route::post('/{id}/reset-password', [\App\Http\Controllers\Admin\RegistrantAccountController::class, 'resetPassword'])->name('reset-password');
+        Route::put('/{id}', [\App\Http\Controllers\Admin\RegistrantAccountController::class, 'update'])->name('update');
+        Route::delete('/{id}', [\App\Http\Controllers\Admin\RegistrantAccountController::class, 'destroy'])->name('destroy');
+    });
     Route::get('/pendaftar/{id}', [AdminPanelController::class, 'pendaftarDetail'])->name('pendaftar.detail');
     Route::delete('/pendaftar/{id}', [AdminPanelController::class, 'destroyRegistration'])->name('pendaftar.destroy');
     Route::post('/pendaftar/bulk-destroy', [AdminPanelController::class, 'bulkDestroyRegistrations'])->name('pendaftar.bulk-destroy');

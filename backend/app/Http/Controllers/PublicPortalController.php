@@ -1162,6 +1162,15 @@ class PublicPortalController extends Controller
             \Illuminate\Support\Facades\Log::warning('Auto WA notification error: ' . $e->getMessage());
         }
 
+        // Cek apakah seluruh cabang lomba kini lengkap dan auto-upgrade ke Paket All-In jika terpenuhi
+        if (!empty($registrantUser)) {
+            try {
+                \App\Models\Registration::checkAndAutoUpgradeToAllIn($registrantUser, true);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Auto upgrade check error in public portal: ' . $e->getMessage());
+            }
+        }
+
         return redirect()->back()->with([
             'success' => 'Pendaftaran berhasil dikirim!',
             'registered' => $registration,

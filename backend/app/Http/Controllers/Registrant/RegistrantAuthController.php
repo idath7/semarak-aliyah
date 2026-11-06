@@ -110,8 +110,9 @@ class RegistrantAuthController extends Controller
 
         if ($request->input('redirect_to') === 'register') {
             $lomba = $request->input('lomba');
-            $params = $lomba ? ['lomba' => $lomba] : [];
-            return redirect()->route('public.register', $params)->with('success', 'Selamat datang, ' . $registrant->name . '! Silakan lanjutkan pengisian formulir pendaftaran.');
+            $params = $lomba ? ['lomba' => $lomba, 'registered_success' => '1'] : ['registered_success' => '1'];
+            session()->flash('success', 'Selamat datang, ' . $registrant->name . '! Silakan lanjutkan pengisian formulir pendaftaran.');
+            return Inertia::location(route('public.register', $params));
         }
 
         return redirect()->intended(route('pendaftar.dashboard'))->with('success', 'Selamat datang kembali, ' . $registrant->name . '!');
@@ -140,7 +141,7 @@ class RegistrantAuthController extends Controller
                 'npsn' => $s->npsn,
             ];
         });
-        $districts = School::distinct()->whereNotNull('kecamatan')->where('kecamatan', '!=', '')->orderBy('kecamatan', 'asc')->pluck('kecamatan');
+        $districts = School::getKecamatanList();
         
         $schoolName = Setting::get('school_name', 'MA Unggulan Wahid Hasyim Balung');
         $redirectTo = $request->query('redirect_to', '');
@@ -254,8 +255,9 @@ class RegistrantAuthController extends Controller
 
         if ($request->input('redirect_to') === 'register') {
             $lomba = $request->input('lomba');
-            $params = $lomba ? ['lomba' => $lomba] : [];
-            return redirect()->route('public.register', $params)->with('success', 'Akun pendaftar berhasil dibuat! Silakan lanjutkan pengisian formulir pendaftaran.');
+            $params = $lomba ? ['lomba' => $lomba, 'registered_success' => '1'] : ['registered_success' => '1'];
+            session()->flash('success', 'Akun pendaftar berhasil dibuat! Silakan lanjutkan pengisian formulir pendaftaran.');
+            return Inertia::location(route('public.register', $params));
         }
 
         return redirect()->route('pendaftar.dashboard')->with('success', 'Selamat datang! Akun pendaftar Anda telah aktif.');
@@ -735,8 +737,9 @@ class RegistrantAuthController extends Controller
 
         if ($request->input('redirect_to') === 'register') {
             $lomba = $request->input('lomba');
-            $params = $lomba ? ['lomba' => $lomba] : [];
-            return redirect()->route('public.register', $params)->with('success', "Selamat datang, {$registrant->name}! Berhasil masuk via Akun Google.");
+            $params = $lomba ? ['lomba' => $lomba, 'registered_success' => '1'] : ['registered_success' => '1'];
+            session()->flash('success', "Selamat datang, {$registrant->name}! Berhasil masuk via Akun Google.");
+            return Inertia::location(route('public.register', $params));
         }
 
         return redirect()->route('pendaftar.dashboard')->with('success', "Selamat datang kembali, {$registrant->name}! Berhasil masuk via Akun Google.");

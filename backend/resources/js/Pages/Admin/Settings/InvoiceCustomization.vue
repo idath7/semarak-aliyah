@@ -31,6 +31,7 @@ const previewSignatureImage = ref(props.config.signature_image || '');
 
 const form = useForm({
   theme: props.config.theme || 'formal',
+  theme_mode: props.config.theme_mode || 'locked',
 
   logo_left: props.config.logo_left || '/assets/img/logo.png',
   logo_right: props.config.logo_right || '/assets/img/logo.png',
@@ -46,6 +47,7 @@ const form = useForm({
   kop_address: props.config.kop_address ?? 'Jl. Balung - Tutul No. 09 Balung Kidul, Kec. Balung, Kab. Jember, Jawa Timur 68161',
   kop_contact: props.config.kop_contact ?? 'Website: semarak.ma-wh.sch.id • Email: semarak@ma-wh.sch.id • Hotline WA: 0838 5007 0767',
 
+  stamp_type: props.config.stamp_type || 'custom',
   stamp_mode: props.config.stamp_mode || 'digital',
   stamp_top_text: props.config.stamp_top_text || 'SEMARAK ALIYAH XIV',
   stamp_bottom_text: props.config.stamp_bottom_text || 'MA WAHID HASYIM',
@@ -69,6 +71,16 @@ const form = useForm({
 const themeOptions = [
   { value: 'formal', label: 'Tema Formal (Klasik KOP Surat Kedinasan & Garis Ganda)' },
   { value: 'professional', label: 'Tema Profesional (Modern Corporate & Fintech Sleek)' },
+];
+
+const themeModeOptions = [
+  { value: 'locked', label: '🔒 Tetapkan & Kunci Tema (Direkomendasikan - Seragam)' },
+  { value: 'free', label: '🔓 Bebas Dipilih (Pengguna Dapat Mengganti Tema Saat Cetak)' },
+];
+
+const stampTypeOptions = [
+  { value: 'custom', label: '🔘 Stempel Kustom (Cap Resmi Panitia / Lembaga)' },
+  { value: 'qrcode', label: '🛡️ QR Code Terverifikasi (Segel Digital Resmi)' },
 ];
 
 // Interactive Preview Theme state
@@ -456,7 +468,7 @@ const todayFormatted = computed(() => {
                   </div>
 
                   <!-- Dropdown Pengatur Tema Sesuai Rule 1 (CustomSelect) -->
-                  <div class="p-3 rounded-3 border bg-body-tertiary">
+                  <div class="p-3 rounded-3 border bg-body-tertiary mb-4">
                     <label class="form-label fw-semibold fs-12 mb-1.5 text-dark-emphasis">
                       Opsi Pilihan Tema Utama:
                     </label>
@@ -466,9 +478,88 @@ const todayFormatted = computed(() => {
                       prefix-icon="ri-layout-grid-line"
                       size="md"
                     />
-                    <small class="text-muted fs-11 mt-1.5 d-block">
-                      Pengguna di halaman cetak tetap dapat mengganti tema secara instan melalui tombol switcher di toolbar atas.
-                    </small>
+                  </div>
+
+                  <!-- Pengaturan Kebijakan Penggunaan / Penguncian Tema -->
+                  <div class="pt-3 border-top">
+                    <h6 class="fw-bold mb-1 text-dark-emphasis d-flex align-items-center gap-2">
+                      <i class="ri-shield-keyhole-line text-warning fs-18"></i>
+                      Kebijakan Pemilihan Tema Saat Cetak Dokumen
+                    </h6>
+                    <p class="text-muted fs-12 mb-3">
+                      Tentukan apakah dokumen nota tagihan dan kwitansi resmi wajib dikunci dengan tema terpilih di atas, atau pengguna diperbolehkan memilih tema sendiri saat mencetak.
+                    </p>
+
+                    <!-- Visual Selection Cards untuk Kebijakan Tema -->
+                    <div class="row g-3 mb-3">
+                      <!-- Mode Terkunci -->
+                      <div class="col-sm-6">
+                        <div 
+                          class="p-3 rounded-3 border cursor-pointer transition-all position-relative h-100"
+                          :class="form.theme_mode === 'locked' ? 'border-success bg-success-subtle shadow-sm' : 'border-secondary-subtle bg-body hover:border-success'"
+                          @click="form.theme_mode = 'locked'"
+                        >
+                          <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-success text-white px-2 py-1 fs-11">
+                              <i class="ri-lock-fill me-1"></i> Terkunci (Baku)
+                            </span>
+                            <i v-if="form.theme_mode === 'locked'" class="ri-checkbox-circle-fill text-success fs-18"></i>
+                          </div>
+                          <h6 class="fw-bold mb-1 text-dark-emphasis">Tetapkan &amp; Kunci Tema</h6>
+                          <p class="text-muted fs-11 mb-2">
+                            Seluruh nota tagihan dan kwitansi resmi mutlak menggunakan tema yang ditetapkan panitia. Tombol switcher di toolbar cetak disembunyikan agar dokumen seragam.
+                          </p>
+                          <div class="p-2 rounded-2 bg-body border text-center fs-11 text-success fw-semibold">
+                            <i class="ri-shield-check-fill me-1"></i> Format Resmi Seragam
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Mode Bebas -->
+                      <div class="col-sm-6">
+                        <div 
+                          class="p-3 rounded-3 border cursor-pointer transition-all position-relative h-100"
+                          :class="form.theme_mode === 'free' ? 'border-warning bg-warning-subtle shadow-sm' : 'border-secondary-subtle bg-body hover:border-warning'"
+                          @click="form.theme_mode = 'free'"
+                        >
+                          <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="badge bg-warning text-dark px-2 py-1 fs-11 fw-semibold">
+                              <i class="ri-lock-unlock-line me-1"></i> Bebas Dipilih
+                            </span>
+                            <i v-if="form.theme_mode === 'free'" class="ri-checkbox-circle-fill text-warning fs-18"></i>
+                          </div>
+                          <h6 class="fw-bold mb-1 text-dark-emphasis">Izinkan Pengguna Memilih</h6>
+                          <p class="text-muted fs-11 mb-2">
+                            Pengguna dan panitia diperbolehkan mengganti tema dokumen secara bebas melalui tombol di toolbar halaman cetak (Formal vs Profesional).
+                          </p>
+                          <div class="p-2 rounded-2 bg-body border text-center fs-11 text-muted">
+                            <i class="ri-cursor-line me-1 text-warning"></i> Tombol Switcher Aktif
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Dropdown CustomSelect Kebijakan (Rule 1) -->
+                    <div class="p-3 rounded-3 border bg-body-tertiary">
+                      <label class="form-label fw-semibold fs-12 mb-1.5 text-dark-emphasis">
+                        Status Penguncian Tema:
+                      </label>
+                      <CustomSelect 
+                        v-model="form.theme_mode" 
+                        :options="themeModeOptions"
+                        prefix-icon="ri-shield-keyhole-line"
+                        size="md"
+                      />
+                      <div class="mt-2.5 p-2 rounded-2 fs-11 d-flex align-items-center gap-2" :class="form.theme_mode === 'locked' ? 'bg-success-subtle text-success' : 'bg-warning-subtle text-warning-emphasis'">
+                        <i :class="form.theme_mode === 'locked' ? 'ri-lock-2-fill fs-14' : 'ri-information-line fs-14'"></i>
+                        <span v-if="form.theme_mode === 'locked'">
+                          <strong>Status Terkunci:</strong> Seluruh pendaftar dan panitia akan otomatis mencetak menggunakan <strong>Tema {{ form.theme === 'professional' ? 'Profesional' : 'Formal' }}</strong> tanpa opsi pengubah tema.
+                        </span>
+                        <span v-else>
+                          <strong>Status Bebas:</strong> Pengguna dapat memilih antara Tema Formal dan Tema Profesional saat membuka lembar cetak.
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -584,104 +675,204 @@ const todayFormatted = computed(() => {
               <!-- TAB 2: STEMPEL RESMI PANITIA -->
               <div v-show="activeConfigTab === 'stamp'">
                 <div class="mb-4 p-3 rounded-3 border bg-body-tertiary">
-                  <h6 class="fw-bold mb-3 d-flex align-items-center gap-2 text-dark-emphasis">
-                    <i class="ri-shield-check-line text-primary fs-16"></i>
-                    Mode Stempel Resmi Panitia
+                  <h6 class="fw-bold mb-1 text-dark-emphasis d-flex align-items-center gap-2">
+                    <i class="ri-shield-check-line text-primary fs-18"></i>
+                    Penetapan Tipe Stempel Dokumen
                   </h6>
+                  <p class="text-muted fs-12 mb-3">
+                    Pilih apakah dokumen nota tagihan dan kwitansi resmi menggunakan stempel cap panitia (kustom) atau segel digital QR Code terverifikasi.
+                  </p>
 
-                  <div class="d-flex gap-3 mb-3">
-                    <div class="form-check">
-                      <input class="form-check-input cursor-pointer" type="radio" id="stampModeDigital" value="digital" v-model="form.stamp_mode" />
-                      <label class="form-check-label cursor-pointer fw-semibold text-dark-emphasis" for="stampModeDigital">
-                        Stempel Vektor Digital (Otomatis &amp; Rapi)
-                      </label>
-                    </div>
-                    <div class="form-check">
-                      <input class="form-check-input cursor-pointer" type="radio" id="stampModeImage" value="image" v-model="form.stamp_mode" />
-                      <label class="form-check-label cursor-pointer fw-semibold text-dark-emphasis" for="stampModeImage">
-                        Unggah Gambar Cap Basah (PNG Transparan)
-                      </label>
-                    </div>
-                  </div>
-
-                  <!-- MODE 1: DIGITAL VECTOR STAMP -->
-                  <div v-if="form.stamp_mode === 'digital'" class="p-3 bg-body rounded-3 border">
-                    <div class="row g-3">
-                      <div class="col-sm-6">
-                        <label class="form-label fw-semibold fs-12 text-dark-emphasis">Teks Lingkar Atas</label>
-                        <input type="text" class="form-control" v-model="form.stamp_top_text" placeholder="SEMARAK ALIYAH XIV" />
-                      </div>
-                      <div class="col-sm-6">
-                        <label class="form-label fw-semibold fs-12 text-dark-emphasis">Teks Lingkar Bawah</label>
-                        <input type="text" class="form-control" v-model="form.stamp_bottom_text" placeholder="MA WAHID HASYIM" />
-                      </div>
-                      <div class="col-sm-6">
-                        <label class="form-label fw-semibold fs-12 text-dark-emphasis">Simbol / Ikon Tengah</label>
-                        <input type="text" class="form-control" v-model="form.stamp_center_text" placeholder="★" />
-                      </div>
-                      <div class="col-sm-6">
-                        <label class="form-label fw-semibold fs-12 text-dark-emphasis">Warna Tinta Stempel</label>
-                        <div class="d-flex align-items-center gap-2">
-                          <input type="color" class="form-control form-control-color p-1" v-model="form.stamp_color" style="width: 44px; height: 38px;" />
-                          <input type="text" class="form-control font-monospace" v-model="form.stamp_color" style="max-width: 120px;" />
+                  <!-- Visual Selection Cards: Stempel Kustom vs QR Code Terverifikasi -->
+                  <div class="row g-3 mb-3">
+                    <!-- Opsi 1: Stempel Kustom -->
+                    <div class="col-sm-6">
+                      <div 
+                        class="p-3 rounded-3 border cursor-pointer transition-all position-relative h-100"
+                        :class="form.stamp_type === 'custom' ? 'border-primary bg-primary-subtle shadow-sm' : 'border-secondary-subtle bg-body hover:border-primary'"
+                        @click="form.stamp_type = 'custom'"
+                      >
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <span class="badge bg-primary text-white px-2 py-1 fs-11">
+                            <i class="ri-shield-star-line me-1"></i> Cap Resmi Lembaga
+                          </span>
+                          <i v-if="form.stamp_type === 'custom'" class="ri-checkbox-circle-fill text-primary fs-18"></i>
+                        </div>
+                        <h6 class="fw-bold mb-1 text-dark-emphasis">Stempel Kustom (Cap Panitia)</h6>
+                        <p class="text-muted fs-11 mb-2">
+                          Cap stempel lingkaran tradisional resmi panitia/madrasah. Dapat berupa vektor digital otomatis atau berkas cap basah PNG transparan.
+                        </p>
+                        <div class="p-2 rounded-2 bg-body border text-center fs-11 text-muted">
+                          <i class="ri-checkbox-circle-line me-1 text-primary"></i> Format Cap Stempel Klasik
                         </div>
                       </div>
                     </div>
 
-                    <!-- Preset Warna -->
-                    <div class="mt-3 pt-3 border-top">
-                      <label class="form-label fw-semibold fs-11 text-dark-emphasis mb-2 d-block">Pilihan Preset Warna Resmi:</label>
-                      <div class="d-flex flex-wrap gap-2">
-                        <button 
-                          v-for="color in stampColorPresets" 
-                          :key="color.hex"
-                          type="button" 
-                          class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1.5 py-1 px-2.5 fs-11"
-                          :class="{ 'border-primary bg-primary-subtle text-primary fw-bold': form.stamp_color === color.hex }"
-                          @click="form.stamp_color = color.hex"
-                        >
-                          <span class="rounded-circle d-inline-block" :style="{ width: '12px', height: '12px', backgroundColor: color.hex }"></span>
-                          <span>{{ color.name }}</span>
-                        </button>
+                    <!-- Opsi 2: QR Code Terverifikasi -->
+                    <div class="col-sm-6">
+                      <div 
+                        class="p-3 rounded-3 border cursor-pointer transition-all position-relative h-100"
+                        :class="form.stamp_type === 'qrcode' ? 'border-success bg-success-subtle shadow-sm' : 'border-secondary-subtle bg-body hover:border-success'"
+                        @click="form.stamp_type = 'qrcode'"
+                      >
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                          <span class="badge bg-success text-white px-2 py-1 fs-11">
+                            <i class="ri-qr-code-line me-1"></i> Segel Digital Valid
+                          </span>
+                          <i v-if="form.stamp_type === 'qrcode'" class="ri-checkbox-circle-fill text-success fs-18"></i>
+                        </div>
+                        <h6 class="fw-bold mb-1 text-dark-emphasis">QR Code Terverifikasi</h6>
+                        <p class="text-muted fs-11 mb-2">
+                          Segel stempel digital modern bersertifikat sistem. Dilengkapi QR Code dinamis yang dapat dipindai untuk memvalidasi keabsahan dokumen ke portal.
+                        </p>
+                        <div class="p-2 rounded-2 bg-body border text-center fs-11 text-success fw-semibold">
+                          <i class="ri-shield-check-fill me-1"></i> Otentikasi Digital Instan
+                        </div>
                       </div>
-                    </div>
-
-                    <!-- Sudut Kemiringan / Rotasi Stempel -->
-                    <div class="mt-3 pt-3 border-top">
-                      <div class="d-flex justify-content-between align-items-center mb-1">
-                        <label class="form-label fs-12 fw-semibold mb-0 text-dark-emphasis">Sudut Kemiringan Stempel (Rotasi Alami)</label>
-                        <span class="badge bg-secondary-subtle text-secondary font-monospace">{{ form.stamp_rotation }}°</span>
-                      </div>
-                      <input type="range" class="form-range" min="-25" max="25" step="1" v-model.number="form.stamp_rotation" />
                     </div>
                   </div>
 
-                  <!-- MODE 2: UPLOAD IMAGE STAMP -->
-                  <div v-else class="p-3 bg-body rounded-3 border">
-                    <label class="form-label fw-semibold fs-12 mb-2 d-block text-dark-emphasis">Unggah Berkas Stempel Asli (Format PNG Transparan)</label>
-                    <div class="d-flex align-items-center gap-3 mb-2">
-                      <div v-if="previewStampImage" class="p-2 border rounded-3 bg-body-tertiary text-center" style="width: 90px; height: 90px;">
-                        <img :src="previewStampImage" alt="Stempel" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
-                      </div>
-                      <div v-else class="p-2 border rounded-3 bg-body-tertiary d-flex align-items-center justify-content-center text-muted" style="width: 90px; height: 90px; font-size: 11px;">
-                        Belum Ada
-                      </div>
-                      <div>
-                        <label class="btn btn-sm btn-outline-primary mb-1 cursor-pointer">
-                          <i class="ri-upload-2-line me-1"></i> Pilih Berkas PNG Stempel
-                          <input type="file" accept="image/png,image/webp" class="d-none" @change="onStampImageSelect" />
+                  <!-- Dropdown CustomSelect Tipe Stempel (Rule 1) -->
+                  <div class="p-3 rounded-3 border bg-body mb-3">
+                    <label class="form-label fw-semibold fs-12 mb-1.5 text-dark-emphasis">
+                      Pilihan Tipe Stempel Utama:
+                    </label>
+                    <CustomSelect 
+                      v-model="form.stamp_type" 
+                      :options="stampTypeOptions"
+                      prefix-icon="ri-shield-check-line"
+                      size="md"
+                    />
+                  </div>
+
+                  <!-- KONTROL 1: JIKA MEMILIH STEMPEL KUSTOM -->
+                  <div v-if="form.stamp_type === 'custom'" class="pt-3 border-top">
+                    <h6 class="fw-bold mb-2.5 text-dark-emphasis fs-13 d-flex align-items-center gap-1.5">
+                      <i class="ri-settings-3-line text-primary"></i>
+                      Pengaturan Stempel Cap Kustom
+                    </h6>
+
+                    <div class="d-flex gap-3 mb-3">
+                      <div class="form-check">
+                        <input class="form-check-input cursor-pointer" type="radio" id="stampModeDigital" value="digital" v-model="form.stamp_mode" />
+                        <label class="form-check-label cursor-pointer fw-semibold text-dark-emphasis" for="stampModeDigital">
+                          Stempel Vektor Digital (Otomatis &amp; Rapi)
                         </label>
-                        <small class="text-muted fs-11 d-block">Gunakan PNG berlatar transparan dengan resolusi tajam (Maks. 2MB)</small>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input cursor-pointer" type="radio" id="stampModeImage" value="image" v-model="form.stamp_mode" />
+                        <label class="form-check-label cursor-pointer fw-semibold text-dark-emphasis" for="stampModeImage">
+                          Unggah Gambar Cap Basah (PNG Transparan)
+                        </label>
                       </div>
                     </div>
-                    <button 
-                      v-if="previewStampImage" 
-                      type="button" 
-                      class="btn btn-sm btn-outline-danger" 
-                      @click="removeStampImage"
-                    >
-                      <i class="ri-delete-bin-line me-1"></i> Hapus Stempel Gambar
-                    </button>
+
+                    <!-- MODE 1A: DIGITAL VECTOR STAMP -->
+                    <div v-if="form.stamp_mode === 'digital'" class="p-3 bg-body rounded-3 border">
+                      <div class="row g-3">
+                        <div class="col-sm-6">
+                          <label class="form-label fw-semibold fs-12 text-dark-emphasis">Teks Lingkar Atas</label>
+                          <input type="text" class="form-control" v-model="form.stamp_top_text" placeholder="SEMARAK ALIYAH XIV" />
+                        </div>
+                        <div class="col-sm-6">
+                          <label class="form-label fw-semibold fs-12 text-dark-emphasis">Teks Lingkar Bawah</label>
+                          <input type="text" class="form-control" v-model="form.stamp_bottom_text" placeholder="MA WAHID HASYIM" />
+                        </div>
+                        <div class="col-sm-6">
+                          <label class="form-label fw-semibold fs-12 text-dark-emphasis">Simbol / Ikon Tengah</label>
+                          <input type="text" class="form-control" v-model="form.stamp_center_text" placeholder="★" />
+                        </div>
+                        <div class="col-sm-6">
+                          <label class="form-label fw-semibold fs-12 text-dark-emphasis">Warna Tinta Stempel</label>
+                          <div class="d-flex align-items-center gap-2">
+                            <input type="color" class="form-control form-control-color p-1" v-model="form.stamp_color" style="width: 44px; height: 38px;" />
+                            <input type="text" class="form-control font-monospace" v-model="form.stamp_color" style="max-width: 120px;" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Preset Warna -->
+                      <div class="mt-3 pt-3 border-top">
+                        <label class="form-label fw-semibold fs-11 text-dark-emphasis mb-2 d-block">Pilihan Preset Warna Resmi:</label>
+                        <div class="d-flex flex-wrap gap-2">
+                          <button 
+                            v-for="color in stampColorPresets" 
+                            :key="color.hex"
+                            type="button" 
+                            class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1.5 py-1 px-2.5 fs-11"
+                            :class="{ 'border-primary bg-primary-subtle text-primary fw-bold': form.stamp_color === color.hex }"
+                            @click="form.stamp_color = color.hex"
+                          >
+                            <span class="rounded-circle d-inline-block" :style="{ width: '12px', height: '12px', backgroundColor: color.hex }"></span>
+                            <span>{{ color.name }}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Sudut Kemiringan / Rotasi Stempel -->
+                      <div class="mt-3 pt-3 border-top">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                          <label class="form-label fs-12 fw-semibold mb-0 text-dark-emphasis">Sudut Kemiringan Stempel (Rotasi Alami)</label>
+                          <span class="badge bg-secondary-subtle text-secondary font-monospace">{{ form.stamp_rotation }}°</span>
+                        </div>
+                        <input type="range" class="form-range" min="-25" max="25" step="1" v-model.number="form.stamp_rotation" />
+                      </div>
+                    </div>
+
+                    <!-- MODE 1B: UPLOAD IMAGE STAMP -->
+                    <div v-else class="p-3 bg-body rounded-3 border">
+                      <label class="form-label fw-semibold fs-12 mb-2 d-block text-dark-emphasis">Unggah Berkas Stempel Asli (Format PNG Transparan)</label>
+                      <div class="d-flex align-items-center gap-3 mb-2">
+                        <div v-if="previewStampImage" class="p-2 border rounded-3 bg-body-tertiary text-center" style="width: 90px; height: 90px;">
+                          <img :src="previewStampImage" alt="Stempel" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+                        </div>
+                        <div v-else class="p-2 border rounded-3 bg-body-tertiary d-flex align-items-center justify-content-center text-muted" style="width: 90px; height: 90px; font-size: 11px;">
+                          Belum Ada
+                        </div>
+                        <div>
+                          <label class="btn btn-sm btn-outline-primary mb-1 cursor-pointer">
+                            <i class="ri-upload-2-line me-1"></i> Pilih Berkas PNG Stempel
+                            <input type="file" accept="image/png,image/webp" class="d-none" @change="onStampImageSelect" />
+                          </label>
+                          <small class="text-muted fs-11 d-block">Gunakan PNG berlatar transparan dengan resolusi tajam (Maks. 2MB)</small>
+                        </div>
+                      </div>
+                      <button 
+                        v-if="previewStampImage" 
+                        type="button" 
+                        class="btn btn-sm btn-outline-danger" 
+                        @click="removeStampImage"
+                      >
+                        <i class="ri-delete-bin-line me-1"></i> Hapus Stempel Gambar
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- KONTROL 2: JIKA MEMILIH QR CODE TERVERIFIKASI -->
+                  <div v-else class="p-3.5 bg-body rounded-3 border">
+                    <div class="d-flex align-items-center gap-2 mb-2 text-success fw-bold fs-13">
+                      <i class="ri-checkbox-circle-fill fs-18"></i>
+                      <span>Segel Digital QR Code Otentikasi Terverifikasi Aktif</span>
+                    </div>
+                    <p class="text-muted fs-12 mb-3">
+                      Saat mencetak nota atau kwitansi, sistem akan otomatis menghasilkan stempel segel digital dengan QR Code unik. Pemindaian QR Code ini akan langsung membuka halaman validasi resmi sistem untuk memverifikasi keaslian transaksi pembayaran.
+                    </p>
+
+                    <div class="mb-3">
+                      <label class="form-label fw-semibold fs-12 text-dark-emphasis">Teks Instansi / Penyelenggara pada Segel QR</label>
+                      <input type="text" class="form-control" v-model="form.stamp_top_text" placeholder="SEMARAK ALIYAH XIV" />
+                      <small class="text-muted fs-11 mt-1 d-block">Teks ini akan tertera sebagai identitas resmi di samping QR Code otentikasi.</small>
+                    </div>
+
+                    <div class="p-2.5 rounded-2 bg-success-subtle border border-success-subtle d-flex align-items-center gap-2 fs-12 text-success-emphasis mb-2">
+                      <i class="ri-shield-keyhole-line fs-16 flex-shrink-0"></i>
+                      <span>Segel digital QR Code ini terhubung langsung dengan ID registrasi dan kode unik dokumen secara aman.</span>
+                    </div>
+
+                    <div class="p-2 rounded-2 bg-body border d-flex align-items-center gap-2 fs-11 text-muted">
+                      <i class="ri-check-double-line text-success fs-14"></i>
+                      <span>Format segel digital otomatis ditampilkan tegak lurus (0° rotasi) dan bertindak sebagai TTD &amp; segel digital resmi tanpa menutupi teks dokumen.</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -894,7 +1085,14 @@ const todayFormatted = computed(() => {
                     </thead>
                     <tbody>
                       <tr>
-                        <td style="padding: 4px 6px; border: 1px solid #cbd5e1;">Pendaftaran Olimpiade Matematika Terpadu</td>
+                        <td style="padding: 4px 6px; border: 1px solid #cbd5e1;">
+                          <div class="fw-bold" style="color: #0f172a;">Olimpiade Matematika Terpadu</div>
+                          <div class="d-flex align-items-center gap-1 mt-0.5" style="font-size: 5.8pt; color: #475569;">
+                            <span>Delegasi:</span>
+                            <strong style="color: #0f172a;">Rian Hidayat</strong>
+                            <span class="badge bg-light text-dark border px-1" style="font-size: 5.2pt;">Kelas 9A</span>
+                          </div>
+                        </td>
                         <td style="padding: 4px 6px; border: 1px solid #cbd5e1; text-align: right; font-weight: 600;">Rp 60.000</td>
                       </tr>
                       <tr style="background-color: #f1f5f9; font-weight: bold;">
@@ -981,7 +1179,11 @@ const todayFormatted = computed(() => {
                       <tr style="border-bottom: 1px solid #f1f5f9;">
                         <td style="padding: 5px 6px;">
                           <strong style="color: #0f172a;">Olimpiade Matematika Terpadu</strong>
-                          <div class="text-muted" style="font-size: 5.5pt;">Delegasi: Rian Hidayat</div>
+                          <div class="d-flex align-items-center gap-1 mt-0.5" style="font-size: 5.8pt; color: #475569;">
+                            <span>Delegasi:</span>
+                            <strong style="color: #0f172a;">Rian Hidayat</strong>
+                            <span class="badge bg-light text-dark border px-1" style="font-size: 5.2pt;">Kelas 9A</span>
+                          </div>
                         </td>
                         <td style="padding: 5px 6px; text-align: center;">
                           <span class="badge bg-light text-dark border">Reguler</span>
@@ -1023,72 +1225,110 @@ const todayFormatted = computed(() => {
                     <!-- Sisi Kanan: Bendahara & Stempel Panitia -->
                     <div style="width: 170px; text-align: center; font-size: 6.8pt; position: relative;">
                       <div class="text-muted" style="font-size: 6.5pt;">{{ form.sig_city || 'Balung - Jember' }}, {{ todayFormatted }}</div>
-                      <div class="fw-bold" style="font-size: 7pt; margin-bottom: 38px;">
+                      <div 
+                        class="fw-bold" 
+                        :style="{ 
+                          fontSize: '7pt', 
+                          marginBottom: form.stamp_type === 'qrcode' ? '4px' : '38px' 
+                        }"
+                      >
                         {{ form.treasurer_role || 'Bendahara Pelaksana' }},<br>
                         <span class="text-muted fw-normal" style="font-size: 5.8pt;">{{ form.treasurer_subrole || 'Semarak Aliyah XIV' }}</span>
                       </div>
 
-                      <!-- Cap Stempel Panitia (Live Rendered) -->
+                      <!-- Opsi A: QR Code Terverifikasi (Digital E-Seal & TTD Digital) -->
                       <div 
-                        v-if="form.stamp_mode === 'image' && previewStampImage"
-                        class="position-absolute"
+                        v-if="form.stamp_type === 'qrcode'"
+                        class="d-inline-flex flex-column align-items-center justify-content-center bg-white my-1.5"
                         :style="{
-                          top: '12px',
-                          left: '-10px',
-                          transform: `rotate(${form.stamp_rotation}deg)`,
-                          pointerEvents: 'none',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          border: `1.5px solid ${form.stamp_color}`,
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                          transform: 'none',
                           userSelect: 'none',
                           zIndex: 2,
-                          opacity: 0.88
+                          textAlign: 'center'
                         }"
                       >
-                        <img 
-                          :src="previewStampImage" 
-                          alt="Stempel Panitia" 
-                          style="width: 66px; height: 66px; object-fit: contain;" 
-                        />
-                      </div>
-
-                      <!-- Stempel Vektor Digital -->
-                      <div 
-                        v-else
-                        class="position-absolute d-flex flex-column align-items-center justify-content-center"
-                        :style="{
-                          top: '12px',
-                          left: '-10px',
-                          width: '64px',
-                          height: '64px',
-                          borderRadius: '50%',
-                          border: `1.8px solid ${form.stamp_color}`,
-                          color: form.stamp_color,
-                          transform: `rotate(${form.stamp_rotation}deg)`,
-                          pointerEvents: 'none',
-                          userSelect: 'none',
-                          opacity: 0.88,
-                          zIndex: 2
-                        }"
-                      >
-                        <div 
-                          class="d-flex flex-column align-items-center justify-content-center text-center"
-                          :style="{
-                            width: '54px',
-                            height: '54px',
-                            borderRadius: '50%',
-                            border: `0.8px dashed ${form.stamp_color}`,
-                            padding: '1px'
-                          }"
-                        >
-                          <span style="font-size: 4.2pt; font-weight: 800; text-transform: uppercase; line-height: 1;">
-                            {{ form.stamp_top_text || 'SEMARAK ALIYAH XIV' }}
-                          </span>
-                          <span :style="{ color: form.stamp_color, fontSize: '6pt', margin: '1px 0' }">
-                            {{ form.stamp_center_text || '★' }}
-                          </span>
-                          <span style="font-size: 3.8pt; font-weight: 800; text-transform: uppercase; line-height: 1;">
-                            {{ form.stamp_bottom_text || 'MA WAHID HASYIM' }}
-                          </span>
+                        <div style="font-size: 4pt; font-weight: 800; text-transform: uppercase; line-height: 1; margin-bottom: 2px;" :style="{ color: form.stamp_color }">
+                          {{ form.stamp_top_text || 'PANITIA SEMARAK XIV' }}
+                        </div>
+                        <div class="p-0.5 bg-white border rounded d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; border-color: #e2e8f0 !important;">
+                          <i class="ri-qr-code-line text-dark" style="font-size: 22px;"></i>
+                        </div>
+                        <div class="badge mt-0.5 d-flex align-items-center gap-0.5 px-1 py-0.5" :style="{ backgroundColor: form.stamp_color, color: '#fff', fontSize: '3.6pt', letterSpacing: '0.3px' }">
+                          <i class="ri-checkbox-circle-fill"></i> E-SEAL VERIFIED
+                        </div>
+                        <div class="font-monospace text-muted mt-0.5" style="font-size: 3.5pt; font-weight: 700;">
+                          SA-VERIFIED
                         </div>
                       </div>
+
+                      <!-- Opsi B: Stempel Kustom (Gambar atau Vektor Tradisional) -->
+                      <template v-else>
+                        <!-- Cap Stempel Gambar -->
+                        <div 
+                          v-if="form.stamp_mode === 'image' && previewStampImage"
+                          class="position-absolute"
+                          :style="{
+                            top: '12px',
+                            left: '-10px',
+                            transform: `rotate(${form.stamp_rotation}deg)`,
+                            pointerEvents: 'none',
+                            userSelect: 'none',
+                            zIndex: 2,
+                            opacity: 0.88
+                          }"
+                        >
+                          <img 
+                            :src="previewStampImage" 
+                            alt="Stempel Panitia" 
+                            style="width: 66px; height: 66px; object-fit: contain;" 
+                          />
+                        </div>
+
+                        <!-- Stempel Vektor Digital -->
+                        <div 
+                          v-else
+                          class="position-absolute d-flex flex-column align-items-center justify-content-center"
+                          :style="{
+                            top: '12px',
+                            left: '-10px',
+                            width: '64px',
+                            height: '64px',
+                            borderRadius: '50%',
+                            border: `1.8px solid ${form.stamp_color}`,
+                            color: form.stamp_color,
+                            transform: `rotate(${form.stamp_rotation}deg)`,
+                            pointerEvents: 'none',
+                            userSelect: 'none',
+                            opacity: 0.88,
+                            zIndex: 2
+                          }"
+                        >
+                          <div 
+                            class="d-flex flex-column align-items-center justify-content-center text-center"
+                            :style="{
+                              width: '54px',
+                              height: '54px',
+                              borderRadius: '50%',
+                              border: `0.8px dashed ${form.stamp_color}`,
+                              padding: '1px'
+                            }"
+                          >
+                            <span style="font-size: 4.2pt; font-weight: 800; text-transform: uppercase; line-height: 1;">
+                              {{ form.stamp_top_text || 'SEMARAK ALIYAH XIV' }}
+                            </span>
+                            <span :style="{ color: form.stamp_color, fontSize: '6pt', margin: '1px 0' }">
+                              {{ form.stamp_center_text || '★' }}
+                            </span>
+                            <span style="font-size: 3.8pt; font-weight: 800; text-transform: uppercase; line-height: 1;">
+                              {{ form.stamp_bottom_text || 'MA WAHID HASYIM' }}
+                            </span>
+                          </div>
+                        </div>
+                      </template>
 
                       <!-- Signature Image Layer (If present) -->
                       <div 

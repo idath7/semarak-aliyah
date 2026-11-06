@@ -298,6 +298,8 @@ class Setting extends Model
             'signature_image' => static::get('treasurer_signature_image', ''),
             'footer_note' => static::get('invoice_footer_note', 'Dokumen ini diterbitkan secara sah dan otomatis oleh Sistem Informasi Semarak Aliyah XIV MA Unggulan Wahid Hasyim Balung.'),
             'theme' => static::get('invoice_theme', 'formal'),
+            'theme_mode' => static::get('invoice_theme_mode', 'locked'),
+            'stamp_type' => static::get('invoice_stamp_type', 'custom'),
         ];
     }
 
@@ -306,11 +308,10 @@ class Setting extends Model
      * Prioritas:
      * 1. Setting database manual 'public_portal_url' (jika diatur admin)
      * 2. config('portal.public_domain') / env('PUBLIC_DOMAIN')
-     * 3. Jika diakses melalui domain production (bukan localhost/127.0.0.1/private IP):
-     *    - Jika host adalah subdomain admin (sa-panitia.*, admin-semarak.*, admin.*), alihkan ke domain publik
-     *    - Jika host adalah domain utama/biasa, gunakan host & scheme saat ini (tanpa port lokal development)
-     * 4. Jika di lingkungan lokal development:
-     *    - Menggunakan config('portal.public_url') atau host:public_port (default: 8000)
+     * 3. config('portal.public_url') / env('PUBLIC_URL') jika bukan localhost
+     * 4. config('app.url') jika berisi domain publik production (bukan localhost)
+     * 5. Deteksi request saat ini (termasuk X-Forwarded-Host & X-Forwarded-Proto)
+     * 6. Fallback development lokal (host + public_port)
      */
     public static function getPublicPortalUrl(?\Illuminate\Http\Request $request = null): string
     {
@@ -320,26 +321,32 @@ class Setting extends Model
             return rtrim($custom, '/');
         }
 
-        $req = $request ?? (function_exists('request') ? request() : null);
-        $scheme = $req ? $req->getScheme() : (env('APP_ENV') === 'production' ? 'https' : 'http');
-        $host = $req ? $req->getHost() : 'localhost';
+        $isProd = app()->environment('production') || config('app.env') === 'production';
 
-        // 2. Cek domain publik dari konfigurasi / env
+        $req = $request ?? (function_exists('request') ? request() : null);
+        $forwardedProto = $req ? $req->header('X-Forwarded-Proto') : null;
+        $forwardedHost = $req ? $req->header('X-Forwarded-Host') : null;
+
+        $scheme = $forwardedProto ?: ($req ? $req->getScheme() : ($isProd ? 'https' : 'http'));
+        $host = $forwardedHost ? trim(explode(',', $forwardedHost)[0]) : ($req ? $req->getHost() : 'localhost');
+
+        // 2. Cek domain publik dari konfigurasi
         $publicDomain = config('portal.public_domain') ?: env('PUBLIC_DOMAIN');
         if (!empty($publicDomain)) {
-            return rtrim($scheme . '://' . $publicDomain, '/');
+            $pScheme = $isProd ? 'https' : $scheme;
+            return rtrim($pScheme . '://' . $publicDomain, '/');
         }
 
-        // Cek apakah env PUBLIC_URL diatur ke domain publik
+        // Cek apakah config portal.public_url diatur ke domain publik
         $configPublicUrl = config('portal.public_url') ?: env('PUBLIC_URL');
         if (!empty($configPublicUrl) && !str_contains($configPublicUrl, 'localhost') && !str_contains($configPublicUrl, '127.0.0.1')) {
             return rtrim($configPublicUrl, '/');
         }
 
-        // Cek apakah env APP_URL berisi domain publik production (bukan localhost)
-        $appUrl = env('APP_URL');
+        // Cek apakah config app.url berisi domain publik production (bukan localhost)
+        $appUrl = config('app.url') ?: env('APP_URL');
         $appHost = !empty($appUrl) ? parse_url($appUrl, PHP_URL_HOST) : null;
-        $appScheme = !empty($appUrl) ? parse_url($appUrl, PHP_URL_SCHEME) : $scheme;
+        $appScheme = !empty($appUrl) ? (parse_url($appUrl, PHP_URL_SCHEME) ?: ($isProd ? 'https' : 'http')) : $scheme;
         $appIsDomain = !empty($appHost) && !in_array($appHost, ['localhost', '127.0.0.1', '0.0.0.0']);
 
         // 3. Deteksi apakah request saat ini berasal dari domain publik
@@ -349,19 +356,20 @@ class Setting extends Model
             || preg_match('/\.local$/i', $host);
 
         if (!$isLocalHost) {
+            $effectiveScheme = $isProd ? 'https' : $scheme;
             // Jika host saat ini adalah subdomain admin, arahkan ke subdomain web publik atau root domain
             if (str_contains($host, 'sa-panitia.') || str_contains($host, 'admin-semarak.') || str_contains($host, 'panitia-semarak.') || str_contains($host, 'admin.') || str_contains($host, 'panitia.')) {
                 $publicHost = str_replace(['sa-panitia.', 'admin-semarak.', 'panitia-semarak.', 'admin.', 'panitia.'], ['semarak.', 'semarak.', 'semarak.', '', ''], $host);
-                return rtrim($scheme . '://' . $publicHost, '/');
+                return rtrim($effectiveScheme . '://' . $publicHost, '/');
             }
 
             // Jika diakses melalui domain production (port 80/443 standar atau reverse-proxy), jangan tempel port development
             $port = $req ? (int)$req->getPort() : 80;
             $portSuffix = ($port === 80 || $port === 443 || empty($port)) ? '' : (':' . $port);
-            return rtrim($scheme . '://' . $host . $portSuffix, '/');
+            return rtrim($effectiveScheme . '://' . $host . $portSuffix, '/');
         }
 
-        // Jika request host lokal tapi APP_URL diatur ke domain publik
+        // Jika request host lokal/CLI tapi APP_URL diatur ke domain publik
         if ($appIsDomain) {
             return rtrim($appScheme . '://' . $appHost, '/');
         }
@@ -388,16 +396,22 @@ class Setting extends Model
             return rtrim($custom, '/');
         }
 
+        $isProd = app()->environment('production') || config('app.env') === 'production';
+
         $req = $request ?? (function_exists('request') ? request() : null);
-        $scheme = $req ? $req->getScheme() : (env('APP_ENV') === 'production' ? 'https' : 'http');
-        $host = $req ? $req->getHost() : 'localhost';
+        $forwardedProto = $req ? $req->header('X-Forwarded-Proto') : null;
+        $forwardedHost = $req ? $req->header('X-Forwarded-Host') : null;
+
+        $scheme = $forwardedProto ?: ($req ? $req->getScheme() : ($isProd ? 'https' : 'http'));
+        $host = $forwardedHost ? trim(explode(',', $forwardedHost)[0]) : ($req ? $req->getHost() : 'localhost');
 
         $adminDomain = config('portal.admin_domain') ?: env('ADMIN_DOMAIN');
         if (!empty($adminDomain)) {
-            return rtrim($scheme . '://' . $adminDomain, '/');
+            $aScheme = $isProd ? 'https' : $scheme;
+            return rtrim($aScheme . '://' . $adminDomain, '/');
         }
 
-        // Cek apakah env ADMIN_URL diatur ke domain publik
+        // Cek apakah config portal.admin_url diatur ke domain publik
         $configAdminUrl = config('portal.admin_url') ?: env('ADMIN_URL');
         if (!empty($configAdminUrl) && !str_contains($configAdminUrl, 'localhost') && !str_contains($configAdminUrl, '127.0.0.1')) {
             return rtrim($configAdminUrl, '/');
@@ -409,9 +423,10 @@ class Setting extends Model
             || preg_match('/\.local$/i', $host);
 
         if (!$isLocalHost) {
+            $effectiveScheme = $isProd ? 'https' : $scheme;
             $port = $req ? (int)$req->getPort() : 80;
             $portSuffix = ($port === 80 || $port === 443 || empty($port)) ? '' : (':' . $port);
-            return rtrim($scheme . '://' . $host . $portSuffix, '/');
+            return rtrim($effectiveScheme . '://' . $host . $portSuffix, '/');
         }
 
         $adminPort = (int) config('portal.admin_port', 8001);

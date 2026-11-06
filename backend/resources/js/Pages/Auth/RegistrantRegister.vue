@@ -47,6 +47,17 @@ const genderOptions = [
   { value: 'Perempuan', label: 'Perempuan (Akhwat)' },
 ];
 
+// Master 31 Kecamatan se-Kabupaten Jember + Lainnya (Kanonikal Semarak Aliyah XIV)
+const JEMBER_KECAMATAN_LIST = [
+  'Ajung', 'Ambulu', 'Arjasa', 'Balung', 'Bangsalsari', 'Gumukmas', 'Jelbuk', 'Jenggawah',
+  'Jombang', 'Kalisat', 'Kaliwates', 'Kencong', 'Ledokombo', 'Mayang', 'Mumbulsari',
+  'Pakusari', 'Panti', 'Patrang', 'Puger', 'Rambipuji', 'Semboro', 'Silo', 'Sukorambi',
+  'Sukowono', 'Sumberbaru', 'Sumberjambe', 'Sumbersari', 'Tanggul', 'Tempurejo', 'Umbulsari',
+  'Wuluhan', 'Lainnya'
+];
+
+const manualDistrictInput = ref('');
+
 // School Options for CustomSelect
 const schoolSelectOptions = computed(() => {
   const list = (props.schools || []).map(s => ({
@@ -54,15 +65,21 @@ const schoolSelectOptions = computed(() => {
     label: `${s.name}${(s.district || s.kecamatan) ? ' (' + (s.district || s.kecamatan) + ')' : ''}`,
     district: s.district || s.kecamatan || '',
   }));
-  list.push({ value: '__other__', label: '➕ Tulis Asal Sekolah Lainnya (Jika belum ada)' });
-  return list;
+  return [
+    { value: '__other__', label: '➕ Tulis Asal Sekolah Lainnya (Jika belum ada)' },
+    ...list
+  ];
 });
 
 // District Options for CustomSelect
 const districtOptions = computed(() => {
-  return (props.districts || []).map(d => ({
+  const source = (props.districts && props.districts.length > 0)
+    ? props.districts
+    : JEMBER_KECAMATAN_LIST;
+
+  return source.map(d => ({
     value: d,
-    label: `Kec. ${d}`,
+    label: d === 'Lainnya' ? '✍️ Lainnya (Ketik Manual)' : `Kecamatan ${d}`,
   }));
 });
 
@@ -75,14 +92,40 @@ function handleSchoolSelect(selectedName) {
   form.school_name = selectedName;
   const found = (props.schools || []).find(s => s.name === selectedName);
   if (found && (found.district || found.kecamatan)) {
-    form.school_district = found.district || found.kecamatan;
+    const dVal = (found.district || found.kecamatan).trim();
+    const match = JEMBER_KECAMATAN_LIST.find(k => k.toLowerCase() === dVal.toLowerCase() && k !== 'Lainnya');
+    if (match) {
+      form.school_district = match;
+      manualDistrictInput.value = '';
+    } else {
+      form.school_district = 'Lainnya';
+      manualDistrictInput.value = dVal;
+    }
   }
 }
 
+const isSuccessRedirecting = ref(false);
+const registeredName = ref('');
+
 function submitRegister() {
+  if (form.school_district === 'Lainnya') {
+    if (!manualDistrictInput.value.trim()) {
+      toast.warning('Harap ketik nama kecamatan asal sekolah secara manual.');
+      return;
+    }
+    form.school_district = manualDistrictInput.value.trim();
+  }
+
+  registeredName.value = form.name;
+
   form.post('/pendaftar/register', {
     preserveScroll: true,
+    onSuccess: () => {
+      isSuccessRedirecting.value = true;
+      toast.success('Pendaftaran akun berhasil!');
+    },
     onError: () => {
+      isSuccessRedirecting.value = false;
       toast.error('Harap lengkapi semua kolom formulir pendaftaran dengan benar.');
     }
   });
@@ -257,6 +300,26 @@ function submitRegister() {
                   prefixIcon="ri-map-pin-line"
                   searchable
                 />
+
+                <!-- Input Manual jika opsi Lainnya dipilih -->
+                <div v-if="form.school_district === 'Lainnya'" class="mt-2">
+                  <label class="form-label fs-12 fw-semibold text-muted mb-1">
+                    Ketik Nama Kecamatan Asal Sekolah <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text auth-input-icon px-3">
+                      <i class="ri-edit-line"></i>
+                    </span>
+                    <input
+                      v-model="manualDistrictInput"
+                      type="text"
+                      class="form-control auth-input fs-13 py-2"
+                      placeholder="Ketik nama kecamatan asal sekolah..."
+                      required
+                    />
+                  </div>
+                </div>
+
                 <div v-if="form.errors.school_district" class="text-danger fs-12 mt-1 fw-medium">
                   {{ form.errors.school_district }}
                 </div>
@@ -420,6 +483,38 @@ function submitRegister() {
       </div>
     </footer>
 
+    <!-- Transition Modal / Overlay Setelah Sukses Pendaftaran Akun -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="isSuccessRedirecting" class="auth-success-overlay d-flex align-items-center justify-content-center p-3">
+          <div class="auth-success-card text-center p-4 p-md-5 rounded-4 shadow-2xl">
+            <div class="success-icon-wrap mx-auto mb-3.5">
+              <div class="success-icon-ring"></div>
+              <i class="ri-checkbox-circle-fill text-success fs-56"></i>
+            </div>
+
+            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-1 fs-12 fw-bold mb-2.5 d-inline-flex align-items-center gap-1.5">
+              <i class="ri-shield-check-fill"></i> Akun Pendaftar Berhasil Dibuat
+            </span>
+
+            <h3 class="fw-black fs-20 fs-md-22 text-main mb-2">Selamat Datang, {{ registeredName || 'Pendaftar' }}!</h3>
+            <p class="fs-13.5 text-muted mb-4 mx-auto" style="max-width: 380px; line-height: 1.6;">
+              Akun pendaftar Anda telah aktif dan tersinkronisasi. Sedang menyiapkan formulir pendaftaran untuk Anda...
+            </p>
+
+            <div class="success-loader-bar mx-auto mb-3">
+              <div class="loader-bar-progress"></div>
+            </div>
+
+            <div class="d-flex align-items-center justify-content-center gap-2 text-primary fs-12 fw-semibold">
+              <span class="spinner-border spinner-border-sm" role="status"></span>
+              <span>Mengalihkan secara otomatis...</span>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
   </div>
 </template>
 
@@ -551,5 +646,80 @@ function submitRegister() {
 [data-bs-theme="dark"] .auth-back-btn:hover,
 [data-bs-theme="dark"] .auth-theme-toggle:hover {
   filter: brightness(1.2);
+}
+
+/* Success Transition Overlay */
+.auth-success-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(8px);
+}
+.auth-success-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  width: 100%;
+  max-width: 460px;
+  animation: zoomInSuccess 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-bs-theme="dark"] .auth-success-card {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+}
+.text-main {
+  color: #0f172a;
+}
+[data-bs-theme="dark"] .text-main {
+  color: #f8fafc;
+}
+.success-icon-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.success-icon-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.2);
+  animation: pulseSuccessRing 1.8s infinite;
+}
+@keyframes pulseSuccessRing {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 0.3; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+@keyframes zoomInSuccess {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.success-loader-bar {
+  width: 100%;
+  max-width: 260px;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+[data-bs-theme="dark"] .success-loader-bar {
+  background: rgba(255, 255, 255, 0.1);
+}
+.loader-bar-progress {
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(90deg, #10b981 0%, #3b82f6 100%);
+  border-radius: 999px;
+  animation: progressSlide 1.2s infinite ease-in-out;
+}
+@keyframes progressSlide {
+  0% { transform: translateX(-100%); width: 30%; }
+  50% { width: 60%; }
+  100% { transform: translateX(350%); width: 30%; }
 }
 </style>

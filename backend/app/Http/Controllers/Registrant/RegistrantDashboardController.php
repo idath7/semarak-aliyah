@@ -44,6 +44,12 @@ class RegistrantDashboardController extends Controller
 
         $cleanPhone = Setting::formatWaNumber($user->phone);
 
+        // Cek dan lakukan auto-upgrade ke Paket All-In jika kontingen telah mendaftarkan seluruh cabang lomba aktif
+        $autoUpgraded = Registration::checkAndAutoUpgradeToAllIn($user);
+        if ($autoUpgraded) {
+            session()->flash('success', 'Selamat! Karena sekolah Anda telah mendaftarkan seluruh cabang lomba yang diselenggarakan, paket pendaftaran kontingen otomatis ditingkatkan menjadi Paket All-In Komplit (Rp ' . number_format((int)Setting::get('package_allin_price', 200000), 0, ',', '.') . ')!');
+        }
+
         // Ambil seluruh data pendaftaran:
         // 1. Yang dibuat oleh akun ini (registrant_id / user_id)
         // 2. Yang nomor WA mentor_wa sama dengan user ini
@@ -278,6 +284,137 @@ class RegistrantDashboardController extends Controller
     }
 
     /**
+     * Halaman Khusus Perbarui Data & Berkas Pendaftaran.
+     */
+    public function editRegistration(Request $request, int|string $id)
+    {
+        /** @var \App\Models\Registrant|\App\Models\User $user */
+        $user = $this->getRegistrant();
+        if (!$user) {
+            return redirect()->route('pendaftar.login');
+        }
+
+        $cleanPhone = Setting::formatWaNumber($user->phone);
+
+        $registration = Registration::with('competition')
+            ->where('id', $id)
+            ->where(function ($q) use ($user, $cleanPhone) {
+                $q->where('registrant_id', $user->id)
+                  ->orWhere('user_id', $user->id)
+                  ->orWhere('mentor_wa', $user->phone)
+                  ->orWhere('mentor_wa', $cleanPhone)
+                  ->orWhere('assigned_phone', $user->phone)
+                  ->orWhere('assigned_phone', $cleanPhone);
+            })
+            ->firstOrFail();
+
+        $comp = $registration->competition;
+        $isClosed = $comp ? ($comp->status === 'closed' || $comp->isDeadlinePassed()) : false;
+
+        $isOwner = ($registration->registrant_id === $user->id || $registration->user_id === $user->id || Setting::formatWaNumber($registration->mentor_wa) === $cleanPhone);
+        $isPic = (!empty($registration->assigned_phone) && Setting::formatWaNumber($registration->assigned_phone) === $cleanPhone);
+
+        // Ekstrak data delegasi terstruktur
+        $cleanDelegates = $registration->clean_delegates;
+
+        // Ekstrak biodata_peserta dari custom_fields jika ada
+        $cf = $registration->custom_fields ?: [];
+        $rawParticipants = $cf['biodata_peserta'] ?? $cf['participants'] ?? $cf['participantsList'] ?? [];
+
+        // Gabungkan atau format awal daftar peserta agar form terisi lengkap
+        $structuredParticipants = [];
+        if (!empty($rawParticipants) && is_array($rawParticipants)) {
+            foreach ($rawParticipants as $p) {
+                $structuredParticipants[] = [
+                    'name' => $p['nama_lengkap'] ?? $p['nama'] ?? $p['name'] ?? '',
+                    'grade' => $p['kelas'] ?? $p['tingkat'] ?? $p['grade'] ?? '',
+                    'nisn' => $p['nisn'] ?? '',
+                    'gender' => $p['jenis_kelamin'] ?? $p['gender'] ?? 'Laki-laki',
+                    'phone' => $p['no_hp'] ?? $p['hp'] ?? $p['phone'] ?? '',
+                ];
+            }
+        } elseif (!empty($cleanDelegates)) {
+            foreach ($cleanDelegates as $cd) {
+                $gradeVal = str_ireplace('Kelas ', '', $cd['grade'] ?? '');
+                $structuredParticipants[] = [
+                    'name' => $cd['name'] ?? '',
+                    'grade' => $gradeVal !== '-' ? $gradeVal : '',
+                    'nisn' => '',
+                    'gender' => 'Laki-laki',
+                    'phone' => '',
+                ];
+            }
+        }
+
+        if (empty($structuredParticipants)) {
+            $structuredParticipants[] = [
+                'name' => '',
+                'grade' => '',
+                'nisn' => '',
+                'gender' => 'Laki-laki',
+                'phone' => '',
+            ];
+        }
+
+        $bankAccounts = Setting::getBankAccounts();
+        $primaryAccount = Setting::getPrimaryBankAccount();
+
+        return \Inertia\Inertia::render('Registrant/EditRegistration', [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'school_name' => $user->school_name,
+                'school_district' => $user->school_district,
+            ],
+            'registration' => [
+                'id' => $registration->id,
+                'reg_code' => $registration->reg_code,
+                'competition_id' => $registration->competition_id,
+                'competition_title' => $registration->competition_title,
+                'category_label' => $registration->category_label ?: ($comp?->category_label ?: 'Umum'),
+                'package_type' => $registration->package_type ?: 'Reguler (Satuan)',
+                'school_name' => $registration->school_name,
+                'mentor_name' => $registration->mentor_name,
+                'mentor_wa' => $registration->mentor_wa,
+                'participants_names' => $registration->participants_names,
+                'structured_participants' => $structuredParticipants,
+                'custom_fields' => $registration->custom_fields ?: [],
+                'file_documents' => $registration->file_documents ?: [],
+                'payment_status' => $registration->payment_status ?: 'pending',
+                'payment_method' => $registration->payment_method ?: 'transfer',
+                'payment_proof_url' => $registration->payment_proof_url,
+                'registration_status' => $registration->registration_status ?: 'menunggu_verifikasi',
+                'notes' => $registration->notes ?: '',
+                'created_at' => $registration->created_at?->format('d/m/Y H:i') ?: '-',
+            ],
+            'competition' => [
+                'id' => $comp?->id ?? $registration->competition_id,
+                'title' => $comp?->title ?? $registration->competition_title,
+                'category_label' => $comp?->category_label ?? 'Umum',
+                'participant_type' => $comp?->participant_type ?: 'individu',
+                'min_quota' => (int)($comp?->participants_rule['min'] ?? 1),
+                'max_quota' => (int)($comp?->participants_rule['max'] ?? 1),
+                'participants_rule' => $comp?->participants_rule ?: [],
+                'custom_fields' => $comp?->custom_fields ?: [],
+                'file_requirements' => $comp?->file_requirements ?: [],
+                'is_closed' => $isClosed,
+                'registration_deadline' => $comp?->registration_deadline,
+            ],
+            'paymentSettings' => [
+                'bank_name' => $primaryAccount['bank_name'] ?? Setting::get('payment_bank_name', 'Bank Syariah Indonesia (BSI)'),
+                'account_number' => $primaryAccount['account_number'] ?? Setting::get('payment_account_number', ''),
+                'account_holder' => $primaryAccount['account_holder'] ?? Setting::get('payment_account_holder', 'Semarak Aliyah'),
+                'bank_accounts' => $bankAccounts,
+            ],
+            'isOwner' => $isOwner,
+            'isPic' => $isPic,
+            'isClosed' => $isClosed,
+        ]);
+    }
+
+    /**
      * Perbarui data peserta dan berkas pendaftaran (selagi belum ditutup).
      */
     public function updateRegistration(Request $request, int|string $id)
@@ -328,9 +465,44 @@ class RegistrantDashboardController extends Controller
                 $registration->mentor_wa = Setting::formatWaNumber($validated['mentor_wa']);
             }
         }
-        if (isset($validated['participants_names'])) {
+
+        // Custom Fields Update
+        $existingCustom = $registration->custom_fields ?: [];
+
+        // Penanganan Input Delegasi / Peserta Terstruktur
+        $participantsInput = $request->input('participants');
+        if (!empty($participantsInput) && is_array($participantsInput)) {
+            $cleanedParticipants = [];
+            $namesList = [];
+            foreach ($participantsInput as $idx => $p) {
+                $name = trim($p['name'] ?? $p['nama_lengkap'] ?? '');
+                if ($name === '') continue;
+                $grade = trim($p['grade'] ?? $p['kelas'] ?? '');
+                $nisn = trim($p['nisn'] ?? '');
+                $gender = trim($p['gender'] ?? $p['jenis_kelamin'] ?? 'Laki-laki');
+                $phone = trim($p['phone'] ?? $p['no_hp'] ?? '');
+
+                $cleanedParticipants[] = [
+                    'nama_lengkap' => $name,
+                    'kelas' => $grade,
+                    'nisn' => $nisn,
+                    'jenis_kelamin' => $gender,
+                    'no_hp' => $phone,
+                ];
+
+                $gradeStr = $grade !== '' ? " (Kelas {$grade})" : '';
+                $namesList[] = ($idx + 1) . ". {$name}{$gradeStr}";
+            }
+
+            if (!empty($cleanedParticipants)) {
+                $existingCustom['biodata_peserta'] = $cleanedParticipants;
+                $registration->custom_fields = $existingCustom;
+                $registration->participants_names = implode("\n", $namesList);
+            }
+        } elseif (isset($validated['participants_names'])) {
             $registration->participants_names = trim($validated['participants_names']);
         }
+
         if (isset($validated['notes'])) {
             $registration->notes = trim($validated['notes']);
         }
@@ -711,6 +883,9 @@ class RegistrantDashboardController extends Controller
             if ($existingProofFile && empty($r->file_documents)) {
                 $r->file_documents = [$existingProofFile];
             }
+            $cf = $r->custom_fields ?: [];
+            unset($cf['manual_package_choice']);
+            $r->custom_fields = $cf;
             $r->save();
         }
 
@@ -758,6 +933,55 @@ class RegistrantDashboardController extends Controller
         }
 
         return redirect()->back()->with('success', "Paket All-In Komplit berhasil diaktifkan! Seluruh cabang lomba telah otomatis terdaftar di tabel partisipasi kontingen Anda ({$createdCount} cabang baru ditambahkan). Tagihan pembayaran terpadu terkonsolidasi menjadi Rp " . number_format($allinPrice, 0, ',', '.') . " untuk seluruh cabang.");
+    }
+
+    /**
+     * Beralih secara mandiri dari Paket All-In ke Paket Satuan.
+     */
+    public function activateSinglePackage(Request $request)
+    {
+        $user = $this->getRegistrant();
+        if (!$user) {
+            return redirect()->route('pendaftar.login');
+        }
+
+        $cleanPhone = Setting::formatWaNumber($user->phone);
+
+        // Ambil seluruh pendaftaran kontingen
+        $existingRegs = Registration::where(function ($q) use ($user, $cleanPhone) {
+            $q->where('registrant_id', $user->id)
+              ->orWhere('user_id', $user->id);
+            if (!empty($user->phone)) {
+                $q->orWhere('mentor_wa', $user->phone)
+                  ->orWhere('mentor_wa', $cleanPhone);
+            }
+        })
+        ->with('competition')
+        ->orderBy('id', 'asc')
+        ->get();
+
+        if ($existingRegs->isEmpty()) {
+            return redirect()->back()->with('error', 'Belum ada pendaftaran cabang lomba pada akun Anda.');
+        }
+
+        // Kembalikan seluruh pendaftaran ke Paket Satuan dan sesuaikan biayanya
+        foreach ($existingRegs as $r) {
+            $r->package_type = 'Paket Satuan';
+            
+            // Kembalikan tarif normal cabang lomba
+            $comp = $r->competition;
+            $compFee = $comp ? (int)$comp->fee : 50000;
+            $r->total_fee = $compFee;
+
+            // Catat preferensi mandiri pengguna agar tidak langsung ter-auto-upgrade lagi tanpa pendaftaran baru
+            $cf = $r->custom_fields ?: [];
+            $cf['manual_package_choice'] = 'satuan';
+            $r->custom_fields = $cf;
+
+            $r->save();
+        }
+
+        return redirect()->back()->with('success', 'Paket pendaftaran berhasil diubah ke Paket Satuan. Biaya pendaftaran kini dihitung normal per masing-masing cabang lomba.');
     }
 
     /**
@@ -1430,7 +1654,13 @@ class RegistrantDashboardController extends Controller
             Log::warning('Notifikasi WA gagal: ' . $e->getMessage());
         }
 
-        return redirect()->route('pendaftar.dashboard')->with('success', "Pendaftaran delegasi cabang [{$compTitle}] berhasil dikirim dan terhubung ke akun Anda!");
+        $autoUpgraded = Registration::checkAndAutoUpgradeToAllIn($user, true);
+        $successMsg = "Pendaftaran delegasi cabang [{$compTitle}] berhasil dikirim dan terhubung ke akun Anda!";
+        if ($autoUpgraded) {
+            $successMsg .= " Selamat! Karena sekolah Anda kini telah mendaftarkan seluruh cabang lomba, paket pendaftaran kontingen secara otomatis ditingkatkan menjadi Paket All-In Komplit (Rp " . number_format((int)Setting::get('package_allin_price', 200000), 0, ',', '.') . ")!";
+        }
+
+        return redirect()->route('pendaftar.dashboard')->with('success', $successMsg);
     }
 
     /**
@@ -1547,7 +1777,14 @@ class RegistrantDashboardController extends Controller
         $bankAccounts = Setting::getBankAccounts();
 
         $invoiceConfig = Setting::getInvoiceConfig();
-        $theme = $request->input('theme', $invoiceConfig['theme'] ?? 'formal');
+        $isThemeLocked = ($invoiceConfig['theme_mode'] ?? 'locked') === 'locked';
+
+        if ($isThemeLocked) {
+            $theme = $invoiceConfig['theme'] ?? 'formal';
+        } else {
+            $theme = $request->input('theme', $invoiceConfig['theme'] ?? 'formal');
+        }
+
         if (!in_array($theme, ['formal', 'professional'])) {
             $theme = $invoiceConfig['theme'] ?? 'formal';
         }
@@ -1556,6 +1793,7 @@ class RegistrantDashboardController extends Controller
             'reg' => $reg,
             'defaultMode' => $mode,
             'defaultTheme' => $theme,
+            'isThemeLocked' => $isThemeLocked,
             'isPaid' => $isPaid,
             'terbilang' => $terbilang,
             'bankAccounts' => $bankAccounts,

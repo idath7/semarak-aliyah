@@ -326,6 +326,8 @@ class SettingsController extends Controller
     public function waGateway(Request $request)
     {
         $settings = WhatsAppService::getConfig();
+        $settings['resolved_public_url'] = Setting::getPublicPortalUrl($request);
+        $settings['resolved_admin_url'] = Setting::getAdminPortalUrl($request);
 
         // Retrieve delivery logs with optional filter
         $query = WaLog::latest();
@@ -1096,6 +1098,7 @@ class SettingsController extends Controller
             'kop_address' => 'nullable|string|max:500',
             'kop_contact' => 'nullable|string|max:500',
             'stamp_mode' => 'required|string|in:digital,image',
+            'stamp_type' => 'nullable|string|in:custom,qrcode',
             'stamp_top_text' => 'nullable|string|max:100',
             'stamp_bottom_text' => 'nullable|string|max:100',
             'stamp_center_text' => 'nullable|string|max:50',
@@ -1107,6 +1110,7 @@ class SettingsController extends Controller
             'treasurer_subrole' => 'nullable|string|max:150',
             'footer_note' => 'nullable|string|max:500',
             'theme' => 'nullable|string|in:formal,professional',
+            'theme_mode' => 'nullable|string|in:locked,free',
         ]);
 
         // Upload Logo Kiri
@@ -1167,6 +1171,7 @@ class SettingsController extends Controller
         Setting::set('invoice_kop_contact', $validated['kop_contact'] ?? '');
 
         Setting::set('invoice_stamp_mode', $validated['stamp_mode']);
+        Setting::set('invoice_stamp_type', $validated['stamp_type'] ?? 'custom');
         Setting::set('invoice_stamp_top_text', $validated['stamp_top_text'] ?? 'SEMARAK ALIYAH XIV');
         Setting::set('invoice_stamp_bottom_text', $validated['stamp_bottom_text'] ?? 'MA WAHID HASYIM');
         Setting::set('invoice_stamp_center_text', $validated['stamp_center_text'] ?? '★');
@@ -1179,6 +1184,7 @@ class SettingsController extends Controller
         Setting::set('treasurer_subrole', $validated['treasurer_subrole'] ?? '');
         Setting::set('invoice_footer_note', $validated['footer_note'] ?? '');
         Setting::set('invoice_theme', $validated['theme'] ?? 'formal');
+        Setting::set('invoice_theme_mode', $validated['theme_mode'] ?? 'locked');
 
         return redirect()->back()->with('success', 'Konfigurasi KOP Surat, Logo, Tema, dan Stempel Invoice resmi berhasil diperbarui!');
     }
@@ -1187,6 +1193,7 @@ class SettingsController extends Controller
     {
         $keys = [
             'invoice_theme' => 'formal',
+            'invoice_theme_mode' => 'locked',
             'invoice_logo_left' => '/assets/img/logo.png',
             'invoice_logo_right' => '/assets/img/logo.png',
             'invoice_show_logo_right' => '1',
@@ -1198,6 +1205,7 @@ class SettingsController extends Controller
             'invoice_kop_address' => 'Jl. Balung - Tutul No. 09 Balung Kidul, Kec. Balung, Kab. Jember, Jawa Timur 68161',
             'invoice_kop_contact' => 'Website: semarak.ma-wh.sch.id • Email: semarak@ma-wh.sch.id • Hotline WA: 0838 5007 0767',
             'invoice_stamp_mode' => 'digital',
+            'invoice_stamp_type' => 'custom',
             'invoice_stamp_top_text' => 'SEMARAK ALIYAH XIV',
             'invoice_stamp_bottom_text' => 'MA WAHID HASYIM',
             'invoice_stamp_center_text' => '★',

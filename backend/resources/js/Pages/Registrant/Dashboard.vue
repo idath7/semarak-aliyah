@@ -25,7 +25,27 @@ const { isDark, toggleTheme, initTheme } = useTheme();
 
 onMounted(() => {
   initTheme();
+  if (page.props.flash?.success) {
+    toast.success(page.props.flash.success);
+  }
 });
+
+// State & Handler Logout Akun Pendaftar
+const isLoggingOut = ref(false);
+
+function handleLogout() {
+  if (isLoggingOut.value) return;
+  isLoggingOut.value = true;
+  router.post('/pendaftar/logout', {}, {
+    onFinish: () => {
+      window.location.href = '/pendaftar/login';
+    },
+    onError: () => {
+      isLoggingOut.value = false;
+      window.location.href = '/pendaftar/login';
+    }
+  });
+}
 
 // Rekening Bank Pembayaran Dinamis
 const activeBankAccounts = computed(() => {
@@ -168,69 +188,6 @@ function formatRupiah(num) {
   return 'Rp ' + Number(num).toLocaleString('id-ID');
 }
 
-// ========================================================
-// Modal 1: Perbarui Data & Berkas Pendaftaran
-// ========================================================
-const isEditModalOpen = ref(false);
-const activeReg = ref(null);
-
-const editForm = useForm({
-  participants_names: '',
-  mentor_name: '',
-  mentor_wa: '',
-  notes: '',
-  payment_method: '',
-  payment_proof: null,
-  custom_files: {},
-});
-
-const paymentProofPreview = ref(null);
-
-function openEditModal(reg) {
-  activeReg.value = reg;
-  editForm.participants_names = reg.participants_names || '';
-  editForm.mentor_name = reg.mentor_name || '';
-  editForm.mentor_wa = reg.mentor_wa || '';
-  editForm.notes = reg.notes || '';
-  editForm.payment_method = reg.payment_method || ('Transfer ' + primaryBankAccount.value.bank_name);
-  editForm.payment_proof = null;
-  editForm.custom_files = {};
-  paymentProofPreview.value = null;
-
-  isEditModalOpen.value = true;
-}
-
-function handlePaymentProofChange(e) {
-  const file = e.target.files[0];
-  if (file) {
-    editForm.payment_proof = file;
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        paymentProofPreview.value = ev.target.result;
-      };
-      reader.readAsDataURL(file);
-    } else {
-      paymentProofPreview.value = null;
-    }
-  }
-}
-
-function submitEditRegistration() {
-  if (!activeReg.value) return;
-
-  editForm.post(`/pendaftar/registrations/${activeReg.value.id}/update`, {
-    preserveScroll: true,
-    forceFormData: true,
-    onSuccess: () => {
-      isEditModalOpen.value = false;
-      toast.success('Data dan berkas pendaftaran berhasil diperbarui!');
-    },
-    onError: () => {
-      toast.error('Gagal memperbarui berkas. Periksa kembali form isian.');
-    }
-  });
-}
 
 // ========================================================
 // Modal 2: Detail Lengkap Pendaftaran
@@ -384,6 +341,7 @@ function handleDeletePendaftarAvatar() {
 // ========================================================
 const isPackageModalOpen = ref(false);
 const isActivatingAllIn = ref(false);
+const isSwitchingToSingle = ref(false);
 
 function openPackageModal() {
   isPackageModalOpen.value = true;
@@ -405,6 +363,25 @@ function activateAllIn() {
     onError: () => {
       isActivatingAllIn.value = false;
       toast.error('Gagal mengaktifkan paket All-In. Silakan coba kembali.');
+    }
+  });
+}
+
+function switchToSinglePackage() {
+  if (!confirm('Apakah Anda yakin ingin beralih ke Paket Satuan? Biaya pendaftaran akan dihitung kembali sesuai tarif normal masing-masing cabang lomba.')) {
+    return;
+  }
+  isSwitchingToSingle.value = true;
+  router.post('/pendaftar/paket/satuan/activate', {}, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSwitchingToSingle.value = false;
+      isPackageModalOpen.value = false;
+      toast.success('Paket pendaftaran berhasil diubah ke Paket Satuan!');
+    },
+    onError: () => {
+      isSwitchingToSingle.value = false;
+      toast.error('Gagal mengubah ke Paket Satuan. Silakan coba kembali.');
     }
   });
 }
@@ -607,17 +584,16 @@ function submitPackageProof() {
             </button>
 
             <!-- Logout Button -->
-            <form action="/pendaftar/logout" method="POST" class="d-inline m-0">
-              <input type="hidden" name="_token" :value="document?.querySelector('meta[name=\'csrf-token\']')?.getAttribute('content')" />
-              <button
-                type="submit"
-                class="btn topbar-logout-btn btn-sm px-2.5 py-1 rounded-pill d-flex align-items-center gap-1 fs-12 fw-semibold"
-                title="Keluar dari Akun"
-              >
-                <i class="ri-logout-box-r-line"></i>
-                <span class="d-none d-lg-inline">Keluar</span>
-              </button>
-            </form>
+            <button
+              type="button"
+              @click="handleLogout"
+              :disabled="isLoggingOut"
+              class="btn topbar-logout-btn btn-sm px-2.5 py-1 rounded-pill d-flex align-items-center gap-1 fs-12 fw-semibold"
+              title="Keluar dari Akun Pendaftar"
+            >
+              <i :class="isLoggingOut ? 'ri-loader-4-line ri-spin' : 'ri-logout-box-r-line'"></i>
+              <span class="d-none d-lg-inline">{{ isLoggingOut ? 'Keluar...' : 'Keluar' }}</span>
+            </button>
           </div>
 
         </div>
@@ -791,8 +767,8 @@ function submitPackageProof() {
                 :class="isAllInActive ? 'btn-outline-success' : 'btn-primary'"
                 @click="openPackageModal"
               >
-                <i :class="isAllInActive ? 'ri-award-line' : 'ri-magic-line'"></i>
-                <span>{{ isAllInActive ? 'Detail Skema Paket' : 'Pilih / Pelajari Skema Paket' }}</span>
+                <i :class="isAllInActive ? 'ri-arrow-left-right-line' : 'ri-magic-line'"></i>
+                <span>{{ isAllInActive ? 'Kelola / Ubah Skema Paket' : 'Pilih / Pelajari Skema Paket' }}</span>
               </button>
             </div>
 
@@ -1154,16 +1130,24 @@ function submitPackageProof() {
                     <div class="d-inline-flex align-items-center gap-1.5 flex-nowrap">
                       
                       <!-- Perbarui Data & Berkas Button -->
-                      <button
-                        type="button"
-                        class="btn btn-sm rounded-3 px-2.5 py-1 fs-12 fw-bold d-inline-flex align-items-center gap-1 table-action-edit-btn"
-                        :class="reg.can_edit ? '' : 'disabled opacity-50'"
-                        :disabled="!reg.can_edit"
-                        @click="openEditModal(reg)"
-                        :title="reg.can_edit ? 'Perbarui data peserta & berkas' : 'Pendaftaran cabang ini telah ditutup'"
+                      <Link
+                        v-if="reg.can_edit"
+                        :href="`/pendaftar/registrations/${reg.id}/edit`"
+                        class="btn btn-sm rounded-3 px-2.5 py-1 fs-12 fw-bold d-inline-flex align-items-center gap-1 table-action-edit-btn text-decoration-none"
+                        title="Perbarui data siswa peserta & berkas persyaratan lomba"
                       >
                         <i class="ri-file-edit-line"></i>
                         <span>Perbarui</span>
+                      </Link>
+                      <button
+                        v-else
+                        type="button"
+                        class="btn btn-sm rounded-3 px-2.5 py-1 fs-12 fw-bold d-inline-flex align-items-center gap-1 table-action-edit-btn disabled opacity-50"
+                        disabled
+                        title="Pendaftaran cabang lomba ini telah ditutup oleh panitia"
+                      >
+                        <i class="ri-lock-line"></i>
+                        <span>Terkunci</span>
                       </button>
 
                       <!-- Detail Pendaftaran Button -->
@@ -1225,166 +1209,6 @@ function submitPackageProof() {
 
     </main>
 
-    <!-- ========================================================================= -->
-    <!-- MODAL 1: PERBARUI DATA & BERKAS PENDAFTARAN                               -->
-    <!-- ========================================================================= -->
-    <div v-if="isEditModalOpen && activeReg" class="modal-backdrop-custom d-flex align-items-center justify-content-center p-3">
-      <div class="modal-dialog-custom w-100 modal-card-box rounded-4 shadow-lg overflow-hidden" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column;">
-        
-        <!-- Modal Header -->
-        <div class="p-3 px-md-4 modal-header-box d-flex align-items-center justify-content-between">
-          <div>
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge badge-reg-code fs-11 font-monospace">{{ activeReg.reg_code }}</span>
-              <h5 class="fs-16 fw-bold modal-title-text mb-0">Perbarui Data & Berkas Pendaftaran</h5>
-            </div>
-            <div class="fs-12 modal-desc-text mt-0.5">
-              Cabang Lomba: <strong class="modal-title-text">{{ activeReg.competition_title }}</strong>
-            </div>
-          </div>
-          <button type="button" class="btn-close" :class="{ 'btn-close-white': isDark }" @click="isEditModalOpen = false"></button>
-        </div>
-
-        <!-- Modal Body (Scrollable) -->
-        <div class="p-3 px-md-4 overflow-y-auto flex-grow-1 modal-body-box">
-          <form @submit.prevent="submitEditRegistration" class="d-flex flex-column gap-3">
-            
-            <!-- Alert Info -->
-            <div class="p-3 rounded-3 modal-alert-info d-flex gap-2">
-              <i class="ri-information-line fs-18 text-info flex-shrink-0"></i>
-              <div class="fs-12 modal-alert-text">
-                Perubahan data dan pengunggahan berkas baru akan langsung tersinkronisasi ke sistem panitia. Pastikan data yang dimasukkan sudah valid.
-              </div>
-            </div>
-
-            <!-- Peserta / Delegasi -->
-            <div>
-              <label class="form-label fs-13 fw-bold modal-label-text mb-1">
-                Daftar Nama Siswa Peserta / Anggota Tim <span class="text-danger">*</span>
-              </label>
-              <textarea
-                v-model="editForm.participants_names"
-                rows="3"
-                class="form-control modal-input fs-13"
-                placeholder="Tuliskan nama lengkap peserta delegasi..."
-                required
-              ></textarea>
-              <div class="fs-11 modal-desc-text mt-1">
-                Jika terdapat beberapa peserta, pisahkan dengan koma atau baris baru (enter).
-              </div>
-            </div>
-
-            <!-- Pendamping & WA (Hanya Akun Utama yang Mengelola) -->
-            <div v-if="!isCurrentUserPicOnly" class="row g-3">
-              <div class="col-md-6">
-                <label class="form-label fs-13 fw-bold modal-label-text mb-1">
-                  Nama Guru Pendamping / Official
-                </label>
-                <input
-                  v-model="editForm.mentor_name"
-                  type="text"
-                  class="form-control modal-input fs-13 py-2"
-                  placeholder="Nama pendamping..."
-                />
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label fs-13 fw-bold modal-label-text mb-1">
-                  Nomor WhatsApp Pendamping
-                </label>
-                <input
-                  v-model="editForm.mentor_wa"
-                  type="tel"
-                  class="form-control modal-input fs-13 py-2"
-                  placeholder="08xxxxxxxxxx"
-                />
-              </div>
-            </div>
-
-            <!-- Upload Bukti Pembayaran (Hanya Akun Utama yang Mengelola Finansial) -->
-            <div v-if="!isCurrentUserPicOnly" class="p-3 rounded-3 modal-upload-box">
-              <label class="form-label fs-13 fw-bold modal-label-text d-flex align-items-center gap-1.5 mb-1">
-                <i class="ri-receipt-line text-success"></i>
-                <span>Unggah Ulang Bukti Transfer Pembayaran Bank (Opsional)</span>
-              </label>
-              <input
-                type="file"
-                class="form-control modal-input fs-12 mb-2"
-                accept="image/*,application/pdf"
-                @change="handlePaymentProofChange"
-              />
-              <div class="fs-11 modal-desc-text">
-                Format didukung: JPG, PNG, PDF. Maksimal 5 MB. Unggah jika ada perubahan transfer atau bukti baru.
-              </div>
-
-              <!-- Preview if selected -->
-              <div v-if="paymentProofPreview" class="mt-2 text-center p-2 rounded modal-preview-box">
-                <img :src="paymentProofPreview" alt="Bukti Transfer Baru" style="max-height: 160px; object-fit: contain;" class="rounded" />
-              </div>
-            </div>
-
-            <!-- Berkas yang Sudah Diunggah Sebelumnya -->
-            <div v-if="activeReg.file_documents && activeReg.file_documents.length > 0">
-              <label class="form-label fs-13 fw-bold modal-label-text mb-1">
-                Dokumen & Berkas Tersimpan
-              </label>
-              <div class="d-flex flex-column gap-1.5">
-                <div
-                  v-for="(doc, dIdx) in activeReg.file_documents"
-                  :key="dIdx"
-                  class="p-2 px-3 rounded-2 modal-doc-item d-flex align-items-center justify-content-between fs-12"
-                >
-                  <div class="d-flex align-items-center gap-2 text-truncate">
-                    <i class="ri-file-text-line text-primary"></i>
-                    <span class="modal-title-text fw-medium text-truncate">{{ doc.title || doc.filename }}</span>
-                  </div>
-                  <a :href="doc.url" target="_blank" class="btn btn-sm btn-outline-info border-0 p-1 fs-12">
-                    <i class="ri-external-link-line"></i> Lihat
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            <!-- Catatan Khusus -->
-            <div>
-              <label class="form-label fs-13 fw-bold modal-label-text mb-1">
-                Catatan Khusus untuk Panitia
-              </label>
-              <textarea
-                v-model="editForm.notes"
-                rows="2"
-                class="form-control modal-input fs-13"
-                placeholder="Catatan tambahan bila ada..."
-              ></textarea>
-            </div>
-
-          </form>
-        </div>
-
-        <!-- Modal Footer -->
-        <div class="p-3 px-md-4 modal-footer-box d-flex align-items-center justify-content-end gap-2">
-          <button
-            type="button"
-            class="btn modal-btn-cancel btn-sm px-3 py-2 fs-12 fw-semibold"
-            @click="isEditModalOpen = false"
-            :disabled="editForm.processing"
-          >
-            Batal
-          </button>
-          <button
-            type="button"
-            class="btn btn-success btn-sm px-4 py-2 fs-13 fw-bold shadow-sm d-flex align-items-center gap-1.5"
-            :disabled="editForm.processing"
-            @click="submitEditRegistration"
-          >
-            <span v-if="editForm.processing" class="spinner-border spinner-border-sm"></span>
-            <i v-else class="ri-save-fill"></i>
-            <span>{{ editForm.processing ? 'Menyimpan...' : 'Simpan Pembaruan' }}</span>
-          </button>
-        </div>
-
-      </div>
-    </div>
 
     <!-- ========================================================================= -->
     <!-- MODAL 2: DETAIL LENGKAP PENDAFTARAN (Screen View - Sesuai Aturan UI/UX)   -->
@@ -1679,15 +1503,14 @@ function submitPackageProof() {
           </button>
 
           <div class="d-flex align-items-center gap-2">
-            <button
+            <Link
               v-if="detailReg.can_edit"
-              type="button"
-              class="btn btn-outline-primary btn-sm px-3 py-2 fs-12 fw-bold d-flex align-items-center gap-1.5"
-              @click="openEditModal(detailReg); isDetailModalOpen = false;"
+              :href="`/pendaftar/registrations/${detailReg.id}/edit`"
+              class="btn btn-outline-primary btn-sm px-3 py-2 fs-12 fw-bold d-flex align-items-center gap-1.5 text-decoration-none"
             >
               <i class="ri-file-edit-line"></i>
-              <span>Perbarui Berkas</span>
-            </button>
+              <span>Perbarui Data & Berkas</span>
+            </Link>
 
             <a
               :href="'/pendaftar/invoice/' + detailReg.id"
@@ -2218,8 +2041,20 @@ function submitPackageProof() {
                   <div v-if="!isAllInActive" class="text-center py-1 fs-12 fw-bold text-success">
                     <i class="ri-checkbox-circle-fill me-1"></i> Saat ini Anda menggunakan pendaftaran satuan
                   </div>
-                  <div v-else class="text-center py-1 fs-11 text-muted">
-                    Anda sudah mengaktifkan Paket All-In Komplit
+                  <div v-else class="d-flex flex-column gap-1.5">
+                    <button
+                      type="button"
+                      class="btn btn-outline-primary w-100 py-2 rounded-pill fs-12 fw-bold d-flex align-items-center justify-content-center gap-1.5 shadow-sm"
+                      :disabled="isSwitchingToSingle || isActivatingAllIn"
+                      @click="switchToSinglePackage"
+                    >
+                      <span v-if="isSwitchingToSingle" class="spinner-border spinner-border-sm"></span>
+                      <i v-else class="ri-arrow-left-right-line"></i>
+                      <span>{{ isSwitchingToSingle ? 'Mengalihkan ke Satuan...' : 'Beralih ke Paket Satuan' }}</span>
+                    </button>
+                    <div class="fs-10.5 text-muted text-center">
+                      Kembali ke penghitungan biaya normal per cabang lomba.
+                    </div>
                   </div>
                 </div>
               </div>

@@ -604,6 +604,18 @@ function adjustCount(delta) {
 
 // Auto-open modal if lomba query param is present & auto-select school from profile
 onMounted(async () => {
+  // Handle toast sambutan saat mendarat setelah registrasi / login akun sukses
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('registered_success') || page.props.flash?.success) {
+    const welcomeMsg = page.props.flash?.success || `Selamat datang! Akun pendaftar ${props.authRegistrant?.name ? props.authRegistrant.name + ' ' : ''}telah aktif.`;
+    toast.success(welcomeMsg);
+    if (urlParams.get('registered_success')) {
+      urlParams.delete('registered_success');
+      const newQuery = urlParams.toString() ? `?${urlParams.toString()}` : '';
+      window.history.replaceState({}, '', window.location.pathname + newQuery);
+    }
+  }
+
   const initialSchool = props.authRegistrant?.school_name || form.school_name;
   if (initialSchool && initialSchool.trim() !== '') {
     schoolSearchInput.value = initialSchool;
@@ -1467,30 +1479,6 @@ function getCompDropdownSuffix(c) {
           </div>
         </div>
 
-        <div v-else class="smart-guest-card position-relative overflow-hidden">
-          <div class="smart-guest-header position-relative z-1">
-            <div class="smart-guest-info min-w-0">
-              <div class="guest-banner-icon flex-shrink-0">
-                <i class="ri-shield-user-fill"></i>
-              </div>
-              <div class="min-w-0">
-                <div class="guest-banner-title">Ingin menyimpan riwayat pendaftaran &amp; memperbarui berkas lomba kapan saja?</div>
-                <div class="guest-banner-desc">Masuk atau daftar akun pendaftar untuk mengelola seluruh delegasi sekolah Anda di satu tempat yang aman.</div>
-              </div>
-            </div>
-            <div class="smart-guest-actions">
-              <a :href="`/pendaftar/login?redirect_to=register`" class="btn-guest-login text-decoration-none">
-                <i class="ri-login-box-line me-1.5"></i>
-                <span>Masuk Akun</span>
-              </a>
-              <a :href="`/pendaftar/register?redirect_to=register`" class="btn-guest-register text-decoration-none">
-                <i class="ri-user-add-line me-1.5"></i>
-                <span>Daftar Akun Baru</span>
-              </a>
-            </div>
-          </div>
-        </div>
-
         <!-- Registration Guidelines Box -->
         <div class="guide-box">
           <h2 class="guide-title">
@@ -1528,6 +1516,142 @@ function getCompDropdownSuffix(c) {
             </div>
           </div>
         </div>
+        <!-- Section Header -->
+        <div class="section-header reg-portal-header" style="margin-top: 50px; margin-bottom: 30px;">
+          <span class="section-tag">Pilih Pendaftaran Cabang</span>
+          <h2 class="section-title">Portal Pendaftaran Per-Cabang Lomba</h2>
+          <p class="section-desc">
+            <span v-if="schoolStatusData?.can_register_all_competitions_free" class="text-success fw-bold">
+              🌟 Akses Paket All-In Aktif: Anda bebas memilih cabang lomba manapun di bawah ini tanpa biaya (Rp 0).
+            </span>
+            <span v-else>
+              Klik tombol daftar pada cabang kompetisi pilihan Anda untuk membuka formulir pendaftaran kontingen.
+            </span>
+          </p>
+        </div>
+
+        <!-- Registration Cards Grid for All Competitions -->
+        <div class="reg-hub-grid">
+          <div 
+            v-for="comp in competitions" 
+            :key="comp.id" 
+            class="reg-card"
+            :class="{ 'card-allin-free': schoolStatusData?.can_register_all_competitions_free }"
+          >
+            <div>
+              <div class="reg-card-top">
+                <div class="reg-card-icon">
+                  <i :class="getCompIconClass(comp)"></i>
+                </div>
+                <div>
+                  <h3 class="reg-card-title">{{ comp.title }}</h3>
+                  <span 
+                    v-if="comp.registration_type === 'direct_contact' || comp.is_direct_registration"
+                    class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 fw-bold fs-12 mb-1 d-inline-flex align-items-center gap-1"
+                  >
+                    <i class="ri-whatsapp-line"></i> Kontak Koordinator
+                  </span>
+                  <span 
+                    v-else
+                    :class="[
+                      'comp-status-badge',
+                      getCompStatusInfo(comp).badgeClass
+                    ]"
+                  >
+                    <i :class="getCompStatusInfo(comp).iconClass"></i>
+                    {{ getCompStatusInfo(comp).text }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="reg-info-box">
+                {{ comp.description }}
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <span>Biaya : </span>
+                  <template v-if="schoolStatusData?.can_register_all_competitions_free">
+                    <span class="text-decoration-line-through text-muted fs-11 me-1">Rp {{ Number(comp.fee || 50000).toLocaleString('id-ID') }}</span>
+                    <strong class="text-success" style="font-weight: 800;">Gratis (Rp 0)</strong>
+                  </template>
+                  <template v-else>
+                    <strong style="color: var(--theme-orange); font-weight: 700;">Rp {{ Number(comp.fee || 50000).toLocaleString('id-ID') }}</strong>
+                  </template>
+                </div>
+                <span>Terisi : <strong style="color: var(--text-main); font-weight: 700;">{{ comp.current_quota }} / {{ comp.max_quota }}</strong></span>
+              </div>
+
+              <!-- Button Action -->
+              <div v-if="comp.registration_type === 'direct_contact' || comp.is_direct_registration">
+                <a 
+                  :href="getDirectRegistrationWaUrl(comp)" 
+                  target="_blank" 
+                  rel="noopener" 
+                  class="btn-card-register" 
+                  style="width: 100%; background: #10b981; border-color: #059669; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;"
+                  title="Daftar langsung via WhatsApp ke Koordinator Lomba"
+                >
+                  <i class="ri-whatsapp-line"></i>
+                  <span>Daftar via Koordinator (WA)</span>
+                </a>
+              </div>
+              <div v-else-if="!getCompStatusInfo(comp).isClosed">
+                <button 
+                  type="button" 
+                  class="btn-card-register" 
+                  style="width: 100%;"
+                  @click="goToForm(comp.id)"
+                >
+                  <i :class="schoolStatusData?.can_register_all_competitions_free ? 'ri-gift-line' : 'ri-flashlight-line'"></i>
+                  <span>{{ schoolStatusData?.can_register_all_competitions_free ? 'Isi Delegasi (Gratis All-In)' : (schoolStatusData?.registered_competition_ids?.includes(comp.id) ? 'Daftar Tim Tambahan' : 'Daftar Sekarang') }}</span>
+                </button>
+              </div>
+              <a 
+                v-else
+                :href="getCompWaLink(comp)" 
+                target="_blank" 
+                rel="noopener" 
+                class="btn-card-detail" 
+                style="text-align: center; display: block;"
+                :title="getCompStatusInfo(comp).isManuallyClosed ? 'Pendaftaran ditutup oleh panitia. Klik untuk bertanya via WhatsApp' : 'Masuk daftar tunggu via WhatsApp'"
+              >
+                <i :class="getCompStatusInfo(comp).isManuallyClosed ? 'ri-whatsapp-line' : 'ri-time-line'"></i>
+                <span>{{ getCompStatusInfo(comp).isManuallyClosed ? 'Hubungi Panitia (Ditutup)' : 'Hubungi Panitia (Waiting List)' }}</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================================================================== -->
+        <!-- SMART GUEST BANNER / ACCOUNT CALL-TO-ACTION                        -->
+        <!-- ================================================================== -->
+        <div v-if="!authRegistrant" class="smart-guest-card position-relative overflow-hidden mt-5 mb-4">
+          <div class="smart-guest-header position-relative z-1">
+            <div class="smart-guest-info min-w-0">
+              <div class="guest-banner-icon flex-shrink-0">
+                <i class="ri-shield-user-fill"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="guest-banner-title">Ingin menyimpan riwayat pendaftaran &amp; memperbarui berkas lomba kapan saja?</div>
+                <div class="guest-banner-desc">Masuk atau daftar akun pendaftar untuk mengelola seluruh delegasi sekolah Anda di satu tempat yang aman.</div>
+              </div>
+            </div>
+            <div class="smart-guest-actions">
+              <a :href="`/pendaftar/login?redirect_to=register`" class="btn-guest-login text-decoration-none">
+                <i class="ri-login-box-line me-1.5"></i>
+                <span>Masuk Akun</span>
+              </a>
+              <a :href="`/pendaftar/register?redirect_to=register`" class="btn-guest-register text-decoration-none">
+                <i class="ri-user-add-line me-1.5"></i>
+                <span>Daftar Akun Baru</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
         <!-- ================================================================== -->
         <!-- HUB PENCARIAN & STATUS REGISTRASI SEKOLAH KONTINGEN (COMMAND COCKPIT) -->
         <!-- ================================================================== -->
@@ -1890,7 +2014,7 @@ function getCompDropdownSuffix(c) {
                       </span>
                       <h4 class="hub-status-heading mb-0">Sekolah Anda Siap Mendaftarkan Delegasi Kontingen!</h4>
                       <p class="status-desc-text fs-12 mb-0 mt-0.5">
-                        Pilih opsi hemat Paket All-In Komplit untuk semua cabang lomba, atau tentukan cabang tertentu secara satuan di bawah.
+                        Pilih opsi hemat Paket All-In Komplit untuk semua cabang lomba, atau tentukan cabang tertentu secara satuan pada daftar cabang lomba.
                       </p>
                     </div>
                   </div>
@@ -1907,115 +2031,6 @@ function getCompDropdownSuffix(c) {
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section Header -->
-        <div class="section-header reg-portal-header" style="margin-top: 60px; margin-bottom: 35px;">
-          <span class="section-tag">Pilih Pendaftaran Cabang</span>
-          <h2 class="section-title">Portal Pendaftaran Per-Cabang Lomba</h2>
-          <p class="section-desc">
-            <span v-if="schoolStatusData?.can_register_all_competitions_free" class="text-success fw-bold">
-              🌟 Akses Paket All-In Aktif: Anda bebas memilih cabang lomba manapun di bawah ini tanpa biaya (Rp 0).
-            </span>
-            <span v-else>
-              Klik tombol daftar pada cabang kompetisi pilihan Anda untuk membuka formulir pendaftaran kontingen.
-            </span>
-          </p>
-        </div>
-
-        <!-- Registration Cards Grid for All Competitions -->
-        <div class="reg-hub-grid">
-          <div 
-            v-for="comp in competitions" 
-            :key="comp.id" 
-            class="reg-card"
-            :class="{ 'card-allin-free': schoolStatusData?.can_register_all_competitions_free }"
-          >
-            <div>
-              <div class="reg-card-top">
-                <div class="reg-card-icon">
-                  <i :class="getCompIconClass(comp)"></i>
-                </div>
-                <div>
-                  <h3 class="reg-card-title">{{ comp.title }}</h3>
-                  <span 
-                    v-if="comp.registration_type === 'direct_contact' || comp.is_direct_registration"
-                    class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 fw-bold fs-12 mb-1 d-inline-flex align-items-center gap-1"
-                  >
-                    <i class="ri-whatsapp-line"></i> Kontak Koordinator
-                  </span>
-                  <span 
-                    v-else
-                    :class="[
-                      'comp-status-badge',
-                      getCompStatusInfo(comp).badgeClass
-                    ]"
-                  >
-                    <i :class="getCompStatusInfo(comp).iconClass"></i>
-                    {{ getCompStatusInfo(comp).text }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="reg-info-box">
-                {{ comp.description }}
-              </div>
-            </div>
-
-            <div>
-              <div style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <span>Biaya : </span>
-                  <template v-if="schoolStatusData?.can_register_all_competitions_free">
-                    <span class="text-decoration-line-through text-muted fs-11 me-1">Rp {{ Number(comp.fee || 50000).toLocaleString('id-ID') }}</span>
-                    <strong class="text-success" style="font-weight: 800;">Gratis (Rp 0)</strong>
-                  </template>
-                  <template v-else>
-                    <strong style="color: var(--theme-orange); font-weight: 700;">Rp {{ Number(comp.fee || 50000).toLocaleString('id-ID') }}</strong>
-                  </template>
-                </div>
-                <span>Terisi : <strong style="color: var(--text-main); font-weight: 700;">{{ comp.current_quota }} / {{ comp.max_quota }}</strong></span>
-              </div>
-
-              <!-- Button Action -->
-              <div v-if="comp.registration_type === 'direct_contact' || comp.is_direct_registration">
-                <a 
-                  :href="getDirectRegistrationWaUrl(comp)" 
-                  target="_blank" 
-                  rel="noopener" 
-                  class="btn-card-register" 
-                  style="width: 100%; background: #10b981; border-color: #059669; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;"
-                  title="Daftar langsung via WhatsApp ke Koordinator Lomba"
-                >
-                  <i class="ri-whatsapp-line"></i>
-                  <span>Daftar via Koordinator (WA)</span>
-                </a>
-              </div>
-              <div v-else-if="!getCompStatusInfo(comp).isClosed">
-                <button 
-                  type="button" 
-                  class="btn-card-register" 
-                  style="width: 100%;"
-                  @click="goToForm(comp.id)"
-                >
-                  <i :class="schoolStatusData?.can_register_all_competitions_free ? 'ri-gift-line' : 'ri-flashlight-line'"></i>
-                  <span>{{ schoolStatusData?.can_register_all_competitions_free ? 'Isi Delegasi (Gratis All-In)' : (schoolStatusData?.registered_competition_ids?.includes(comp.id) ? 'Daftar Tim Tambahan' : 'Daftar Sekarang') }}</span>
-                </button>
-              </div>
-              <a 
-                v-else
-                :href="getCompWaLink(comp)" 
-                target="_blank" 
-                rel="noopener" 
-                class="btn-card-detail" 
-                style="text-align: center; display: block;"
-                :title="getCompStatusInfo(comp).isManuallyClosed ? 'Pendaftaran ditutup oleh panitia. Klik untuk bertanya via WhatsApp' : 'Masuk daftar tunggu via WhatsApp'"
-              >
-                <i :class="getCompStatusInfo(comp).isManuallyClosed ? 'ri-whatsapp-line' : 'ri-time-line'"></i>
-                <span>{{ getCompStatusInfo(comp).isManuallyClosed ? 'Hubungi Panitia (Ditutup)' : 'Hubungi Panitia (Waiting List)' }}</span>
-              </a>
             </div>
           </div>
         </div>

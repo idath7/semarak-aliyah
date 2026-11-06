@@ -745,17 +745,26 @@ class WhatsAppService
     {
         $eventName = Setting::get('event_name', 'SEMARAK ALIYAH XIV 2026');
         $contactWa = Setting::get('contact_wa', '0838 5007 0767');
-        $appUrl = rtrim(config('app.url', url('/')), '/');
 
-        $statusUrl = $appUrl . '/layanan-registrasi';
-        $adminPendaftarUrl = $appUrl . '/admin/pendaftar';
+        // Resolusi domain cerdas & dinamis (bukan localhost di production)
+        $publicUrl = rtrim(Setting::getPublicPortalUrl(), '/');
+        $adminUrl = rtrim(Setting::getAdminPortalUrl(), '/');
+        $domainHost = parse_url($publicUrl, PHP_URL_HOST) ?: $publicUrl;
+
+        $statusUrl = $publicUrl . '/layanan-registrasi';
+        $adminPendaftarUrl = $adminUrl . '/admin/pendaftar';
+        $loginUrl = $publicUrl . '/pendaftar/login';
+        $dashboardUrl = $publicUrl . '/pendaftar/dashboard';
+        $regIdentifier = $registration->id ?: ($registration->reg_code ?? '');
+        $invoiceUrl = $publicUrl . '/pendaftar/invoice/' . $regIdentifier;
+        $printInvoiceUrl = $publicUrl . '/invoice/' . $regIdentifier;
 
         $totalFeeFormatted = 'Rp ' . number_format($registration->total_fee ?? 0, 0, ',', '.');
-        if (($registration->total_fee ?? 0) === 0 && $registration->package_type === 'all-in') {
+        if (($registration->total_fee ?? 0) === 0 && ($registration->package_type === 'all-in' || $registration->package_type === 'Paket All-In')) {
             $totalFeeFormatted = 'Gratis (Rp 0 - Paket All-In)';
         }
 
-        $packageLabel = ($registration->package_type === 'all-in')
+        $packageLabel = ($registration->package_type === 'all-in' || $registration->package_type === 'Paket All-In')
             ? 'Paket All-In Komplit'
             : 'Paket Satuan (Per-Cabang)';
 
@@ -769,14 +778,51 @@ class WhatsAppService
             '{status_pendaftaran}' => $registration->registration_status ?? 'Menunggu Verifikasi',
             '{status_pembayaran}' => $registration->payment_status ?? 'Menunggu Verifikasi',
             '{total_biaya}' => $totalFeeFormatted,
+            '{biaya}' => $totalFeeFormatted,
             '{nama_event}' => $eventName,
             '{kontak_panitia}' => $contactWa,
             '{url_status}' => $statusUrl,
-            '{url_login}' => $appUrl . '/pendaftar/login',
-            '{url_dashboard}' => $appUrl . '/pendaftar/dashboard',
+            '{url_login}' => $loginUrl,
+            '{url_dashboard}' => $dashboardUrl,
+            '{url_invoice}' => $invoiceUrl,
+            '{url_kwitansi}' => $invoiceUrl,
+            '{url_cetak_invoice}' => $printInvoiceUrl,
+            '{link_invoice}' => $printInvoiceUrl,
             '{admin_pendaftar_url}' => $adminPendaftarUrl,
+            '{url_admin}' => $adminUrl . '/admin',
+            '{admin_url}' => $adminUrl . '/admin',
+            '{domain}' => $domainHost,
+            '{app_url}' => $publicUrl,
+            '{base_url}' => $publicUrl,
+            '{public_url}' => $publicUrl,
+            '{url_portal}' => $publicUrl,
         ];
 
-        return str_replace(array_keys($replacements), array_values($replacements), $template);
+        $parsed = str_replace(array_keys($replacements), array_values($replacements), $template);
+
+        // Auto-Sanitizer: Jika template tersimpan di DB memuat string mentah 'localhost:8000' / 'localhost'
+        // dan sistem berjalan dengan domain publik yang terdeteksi, gantikan secara otomatis ke domain publik
+        if (!empty($publicUrl) && !str_contains($publicUrl, 'localhost') && !str_contains($publicUrl, '127.0.0.1')) {
+            // 1. Gantikan admin portal lokal
+            $parsed = str_replace(
+                ['http://localhost:8001/admin', 'https://localhost:8001/admin', 'http://localhost/admin', 'http://127.0.0.1:8001/admin'],
+                $adminUrl . '/admin',
+                $parsed
+            );
+            $parsed = str_replace(
+                ['http://localhost:8001', 'https://localhost:8001', 'http://127.0.0.1:8001'],
+                $adminUrl,
+                $parsed
+            );
+
+            // 2. Gantikan public portal lokal
+            $parsed = str_replace(
+                ['http://localhost:8000', 'https://localhost:8000', 'http://localhost', 'https://localhost', 'http://127.0.0.1:8000', 'http://127.0.0.1'],
+                $publicUrl,
+                $parsed
+            );
+        }
+
+        return $parsed;
     }
 }

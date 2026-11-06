@@ -541,6 +541,68 @@
             z-index: 2;
         }
 
+        .sig-block.has-digital-seal .sig-title,
+        .pro-sig-item.has-digital-seal .pro-sig-title {
+            margin-bottom: 6px !important;
+        }
+
+        .stamp-qrcode-seal {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 4px 8px;
+            background: #ffffff;
+            border: 1.5px solid #059669;
+            border-radius: 6px;
+            box-shadow: 0 1px 4px rgba(5, 150, 105, 0.12);
+            z-index: 2;
+            pointer-events: none;
+            user-select: none;
+            transform: none !important;
+            margin: 6px auto 10px auto;
+            text-align: left;
+        }
+
+        .stamp-qr-canvas {
+            width: 44px;
+            height: 44px;
+            flex-shrink: 0;
+            border-radius: 3px;
+        }
+
+        .stamp-qr-details {
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            line-height: 1.15;
+        }
+
+        .stamp-qr-badge {
+            font-size: 5.8pt;
+            font-weight: 800;
+            color: #059669;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .stamp-qr-subtext {
+            font-size: 5.2pt;
+            font-weight: 600;
+            color: #334155;
+            text-transform: uppercase;
+        }
+
+        .stamp-qr-code {
+            font-size: 5.2pt;
+            font-weight: 700;
+            color: #1e3a8a;
+            margin-top: 1px;
+        }
+
         .sig-image-layer {
             position: absolute;
             top: 25px;
@@ -968,13 +1030,22 @@
 </head>
 <body style="--stamp-color: {{ $invoiceConfig['stamp_color'] ?? '#2563eb' }}; --stamp-rotation: {{ $invoiceConfig['stamp_rotation'] ?? -8 }}deg; --logo-size: {{ $invoiceConfig['logo_size'] ?? 68 }}px;">
 
+    @php
+        $defaultBackUrl = request()->is('pendaftar/*')
+            ? (Route::has('pendaftar.dashboard') ? route('pendaftar.dashboard') : url('/pendaftar/dashboard'))
+            : (Route::has('admin.pendaftar') ? route('admin.pendaftar') : url('/admin/pendaftar'));
+        $referer = request()->headers->get('referer');
+        $backUrl = (!empty($referer) && !str_contains($referer, '/invoice/')) ? $referer : $defaultBackUrl;
+    @endphp
+
     <!-- Sticky Toolbar (Controls & Print Actions) -->
     <div class="no-print-toolbar">
         <div class="toolbar-left">
-            <button type="button" class="toolbar-btn" onclick="window.history.back()">
+            <button type="button" class="toolbar-btn" onclick="closeInvoiceTab()" title="Tutup lembar cetak ini dan kembali ke aplikasi">
                 <i class="ri-arrow-left-line"></i> Kembali
             </button>
             <span style="color: #94a3b8; font-size: 13px;">|</span>
+            @if(empty($isThemeLocked))
             <span style="font-weight: 600; font-size: 13px;">
                 Tema UI:
             </span>
@@ -996,6 +1067,12 @@
             >
                 <i class="ri-briefcase-4-line text-warning"></i> Tema Profesional
             </button>
+            @else
+            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; font-weight: 600; color: #334155;">
+                <i class="ri-lock-2-fill" style="color: #2563eb; font-size: 13px;"></i>
+                <span>Tema Ditetapkan: <strong style="color: #0f172a;">{{ $defaultTheme === 'professional' ? 'Profesional' : 'Formal' }}</strong></span>
+            </div>
+            @endif
             <span style="color: #94a3b8; font-size: 13px;">|</span>
             <span style="font-weight: 600; font-size: 13px;">
                 Mode:
@@ -1178,8 +1255,22 @@
                                     <span style="font-weight: 600;">{{ $reg->package_type ?: 'Reguler (Satuan)' }}</span>
                                 </td>
                                 <td>
-                                    @if($reg->participants_names)
-                                        <div>{{ $reg->participants_names }}</div>
+                                    @php $cleanDelegates = $reg->clean_delegates; @endphp
+                                    @if(!empty($cleanDelegates))
+                                        <div style="display: flex; flex-direction: column; gap: 3px;">
+                                            @foreach($cleanDelegates as $dIdx => $del)
+                                                <div style="font-size: 8.5pt; line-height: 1.3;">
+                                                    <span style="font-weight: 600; color: #0f172a;">{{ count($cleanDelegates) > 1 ? ($dIdx + 1) . '. ' : '' }}{{ $del['name'] }}</span>
+                                                    @if(!empty($del['grade']) && $del['grade'] !== '-')
+                                                        <span style="color: #475569; font-size: 7.8pt; background-color: #f1f5f9; border: 1px solid #e2e8f0; padding: 1px 5px; border-radius: 3px; margin-left: 3px; font-weight: 500;">
+                                                            {{ $del['grade'] }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @elseif($reg->participants_names)
+                                        <div style="font-size: 8.5pt;">{{ $reg->participants_names }}</div>
                                     @else
                                         <span style="color: #94a3b8; font-style: italic;">Data delegasi tercatat di sistem</span>
                                     @endif
@@ -1249,7 +1340,7 @@
                             <div class="sig-role">{{ $reg->school_name ?: 'Sekolah / Madrasah Peserta' }}</div>
                         </div>
 
-                        <div class="sig-block">
+                        <div class="sig-block {{ ($invoiceConfig['stamp_type'] ?? 'custom') === 'qrcode' ? 'has-digital-seal' : '' }}">
                             <div class="sig-date">{{ $invoiceConfig['sig_city'] ?? 'Balung - Jember' }}, {{ date('d/m/Y') }}</div>
                             <div class="sig-title">
                                 {{ $invoiceConfig['treasurer_role'] ?? 'Bendahara Pelaksana' }},<br>
@@ -1258,8 +1349,17 @@
                                 @endif
                             </div>
 
-                            <!-- Cap Stempel Panitia -->
-                            @if(($invoiceConfig['stamp_mode'] ?? 'digital') === 'image' && !empty($invoiceConfig['stamp_image']))
+                            <!-- Cap Stempel Panitia (Kustom vs QR Code Terverifikasi - Formal) -->
+                            @if(($invoiceConfig['stamp_type'] ?? 'custom') === 'qrcode')
+                                <div class="stamp-qrcode-seal stamp-container-all">
+                                    <canvas id="stamp-qrcode-canvas-formal" class="stamp-qr-canvas"></canvas>
+                                    <div class="stamp-qr-details">
+                                        <div class="stamp-qr-badge"><i class="ri-shield-check-fill"></i> DIVERIFIKASI RESMI</div>
+                                        <div class="stamp-qr-subtext">{{ $invoiceConfig['stamp_top_text'] ?? 'SEMARAK ALIYAH XIV' }}</div>
+                                        <div class="stamp-qr-code font-monospace">{{ $reg->reg_code }}</div>
+                                    </div>
+                                </div>
+                            @elseif(($invoiceConfig['stamp_mode'] ?? 'digital') === 'image' && !empty($invoiceConfig['stamp_image']))
                                 <img 
                                     src="{{ $invoiceConfig['stamp_image'] }}" 
                                     alt="Stempel Panitia" 
@@ -1424,7 +1524,21 @@
                                     </span>
                                 </td>
                                 <td>
-                                    @if($reg->participants_names)
+                                    @php $cleanDelegates = $reg->clean_delegates; @endphp
+                                    @if(!empty($cleanDelegates))
+                                        <div style="display: flex; flex-direction: column; gap: 3px;">
+                                            @foreach($cleanDelegates as $dIdx => $del)
+                                                <div style="font-size: 8.2pt; line-height: 1.3;">
+                                                    <span style="font-weight: 600; color: #1e293b;">{{ count($cleanDelegates) > 1 ? ($dIdx + 1) . '. ' : '' }}{{ $del['name'] }}</span>
+                                                    @if(!empty($del['grade']) && $del['grade'] !== '-')
+                                                        <span style="color: #475569; font-size: 7.5pt; background-color: #f1f5f9; border: 1px solid #e2e8f0; padding: 1px 5px; border-radius: 3px; margin-left: 3px; font-weight: 500;">
+                                                            {{ $del['grade'] }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @elseif($reg->participants_names)
                                         <div style="font-size: 8.2pt; color: #1e293b;">{{ $reg->participants_names }}</div>
                                     @else
                                         <span style="color: #94a3b8; font-style: italic; font-size: 8pt;">Data delegasi tercatat di sistem</span>
@@ -1510,7 +1624,7 @@
                         </div>
 
                         <!-- Right: Bendahara Panitia -->
-                        <div class="pro-sig-item">
+                        <div class="pro-sig-item {{ ($invoiceConfig['stamp_type'] ?? 'custom') === 'qrcode' ? 'has-digital-seal' : '' }}">
                             <div style="font-size: 7.5pt; color: #64748b; margin-bottom: 2px;">
                                 {{ $invoiceConfig['sig_city'] ?? 'Balung - Jember' }}, {{ date('d/m/Y') }}
                             </div>
@@ -1518,8 +1632,17 @@
                                 {{ $invoiceConfig['treasurer_role'] ?? 'Bendahara Pelaksana' }}
                             </div>
 
-                            <!-- Cap Stempel Panitia -->
-                            @if(($invoiceConfig['stamp_mode'] ?? 'digital') === 'image' && !empty($invoiceConfig['stamp_image']))
+                            <!-- Cap Stempel Panitia (Kustom vs QR Code Terverifikasi - Pro) -->
+                            @if(($invoiceConfig['stamp_type'] ?? 'custom') === 'qrcode')
+                                <div class="stamp-qrcode-seal stamp-container-all">
+                                    <canvas id="stamp-qrcode-canvas-pro" class="stamp-qr-canvas"></canvas>
+                                    <div class="stamp-qr-details">
+                                        <div class="stamp-qr-badge"><i class="ri-shield-check-fill"></i> DIVERIFIKASI RESMI</div>
+                                        <div class="stamp-qr-subtext">{{ $invoiceConfig['stamp_top_text'] ?? 'SEMARAK ALIYAH XIV' }}</div>
+                                        <div class="stamp-qr-code font-monospace">{{ $reg->reg_code }}</div>
+                                    </div>
+                                </div>
+                            @elseif(($invoiceConfig['stamp_mode'] ?? 'digital') === 'image' && !empty($invoiceConfig['stamp_image']))
                                 <img 
                                     src="{{ $invoiceConfig['stamp_image'] }}" 
                                     alt="Stempel Panitia" 
@@ -1598,10 +1721,58 @@
                             errorCorrectionLevel: 'M'
                         });
                     }
+
+                    @php
+                        $invoicePrintUrl = request()->is('pendaftar/*')
+                            ? (Route::has('pendaftar.invoice.print') ? route('pendaftar.invoice.print', ['id' => $reg->id]) : url('/pendaftar/invoice/' . $reg->id))
+                            : (Route::has('admin.invoice.print') ? route('admin.invoice.print', ['id' => $reg->id]) : url('/admin/invoice/' . $reg->id));
+                    @endphp
+
+                    // Render Stempel QR Code Terverifikasi (Digital Official Seal)
+                    const qrStampFormal = document.getElementById('stamp-qrcode-canvas-formal');
+                    if (qrStampFormal) {
+                        window.QRCode.toCanvas(qrStampFormal, @json($invoicePrintUrl), {
+                            width: 44,
+                            margin: 0,
+                            color: { dark: '#047857', light: '#ffffff' },
+                            errorCorrectionLevel: 'M'
+                        });
+                    }
+
+                    const qrStampPro = document.getElementById('stamp-qrcode-canvas-pro');
+                    if (qrStampPro) {
+                        window.QRCode.toCanvas(qrStampPro, @json($invoicePrintUrl), {
+                            width: 44,
+                            margin: 0,
+                            color: { dark: '#047857', light: '#ffffff' },
+                            errorCorrectionLevel: 'M'
+                        });
+                    }
                 }
             } catch (err) {
                 console.warn("QRCode error:", err);
             }
+        }
+
+        // Close Invoice Tab Handler (Closes tab cleanly to prevent tab clutter)
+        function closeInvoiceTab() {
+            // 1. Eksekusi penutupan tab langsung
+            window.close();
+
+            // 2. Teknik universal penutupan tab peramban (mengatasi script-origin isolation)
+            window.open('', '_self', '');
+            window.close();
+
+            // 3. Fallback jika peramban memiliki proteksi strict (misal direct typed URL di address bar)
+            setTimeout(function () {
+                if (!window.closed) {
+                    if (window.history.length > 1 && document.referrer && document.referrer !== window.location.href) {
+                        window.history.back();
+                    } else {
+                        window.location.href = @json($backUrl);
+                    }
+                }
+            }, 250);
         }
 
         // Switch Theme Function (Formal vs Professional)

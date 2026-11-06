@@ -73,7 +73,14 @@ class PrintStudioController extends Controller
         $bankAccounts = \App\Models\Setting::getBankAccounts();
 
         $invoiceConfig = \App\Models\Setting::getInvoiceConfig();
-        $theme = $request->input('theme', $invoiceConfig['theme'] ?? 'formal');
+        $isThemeLocked = ($invoiceConfig['theme_mode'] ?? 'locked') === 'locked';
+
+        if ($isThemeLocked) {
+            $theme = $invoiceConfig['theme'] ?? 'formal';
+        } else {
+            $theme = $request->input('theme', $invoiceConfig['theme'] ?? 'formal');
+        }
+
         if (!in_array($theme, ['formal', 'professional'])) {
             $theme = $invoiceConfig['theme'] ?? 'formal';
         }
@@ -82,6 +89,7 @@ class PrintStudioController extends Controller
             'reg' => $reg,
             'defaultMode' => $mode,
             'defaultTheme' => $theme,
+            'isThemeLocked' => $isThemeLocked,
             'isPaid' => $isPaid,
             'terbilang' => $terbilang,
             'bankAccounts' => $bankAccounts,

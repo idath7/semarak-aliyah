@@ -1470,7 +1470,7 @@ const successRate = computed(() => {
               <!-- Variable Cheatsheet Pills -->
               <div class="d-flex flex-wrap gap-1">
                 <button
-                  v-for="tag in ['{nama_sekolah}', '{nama_koordinator}', '{nama_pj}', '{kode_pendaftaran}', '{cabang_lomba}', '{paket_pendaftaran}', '{total_biaya}', '{biaya}', '{nomor_wa}', '{nama_pendaftar}', '{kontak_pj}', '{status_pendaftaran}', '{status_pembayaran}', '{url_status}']"
+                  v-for="tag in ['{nama_sekolah}', '{nama_koordinator}', '{nama_pj}', '{kode_pendaftaran}', '{cabang_lomba}', '{paket_pendaftaran}', '{total_biaya}', '{biaya}', '{nomor_wa}', '{nama_pendaftar}', '{kontak_pj}', '{status_pendaftaran}', '{status_pembayaran}', '{url_status}', '{url_dashboard}', '{url_login}', '{url_invoice}', '{admin_pendaftar_url}', '{domain}']"
                   :key="tag"
                   type="button"
                   class="badge bg-body-secondary text-dark-emphasis border px-2 py-1 cursor-pointer hover:bg-success hover:text-white transition-all font-monospace fs-11"
@@ -1483,6 +1483,20 @@ const successRate = computed(() => {
             </div>
 
             <div class="card-body p-3.5">
+              <!-- Domain Resolving Info Banner -->
+              <div class="p-2.5 px-3 rounded-3 bg-body-tertiary border mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="ri-global-line text-primary fs-16"></i>
+                  <span class="fs-12 text-dark-emphasis">
+                    Domain Aktif Tautan Pesan WA: <strong class="text-primary font-monospace">{{ settings.resolved_public_url || 'Otomatis mengikuti host server' }}</strong>
+                  </span>
+                </div>
+                <div class="fs-11 text-muted">
+                  <i class="ri-shield-check-line text-success me-0.5"></i>
+                  Tag <code>{url_status}</code>, <code>{url_dashboard}</code>, dll otomatis menggunakan domain production (bukan localhost).
+                </div>
+              </div>
+
               <!-- Nav Tabs for Templates -->
               <ul class="nav nav-tabs nav-tabs-custom mb-3" role="tablist">
                 <li class="nav-item">

@@ -110,11 +110,20 @@ function submitForm() {
     error('Nama sekolah/madrasah wajib diisi!');
     return;
   }
+  if (!form.value.jenjang) {
+    error('Jenis lembaga (SMP / MTs) wajib dipilih!');
+    return;
+  }
 
   isSubmitting.value = true;
 
+  const payload = {
+    ...form.value,
+    jenis_lembaga: form.value.jenjang,
+  };
+
   if (isEditing.value) {
-    router.put(`/admin/sekolah/${form.value.id}`, form.value, {
+    router.put(`/admin/sekolah/${form.value.id}`, payload, {
       onSuccess: () => {
         closeFormModal();
         success('Data sekolah berhasil diperbarui.');
@@ -127,7 +136,7 @@ function submitForm() {
       }
     });
   } else {
-    router.post('/admin/sekolah', form.value, {
+    router.post('/admin/sekolah', payload, {
       onSuccess: () => {
         closeFormModal();
         success('Sekolah baru berhasil ditambahkan.');
@@ -443,6 +452,47 @@ const allJemberKecamatan = [
   'Rambipuji', 'Semboro', 'Silo', 'Sukorambi', 'Sukowono', 'Sumberbaru', 
   'Sumberjambe', 'Sumbersari', 'Tanggul', 'Tempurejo', 'Umbulsari', 'Wuluhan'
 ];
+
+// Options untuk dropdown Jenis Lembaga (SMP / MTs)
+const jenisLembagaOptions = [
+  { value: 'SMP', label: 'SMP (Sekolah Menengah Pertama)' },
+  { value: 'MTs', label: 'MTs (Madrasah Tsanawiyah)' },
+];
+
+const filterJenisLembagaOptions = [
+  { value: '', label: 'Semua Jenis Lembaga' },
+  { value: 'SMP', label: 'SMP (Sekolah Menengah Pertama)' },
+  { value: 'MTs', label: 'MTs (Madrasah Tsanawiyah)' },
+];
+
+// Options untuk dropdown Status Sekolah
+const statusSekolahOptions = [
+  { value: 'Negeri', label: 'Negeri' },
+  { value: 'Swasta', label: 'Swasta' },
+];
+
+const filterStatusOptions = [
+  { value: '', label: 'Semua Status' },
+  { value: 'Negeri', label: 'Negeri' },
+  { value: 'Swasta', label: 'Swasta' },
+];
+
+const kecamatanOptions = computed(() => {
+  return allJemberKecamatan.map(kec => ({
+    value: kec,
+    label: `Kecamatan ${kec}`
+  }));
+});
+
+const filterKecamatanOptions = computed(() => {
+  return [
+    { value: '', label: 'Semua Kecamatan (31)' },
+    ...allJemberKecamatan.map(kec => ({
+      value: kec,
+      label: `Kecamatan ${kec}`
+    }))
+  ];
+});
 </script>
 
 <template>
@@ -600,12 +650,12 @@ const allJemberKecamatan = [
           </div>
         </div>
 
-        <!-- 2. Jenjang SMP -->
+        <!-- 2. Lembaga SMP -->
         <div class="col-6 col-md-4 col-xl-2">
           <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
             <div class="card-body p-3">
               <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="fs-12 text-muted fw-medium">Jenjang SMP</span>
+                <span class="fs-12 text-muted fw-medium">Lembaga SMP</span>
                 <div class="avatar-xs bg-info-subtle text-info rounded-2 d-flex align-items-center justify-content-center">
                   <i class="ri-book-read-line fs-15"></i>
                 </div>
@@ -616,12 +666,12 @@ const allJemberKecamatan = [
           </div>
         </div>
 
-        <!-- 3. Jenjang MTs -->
+        <!-- 3. Lembaga MTs -->
         <div class="col-6 col-md-4 col-xl-2">
           <div class="card border-0 shadow-sm rounded-3 h-100 bg-white">
             <div class="card-body p-3">
               <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="fs-12 text-muted fw-medium">Jenjang MTs</span>
+                <span class="fs-12 text-muted fw-medium">Lembaga MTs</span>
                 <div class="avatar-xs bg-success-subtle text-success rounded-2 d-flex align-items-center justify-content-center">
                   <i class="ri-medal-line fs-15"></i>
                 </div>
@@ -700,32 +750,36 @@ const allJemberKecamatan = [
               </div>
             </div>
 
-            <!-- Jenjang Filter -->
+            <!-- Jenis Lembaga Filter -->
             <div class="col-6 col-md-2">
-              <CustomSelect v-model="jenjangFilter" size="sm" @change="applyFilters">
-                <option value="">Semua Jenjang</option>
-                <option value="SMP">SMP</option>
-                <option value="MTs">MTs</option>
-              </CustomSelect>
+              <CustomSelect 
+                v-model="jenjangFilter" 
+                :options="filterJenisLembagaOptions" 
+                size="sm" 
+                @change="applyFilters" 
+              />
             </div>
 
             <!-- Status Filter -->
             <div class="col-6 col-md-2">
-              <CustomSelect v-model="statusFilter" size="sm" @change="applyFilters">
-                <option value="">Semua Status</option>
-                <option value="Negeri">Negeri</option>
-                <option value="Swasta">Swasta</option>
-              </CustomSelect>
+              <CustomSelect 
+                v-model="statusFilter" 
+                :options="filterStatusOptions" 
+                size="sm" 
+                @change="applyFilters" 
+              />
             </div>
 
             <!-- Kecamatan Filter -->
             <div class="col-6 col-md-3">
-              <CustomSelect v-model="kecamatanFilter" size="sm" @change="applyFilters" searchable search-placeholder="Cari kecamatan...">
-                <option value="">Semua Kecamatan (31)</option>
-                <option v-for="kec in allJemberKecamatan" :key="kec" :value="kec">
-                  Kecamatan {{ kec }}
-                </option>
-              </CustomSelect>
+              <CustomSelect 
+                v-model="kecamatanFilter" 
+                :options="filterKecamatanOptions" 
+                size="sm" 
+                @change="applyFilters" 
+                searchable 
+                search-placeholder="Cari kecamatan..." 
+              />
             </div>
 
             <!-- Actions (Submit & Reset) -->
@@ -794,7 +848,7 @@ const allJemberKecamatan = [
                 </th>
                 <th scope="col" style="width: 50px;" class="text-center">#</th>
                 <th scope="col">Nama Lembaga & NPSN</th>
-                <th scope="col">Jenjang</th>
+                <th scope="col">Jenis Lembaga</th>
                 <th scope="col">Status</th>
                 <th scope="col">Kecamatan & Alamat</th>
                 <th scope="col">Kontak / Telepon</th>
@@ -1008,15 +1062,17 @@ const allJemberKecamatan = [
                   />
                 </div>
 
-                <!-- Jenjang -->
+                <!-- Jenis Lembaga -->
                 <div class="col-md-6">
                   <label class="form-label fs-12 fw-semibold custom-modal-label">
-                    Jenjang Lembaga <span class="text-danger">*</span>
+                    Jenis Lembaga <span class="text-danger">*</span>
                   </label>
-                  <CustomSelect v-model="form.jenjang" size="sm">
-                    <option value="SMP">SMP (Sekolah Menengah Pertama)</option>
-                    <option value="MTs">MTs (Madrasah Tsanawiyah)</option>
-                  </CustomSelect>
+                  <CustomSelect 
+                    v-model="form.jenjang" 
+                    :options="jenisLembagaOptions" 
+                    size="sm" 
+                    placeholder="Pilih Jenis Lembaga..." 
+                  />
                 </div>
 
                 <!-- Status -->
@@ -1024,10 +1080,12 @@ const allJemberKecamatan = [
                   <label class="form-label fs-12 fw-semibold custom-modal-label">
                     Status Sekolah <span class="text-danger">*</span>
                   </label>
-                  <CustomSelect v-model="form.status" size="sm">
-                    <option value="Negeri">Negeri</option>
-                    <option value="Swasta">Swasta</option>
-                  </CustomSelect>
+                  <CustomSelect 
+                    v-model="form.status" 
+                    :options="statusSekolahOptions" 
+                    size="sm" 
+                    placeholder="Pilih Status..." 
+                  />
                 </div>
 
                 <!-- Kecamatan -->
@@ -1035,11 +1093,14 @@ const allJemberKecamatan = [
                   <label class="form-label fs-12 fw-semibold custom-modal-label">
                     Kecamatan (Kabupaten Jember) <span class="text-danger">*</span>
                   </label>
-                  <CustomSelect v-model="form.kecamatan" size="sm" searchable search-placeholder="Cari kecamatan...">
-                    <option v-for="kec in allJemberKecamatan" :key="kec" :value="kec">
-                      Kecamatan {{ kec }}
-                    </option>
-                  </CustomSelect>
+                  <CustomSelect 
+                    v-model="form.kecamatan" 
+                    :options="kecamatanOptions" 
+                    size="sm" 
+                    searchable 
+                    search-placeholder="Cari kecamatan..." 
+                    placeholder="Pilih Kecamatan..." 
+                  />
                 </div>
 
                 <!-- NPSN -->

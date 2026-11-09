@@ -125,6 +125,10 @@ class SchoolController extends Controller
      */
     public function store(Request $request)
     {
+        if ($request->has('jenis_lembaga') && !$request->has('jenjang')) {
+            $request->merge(['jenjang' => $request->input('jenis_lembaga')]);
+        }
+
         $validated = $request->validate([
             'name'           => 'required|string|max:150',
             'jenjang'        => 'required|in:SMP,MTs,smp,mts',
@@ -137,10 +141,13 @@ class SchoolController extends Controller
             'principal_name' => 'nullable|string|max:150',
         ]);
 
+        $validated['jenjang'] = (strtoupper($validated['jenjang']) === 'MTS') ? 'MTs' : 'SMP';
+        $validated['status'] = ucfirst(strtolower($validated['status']));
+
         School::create([
             'name'           => $validated['name'],
-            'jenjang'        => strtoupper($validated['jenjang']),
-            'status'         => ucfirst(strtolower($validated['status'])),
+            'jenjang'        => $validated['jenjang'],
+            'status'         => $validated['status'],
             'kecamatan'      => $validated['kecamatan'],
             'kabupaten'      => 'Kabupaten Jember',
             'npsn'           => $validated['npsn'] ?? null,
@@ -165,6 +172,10 @@ class SchoolController extends Controller
     {
         $school = School::findOrFail($id);
 
+        if ($request->has('jenis_lembaga') && !$request->has('jenjang')) {
+            $request->merge(['jenjang' => $request->input('jenis_lembaga')]);
+        }
+
         $validated = $request->validate([
             'name'           => 'required|string|max:150',
             'jenjang'        => 'required|in:SMP,MTs,smp,mts',
@@ -178,7 +189,7 @@ class SchoolController extends Controller
             'is_active'      => 'sometimes|boolean',
         ]);
 
-        $validated['jenjang'] = strtoupper($validated['jenjang']);
+        $validated['jenjang'] = (strtoupper($validated['jenjang']) === 'MTS') ? 'MTs' : 'SMP';
         $validated['status'] = ucfirst(strtolower($validated['status']));
 
         $oldName = $school->name;

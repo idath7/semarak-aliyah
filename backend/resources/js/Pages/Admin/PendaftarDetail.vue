@@ -36,6 +36,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  detailedParticipants: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 const toast = useToast();
@@ -209,6 +213,26 @@ const repeaterFieldDef = computed(() => {
 
 // 1. Data Delegasi Peserta (Peserta Siswa) Terstruktur & Lengkap
 const participantsTableData = computed(() => {
+  // Prioritas Utama: Gunakan detailedParticipants dari backend Model Registration (Single Source of Truth)
+  if (Array.isArray(props.detailedParticipants) && props.detailedParticipants.length > 0) {
+    return props.detailedParticipants.map((m, idx) => ({
+      no: m.no || (idx + 1),
+      name: m.name || `Peserta ${idx + 1}`,
+      nisn: m.nisn || '-',
+      gender: m.gender || '-',
+      grade: m.grade || '-',
+      birth_date: m.birth_date || null,
+      wa: m.wa_number || null,
+      is_captain: Boolean(m.is_captain),
+      team_role: m.team_role || (m.is_captain ? 'Kapten' : 'Anggota'),
+      custom_id: m.custom_id || null,
+      photo: m.photo ? getFileUrl(m.photo) : null,
+      photo_freestyle: m.photo_freestyle ? getFileUrl(m.photo_freestyle) : null,
+      custom_columns: m.custom_columns || {},
+      source: m.source || 'Data Delegasi',
+    }));
+  }
+
   const result = [];
   const cv = customValues.value || {};
 
@@ -1132,6 +1156,7 @@ function sendOfficialNotification(templateKey) {
                                   <div class="d-flex align-items-center gap-1.5 mb-1 flex-wrap">
                                     <h6 class="fs-13 fw-bold text-dark mb-0 text-truncate">{{ member.name }}</h6>
                                     <span v-if="member.is_captain" class="badge bg-warning text-dark fs-10 fw-bold"><i class="ri-shield-user-fill"></i> Kapten</span>
+                                    <span v-if="member.custom_id" class="badge bg-light text-muted border fs-10 font-monospace">ID: {{ member.custom_id }}</span>
                                   </div>
                                   <div class="fs-11 text-muted d-flex flex-column gap-0.5">
                                     <div v-if="member.nisn && member.nisn !== '-'"><span class="fw-semibold text-dark font-monospace">NISN:</span> {{ member.nisn }}</div>
@@ -1141,6 +1166,11 @@ function sendOfficialNotification(templateKey) {
                                     </div>
                                     <div v-if="member.birth_date"><i class="ri-cake-2-line text-warning me-0.5"></i> {{ formatDateOnly(member.birth_date) }}</div>
                                     <div v-if="member.wa"><a :href="getWaChatUrl(member.wa)" target="_blank" class="text-success text-decoration-none"><i class="ri-whatsapp-line"></i> {{ member.wa }}</a></div>
+                                    <div v-if="member.custom_columns && Object.keys(member.custom_columns).length" class="mt-1 d-flex flex-wrap gap-1">
+                                      <span v-for="(cVal, cKey) in member.custom_columns" :key="cKey" class="badge bg-white text-dark border fs-10">
+                                        <span class="text-muted text-capitalize">{{ cKey.replace(/_/g, ' ') }}:</span> {{ cVal }}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               </div>

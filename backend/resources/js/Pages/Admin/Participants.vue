@@ -298,6 +298,30 @@ function getInitials(name) {
   if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
+
+function isFemale(gender) {
+  if (!gender || gender === '-') return false;
+  const g = String(gender).toLowerCase().trim();
+  return g === 'p' || g === 'perempuan' || g === 'putri' || g === 'wanita' || g === 'female' || g === 'akhwat';
+}
+
+function isMale(gender) {
+  if (!gender || gender === '-') return false;
+  const g = String(gender).toLowerCase().trim();
+  return g === 'l' || g === 'laki-laki' || g === 'pria' || g === 'putra' || g === 'male' || g === 'ikhwan';
+}
+
+function formatGenderLabel(gender) {
+  if (isFemale(gender)) return 'P';
+  if (isMale(gender)) return 'L';
+  return '-';
+}
+
+function formatGenderFull(gender) {
+  if (isFemale(gender)) return 'Perempuan';
+  if (isMale(gender)) return 'Laki-laki';
+  return gender || '-';
+}
 </script>
 
 <template>
@@ -662,7 +686,7 @@ function getInitials(name) {
                     <span 
                       v-else 
                       class="avatar-title rounded-circle fs-11 fw-bold border"
-                      :class="item.gender === 'Perempuan' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary'"
+                      :class="isFemale(item.gender) ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary'"
                     >
                       {{ getInitials(item.name) }}
                     </span>
@@ -670,7 +694,7 @@ function getInitials(name) {
                     <span 
                       v-if="item.is_captain" 
                       class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark p-0.5 border border-white"
-                      title="Kapten / Ketua Regu"
+                      title="Kapten / Ketua Tim"
                       style="font-size: 8px;"
                     >
                       <i class="ri-vip-crown-fill"></i>
@@ -691,9 +715,14 @@ function getInitials(name) {
                       <span 
                         v-if="item.gender && item.gender !== '-'"
                         class="badge fs-9 px-1 py-0.5"
-                        :class="item.gender === 'Perempuan' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary'"
+                        :class="isFemale(item.gender) ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary'"
+                        :title="formatGenderFull(item.gender)"
                       >
-                        {{ item.gender === 'Perempuan' ? 'P' : 'L' }}
+                        {{ formatGenderLabel(item.gender) }}
+                      </span>
+                      <!-- ID Khusus / No Dada Badge -->
+                      <span v-if="item.custom_id" class="badge bg-light text-muted border fs-9 font-monospace" title="ID Khusus / No. Dada">
+                        ID: {{ item.custom_id }}
                       </span>
                     </div>
 
@@ -1024,7 +1053,7 @@ function getInitials(name) {
                     v-if="activeStudent.is_captain" 
                     class="position-absolute bottom-0 start-50 translate-middle-x mb-2 badge bg-warning text-dark px-2 py-1 shadow-sm fs-11"
                   >
-                    <i class="ri-vip-crown-fill me-1"></i> Kapten Regu
+                    <i class="ri-vip-crown-fill me-1"></i> {{ activeStudent.team_role || 'Ketua / Kapten' }}
                   </div>
                 </div>
 
@@ -1038,14 +1067,14 @@ function getInitials(name) {
                     :class="activeStudent.participant_type === 'tim' ? 'bg-purple-subtle text-purple border' : 'bg-primary-subtle text-primary border border-primary-subtle'"
                     :style="activeStudent.participant_type === 'tim' ? 'background-color: rgba(139, 92, 246, 0.1); color: #7c3aed;' : ''"
                   >
-                    {{ activeStudent.participant_type === 'tim' ? 'Lomba Tim / Regu' : 'Lomba Individu' }}
+                    {{ activeStudent.participant_type === 'tim' ? 'Lomba Tim' : 'Lomba Individu' }}
                   </span>
                   <span 
                     v-if="activeStudent.gender && activeStudent.gender !== '-'" 
                     class="badge px-2 py-1 fs-11"
-                    :class="activeStudent.gender === 'Perempuan' ? 'bg-danger-subtle text-danger' : 'bg-info-subtle text-info'"
+                    :class="isFemale(activeStudent.gender) ? 'bg-danger-subtle text-danger' : 'bg-info-subtle text-info'"
                   >
-                    {{ activeStudent.gender }}
+                    {{ formatGenderFull(activeStudent.gender) }}
                   </span>
                 </div>
 
@@ -1096,6 +1125,24 @@ function getInitials(name) {
                           <i class="ri-whatsapp-line me-0.5"></i> {{ activeStudent.wa_number }}
                         </a>
                         <span v-else class="text-muted fs-12">-</span>
+                      </div>
+                    </div>
+                    <!-- No. Dada / ID Game jika ada -->
+                    <div class="col-12" v-if="activeStudent.custom_id">
+                      <div class="p-2.5 rounded bg-light border d-flex align-items-center justify-content-between">
+                        <span class="text-muted fs-11">No. Dada / ID Game / Peran:</span>
+                        <span class="fw-bold text-dark fs-12 font-monospace">{{ activeStudent.custom_id }}</span>
+                      </div>
+                    </div>
+                    <!-- Data Khusus Tambahan jika ada -->
+                    <div class="col-12" v-if="activeStudent.custom_columns && Object.keys(activeStudent.custom_columns).length">
+                      <div class="p-2.5 rounded bg-light border">
+                        <span class="text-muted fs-11 d-block mb-1">Data Tambahan Khusus:</span>
+                        <div class="d-flex flex-wrap gap-1.5">
+                          <span v-for="(cVal, cKey) in activeStudent.custom_columns" :key="cKey" class="badge bg-white text-dark border fs-11">
+                            <span class="text-muted text-capitalize">{{ cKey.replace(/_/g, ' ') }}:</span> {{ cVal }}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -288,6 +288,7 @@ class AdminPanelController extends Controller
             'prevRegistration' => $prevReg,
             'nextRegistration' => $nextReg,
             'relatedRegistrations' => $relatedRegistrations,
+            'detailedParticipants' => $registration->detailed_participants,
         ]);
     }
 
@@ -3992,54 +3993,22 @@ class AdminPanelController extends Controller
                     $hasPending = true;
                 }
 
-                // Hitung delegasi siswa
-                $studentsList = [];
-                $cf = $reg->custom_fields ?? [];
-
-                // 1. Cek dari field delegates manual
-                if (!empty($cf['delegates']) && is_array($cf['delegates'])) {
-                    $studentsList = $cf['delegates'];
-                } else {
-                    // 2. Cek dari form builder repeater
-                    foreach ($cf as $k => $val) {
-                        if (is_array($val) && count($val) > 0 && isset($val[0]) && (isset($val[0]['nama_lengkap']) || isset($val[0]['nama_siswa']) || isset($val[0]['name']))) {
-                            foreach ($val as $row) {
-                                $studentsList[] = [
-                                    'name' => $row['nama_lengkap'] ?? $row['nama_siswa'] ?? $row['name'] ?? 'Siswa Delegasi',
-                                    'nisn' => $row['nisn'] ?? '-',
-                                    'gender' => $row['jenis_kelamin'] ?? $row['gender'] ?? '-',
-                                    'grade' => $row['kelas'] ?? $row['tingkat'] ?? '-',
-                                ];
-                            }
-                        }
-                    }
-                }
-
-                // 3. Fallback parsing dari participants_names
-                if (empty($studentsList) && !empty($reg->participants_names)) {
-                    $pParts = preg_split('/[\r\n,;]+/', $reg->participants_names);
-                    foreach ($pParts as $pName) {
-                        $cleanP = trim(preg_replace('/^\d+[\.\)\-]\s*/', '', $pName));
-                        if (!empty($cleanP)) {
-                            $studentsList[] = [
-                                'name' => $cleanP,
-                                'nisn' => '-',
-                                'gender' => '-',
-                                'grade' => '-',
-                            ];
-                        }
-                    }
-                }
-
-                $cCount = max(1, count($studentsList));
+                // Hitung delegasi siswa secara seragam via Model Registration (Single Source of Truth)
+                $studentsList = $reg->detailed_participants;
+                $cCount = count($studentsList);
                 $schoolStudentCount += $cCount;
+
+                $rawCompType = strtolower((string)($reg->competition?->participant_type ?? 'individu'));
+                $isTeamComp = in_array($rawCompType, ['tim', 'beregu', 'team', 'grup', 'group']);
+                $participantType = $isTeamComp ? 'tim' : 'individu';
 
                 $competitionsFollowed[] = [
                     'registration_id' => $reg->id,
                     'reg_code' => $reg->reg_code,
                     'competition_id' => $reg->competition_id,
-                    'competition_title' => $reg->competition_title,
+                    'competition_title' => $reg->competition_title ?: ($reg->competition->title ?? '-'),
                     'category_name' => $reg->competition?->category?->name ?? 'Umum',
+                    'participant_type' => $participantType,
                     'package_type' => $reg->package_type,
                     'total_fee' => (int)$reg->total_fee,
                     'payment_status' => $reg->payment_status,
@@ -4203,6 +4172,8 @@ class AdminPanelController extends Controller
                     'wa_number' => $del['wa_number'] ?? null,
                     'is_captain' => (bool)($del['is_captain'] ?? false),
                     'team_role' => $del['team_role'] ?? ($participantType === 'tim' ? 'Anggota' : 'Peserta Tunggal'),
+                    'custom_id' => $del['custom_id'] ?? null,
+                    'custom_columns' => $del['custom_columns'] ?? [],
                     'photo' => $del['photo'] ?? null,
                     'photo_freestyle' => $del['photo_freestyle'] ?? null,
                     'source' => $del['source'] ?? 'Pendaftaran',
@@ -4294,6 +4265,8 @@ class AdminPanelController extends Controller
                     'wa_number' => $del['wa_number'] ?? null,
                     'is_captain' => $isCapt,
                     'team_role' => $role,
+                    'custom_id' => $del['custom_id'] ?? null,
+                    'custom_columns' => $del['custom_columns'] ?? [],
                     'photo' => $del['photo'] ?? null,
                     'school_name' => $school,
                     'school_district' => $district,
@@ -4441,6 +4414,8 @@ class AdminPanelController extends Controller
                     'wa_number' => $del['wa_number'] ?? null,
                     'is_captain' => $isCapt,
                     'team_role' => $role,
+                    'custom_id' => $del['custom_id'] ?? null,
+                    'custom_columns' => $del['custom_columns'] ?? [],
                     'photo' => $del['photo'] ?? null,
                     'school_name' => $school,
                     'school_district' => $district,

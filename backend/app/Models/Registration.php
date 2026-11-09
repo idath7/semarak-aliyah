@@ -331,6 +331,58 @@ class Registration extends Model
 
         $leaderTitle = $resolveLeaderTitle();
 
+        $compTitleStr = $this->competition_title ?: ($comp->title ?? '');
+        $isFemaleComp = (bool)preg_match('/\b(putri|wanita|female|akhwat)\b/i', $compTitleStr);
+        $isMaleComp = (bool)preg_match('/\b(putra|pria|male|ikhwan)\b/i', $compTitleStr);
+
+        // Helper normalisasi tanggal lahir ke standar dd/mm/yyyy (Rule 4)
+        $formatBirthDate = function (?string $rawDate): ?string {
+            if (empty($rawDate) || $rawDate === '-') return null;
+            $rawDate = trim($rawDate);
+            if (preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $rawDate, $m)) {
+                return "{$m[3]}/{$m[2]}/{$m[1]}";
+            }
+            if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/', $rawDate, $m)) {
+                $d = str_pad($m[1], 2, '0', STR_PAD_LEFT);
+                $mo = str_pad($m[2], 2, '0', STR_PAD_LEFT);
+                return "{$d}/{$mo}/{$m[3]}";
+            }
+            return $rawDate;
+        };
+
+        // Helper normalisasi jenis kelamin ke 'Laki-laki' / 'Perempuan'
+        $formatGender = function (?string $rawGender) use ($isFemaleComp, $isMaleComp): string {
+            if (empty($rawGender) || $rawGender === '-') {
+                if ($isFemaleComp) return 'Perempuan';
+                if ($isMaleComp) return 'Laki-laki';
+                return '-';
+            }
+            $raw = strtolower(trim($rawGender));
+            if (
+                $raw === 'p' || 
+                str_contains($raw, 'perempuan') || 
+                str_contains($raw, 'wanita') || 
+                str_contains($raw, 'putri') || 
+                str_contains($raw, 'female') ||
+                str_contains($raw, 'akhwat')
+            ) {
+                return 'Perempuan';
+            }
+            if (
+                $raw === 'l' || 
+                str_contains($raw, 'laki') || 
+                str_contains($raw, 'pria') || 
+                str_contains($raw, 'putra') || 
+                $raw === 'male' ||
+                str_contains($raw, 'ikhwan')
+            ) {
+                return 'Laki-laki';
+            }
+            if ($isFemaleComp) return 'Perempuan';
+            if ($isMaleComp) return 'Laki-laki';
+            return ucfirst($rawGender);
+        };
+
         // Helper untuk memformat URL foto jika ada
         $formatPhotoUrl = function (?string $path): ?string {
             if (empty($path) || $path === '-') return null;
@@ -338,6 +390,31 @@ class Registration extends Model
                 return $path;
             }
             return '/storage/' . ltrim($path, '/');
+        };
+
+        // Helper ekstraksi kolom tambahan kustom di luar field standar
+        $extractCustomCols = function (array $item): array {
+            $cols = [];
+            if (!empty($item['custom_columns']) && is_array($item['custom_columns'])) {
+                $cols = $item['custom_columns'];
+            }
+            $standardKeys = [
+                'name', 'nama', 'nama_siswa', 'nama_lengkap', 'nama_peserta', 'student_name',
+                'nisn', 'nisn_siswa', 'gender', 'jenis_kelamin', 'jk', 'sex',
+                'grade', 'kelas', 'kelas_siswa', 'tingkat',
+                'birth_date', 'tanggal_lahir', 'tgl_lahir', 'tanggal_lahir_siswa', 'tgl_lahir_siswa',
+                'custom_id', 'id_peserta', 'id_game', 'no_dada', 'no_punggung', 'alat_musik', 'peran_musik',
+                'wa_number', 'no_wa_siswa', 'wa_siswa', 'nomor_wa_siswa', 'wa_peserta', 'wa', 'phone', 'whatsapp',
+                'is_captain', 'captain_option', 'captain_wa', 'team_role', 'peran', 'role',
+                'photo', 'foto', 'photo_formal', 'foto_formal', 'pas_foto', 'foto_siswa',
+                'photo_freestyle', 'foto_bebas', 'custom_columns', 'index'
+            ];
+            foreach ($item as $k => $v) {
+                if (!in_array($k, $standardKeys) && !is_array($v) && !is_object($v) && $v !== null && $v !== '') {
+                    $cols[$k] = (string)$v;
+                }
+            }
+            return $cols;
         };
 
         // 1. Cek dari $cf['delegates'] (biasanya diisi panitia / manual)
@@ -362,21 +439,24 @@ class Registration extends Model
                         : ($isCaptain ? $leaderTitle : 'Anggota');
                 }
 
-                $rawWa = $st['wa_number'] ?? ($isCaptain ? ($st['captain_wa'] ?? null) : null) ?? $st['wa'] ?? $st['phone'] ?? null;
+                $rawWa = $st['wa_number'] ?? ($isCaptain ? ($st['captain_wa'] ?? null) : null) ?? $st['wa'] ?? $st['phone'] ?? $st['whatsapp'] ?? null;
                 $cleanWa = trim((string)$rawWa);
+                $customId = trim($st['custom_id'] ?? $st['id_peserta'] ?? $st['id_game'] ?? $st['no_dada'] ?? $st['no_punggung'] ?? $st['peran_musik'] ?? '');
 
                 $participants[] = [
                     'index' => $idx + 1,
                     'name' => $name,
-                    'nisn' => trim($st['nisn'] ?? '-') ?: '-',
-                    'gender' => trim($st['gender'] ?? $st['jenis_kelamin'] ?? '-') ?: '-',
+                    'nisn' => trim($st['nisn'] ?? $st['nisn_siswa'] ?? '-') ?: '-',
+                    'gender' => $formatGender($st['gender'] ?? $st['jenis_kelamin'] ?? $st['jk'] ?? '-'),
                     'grade' => $grade ?: '-',
-                    'birth_date' => $st['birth_date'] ?? $st['tanggal_lahir'] ?? null,
+                    'birth_date' => $formatBirthDate($st['birth_date'] ?? $st['tanggal_lahir'] ?? $st['tgl_lahir'] ?? $st['tanggal_lahir_siswa'] ?? null),
                     'wa_number' => ($cleanWa !== '' && $cleanWa !== '-') ? $cleanWa : null,
                     'is_captain' => (bool)$isCaptain,
                     'team_role' => $teamRole,
-                    'photo' => $formatPhotoUrl($st['photo_formal'] ?? ($st['photo'] ?? null)),
-                    'photo_freestyle' => $formatPhotoUrl($st['photo_freestyle'] ?? null),
+                    'custom_id' => $customId !== '' ? $customId : null,
+                    'custom_columns' => $extractCustomCols($st),
+                    'photo' => $formatPhotoUrl($st['photo_formal'] ?? ($st['photo'] ?? ($st['foto_formal'] ?? ($st['foto'] ?? null)))),
+                    'photo_freestyle' => $formatPhotoUrl($st['photo_freestyle'] ?? ($st['foto_bebas'] ?? null)),
                     'source' => 'Delegasi Terstruktur',
                 ];
             }
@@ -386,7 +466,7 @@ class Registration extends Model
             }
         }
 
-        // 2. Cek dari form builder repeater ($cf['biodata_peserta'], $cf['participants'], dll)
+        // 2. Cek dari form builder repeater ($cf['biodata_peserta'], $cf['roster_tim'], $cf['participants'], dll)
         $repeater = null;
         foreach ($cf as $k => $val) {
             if (is_array($val) && count($val) > 0 && isset($val[0]) && is_array($val[0])) {
@@ -418,19 +498,22 @@ class Registration extends Model
                         : ($isCaptain ? $leaderTitle : 'Anggota');
                 }
 
-                $rawWa = $st['wa_siswa'] ?? $st['no_wa_siswa'] ?? $st['nomor_wa_siswa'] ?? $st['wa_number'] ?? ($isCaptain ? ($st['captain_wa'] ?? null) : null) ?? $st['wa'] ?? null;
+                $rawWa = $st['wa_siswa'] ?? $st['no_wa_siswa'] ?? $st['nomor_wa_siswa'] ?? $st['wa_number'] ?? ($isCaptain ? ($st['captain_wa'] ?? null) : null) ?? $st['wa'] ?? $st['whatsapp'] ?? $st['phone'] ?? null;
                 $cleanWa = trim((string)$rawWa);
+                $customId = trim($st['custom_id'] ?? $st['id_peserta'] ?? $st['id_game'] ?? $st['no_dada'] ?? $st['no_punggung'] ?? $st['alat_musik'] ?? $st['peran_musik'] ?? '');
 
                 $participants[] = [
                     'index' => $idx + 1,
                     'name' => $name,
                     'nisn' => trim($st['nisn'] ?? $st['nisn_siswa'] ?? '-') ?: '-',
-                    'gender' => trim($st['jenis_kelamin'] ?? $st['gender'] ?? '-') ?: '-',
+                    'gender' => $formatGender($st['jenis_kelamin'] ?? $st['gender'] ?? $st['jk'] ?? '-'),
                     'grade' => $grade ?: '-',
-                    'birth_date' => $st['tanggal_lahir'] ?? $st['tgl_lahir'] ?? $st['birth_date'] ?? null,
+                    'birth_date' => $formatBirthDate($st['tanggal_lahir'] ?? $st['tgl_lahir'] ?? $st['birth_date'] ?? $st['tanggal_lahir_siswa'] ?? null),
                     'wa_number' => ($cleanWa !== '' && $cleanWa !== '-') ? $cleanWa : null,
                     'is_captain' => (bool)$isCaptain,
                     'team_role' => $teamRole,
+                    'custom_id' => $customId !== '' ? $customId : null,
+                    'custom_columns' => $extractCustomCols($st),
                     'photo' => $formatPhotoUrl($st['foto_formal'] ?? ($st['pas_foto'] ?? ($st['foto_siswa'] ?? ($st['photo_formal'] ?? ($st['photo'] ?? null))))),
                     'photo_freestyle' => $formatPhotoUrl($st['foto_bebas'] ?? ($st['photo_freestyle'] ?? null)),
                     'source' => 'Formulir Pendaftaran (Repeater)',
@@ -450,16 +533,22 @@ class Registration extends Model
                 $grade = 'Kelas ' . $grade;
             }
 
+            $rawWa = $cf['wa_siswa'] ?? $cf['no_wa_siswa'] ?? $cf['nomor_wa_siswa'] ?? $cf['wa_peserta'] ?? $cf['wa_number'] ?? $cf['whatsapp'] ?? $cf['phone'] ?? null;
+            $cleanWa = trim((string)$rawWa);
+            $customId = trim($cf['custom_id'] ?? $cf['id_peserta'] ?? $cf['id_game'] ?? $cf['no_dada'] ?? $cf['no_punggung'] ?? '');
+
             $participants[] = [
                 'index' => 1,
                 'name' => $singleName,
                 'nisn' => trim($cf['nisn'] ?? $cf['nisn_siswa'] ?? '-') ?: '-',
-                'gender' => trim($cf['jenis_kelamin'] ?? $cf['gender'] ?? '-') ?: '-',
+                'gender' => $formatGender($cf['jenis_kelamin'] ?? $cf['gender'] ?? $cf['jk'] ?? '-'),
                 'grade' => $grade ?: '-',
-                'birth_date' => $cf['tanggal_lahir'] ?? $cf['tgl_lahir'] ?? $cf['birth_date'] ?? null,
-                'wa_number' => $cf['wa_siswa'] ?? $cf['no_wa_siswa'] ?? $cf['nomor_wa_siswa'] ?? $cf['wa_peserta'] ?? null,
+                'birth_date' => $formatBirthDate($cf['tanggal_lahir'] ?? $cf['tgl_lahir'] ?? $cf['birth_date'] ?? $cf['tanggal_lahir_siswa'] ?? null),
+                'wa_number' => ($cleanWa !== '' && $cleanWa !== '-') ? $cleanWa : null,
                 'is_captain' => false,
                 'team_role' => 'Peserta Tunggal',
+                'custom_id' => $customId !== '' ? $customId : null,
+                'custom_columns' => $extractCustomCols($cf),
                 'photo' => $formatPhotoUrl($cf['foto_formal'] ?? ($cf['pas_foto'] ?? ($cf['foto_siswa'] ?? ($cf['photo_formal'] ?? ($cf['photo'] ?? null))))),
                 'photo_freestyle' => $formatPhotoUrl($cf['foto_bebas'] ?? ($cf['photo_freestyle'] ?? null)),
                 'source' => 'Formulir Pendaftaran (Tunggal)',
@@ -530,13 +619,25 @@ class Registration extends Model
                     }
 
                     // Cari Gender L / P
-                    if (preg_match('/\b(Laki-laki|Perempuan|L\/P|L|P)\b/i', $inside, $genderM)) {
-                        $g = strtoupper($genderM[1]);
-                        $gender = str_starts_with($g, 'L') ? 'Laki-laki' : (str_starts_with($g, 'P') ? 'Perempuan' : $genderM[1]);
+                    if (preg_match('/\b(Laki-laki|Perempuan|Wanita|Pria|Putri|Putra|L\/P|L|P)\b/i', $inside, $genderM)) {
+                        $gender = $formatGender($genderM[1]);
                     }
 
                     if ($potentialName !== '') {
                         $name = $potentialName;
+                    }
+                }
+
+                // Jika belum terdeteksi dari dalam kurung, cari dari teks baris
+                if ($gender === '-') {
+                    if (preg_match('/\b(Laki-laki|Perempuan|Wanita|Pria|Putri|Putra)\b/i', $clean, $gmClean)) {
+                        $gender = $formatGender($gmClean[1]);
+                    } elseif (preg_match('/[,\s-](L|P)[,\s-]?$/i', $clean, $gmClean2)) {
+                        $gender = $formatGender($gmClean2[1]);
+                    } elseif ($isFemaleComp) {
+                        $gender = 'Perempuan';
+                    } elseif ($isMaleComp) {
+                        $gender = 'Laki-laki';
                     }
                 }
 
@@ -564,12 +665,14 @@ class Registration extends Model
                         'index' => $idx + 1,
                         'name' => $name,
                         'nisn' => $nisn,
-                        'gender' => $gender,
+                        'gender' => $formatGender($gender),
                         'grade' => $grade ?: '-',
                         'birth_date' => null,
                         'wa_number' => null,
                         'is_captain' => (bool)$isCaptain,
                         'team_role' => $teamRole,
+                        'custom_id' => null,
+                        'custom_columns' => [],
                         'photo' => null,
                         'photo_freestyle' => null,
                         'source' => 'Catatan Delegasi (Teks)',
@@ -588,12 +691,14 @@ class Registration extends Model
                 'index' => 1,
                 'name' => 'Delegasi ' . ($this->school_name ?: 'Peserta'),
                 'nisn' => '-',
-                'gender' => '-',
+                'gender' => $isFemaleComp ? 'Perempuan' : ($isMaleComp ? 'Laki-laki' : '-'),
                 'grade' => '-',
                 'birth_date' => null,
                 'wa_number' => null,
                 'is_captain' => false,
                 'team_role' => $isCompTeam ? 'Perwakilan Tim' : 'Peserta Tunggal',
+                'custom_id' => null,
+                'custom_columns' => [],
                 'photo' => null,
                 'photo_freestyle' => null,
                 'source' => 'Data Induk Registrasi',

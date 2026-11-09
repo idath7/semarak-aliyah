@@ -83,6 +83,13 @@ function formatRupiah(num) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
 }
 
+function getInitials(name) {
+  if (!name) return 'PS';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
 // -----------------------------------------------------------------------------
 // DETAIL MODAL STATE
 // -----------------------------------------------------------------------------
@@ -92,6 +99,34 @@ const activeSchool = ref(null);
 function openSchoolDetail(school) {
   activeSchool.value = school;
   showDetailModal.value = true;
+}
+
+// -----------------------------------------------------------------------------
+// DETAIL BIODATA SISWA PESERTA (MODAL SISWA)
+// -----------------------------------------------------------------------------
+const showStudentBiodataModal = ref(false);
+const activeStudentBiodata = ref(null);
+
+function openStudentBiodata(st, comp, school) {
+  activeStudentBiodata.value = {
+    ...st,
+    name: st.name || st.nama_lengkap || 'Siswa',
+    competition_title: comp?.competition_title || '-',
+    registration_id: comp?.registration_id,
+    reg_code: comp?.reg_code,
+    school_name: school?.school_name || '-',
+    school_district: school?.kecamatan || '',
+    mentor_name: school?.mentor_name || '-',
+    mentor_wa: school?.mentor_wa || '-',
+    team_role: st.team_role || (st.is_captain ? 'Ketua / Kapten' : (comp?.participant_type === 'tim' ? 'Anggota' : 'Peserta Tunggal')),
+    source: st.source || 'Data Delegasi',
+  };
+  showStudentBiodataModal.value = true;
+}
+
+function closeStudentBiodataModal() {
+  showStudentBiodataModal.value = false;
+  activeStudentBiodata.value = null;
 }
 
 // -----------------------------------------------------------------------------
@@ -1142,7 +1177,7 @@ function openParticipantModal(compReg, schoolContext = null) {
         custom_id: st.custom_id || '',
         wa_number: st.wa_number || '',
         is_captain: !!st.is_captain,
-        captain_wa: st.captain_wa || '',
+        captain_wa: st.captain_wa || (st.is_captain ? (st.wa_number || '') : ''),
         photo_formal: st.photo_formal || st.photo || null,
         photo_freestyle: st.photo_freestyle || [],
         custom_columns: st.custom_columns || {},
@@ -2083,23 +2118,125 @@ function printReport() {
 
                     <!-- Tabel Delegasi Siswa -->
                     <div v-if="comp.students && comp.students.length > 0" class="table-responsive">
-                      <table class="table table-sm table-bordered mb-0 fs-11">
-                        <thead class="table-light">
+                      <table class="table table-sm table-bordered align-middle mb-0 fs-11">
+                        <thead class="table-light fs-11 text-muted text-uppercase">
                           <tr>
-                            <th style="width: 25px;" class="text-center">#</th>
-                            <th>Nama Siswa</th>
-                            <th>NISN</th>
-                            <th>L/P</th>
-                            <th>Kelas</th>
+                            <th style="width: 28px;" class="text-center">#</th>
+                            <th style="min-width: 150px;">Nama Siswa</th>
+                            <th style="width: 85px;" class="text-center">NISN</th>
+                            <th style="width: 32px;" class="text-center">L/P</th>
+                            <th style="width: 55px;" class="text-center">Kelas</th>
+                            <th style="min-width: 90px;" class="text-center">Peran Tim</th>
+                            <th style="min-width: 100px;">Kontak WA</th>
+                            <th style="width: 40px;" class="text-center">Profil</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr v-for="(st, stI) in comp.students" :key="stI">
-                            <td class="text-center text-muted">{{ stI + 1 }}</td>
-                            <td class="fw-semibold text-dark">{{ st.name || st.nama_lengkap || '-' }}</td>
-                            <td class="font-monospace text-muted">{{ st.nisn || '-' }}</td>
-                            <td>{{ st.gender || '-' }}</td>
-                            <td>{{ st.grade || '-' }}</td>
+                            <td class="text-center text-muted fw-semibold">{{ stI + 1 }}</td>
+                            <td>
+                              <div class="d-flex align-items-center gap-2">
+                                <!-- Avatar / Initial Siswa -->
+                                <div 
+                                  class="avatar-2xs flex-shrink-0 position-relative cursor-pointer" 
+                                  style="width: 24px; height: 24px;"
+                                  @click="openStudentBiodata(st, comp, activeSchool)"
+                                  title="Lihat Profil Lengkap Siswa"
+                                >
+                                  <img 
+                                    v-if="st.photo" 
+                                    :src="st.photo" 
+                                    :alt="st.name"
+                                    class="rounded-circle w-100 h-100 object-fit-cover border shadow-2xs" 
+                                    @error="$event.target.style.display='none'"
+                                  />
+                                  <span 
+                                    v-else 
+                                    class="avatar-title rounded-circle fs-10 fw-bold border"
+                                    :class="st.gender === 'Perempuan' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary'"
+                                  >
+                                    {{ getInitials(st.name || st.nama_lengkap || 'S') }}
+                                  </span>
+                                  <!-- Crown icon if captain/ketua -->
+                                  <span 
+                                    v-if="st.is_captain" 
+                                    class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark p-0.5 border border-white"
+                                    :title="st.team_role || 'Ketua / Kapten Tim'"
+                                    style="font-size: 7px;"
+                                  >
+                                    <i class="ri-vip-crown-fill"></i>
+                                  </span>
+                                </div>
+                                <div class="min-w-0">
+                                  <div class="d-flex align-items-center gap-1 flex-wrap">
+                                    <span 
+                                      class="fw-semibold text-dark text-truncate cursor-pointer text-hover-primary" 
+                                      :title="st.name || st.nama_lengkap"
+                                      @click="openStudentBiodata(st, comp, activeSchool)"
+                                    >
+                                      {{ st.name || st.nama_lengkap || '-' }}
+                                    </span>
+                                    <span v-if="st.custom_id" class="badge bg-light text-muted border fs-9 font-monospace" title="ID Khusus / No. Dada">
+                                      ID: {{ st.custom_id }}
+                                    </span>
+                                  </div>
+                                  <span v-if="st.birth_date" class="text-muted fs-10 d-block">
+                                    <i class="ri-calendar-event-line text-primary me-0.5"></i> Lahir: {{ st.birth_date }}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td class="font-monospace text-muted text-center">{{ st.nisn || '-' }}</td>
+                            <td class="text-center">
+                              <span v-if="st.gender === 'Perempuan'" class="badge bg-danger-subtle text-danger fs-10 px-1">P</span>
+                              <span v-else-if="st.gender === 'Laki-laki'" class="badge bg-primary-subtle text-primary fs-10 px-1">L</span>
+                              <span v-else class="text-muted">-</span>
+                            </td>
+                            <td class="text-center">{{ st.grade || '-' }}</td>
+                            <td class="text-center">
+                              <span 
+                                v-if="st.is_captain"
+                                class="badge border fs-10 px-1.5 py-0.5 fw-semibold badge-captain"
+                              >
+                                <i class="ri-vip-crown-fill me-0.5"></i> {{ st.team_role || 'Ketua' }}
+                              </span>
+                              <span 
+                                v-else-if="comp.participant_type === 'tim'"
+                                class="badge border fs-10 px-1.5 py-0.5 badge-member"
+                              >
+                                {{ st.team_role || 'Anggota' }}
+                              </span>
+                              <span 
+                                v-else
+                                class="badge bg-primary-subtle text-primary border border-primary-subtle fs-10 px-1.5 py-0.5"
+                              >
+                                {{ st.team_role || 'Peserta Tunggal' }}
+                              </span>
+                            </td>
+                            <td>
+                              <div v-if="st.wa_number && st.wa_number !== '-'" class="d-flex align-items-center gap-1">
+                                <span class="font-monospace text-muted fs-11">{{ st.wa_number }}</span>
+                                <a 
+                                  :href="getWaChatUrl(st.wa_number)" 
+                                  target="_blank" 
+                                  class="text-success fs-12"
+                                  title="Chat WhatsApp"
+                                >
+                                  <i class="ri-whatsapp-line"></i>
+                                </a>
+                              </div>
+                              <span v-else class="text-muted">-</span>
+                            </td>
+                            <td class="text-center">
+                              <button 
+                                type="button" 
+                                class="btn btn-2xs btn-outline-primary"
+                                @click="openStudentBiodata(st, comp, activeSchool)"
+                                title="Lihat Profil & Biodata Lengkap"
+                              >
+                                <i class="ri-eye-line"></i>
+                              </button>
+                            </td>
                           </tr>
                         </tbody>
                       </table>
@@ -4059,6 +4196,210 @@ function printReport() {
         </div>
       </div>
     </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 4: DETAIL BIODATA LENGKAP SISWA PESERTA                         -->
+    <!-- ===================================================================== -->
+    <div 
+      v-if="showStudentBiodataModal && activeStudentBiodata" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      style="background-color: rgba(0,0,0,0.65); z-index: 1075;"
+    >
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0">
+          <!-- Modal Header -->
+          <div class="modal-header py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-11">
+                <i class="ri-user-star-line me-1"></i> Profil Biodata Peserta
+              </span>
+              <h5 class="modal-title fs-14 fw-bold text-dark mb-0">
+                {{ activeStudentBiodata.name }}
+              </h5>
+            </div>
+            <button type="button" class="btn-close" @click="closeStudentBiodataModal"></button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body p-3 p-md-4">
+            <div class="row g-3">
+              <!-- Kolom Kiri: Foto Siswa -->
+              <div class="col-12 col-md-4 text-center">
+                <div class="mx-auto position-relative" style="width: 140px; height: 180px;">
+                  <img 
+                    v-if="activeStudentBiodata.photo" 
+                    :src="activeStudentBiodata.photo" 
+                    :alt="activeStudentBiodata.name"
+                    class="w-100 h-100 object-fit-cover rounded-3 border shadow-sm"
+                    @error="$event.target.style.display='none'"
+                  />
+                  <div 
+                    v-else 
+                    class="w-100 h-100 rounded-3 border bg-light d-flex flex-column align-items-center justify-content-center text-muted"
+                  >
+                    <i class="ri-user-3-line fs-40 opacity-50 mb-1"></i>
+                    <span class="fs-11">Tidak ada pas foto</span>
+                  </div>
+                </div>
+
+                <div class="mt-2.5">
+                  <span 
+                    v-if="activeStudentBiodata.gender && activeStudentBiodata.gender !== '-'"
+                    class="badge fs-11 px-2.5 py-1"
+                    :class="activeStudentBiodata.gender === 'Perempuan' ? 'bg-danger-subtle text-danger' : 'bg-info-subtle text-info'"
+                  >
+                    {{ activeStudentBiodata.gender }}
+                  </span>
+                </div>
+
+                <!-- Foto Bebas jika ada -->
+                <div v-if="activeStudentBiodata.photo_freestyle" class="mt-3">
+                  <span class="text-muted fs-11 d-block mb-1">Foto Bebas / Gaya:</span>
+                  <a :href="activeStudentBiodata.photo_freestyle" target="_blank" class="btn btn-2xs btn-outline-secondary">
+                    <i class="ri-image-line me-1"></i> Lihat Foto Bebas
+                  </a>
+                </div>
+              </div>
+
+              <!-- Kolom Kanan: Rincian Lengkap -->
+              <div class="col-12 col-md-8">
+                <!-- 1. Biodata Siswa -->
+                <div class="mb-3">
+                  <h6 class="fs-12 text-uppercase fw-bold text-primary mb-2.5 d-flex align-items-center gap-1">
+                    <i class="ri-profile-line"></i> Biodata Pribadi Siswa
+                  </h6>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <div class="p-2.5 rounded bg-light border">
+                        <span class="text-muted fs-11 d-block">NISN:</span>
+                        <span class="fw-bold text-dark fs-12 font-monospace">{{ activeStudentBiodata.nisn || '-' }}</span>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="p-2.5 rounded bg-light border">
+                        <span class="text-muted fs-11 d-block">Kelas / Tingkat:</span>
+                        <span class="fw-bold text-dark fs-12">{{ activeStudentBiodata.grade || '-' }}</span>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="p-2.5 rounded bg-light border">
+                        <span class="text-muted fs-11 d-block">Tanggal Lahir:</span>
+                        <span class="fw-bold text-dark fs-12">{{ activeStudentBiodata.birth_date || '-' }}</span>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="p-2.5 rounded bg-light border">
+                        <span class="text-muted fs-11 d-block">No. WhatsApp Siswa:</span>
+                        <a 
+                          v-if="activeStudentBiodata.wa_number && activeStudentBiodata.wa_number !== '-'" 
+                          :href="getWaChatUrl(activeStudentBiodata.wa_number)" 
+                          target="_blank" 
+                          class="fw-bold text-success fs-12 text-decoration-none"
+                        >
+                          <i class="ri-whatsapp-line me-0.5"></i> {{ activeStudentBiodata.wa_number }}
+                        </a>
+                        <span v-else class="text-muted fs-12">-</span>
+                      </div>
+                    </div>
+                    <!-- No. Dada / ID Game jika ada -->
+                    <div class="col-12" v-if="activeStudentBiodata.custom_id">
+                      <div class="p-2.5 rounded bg-light border d-flex align-items-center justify-content-between">
+                        <span class="text-muted fs-11">No. Dada / ID Game / Peran:</span>
+                        <span class="fw-bold text-dark fs-12 font-monospace">{{ activeStudentBiodata.custom_id }}</span>
+                      </div>
+                    </div>
+                    <!-- Data Khusus Tambahan jika ada -->
+                    <div class="col-12" v-if="activeStudentBiodata.custom_columns && Object.keys(activeStudentBiodata.custom_columns).length">
+                      <div class="p-2.5 rounded bg-light border">
+                        <span class="text-muted fs-11 d-block mb-1">Data Tambahan Khusus:</span>
+                        <div class="d-flex flex-wrap gap-1.5">
+                          <span v-for="(cVal, cKey) in activeStudentBiodata.custom_columns" :key="cKey" class="badge bg-white text-dark border fs-11">
+                            <span class="text-muted text-capitalize">{{ cKey.replace(/_/g, ' ') }}:</span> {{ cVal }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2. Informasi Perlombaan & Peran -->
+                <div class="mb-3">
+                  <h6 class="fs-12 text-uppercase fw-bold text-primary mb-2.5 d-flex align-items-center gap-1">
+                    <i class="ri-medal-line"></i> Cabang Lomba & Peran
+                  </h6>
+                  <div class="p-3 rounded bg-light border">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <div>
+                        <span class="fw-bold text-dark fs-13 d-block">{{ activeStudentBiodata.competition_title }}</span>
+                      </div>
+                      <span 
+                        class="badge fs-11 px-2 py-1"
+                        :class="activeStudentBiodata.is_captain ? 'bg-warning text-dark' : 'bg-primary-subtle text-primary'"
+                      >
+                        {{ activeStudentBiodata.team_role }}
+                      </span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 pt-2 border-top text-muted fs-11">
+                      <span>Sumber data: {{ activeStudentBiodata.source }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 3. Sekolah & Pembina Pendamping -->
+                <div>
+                  <h6 class="fs-12 text-uppercase fw-bold text-primary mb-2.5 d-flex align-items-center gap-1">
+                    <i class="ri-community-line"></i> Kontingen Sekolah & Pembina
+                  </h6>
+                  <div class="p-3 rounded bg-light border">
+                    <div class="row g-2">
+                      <div class="col-12">
+                        <span class="text-muted fs-11 d-block">Asal Sekolah:</span>
+                        <span class="fw-bold text-dark fs-12">{{ activeStudentBiodata.school_name }}</span>
+                        <span v-if="activeStudentBiodata.school_district" class="text-muted fs-11 ms-1">
+                          (Kec. {{ activeStudentBiodata.school_district }})
+                        </span>
+                      </div>
+                      <div class="col-6">
+                        <span class="text-muted fs-11 d-block">Pembina Pendamping:</span>
+                        <span class="fw-semibold text-dark fs-12">{{ activeStudentBiodata.mentor_name }}</span>
+                      </div>
+                      <div class="col-6">
+                        <span class="text-muted fs-11 d-block">Kontak WA Pembina:</span>
+                        <a 
+                          v-if="activeStudentBiodata.mentor_wa && activeStudentBiodata.mentor_wa !== '-'" 
+                          :href="getWaChatUrl(activeStudentBiodata.mentor_wa)" 
+                          target="_blank" 
+                          class="fw-semibold text-success fs-12 text-decoration-none"
+                        >
+                          <i class="ri-whatsapp-line me-0.5"></i> {{ activeStudentBiodata.mentor_wa }}
+                        </a>
+                        <span v-else class="text-muted fs-12">-</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="modal-footer bg-light border-top py-2 px-3 d-flex justify-content-between">
+            <Link 
+              v-if="activeStudentBiodata.registration_id"
+              :href="`/admin/pendaftar/${activeStudentBiodata.registration_id}`" 
+              class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5"
+            >
+              <i class="ri-external-link-line"></i> Buka Data Registrasi Induk (#{{ activeStudentBiodata.reg_code }})
+            </Link>
+            <span v-else></span>
+            <button type="button" class="btn btn-sm btn-secondary" @click="closeStudentBiodataModal">
+              Tutup
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </VelzonLayout>
 </template>
 
@@ -4155,6 +4496,57 @@ function printReport() {
   background-color: #2b3035;
   color: #ffffff;
   border-color: #0ab39c;
+}
+
+/* Badges for Captain & Team Member */
+.badge-captain {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+.badge-member {
+  background-color: rgba(139, 92, 246, 0.1);
+  color: #7c3aed;
+  border-color: rgba(139, 92, 246, 0.25) !important;
+}
+
+:deep([data-layout-mode="dark"]) .badge.bg-primary-subtle,
+:deep([data-bs-theme="dark"]) .badge.bg-primary-subtle {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  color: #93c5fd !important;
+}
+
+:deep([data-layout-mode="dark"]) .badge.bg-success-subtle,
+:deep([data-bs-theme="dark"]) .badge.bg-success-subtle {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+  color: #86efac !important;
+}
+
+:deep([data-layout-mode="dark"]) .badge.bg-warning-subtle,
+:deep([data-bs-theme="dark"]) .badge.bg-warning-subtle {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  color: #fde047 !important;
+}
+
+:deep([data-layout-mode="dark"]) .badge.bg-danger-subtle,
+:deep([data-bs-theme="dark"]) .badge.bg-danger-subtle {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+  color: #fca5a5 !important;
+}
+
+:deep([data-layout-mode="dark"]) .badge-captain,
+:deep([data-bs-theme="dark"]) .badge-captain {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  color: #fde047 !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+}
+
+:deep([data-layout-mode="dark"]) .badge-member,
+:deep([data-bs-theme="dark"]) .badge-member {
+  background-color: rgba(139, 92, 246, 0.2) !important;
+  color: #c4b5fd !important;
+  border-color: rgba(139, 92, 246, 0.4) !important;
 }
 
 /* Print Styling */

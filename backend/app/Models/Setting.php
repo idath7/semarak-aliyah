@@ -304,6 +304,122 @@ class Setting extends Model
     }
 
     /**
+     * Dapatkan konfigurasi mandiri untuk salah satu template blangko sertifikat:
+     * 'juara', 'peserta', atau 'pendamping'.
+     */
+    public static function getTemplateConfig(string $type): array
+    {
+        $prefix = "certificate_{$type}_";
+        $defaultBg = static::get("certificate_bg_{$type}", '');
+
+        $defaultNameColor = '#064e3b';
+        $defaultPredColor = $type === 'juara' ? '#d97706' : '#064e3b';
+        $defaultGiven = $type === 'pendamping'
+            ? 'Diberikan dengan rasa terima kasih dan apresiasi setinggi-tingginya kepada:'
+            : 'Diberikan dengan rasa bangga dan apresiasi setinggi-tingginya kepada:';
+        $defaultPredIntro = $type === 'pendamping' ? 'Sebagai:' : 'Atas partisipasi dan prestasinya sebagai:';
+
+        return [
+            'bg' => static::get($prefix . 'bg', $defaultBg),
+            'show_kop' => static::get($prefix . 'show_kop', static::get('certificate_show_kop', '1')) === '1',
+            'show_signatures' => static::get($prefix . 'show_signatures', static::get('certificate_show_signatures', '1')) === '1',
+            'show_sig_ketua' => static::get($prefix . 'show_sig_ketua', static::get('certificate_show_sig_ketua', '1')) === '1',
+            'sig_ketua_title' => static::get($prefix . 'sig_ketua_title', static::get('certificate_sig_ketua_title', "Mengetahui,\nKetua Panitia Pelaksana,")),
+            'sig_ketua_name' => static::get($prefix . 'sig_ketua_name', static::get('certificate_sig_ketua_name', 'M. FATHUR RAHMAN, S.Pd.')),
+            'sig_ketua_nip' => static::get($prefix . 'sig_ketua_nip', static::get('certificate_sig_ketua_nip', 'NIP. -')),
+            'sig_ketua_image' => static::get($prefix . 'sig_ketua_image', static::get('certificate_sig_ketua_image', '')),
+            'show_sig_kepala' => static::get($prefix . 'show_sig_kepala', static::get('certificate_show_sig_kepala', '1')) === '1',
+            'sig_kepala_city_date' => static::get($prefix . 'sig_kepala_city_date', static::get('certificate_sig_kepala_city_date', 'Balung, 25 Oktober 2026')),
+            'sig_kepala_title' => static::get($prefix . 'sig_kepala_title', static::get('certificate_sig_kepala_title', 'Kepala Madrasah Aliyah,')),
+            'sig_kepala_name' => static::get($prefix . 'sig_kepala_name', static::get('certificate_sig_kepala_name', 'H. NURUL HUDA, S.Ag., M.Pd.I.')),
+            'sig_kepala_nip' => static::get($prefix . 'sig_kepala_nip', static::get('certificate_sig_kepala_nip', 'NIP. 197405122005011003')),
+            'sig_kepala_image' => static::get($prefix . 'sig_kepala_image', static::get('certificate_sig_kepala_image', '')),
+            'show_stamp' => static::get($prefix . 'show_stamp', static::get('certificate_show_stamp', '0')) === '1',
+            'stamp_image' => static::get($prefix . 'stamp_image', static::get('certificate_stamp_image', '')),
+            'show_qr' => static::get($prefix . 'show_qr', static::get('certificate_show_qr', '1')) === '1',
+            'qr_size' => (int)static::get($prefix . 'qr_size', static::get('certificate_qr_size', 68)),
+            'qr_position' => static::get($prefix . 'qr_position', static::get('certificate_qr_position', 'center_bottom')),
+            'qr_x' => (int)static::get($prefix . 'qr_x', static::get('certificate_qr_x', 50)),
+            'qr_y' => (int)static::get($prefix . 'qr_y', static::get('certificate_qr_y', 85)),
+            'name_font_family' => static::get($prefix . 'name_font_family', static::get('certificate_font_family', 'Playfair Display')),
+            'name_size' => (int)static::get($prefix . 'name_size', static::get('certificate_name_size', 26)),
+            'name_color' => static::get($prefix . 'name_color', static::get('certificate_name_color', $defaultNameColor)),
+            'name_top' => (int)static::get($prefix . 'name_top', static::get('certificate_name_top', 45)),
+            'predicate_font_family' => static::get($prefix . 'predicate_font_family', static::get('certificate_predicate_font_family', 'Cinzel')),
+            'predicate_size' => (int)static::get($prefix . 'predicate_size', static::get('certificate_predicate_size', 18)),
+            'predicate_color' => static::get($prefix . 'predicate_color', static::get('certificate_predicate_color', $defaultPredColor)),
+            'predicate_top' => (int)static::get($prefix . 'predicate_top', static::get('certificate_predicate_top', 58)),
+            'comp_top' => (int)static::get($prefix . 'comp_top', static::get('certificate_comp_top', 68)),
+            'show_text_given_to' => static::get($prefix . 'show_text_given_to', static::get('certificate_show_text_given_to', '1')) === '1',
+            'text_given_to' => static::get($prefix . 'text_given_to', static::get('certificate_text_given_to', $defaultGiven)),
+            'show_text_predicate' => static::get($prefix . 'show_text_predicate', static::get('certificate_show_text_predicate', '1')) === '1',
+            'text_predicate' => static::get($prefix . 'text_predicate', static::get('certificate_text_predicate', $defaultPredIntro)),
+            'show_text_competition' => static::get($prefix . 'show_text_competition', static::get('certificate_show_text_competition', '1')) === '1',
+            'text_competition' => static::get($prefix . 'text_competition', static::get('certificate_text_competition', 'Dalam Cabang Lomba:')),
+            'show_school' => static::get($prefix . 'show_school', static::get('certificate_show_school', '1')) === '1',
+            'text_school' => static::get($prefix . 'text_school', static::get('certificate_text_school', 'Asal Sekolah :')),
+            'show_event_subtitle' => static::get($prefix . 'show_event_subtitle', static::get('certificate_show_event_subtitle', '1')) === '1',
+        ];
+    }
+
+    /**
+     * Dapatkan konfigurasi lengkap Kustomisasi Blangko E-Sertifikat Panitia (Mandiri per template).
+     */
+    public static function getCertificateConfig(): array
+    {
+        $templates = [
+            'juara' => static::getTemplateConfig('juara'),
+            'peserta' => static::getTemplateConfig('peserta'),
+            'pendamping' => static::getTemplateConfig('pendamping'),
+        ];
+
+        return [
+            'templates' => $templates,
+            'bg_juara' => $templates['juara']['bg'],
+            'bg_peserta' => $templates['peserta']['bg'],
+            'bg_pendamping' => $templates['pendamping']['bg'],
+            'show_kop' => $templates['juara']['show_kop'],
+            'show_signatures' => $templates['juara']['show_signatures'],
+            'show_sig_ketua' => $templates['juara']['show_sig_ketua'],
+            'sig_ketua_title' => $templates['juara']['sig_ketua_title'],
+            'sig_ketua_name' => $templates['juara']['sig_ketua_name'],
+            'sig_ketua_nip' => $templates['juara']['sig_ketua_nip'],
+            'sig_ketua_image' => $templates['juara']['sig_ketua_image'],
+            'show_sig_kepala' => $templates['juara']['show_sig_kepala'],
+            'sig_kepala_city_date' => $templates['juara']['sig_kepala_city_date'],
+            'sig_kepala_title' => $templates['juara']['sig_kepala_title'],
+            'sig_kepala_name' => $templates['juara']['sig_kepala_name'],
+            'sig_kepala_nip' => $templates['juara']['sig_kepala_nip'],
+            'sig_kepala_image' => $templates['juara']['sig_kepala_image'],
+            'show_stamp' => $templates['juara']['show_stamp'],
+            'stamp_image' => $templates['juara']['stamp_image'],
+            'show_qr' => $templates['juara']['show_qr'],
+            'qr_size' => $templates['juara']['qr_size'],
+            'qr_position' => $templates['juara']['qr_position'],
+            'qr_x' => $templates['juara']['qr_x'],
+            'qr_y' => $templates['juara']['qr_y'],
+            'name_color' => $templates['juara']['name_color'],
+            'name_size' => $templates['juara']['name_size'],
+            'name_top' => $templates['juara']['name_top'],
+            'predicate_top' => $templates['juara']['predicate_top'],
+            'comp_top' => $templates['juara']['comp_top'],
+            'font_family' => $templates['juara']['name_font_family'],
+            'show_text_given_to' => $templates['juara']['show_text_given_to'],
+            'text_given_to' => $templates['juara']['text_given_to'],
+            'show_text_predicate' => $templates['juara']['show_text_predicate'],
+            'text_predicate' => $templates['juara']['text_predicate'],
+            'show_text_competition' => $templates['juara']['show_text_competition'],
+            'text_competition' => $templates['juara']['text_competition'],
+            'show_event_subtitle' => $templates['juara']['show_event_subtitle'],
+            'show_school' => $templates['juara']['show_school'],
+            'text_school' => $templates['juara']['text_school'],
+            'predicate_font_family' => $templates['juara']['predicate_font_family'],
+            'predicate_size' => $templates['juara']['predicate_size'],
+            'predicate_color' => $templates['juara']['predicate_color'],
+        ];
+    }
+
+    /**
      * Dapatkan konfigurasi KOP Surat Resmi Lembaga / Kepanitiaan (Non-Invoice).
      * Murni diambil dari master profil sekolah & event resmi (admin/pengaturan/profil-sekolah).
      */

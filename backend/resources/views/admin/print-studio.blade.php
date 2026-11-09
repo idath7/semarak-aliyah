@@ -105,7 +105,7 @@
                                 </div>
                                 <div>
                                     <h5 class="fs-15 fw-bold mb-1 text-dark">ID Card & Barcode Check-in</h5>
-                                    <p class="text-muted fs-12 mb-3">Format standar lanyard ukuran 8.5 x 13 cm, barcode scanner, logo pangkalan, & nomor peserta.</p>
+                                    <p class="text-muted fs-12 mb-3">Format standar lanyard ukuran 8.5 x 13 cm, barcode scanner, logo sekolah, & nomor peserta.</p>
                                     <a href="{{ route('admin.print.idcards') }}" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3">
                                         <i class="ri-printer-line me-1"></i> Buka Antrian Cetak
                                     </a>
@@ -181,7 +181,7 @@
                                     <tr>
                                         <th>Kode Registrasi</th>
                                         <th>Barcode</th>
-                                        <th>Asal Sekolah / Pangkalan</th>
+                                        <th>Asal Sekolah</th>
                                         <th>Official / Pembina</th>
                                         <th>Cabang Lomba</th>
                                         <th class="text-center">Status Berkas</th>

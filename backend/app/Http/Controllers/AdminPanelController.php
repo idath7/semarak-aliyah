@@ -5640,6 +5640,514 @@ class AdminPanelController extends Controller
         $request->merge(['competition_id' => $id]);
         return $this->downloadParticipantsPdf($request);
     }
+
+    /**
+     * Halaman Manajemen E-Sertifikat & Piagam Penghargaan
+     */
+    public function certificatesIndex(Request $request)
+    {
+        $allCompetitions = Competition::orderBy('id', 'asc')->get();
+        $registrations = Registration::with('competition')
+            ->orderBy('school_name', 'asc')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $certificatesList = [];
+        $uniqueSchools = [];
+        $totalStudents = 0;
+
+        foreach ($registrations as $reg) {
+            $comp = $reg->competition;
+            $compTitle = $comp?->title ?? ($reg->competition_title ?? 'Cabang Lomba #' . $reg->competition_id);
+            $school = trim($reg->school_name ?: 'Tanpa Sekolah / Mandiri');
+            if (!empty($school) && $school !== '-') {
+                $uniqueSchools[$school] = true;
+            }
+
+            // 1. Sertifikat Kontingen Sekolah
+            $certificatesList[] = [
+                'id' => 'school-' . $reg->id,
+                'registration_id' => $reg->id,
+                'reg_code' => $reg->reg_code,
+                'barcode' => $reg->barcode ?? $reg->reg_code,
+                'target' => 'sekolah',
+                'target_label' => 'Kontingen Sekolah',
+                'recipient_name' => $school,
+                'sub_info' => 'Kontingen Sekolah',
+                'school_name' => $school,
+                'competition_id' => $reg->competition_id,
+                'competition_title' => $compTitle,
+                'mentor_name' => $reg->mentor_name ?: '-',
+                'payment_status' => $reg->payment_status ?: 'Menunggu Verifikasi',
+                'default_rank' => 'Peserta',
+                'print_url' => route('admin.certificates.print', [
+                    'id' => $reg->id,
+                    'target' => 'school',
+                    'recipient' => $school,
+                ]),
+            ];
+
+            // 2. Sertifikat Guru Pembimbing / Official (jika ada nama pembina)
+            if (!empty($reg->mentor_name) && $reg->mentor_name !== '-') {
+                $certificatesList[] = [
+                    'id' => 'mentor-' . $reg->id,
+                    'registration_id' => $reg->id,
+                    'reg_code' => $reg->reg_code,
+                    'barcode' => $reg->barcode ?? $reg->reg_code,
+                    'target' => 'official',
+                    'target_label' => 'Official / Pembina',
+                    'recipient_name' => $reg->mentor_name,
+                    'sub_info' => 'Pembina Kontingen ' . $school,
+                    'school_name' => $school,
+                    'competition_id' => $reg->competition_id,
+                    'competition_title' => $compTitle,
+                    'mentor_name' => $reg->mentor_name,
+                    'payment_status' => $reg->payment_status ?: 'Menunggu Verifikasi',
+                    'default_rank' => 'Guru Pendamping',
+                    'print_url' => route('admin.certificates.print', [
+                        'id' => $reg->id,
+                        'target' => 'mentor',
+                        'recipient' => $reg->mentor_name,
+                        'rank' => 'Guru Pendamping',
+                    ]),
+                ];
+            }
+
+            // 3. Sertifikat Peserta Siswa
+            $delegates = $reg->detailed_participants;
+            foreach ($delegates as $idx => $st) {
+                $totalStudents++;
+                $studentName = $st['name'] ?? ('Peserta ' . ($idx + 1));
+                $nisn = $st['nisn'] ?? '-';
+                $grade = $st['grade'] ?? '-';
+                $gender = $st['gender'] ?? '-';
+
+                $certificatesList[] = [
+                    'id' => 'student-' . $reg->id . '-' . $idx,
+                    'registration_id' => $reg->id,
+                    'reg_code' => $reg->reg_code,
+                    'barcode' => $reg->barcode ?? $reg->reg_code,
+                    'target' => 'siswa',
+                    'target_label' => 'Peserta Siswa',
+                    'recipient_name' => $studentName,
+                    'sub_info' => ($nisn !== '-' ? 'NISN: ' . $nisn : '') . ($grade !== '-' ? ' • Kls: ' . $grade : '') . ($gender !== '-' ? ' • ' . $gender : ''),
+                    'nisn' => $nisn,
+                    'grade' => $grade,
+                    'gender' => $gender,
+                    'is_captain' => (bool)($st['is_captain'] ?? false),
+                    'school_name' => $school,
+                    'competition_id' => $reg->competition_id,
+                    'competition_title' => $compTitle,
+                    'mentor_name' => $reg->mentor_name ?: '-',
+                    'payment_status' => $reg->payment_status ?: 'Menunggu Verifikasi',
+                    'default_rank' => 'Peserta',
+                    'print_url' => route('admin.certificates.print', [
+                        'id' => $reg->id,
+                        'target' => 'student',
+                        'student_name' => $studentName,
+                        'recipient' => $studentName,
+                    ]),
+                ];
+            }
+        }
+
+        $totalSchools = count($uniqueSchools);
+
+        return \Inertia\Inertia::render('Admin/Certificates', [
+            'certificates' => $certificatesList,
+            'competitions' => $allCompetitions,
+            'summary' => [
+                'total_certificates' => count($certificatesList),
+                'total_students' => $totalStudents,
+                'total_schools' => $totalSchools,
+                'total_competitions' => $allCompetitions->count(),
+            ],
+            'letterhead' => Setting::getOfficialLetterhead(),
+            'certificateConfig' => Setting::getCertificateConfig(),
+        ]);
+    }
+
+    /**
+     * Cetak Massal E-Sertifikat (Batch Print) A4 Landscape
+     */
+    public function printCertificatesBatch(Request $request)
+    {
+        $competitionId = $request->input('competition_id');
+        $targetFilter = $request->input('target'); // 'all', 'siswa', 'sekolah', 'official'
+        $rank = $request->input('rank', 'Peserta');
+
+        $query = Registration::with('competition')
+            ->orderBy('school_name', 'asc');
+
+        if (!empty($competitionId) && $competitionId !== 'all') {
+            $query->where('competition_id', $competitionId);
+        }
+
+        $registrations = $query->get();
+        $batchCertificates = [];
+
+        foreach ($registrations as $reg) {
+            $comp = $reg->competition;
+            $compTitle = $comp?->title ?? ('Cabang Lomba #' . $reg->competition_id);
+            $school = trim($reg->school_name ?: 'Tanpa Sekolah / Mandiri');
+
+            // 1. Sekolah
+            if (empty($targetFilter) || $targetFilter === 'all' || $targetFilter === 'sekolah') {
+                $batchCertificates[] = [
+                    'reg' => $reg,
+                    'recipient' => $school,
+                    'rank' => $rank,
+                    'target' => 'school',
+                    'school_name' => $school,
+                    'competition_title' => $compTitle,
+                    'barcode' => $reg->barcode ?? $reg->reg_code,
+                    'reg_code' => $reg->reg_code,
+                    'id' => $reg->id,
+                ];
+            }
+
+            // 2. Official
+            if ((empty($targetFilter) || $targetFilter === 'all' || $targetFilter === 'official') && !empty($reg->mentor_name) && $reg->mentor_name !== '-') {
+                $mentorRank = ($targetFilter === 'official' && ($rank === 'Peserta' || empty($rank))) ? 'Guru Pendamping' : $rank;
+                $batchCertificates[] = [
+                    'reg' => $reg,
+                    'recipient' => $reg->mentor_name,
+                    'rank' => $mentorRank,
+                    'target' => 'mentor',
+                    'school_name' => $school,
+                    'competition_title' => $compTitle,
+                    'barcode' => $reg->barcode ?? $reg->reg_code,
+                    'reg_code' => $reg->reg_code,
+                    'id' => $reg->id,
+                ];
+            }
+
+            // 3. Siswa
+            if (empty($targetFilter) || $targetFilter === 'all' || $targetFilter === 'siswa') {
+                $delegates = $reg->detailed_participants;
+                foreach ($delegates as $idx => $st) {
+                    $studentName = $st['name'] ?? ('Peserta ' . ($idx + 1));
+                    $batchCertificates[] = [
+                        'reg' => $reg,
+                        'recipient' => $studentName,
+                        'rank' => $rank,
+                        'target' => 'student',
+                        'school_name' => $school,
+                        'competition_title' => $compTitle,
+                        'barcode' => $reg->barcode ?? $reg->reg_code,
+                        'reg_code' => $reg->reg_code,
+                        'id' => $reg->id,
+                    ];
+                }
+            }
+        }
+
+        $letterhead = Setting::getOfficialLetterhead();
+        $edition = Setting::where('key', 'event_edition')->value('value') ?? 'XIV';
+        $year = Setting::where('key', 'event_year')->value('value') ?? '2026';
+        $certificateConfig = Setting::getCertificateConfig();
+
+        return view('admin.print-certificate', [
+            'certificates' => $batchCertificates,
+            'reg' => $registrations->first() ?? new Registration(),
+            'rank' => $rank,
+            'target' => $targetFilter ?: 'all',
+            'letterhead' => $letterhead,
+            'edition' => $edition,
+            'year' => $year,
+            'certificateConfig' => $certificateConfig,
+        ]);
+    }
+
+    /**
+     * Simpan Pengaturan Kustomisasi Blangko E-Sertifikat Panitia (Mandiri per template)
+     */
+    public function updateCertificateSettings(Request $request)
+    {
+        $request->validate([
+            'active_template' => 'nullable|string|in:juara,peserta,pendamping',
+            'bg' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+            'bg_juara' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+            'bg_peserta' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+            'bg_pendamping' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+            'remove_bg' => 'nullable',
+            'remove_bg_juara' => 'nullable',
+            'remove_bg_peserta' => 'nullable',
+            'remove_bg_pendamping' => 'nullable',
+            'sig_ketua_file' => 'nullable|image|mimes:jpeg,png,jpg|max:3072',
+            'remove_sig_ketua' => 'nullable',
+            'sig_kepala_file' => 'nullable|image|mimes:jpeg,png,jpg|max:3072',
+            'remove_sig_kepala' => 'nullable',
+            'stamp_file' => 'nullable|image|mimes:jpeg,png,jpg|max:3072',
+            'remove_stamp' => 'nullable',
+            'show_kop' => 'nullable',
+            'show_signatures' => 'nullable',
+            'show_sig_ketua' => 'nullable',
+            'sig_ketua_title' => 'nullable|string|max:255',
+            'sig_ketua_name' => 'nullable|string|max:255',
+            'sig_ketua_nip' => 'nullable|string|max:100',
+            'show_sig_kepala' => 'nullable',
+            'sig_kepala_city_date' => 'nullable|string|max:255',
+            'sig_kepala_title' => 'nullable|string|max:255',
+            'sig_kepala_name' => 'nullable|string|max:255',
+            'sig_kepala_nip' => 'nullable|string|max:100',
+            'show_stamp' => 'nullable',
+            'show_qr' => 'nullable',
+            'qr_size' => 'nullable|integer|min:30|max:150',
+            'qr_position' => 'nullable|string|in:center_bottom,left_bottom,right_bottom,custom',
+            'qr_x' => 'nullable|integer|min:0|max:100',
+            'qr_y' => 'nullable|integer|min:0|max:100',
+            'name_color' => 'nullable|string|max:20',
+            'name_size' => 'nullable|integer|min:14|max:60',
+            'name_top' => 'nullable|integer|min:10|max:90',
+            'predicate_top' => 'nullable|integer|min:10|max:90',
+            'comp_top' => 'nullable|integer|min:10|max:90',
+            'font_family' => 'nullable|string|max:50',
+            'name_font_family' => 'nullable|string|max:50',
+            'show_text_given_to' => 'nullable',
+            'text_given_to' => 'nullable|string|max:255',
+            'show_text_predicate' => 'nullable',
+            'text_predicate' => 'nullable|string|max:255',
+            'show_text_competition' => 'nullable',
+            'text_competition' => 'nullable|string|max:255',
+            'show_event_subtitle' => 'nullable',
+            'show_school' => 'nullable',
+            'text_school' => 'nullable|string|max:255',
+            'predicate_font_family' => 'nullable|string|max:50',
+            'predicate_size' => 'nullable|integer|min:10|max:50',
+            'predicate_color' => 'nullable|string|max:20',
+        ]);
+
+        $activeTemplate = $request->input('active_template', 'juara');
+        if (!in_array($activeTemplate, ['juara', 'peserta', 'pendamping'])) {
+            $activeTemplate = 'juara';
+        }
+        $prefix = "certificate_{$activeTemplate}_";
+
+        $uploadDir = public_path('storage/certificates');
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        // Handle Background untuk Active Template
+        if ($request->hasFile('bg')) {
+            $file = $request->file('bg');
+            $filename = 'bg_' . $activeTemplate . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move($uploadDir, $filename);
+            $bgUrl = '/storage/certificates/' . $filename;
+            Setting::set($prefix . 'bg', $bgUrl);
+            Setting::set('certificate_bg_' . $activeTemplate, $bgUrl);
+        } elseif ($request->input('remove_bg') === '1' || $request->input('remove_bg') === 'true') {
+            Setting::set($prefix . 'bg', '');
+            Setting::set('certificate_bg_' . $activeTemplate, '');
+        }
+
+        // Handle Background Juara eksplisit
+        if ($request->hasFile('bg_juara')) {
+            $file = $request->file('bg_juara');
+            $filename = 'bg_juara_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move($uploadDir, $filename);
+            Setting::set('certificate_juara_bg', '/storage/certificates/' . $filename);
+            Setting::set('certificate_bg_juara', '/storage/certificates/' . $filename);
+        } elseif ($request->input('remove_bg_juara') === 'true' || $request->input('remove_bg_juara') === '1') {
+            Setting::set('certificate_juara_bg', '');
+            Setting::set('certificate_bg_juara', '');
+        }
+
+        // Handle Background Peserta eksplisit
+        if ($request->hasFile('bg_peserta')) {
+            $file = $request->file('bg_peserta');
+            $filename = 'bg_peserta_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move($uploadDir, $filename);
+            Setting::set('certificate_peserta_bg', '/storage/certificates/' . $filename);
+            Setting::set('certificate_bg_peserta', '/storage/certificates/' . $filename);
+        } elseif ($request->input('remove_bg_peserta') === 'true' || $request->input('remove_bg_peserta') === '1') {
+            Setting::set('certificate_peserta_bg', '');
+            Setting::set('certificate_bg_peserta', '');
+        }
+
+        // Handle Background Pendamping eksplisit
+        if ($request->hasFile('bg_pendamping')) {
+            $file = $request->file('bg_pendamping');
+            $filename = 'bg_pendamping_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move($uploadDir, $filename);
+            Setting::set('certificate_pendamping_bg', '/storage/certificates/' . $filename);
+            Setting::set('certificate_bg_pendamping', '/storage/certificates/' . $filename);
+        } elseif ($request->input('remove_bg_pendamping') === 'true' || $request->input('remove_bg_pendamping') === '1') {
+            Setting::set('certificate_pendamping_bg', '');
+            Setting::set('certificate_bg_pendamping', '');
+        }
+
+        // Handle Scan TTD Ketua Panitia
+        if ($request->hasFile('sig_ketua_file')) {
+            $file = $request->file('sig_ketua_file');
+            $filename = 'sig_ketua_' . $activeTemplate . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move($uploadDir, $filename);
+            Setting::set($prefix . 'sig_ketua_image', '/storage/certificates/' . $filename);
+        } elseif ($request->input('remove_sig_ketua') === 'true' || $request->input('remove_sig_ketua') === '1') {
+            Setting::set($prefix . 'sig_ketua_image', '');
+        }
+
+        // Handle Scan TTD Kepala Madrasah
+        if ($request->hasFile('sig_kepala_file')) {
+            $file = $request->file('sig_kepala_file');
+            $filename = 'sig_kepala_' . $activeTemplate . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move($uploadDir, $filename);
+            Setting::set($prefix . 'sig_kepala_image', '/storage/certificates/' . $filename);
+        } elseif ($request->input('remove_sig_kepala') === 'true' || $request->input('remove_sig_kepala') === '1') {
+            Setting::set($prefix . 'sig_kepala_image', '');
+        }
+
+        // Handle Scan Stempel Digital
+        if ($request->hasFile('stamp_file')) {
+            $file = $request->file('stamp_file');
+            $filename = 'stamp_' . $activeTemplate . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $file->move($uploadDir, $filename);
+            Setting::set($prefix . 'stamp_image', '/storage/certificates/' . $filename);
+        } elseif ($request->input('remove_stamp') === 'true' || $request->input('remove_stamp') === '1') {
+            Setting::set($prefix . 'stamp_image', '');
+        }
+
+        // Simpan seluruh properti ke prefix template yang sedang aktif
+        if ($request->has('show_kop')) {
+            Setting::set($prefix . 'show_kop', $request->input('show_kop') ? '1' : '0');
+        }
+        if ($request->has('show_signatures')) {
+            Setting::set($prefix . 'show_signatures', $request->input('show_signatures') ? '1' : '0');
+        }
+        if ($request->has('show_sig_ketua')) {
+            Setting::set($prefix . 'show_sig_ketua', $request->input('show_sig_ketua') ? '1' : '0');
+        }
+        if ($request->has('sig_ketua_title')) {
+            Setting::set($prefix . 'sig_ketua_title', (string)$request->input('sig_ketua_title'));
+        }
+        if ($request->has('sig_ketua_name')) {
+            Setting::set($prefix . 'sig_ketua_name', (string)$request->input('sig_ketua_name'));
+        }
+        if ($request->has('sig_ketua_nip')) {
+            Setting::set($prefix . 'sig_ketua_nip', (string)$request->input('sig_ketua_nip'));
+        }
+        if ($request->has('show_sig_kepala')) {
+            Setting::set($prefix . 'show_sig_kepala', $request->input('show_sig_kepala') ? '1' : '0');
+        }
+        if ($request->has('sig_kepala_city_date')) {
+            Setting::set($prefix . 'sig_kepala_city_date', (string)$request->input('sig_kepala_city_date'));
+        }
+        if ($request->has('sig_kepala_title')) {
+            Setting::set($prefix . 'sig_kepala_title', (string)$request->input('sig_kepala_title'));
+        }
+        if ($request->has('sig_kepala_name')) {
+            Setting::set($prefix . 'sig_kepala_name', (string)$request->input('sig_kepala_name'));
+        }
+        if ($request->has('sig_kepala_nip')) {
+            Setting::set($prefix . 'sig_kepala_nip', (string)$request->input('sig_kepala_nip'));
+        }
+        if ($request->has('show_stamp')) {
+            Setting::set($prefix . 'show_stamp', $request->input('show_stamp') ? '1' : '0');
+        }
+        if ($request->has('show_qr')) {
+            Setting::set($prefix . 'show_qr', $request->input('show_qr') ? '1' : '0');
+        }
+        if ($request->filled('qr_size')) {
+            Setting::set($prefix . 'qr_size', (string)$request->input('qr_size'));
+        }
+        if ($request->filled('qr_position')) {
+            Setting::set($prefix . 'qr_position', (string)$request->input('qr_position'));
+        }
+        if ($request->has('qr_x')) {
+            Setting::set($prefix . 'qr_x', (string)$request->input('qr_x'));
+        }
+        if ($request->has('qr_y')) {
+            Setting::set($prefix . 'qr_y', (string)$request->input('qr_y'));
+        }
+        if ($request->filled('name_color')) {
+            Setting::set($prefix . 'name_color', $request->input('name_color'));
+        }
+        if ($request->filled('name_size')) {
+            Setting::set($prefix . 'name_size', (string)$request->input('name_size'));
+        }
+        if ($request->filled('name_top')) {
+            Setting::set($prefix . 'name_top', (string)$request->input('name_top'));
+        }
+        if ($request->filled('predicate_top')) {
+            Setting::set($prefix . 'predicate_top', (string)$request->input('predicate_top'));
+        }
+        if ($request->filled('comp_top')) {
+            Setting::set($prefix . 'comp_top', (string)$request->input('comp_top'));
+        }
+        if ($request->filled('font_family') || $request->filled('name_font_family')) {
+            $font = $request->input('name_font_family') ?: $request->input('font_family');
+            Setting::set($prefix . 'name_font_family', $font);
+            Setting::set($prefix . 'font_family', $font);
+        }
+        if ($request->has('show_text_given_to')) {
+            Setting::set($prefix . 'show_text_given_to', $request->input('show_text_given_to') ? '1' : '0');
+        }
+        if ($request->has('text_given_to')) {
+            Setting::set($prefix . 'text_given_to', (string)$request->input('text_given_to'));
+        }
+        if ($request->has('show_text_predicate')) {
+            Setting::set($prefix . 'show_text_predicate', $request->input('show_text_predicate') ? '1' : '0');
+        }
+        if ($request->has('text_predicate')) {
+            Setting::set($prefix . 'text_predicate', (string)$request->input('text_predicate'));
+        }
+        if ($request->has('show_text_competition')) {
+            Setting::set($prefix . 'show_text_competition', $request->input('show_text_competition') ? '1' : '0');
+        }
+        if ($request->has('text_competition')) {
+            Setting::set($prefix . 'text_competition', (string)$request->input('text_competition'));
+        }
+        if ($request->has('show_event_subtitle')) {
+            Setting::set($prefix . 'show_event_subtitle', $request->input('show_event_subtitle') ? '1' : '0');
+        }
+        if ($request->has('show_school')) {
+            Setting::set($prefix . 'show_school', $request->input('show_school') ? '1' : '0');
+        }
+        if ($request->has('text_school')) {
+            Setting::set($prefix . 'text_school', (string)$request->input('text_school'));
+        }
+        if ($request->filled('predicate_font_family')) {
+            Setting::set($prefix . 'predicate_font_family', $request->input('predicate_font_family'));
+        }
+        if ($request->filled('predicate_size')) {
+            Setting::set($prefix . 'predicate_size', (string)$request->input('predicate_size'));
+        }
+        if ($request->filled('predicate_color')) {
+            Setting::set($prefix . 'predicate_color', $request->input('predicate_color'));
+        }
+
+        // Sinkronisasi fallback root keys jika mengedit template juara
+        if ($activeTemplate === 'juara') {
+            if ($request->has('show_kop')) Setting::set('certificate_show_kop', $request->input('show_kop') ? '1' : '0');
+            if ($request->has('show_signatures')) Setting::set('certificate_show_signatures', $request->input('show_signatures') ? '1' : '0');
+            if ($request->has('show_qr')) Setting::set('certificate_show_qr', $request->input('show_qr') ? '1' : '0');
+            if ($request->filled('qr_size')) Setting::set('certificate_qr_size', (string)$request->input('qr_size'));
+            if ($request->filled('name_color')) Setting::set('certificate_name_color', $request->input('name_color'));
+            if ($request->filled('name_size')) Setting::set('certificate_name_size', (string)$request->input('name_size'));
+            if ($request->filled('name_top')) Setting::set('certificate_name_top', (string)$request->input('name_top'));
+            if ($request->filled('predicate_top')) Setting::set('certificate_predicate_top', (string)$request->input('predicate_top'));
+            if ($request->filled('comp_top')) Setting::set('certificate_comp_top', (string)$request->input('comp_top'));
+            if ($request->filled('font_family') || $request->filled('name_font_family')) {
+                Setting::set('certificate_font_family', $request->input('name_font_family') ?: $request->input('font_family'));
+            }
+            if ($request->has('show_text_given_to')) Setting::set('certificate_show_text_given_to', $request->input('show_text_given_to') ? '1' : '0');
+            if ($request->has('text_given_to')) Setting::set('certificate_text_given_to', (string)$request->input('text_given_to'));
+            if ($request->has('show_text_predicate')) Setting::set('certificate_show_text_predicate', $request->input('show_text_predicate') ? '1' : '0');
+            if ($request->has('text_predicate')) Setting::set('certificate_text_predicate', (string)$request->input('text_predicate'));
+            if ($request->has('show_text_competition')) Setting::set('certificate_show_text_competition', $request->input('show_text_competition') ? '1' : '0');
+            if ($request->has('text_competition')) Setting::set('certificate_text_competition', (string)$request->input('text_competition'));
+            if ($request->has('show_event_subtitle')) Setting::set('certificate_show_event_subtitle', $request->input('show_event_subtitle') ? '1' : '0');
+            if ($request->has('show_school')) Setting::set('certificate_show_school', $request->input('show_school') ? '1' : '0');
+            if ($request->has('text_school')) Setting::set('certificate_text_school', (string)$request->input('text_school'));
+            if ($request->filled('predicate_font_family')) Setting::set('certificate_predicate_font_family', $request->input('predicate_font_family'));
+            if ($request->filled('predicate_size')) Setting::set('certificate_predicate_size', (string)$request->input('predicate_size'));
+            if ($request->filled('predicate_color')) Setting::set('certificate_predicate_color', $request->input('predicate_color'));
+        }
+
+        $templateLabel = $activeTemplate === 'juara' ? 'Juara' : ($activeTemplate === 'pendamping' ? 'Pendamping' : 'Peserta');
+        return redirect()->back()->with('success', "Pengaturan mandiri Blangko {$templateLabel} berhasil disimpan!");
+    }
 }
 
 

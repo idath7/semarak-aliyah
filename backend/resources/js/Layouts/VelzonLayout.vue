@@ -659,6 +659,17 @@ onUnmounted(() => {
             </Link>
           </li>
 
+          <li class="nav-item" v-if="can('registrants.view') || can('schools.view')">
+            <Link 
+              href="/admin/sertifikat" 
+              class="nav-link menu-link"
+              :class="{ 'active': currentUrl.startsWith('/admin/sertifikat') }"
+            >
+              <i class="ri-award-line text-warning"></i>
+              <span v-show="!isSidebarCollapsed">E-Sertifikat &amp; Piagam</span>
+            </Link>
+          </li>
+
           <li class="nav-item" v-if="can('competitions.view') || can('competitions.manage')">
             <Link 
               href="/admin/lomba" 

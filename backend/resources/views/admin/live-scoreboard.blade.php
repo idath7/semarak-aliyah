@@ -669,7 +669,7 @@
                                     <tr>
                                         <th style="width: 80px;" class="text-center">Peringkat</th>
                                         <th>Kode</th>
-                                        <th>Asal Sekolah / Pangkalan</th>
+                                        <th>Asal Sekolah</th>
                                         <th>Official / Pembina</th>
                                         <th>Durasi Tampil</th>
                                         <th>Dewan Juri</th>

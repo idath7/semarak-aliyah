@@ -51,8 +51,15 @@ class PrintStudioController extends Controller
     {
         $reg = Registration::findByIdOrCodeOrFail($id, ['competition']);
         $rank = $request->input('rank', 'Peserta'); // Peserta, Juara 1, Juara 2, dll.
+        $target = $request->input('target', 'school'); // school, student, mentor
+        $recipient = $request->input('recipient') ?: ($request->input('student_name') ?: $reg->school_name);
+        $letterhead = \App\Models\Setting::getOfficialLetterhead();
+        $edition = \App\Models\Setting::where('key', 'event_edition')->value('value') ?? 'XIV';
+        $year = \App\Models\Setting::where('key', 'event_year')->value('value') ?? '2026';
 
-        return view('admin.print-certificate', compact('reg', 'rank'));
+        $certificateConfig = \App\Models\Setting::getCertificateConfig();
+
+        return view('admin.print-certificate', compact('reg', 'rank', 'target', 'recipient', 'letterhead', 'edition', 'year', 'certificateConfig'));
     }
 
     /**

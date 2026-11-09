@@ -121,6 +121,12 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
         Route::put('/{id}', [\App\Http\Controllers\Admin\RegistrantAccountController::class, 'update'])->name('update');
         Route::delete('/{id}', [\App\Http\Controllers\Admin\RegistrantAccountController::class, 'destroy'])->name('destroy');
     });
+
+    // Manajemen E-Sertifikat & Piagam Penghargaan
+    Route::get('/sertifikat', [AdminPanelController::class, 'certificatesIndex'])->name('certificates.index');
+    Route::post('/sertifikat/settings', [AdminPanelController::class, 'updateCertificateSettings'])->name('certificates.settings');
+    Route::get('/sertifikat/cetak-massal', [AdminPanelController::class, 'printCertificatesBatch'])->name('certificates.batch');
+    Route::get('/sertifikat/cetak/{id}', [\App\Http\Controllers\Admin\PrintStudioController::class, 'printCertificate'])->name('certificates.print');
     Route::get('/pendaftar/{id}', [AdminPanelController::class, 'pendaftarDetail'])->name('pendaftar.detail');
     Route::get('/pendaftar/{id}/cetak-formulir', [AdminPanelController::class, 'printRegistrationForm'])->name('pendaftar.print-form');
     Route::get('/pendaftar/{id}/download-formulir-pdf', [AdminPanelController::class, 'downloadRegistrationFormPdf'])->name('pendaftar.download-form-pdf');

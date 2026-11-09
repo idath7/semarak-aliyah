@@ -65,6 +65,9 @@ function logout() {
   router.post('/logout', {}, {
     onFinish: () => {
       window.location.href = '/login';
+    },
+    onError: () => {
+      window.location.href = '/login';
     }
   });
 }

@@ -45,7 +45,8 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:15
 Route::post('/login/sso-sipresensi', [AuthController::class, 'loginSsoSipresensi'])->middleware('throttle:15,1')->name('login.sso');
 Route::post('/login/wa-otp/send', [AuthController::class, 'sendWaOtp'])->middleware('throttle:10,1')->name('login.otp.send');
 Route::post('/login/wa-otp/verify', [AuthController::class, 'verifyWaOtp'])->middleware('throttle:15,1')->name('login.otp.verify');
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout');
+Route::match(['get', 'post'], '/admin/logout', [AuthController::class, 'logout']);
 
 // Google OAuth & Direct Login untuk Admin / Panitia
 Route::get('/admin/auth/google', [AuthController::class, 'adminGoogleLogin'])->name('admin.auth.google');

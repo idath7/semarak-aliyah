@@ -403,6 +403,38 @@ async function syncRegistrations() {
   });
 }
 
+// -----------------------------------------------------------------------------
+// SYNC TO REGISTRATIONS (CASCADE / HARMONIZE MASTER TO REGISTRATIONS)
+// -----------------------------------------------------------------------------
+const isSyncingToRegs = ref(false);
+
+async function syncToRegistrations() {
+  const ok = await confirmDialog({
+    title: 'Sinkronkan Nama Sekolah ke Data Pendaftar?',
+    message: 'Apakah Anda yakin ingin menyelaraskan nama sekolah pada seluruh data pendaftar aktif agar sesuai dengan nama resmi di database master sekolah? Pendaftar yang memakai variasi atau singkatan nama sekolah akan diseragamkan secara otomatis.',
+    type: 'info',
+    confirmText: 'Ya, Sinkronkan Sekarang',
+    icon: 'ri-refresh-line',
+  });
+
+  if (!ok) {
+    return;
+  }
+
+  isSyncingToRegs.value = true;
+  router.post('/admin/sekolah/sync-to-registrations', {}, {
+    onSuccess: () => {
+      // success flash handled by inertia / session
+    },
+    onError: (err) => {
+      error(Object.values(err)[0] || 'Gagal menyinkronkan nama sekolah ke data pendaftar.');
+    },
+    onFinish: () => {
+      isSyncingToRegs.value = false;
+    }
+  });
+}
+
 // List of all 31 kecamatan in Kabupaten Jember for select options
 const allJemberKecamatan = [
   'Ajung', 'Ambulu', 'Arjasa', 'Balung', 'Bangsalsari', 'Gumukmas', 'Jelbuk', 
@@ -498,12 +530,24 @@ const allJemberKecamatan = [
           <button 
             type="button" 
             class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1.5"
-            :disabled="isSyncing"
+            :disabled="isSyncing || isSyncingToRegs"
             @click="syncRegistrations"
             title="Tarik data sekolah dari riwayat formulir pendaftar (antisipasi database sekolah terhapus)"
           >
             <i class="ri-user-received-2-line" :class="{ 'ri-spin': isSyncing }"></i>
             <span class="d-none d-sm-inline">{{ isSyncing ? 'Menarik Data...' : 'Tarik dari Pendaftar' }}</span>
+          </button>
+
+          <!-- Button Sinkron ke Pendaftar -->
+          <button 
+            type="button" 
+            class="btn btn-sm btn-outline-info d-flex align-items-center gap-1.5"
+            :disabled="isSyncing || isSyncingToRegs"
+            @click="syncToRegistrations"
+            title="Selaraskan nama sekolah pada seluruh data pendaftar aktif agar sesuai dengan nama resmi master database"
+          >
+            <i class="ri-refresh-line" :class="{ 'ri-spin': isSyncingToRegs }"></i>
+            <span class="d-none d-sm-inline">{{ isSyncingToRegs ? 'Menyinkronkan...' : 'Sinkron ke Pendaftar' }}</span>
           </button>
 
           <!-- Button Tambah Sekolah -->

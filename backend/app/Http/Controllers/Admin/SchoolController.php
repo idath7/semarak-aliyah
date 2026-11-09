@@ -181,9 +181,34 @@ class SchoolController extends Controller
         $validated['jenjang'] = strtoupper($validated['jenjang']);
         $validated['status'] = ucfirst(strtolower($validated['status']));
 
+        $oldName = $school->name;
         $school->update($validated);
+        $newName = $school->name;
 
-        return redirect()->back()->with('success', "Data {$school->name} berhasil diperbarui.");
+        $msg = "Data {$school->name} berhasil diperbarui.";
+        if (strcasecmp($oldName, $newName) !== 0) {
+            $regCount = \App\Models\Registration::where('school_name', $newName)->count();
+            if ($regCount > 0) {
+                $msg .= " Nama sekolah otomatis disinkronkan ke {$regCount} data pendaftar terkait.";
+            }
+        }
+
+        return redirect()->back()->with('success', $msg);
+    }
+
+    /**
+     * Synchronize and harmonize school names in registrations with official master schools.
+     */
+    public function syncToRegistrations()
+    {
+        $result = School::harmonizeRegistrationsSchoolNames();
+        $count = $result['updated_count'];
+
+        if ($count === 0) {
+            return redirect()->back()->with('info', 'Seluruh data sekolah pada pendaftar telah sinkron dan sesuai dengan master database sekolah.');
+        }
+
+        return redirect()->back()->with('success', "Berhasil menyelaraskan {$count} data pendaftar dengan nama master database sekolah.");
     }
 
     /**

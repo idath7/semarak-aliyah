@@ -195,6 +195,7 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
     Route::delete('/sekolah/{id}', [\App\Http\Controllers\Admin\SchoolController::class, 'destroy'])->name('schools.destroy');
     Route::post('/sekolah/sync-defaults', [\App\Http\Controllers\Admin\SchoolController::class, 'syncDefaults'])->name('schools.sync-defaults');
     Route::post('/sekolah/sync-registrations', [\App\Http\Controllers\Admin\SchoolController::class, 'syncRegistrations'])->name('schools.sync-registrations');
+    Route::post('/sekolah/sync-to-registrations', [\App\Http\Controllers\Admin\SchoolController::class, 'syncToRegistrations'])->name('schools.sync-to-registrations');
     Route::get('/sekolah/export-csv', [\App\Http\Controllers\Admin\SchoolController::class, 'exportCsv'])->name('schools.export-csv');
     Route::get('/sekolah/template-csv', [\App\Http\Controllers\Admin\SchoolController::class, 'templateCsv'])->name('schools.template-csv');
     Route::post('/sekolah/import-csv', [\App\Http\Controllers\Admin\SchoolController::class, 'importCsv'])->name('schools.import-csv');

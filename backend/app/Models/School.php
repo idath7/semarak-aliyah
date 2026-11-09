@@ -50,6 +50,96 @@ class School extends Model
     ];
 
     /**
+     * The "booted" method of the model.
+     * Automatically cascade school name changes to registrations, registrants, and users.
+     */
+    protected static function booted()
+    {
+        static::updated(function (self $school) {
+            if ($school->isDirty('name')) {
+                $oldName = $school->getOriginal('name');
+                $newName = $school->name;
+                self::cascadeSchoolNameToRelations($oldName, $newName);
+            }
+        });
+    }
+
+    /**
+     * Cascade updated school name to all dependent models.
+     */
+    public static function cascadeSchoolNameToRelations(?string $oldName, ?string $newName): int
+    {
+        if (empty($oldName) || empty($newName) || trim($oldName) === trim($newName)) {
+            return 0;
+        }
+
+        $oldName = trim($oldName);
+        $newName = trim($newName);
+        $oldLower = mb_strtolower($oldName);
+
+        $affected = 0;
+
+        // 1. Update registrations
+        $affected += \App\Models\Registration::whereRaw('LOWER(TRIM(school_name)) = ?', [$oldLower])
+            ->update(['school_name' => $newName]);
+
+        // 2. Update registrants (portal accounts)
+        \App\Models\Registrant::whereRaw('LOWER(TRIM(school_name)) = ?', [$oldLower])
+            ->update(['school_name' => $newName]);
+
+        // 3. Update users (admin/jury)
+        \App\Models\User::whereRaw('LOWER(TRIM(school_name)) = ?', [$oldLower])
+            ->update(['school_name' => $newName]);
+
+        return $affected;
+    }
+
+    /**
+     * Harmonize all registrations with master schools database.
+     * Resolves aliases and unnormalized names to official master names.
+     */
+    public static function harmonizeRegistrationsSchoolNames(): array
+    {
+        $registrations = \App\Models\Registration::whereNotNull('school_name')
+            ->where('school_name', '!=', '')
+            ->where('school_name', '!=', '-')
+            ->get();
+
+        $updatedCount = 0;
+        $details = [];
+
+        foreach ($registrations as $reg) {
+            $currentName = trim($reg->school_name);
+            $matchedSchool = self::findExistingSchool($currentName);
+
+            if ($matchedSchool && $matchedSchool->name !== $currentName) {
+                $oldName = $reg->school_name;
+                $reg->school_name = $matchedSchool->name;
+                $reg->saveQuietly();
+
+                // Also cascade to associated registrant if linked
+                if ($reg->registrant_id) {
+                    \App\Models\Registrant::where('id', $reg->registrant_id)
+                        ->update(['school_name' => $matchedSchool->name]);
+                }
+
+                $updatedCount++;
+                $details[] = [
+                    'reg_id' => $reg->id,
+                    'reg_code' => $reg->reg_code,
+                    'from' => $oldName,
+                    'to' => $matchedSchool->name
+                ];
+            }
+        }
+
+        return [
+            'updated_count' => $updatedCount,
+            'details' => $details,
+        ];
+    }
+
+    /**
      * Scope query to active schools.
      */
     public function scopeActive(Builder $query): Builder

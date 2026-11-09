@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { useToast } from '@/Composables/useToast';
 import { usePermission } from '@/Composables/usePermission';
@@ -109,11 +109,50 @@ const isUserDropdownOpen = ref(false);
 const isAppsDropdownOpen = ref(false);
 const isMobileSearchOpen = ref(false);
 const isSettingsMenuOpen = ref(true);
+const sidebarScrollRef = ref(null);
+
+function handleSidebarScroll() {
+  if (sidebarScrollRef.value) {
+    sessionStorage.setItem('velzon_sidebar_scroll_top', String(sidebarScrollRef.value.scrollTop));
+  }
+}
+
+function restoreSidebarPosition() {
+  nextTick(() => {
+    const scrollEl = sidebarScrollRef.value;
+    if (!scrollEl) return;
+
+    // 1. Pulihkan posisi scroll terakhir dari sessionStorage
+    const savedScroll = sessionStorage.getItem('velzon_sidebar_scroll_top');
+    if (savedScroll !== null) {
+      scrollEl.scrollTop = parseInt(savedScroll, 10);
+    }
+
+    // 2. Berikan auto-focus lembut ke menu yang sedang aktif jika berada di luar pandangan
+    setTimeout(() => {
+      if (!scrollEl) return;
+      const activeEl = scrollEl.querySelector('.navbar-nav .nav-link.active') || 
+                       scrollEl.querySelector('.navbar-nav .active');
+      if (activeEl) {
+        const containerRect = scrollEl.getBoundingClientRect();
+        const elRect = activeEl.getBoundingClientRect();
+
+        // Jika menu aktif berada di luar viewport container scroll (terlalu atas atau terlalu bawah)
+        const isOutOfView = (elRect.top < containerRect.top) || (elRect.bottom > containerRect.bottom);
+        if (isOutOfView) {
+          activeEl.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+          sessionStorage.setItem('velzon_sidebar_scroll_top', String(scrollEl.scrollTop));
+        }
+      }
+    }, 60);
+  });
+}
 
 watch(() => currentUrl.value, (url) => {
   if (url && url.startsWith('/admin/pengaturan')) {
     isSettingsMenuOpen.value = true;
   }
+  restoreSidebarPosition();
 }, { immediate: true });
 
 function toggleSidebar() {
@@ -201,10 +240,18 @@ function handleDocumentClick(e) {
 onMounted(() => {
   document.addEventListener('click', handleDocumentClick);
   initTheme();
+
+  if (sidebarScrollRef.value) {
+    sidebarScrollRef.value.addEventListener('scroll', handleSidebarScroll, { passive: true });
+  }
+  restoreSidebarPosition();
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick);
+  if (sidebarScrollRef.value) {
+    sidebarScrollRef.value.removeEventListener('scroll', handleSidebarScroll);
+  }
 });
 </script>
 
@@ -220,6 +267,7 @@ onUnmounted(() => {
     <!-- ============================================================== -->
     <header 
       id="page-topbar" 
+      class="d-print-none"
       :style="{ 
         backgroundColor: isDarkTheme ? '#111827' : '#ffffff', 
         borderBottom: isDarkTheme ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e9ebec',
@@ -499,7 +547,7 @@ onUnmounted(() => {
     <!-- SIDEBAR (Velzon Dark Sidebar)                                  -->
     <!-- ============================================================== -->
     <aside 
-      class="app-menu navbar-menu" 
+      class="app-menu navbar-menu d-print-none" 
       id="app-sidebar"
       :class="{ 'show': isMobileSidebarOpen }"
       :style="{ 
@@ -526,8 +574,8 @@ onUnmounted(() => {
       </div>
 
       <!-- Scrollable Menu -->
-      <div class="sidebar-menu-wrapper" id="scrollbar">
-        <ul class="navbar-nav" id="navbar-nav">
+      <div class="sidebar-menu-wrapper" id="scrollbar" ref="sidebarScrollRef">
+        <ul class="navbar-nav" id="navbar-nav" @click="handleSidebarScroll">
           <!-- 1. Menu Utama -->
           <li class="menu-title"><span>Menu Utama</span></li>
 
@@ -608,17 +656,6 @@ onUnmounted(() => {
             >
               <i class="ri-community-line text-info"></i>
               <span v-show="!isSidebarCollapsed">Sekolah Terdaftar</span>
-            </Link>
-          </li>
-
-          <li class="nav-item" v-if="can('schools.view')">
-            <Link 
-              href="/admin/sekolah" 
-              class="nav-link menu-link"
-              :class="{ 'active': currentUrl.startsWith('/admin/sekolah') && !currentUrl.startsWith('/admin/sekolah-terdaftar') }"
-            >
-              <i class="ri-building-4-line text-success"></i>
-              <span v-show="!isSidebarCollapsed">Database Sekolah</span>
             </Link>
           </li>
 
@@ -952,7 +989,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Velzon Official Footer -->
-      <footer class="footer">
+      <footer class="footer d-print-none">
         <div class="container-fluid">
           <div class="row">
             <div class="col-sm-6">
@@ -1842,5 +1879,35 @@ onUnmounted(() => {
 .navbar-menu .navbar-nav .nav-sm .nav-link.active > span {
   font-weight: 600 !important;
   font-family: 'Poppins', sans-serif !important;
+}
+
+/* Global Print Layout Isolation */
+@media print {
+  #page-topbar,
+  #app-sidebar,
+  .app-menu,
+  .navbar-menu,
+  .vertical-overlay,
+  .footer,
+  .d-print-none {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+  }
+
+  #layout-wrapper,
+  .main-content {
+    margin-left: 0 !important;
+    padding-top: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    width: 100% !important;
+  }
+
+  .page-content {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
 }
 </style>

@@ -631,6 +631,25 @@ onMounted(() => {
                           <i class="ri-file-paper-2-line"></i>
                         </a>
 
+                        <!-- Cetak Formulir Pendaftaran Peserta -->
+                        <a 
+                          :href="'/admin/pendaftar/' + reg.id + '/cetak-formulir'" 
+                          target="_blank" 
+                          class="btn btn-sm btn-outline-primary"
+                          title="Cetak Formulir Pendaftaran & Biodata Peserta (A4)"
+                        >
+                          <i class="ri-printer-line"></i>
+                        </a>
+
+                        <!-- Download PDF Formulir -->
+                        <a 
+                          :href="'/admin/pendaftar/' + reg.id + '/download-formulir-pdf'" 
+                          class="btn btn-sm btn-outline-danger"
+                          title="Download PDF Formulir Pendaftaran (A4 Murni)"
+                        >
+                          <i class="ri-file-pdf-2-line"></i>
+                        </a>
+
                         <!-- Halaman Penuh: Verifikasi Detail & Formulir Cabang -->
                         <Link 
                           :href="'/admin/pendaftar/' + reg.id" 
@@ -840,6 +859,25 @@ onMounted(() => {
                     title="Cetak Nota Tagihan / Kwitansi Resmi (A4)"
                   >
                     <i class="ri-file-paper-2-line fs-14"></i>
+                  </a>
+
+                  <!-- Cetak Formulir Peserta -->
+                  <a 
+                    :href="'/admin/pendaftar/' + reg.id + '/cetak-formulir'" 
+                    target="_blank" 
+                    class="btn btn-xs btn-outline-primary px-2.5 py-1.5 rounded-2 flex-shrink-0"
+                    title="Cetak Formulir Pendaftaran Peserta (A4)"
+                  >
+                    <i class="ri-printer-line fs-14"></i>
+                  </a>
+
+                  <!-- Download PDF Formulir -->
+                  <a 
+                    :href="'/admin/pendaftar/' + reg.id + '/download-formulir-pdf'" 
+                    class="btn btn-xs btn-outline-danger px-2.5 py-1.5 rounded-2 flex-shrink-0"
+                    title="Download PDF Formulir Pendaftaran"
+                  >
+                    <i class="ri-file-pdf-2-line fs-14"></i>
                   </a>
 
                   <!-- Halaman Penuh: Verifikasi Detail & Formulir Cabang -->

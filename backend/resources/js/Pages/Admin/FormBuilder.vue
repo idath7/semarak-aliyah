@@ -149,7 +149,7 @@ function createDefaultSubFields() {
     nisn: { active: true, required: true, label: 'Nomor Induk Siswa Nasional (NISN)', placeholder: 'Contoh: 0081234567' },
     custom_id: { active: false, required: false, label: 'ID Siswa / No. Identitas', placeholder: 'Contoh: ID-0912 / User ID Game' },
     wa_number: { active: false, required: false, label: 'Nomor WhatsApp Siswa', placeholder: '08xxxxxxxxxx' },
-    captain_option: { active: false, required: false, label: 'Tandai Kapten Tim & Kontak WA', placeholder: '08xxxxxxxxxx' },
+    captain_option: { active: false, required: false, label: 'Tandai Ketua / Kapten Tim & Kontak WA', placeholder: '08xxxxxxxxxx' },
     team_name: { active: false, required: true, label: 'Nama Tim / Skuad', placeholder: 'Contoh: Garuda Squad / Tim Voli' },
     photo_formal: { active: true, required: false, label: 'Pas Foto Formal (3x4)', placeholder: 'Pilih Pas Foto Formal Siswa' },
     photo_freestyle: { active: false, required: false, label: 'Upload Foto Pose Gaya Bebas', placeholder: 'Pilih Foto Pose Bebas', multiple: true },
@@ -281,8 +281,9 @@ function syncWithCompetitionRules(field, isManualRefresh = false) {
         field.sub_fields.captain_option.label = 'Tandai Ketua Grup & No. WhatsApp';
         field.sub_fields.captain_option.placeholder = '08xxxxxxxxxx (Untuk koordinasi ketua grup banjari)';
       } else {
-        field.sub_fields.team_name.label = 'Nama Tim / Regu';
-        field.sub_fields.team_name.placeholder = 'Contoh: Regu Utama / Tim Kontingen';
+        field.sub_fields.team_name.label = 'Nama Tim / Skuad';
+        field.sub_fields.team_name.placeholder = 'Contoh: Tim Utama / Skuad Kontingen';
+        field.sub_fields.captain_option.label = 'Tandai Ketua / Kapten Tim & No. WhatsApp';
       }
     } else if (isManualRefresh) {
       field.sub_fields.team_name.active = false;
@@ -745,7 +746,7 @@ async function applyHeadlineAll() {
           <div class="d-none d-lg-flex align-items-center gap-2 text-muted fs-11">
             <span class="badge" :class="selectedCompetition?.participant_type === 'tim' ? 'bg-info-subtle text-info' : 'bg-secondary-subtle text-secondary'">
               <i :class="selectedCompetition?.participant_type === 'tim' ? 'ri-team-line' : 'ri-user-line'" class="me-0.5"></i>
-              {{ selectedCompetition?.participant_type === 'tim' ? 'Format Tim/Regu' : 'Format Individu' }}
+              {{ selectedCompetition?.participant_type === 'tim' ? 'Format Tim' : 'Format Individu' }}
             </span>
             <span class="badge bg-light text-dark border">
               Biaya: Rp {{ Number(selectedCompetition?.fee || 0).toLocaleString('id-ID') }}
@@ -1185,7 +1186,7 @@ async function applyHeadlineAll() {
                     <tr :class="selectedCompetition?.participant_type === 'tim' ? 'table-warning-subtle' : ''">
                       <td class="fw-semibold">
                         <div>Nama Tim / Skuad</div>
-                        <div class="fs-10 text-muted">Otomatis aktif pada lomba beregu</div>
+                        <div class="fs-10 text-muted">Otomatis aktif pada lomba tim</div>
                       </td>
                       <td>
                         <div class="form-check form-switch mb-0">

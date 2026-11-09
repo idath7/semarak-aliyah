@@ -419,6 +419,24 @@ const allJemberKecamatan = [
 
     <div class="container-fluid py-4">
       <!-- ============================================================== -->
+      <!-- TOP NAVIGATION / BREADCRUMB                                    -->
+      <!-- ============================================================== -->
+      <div class="mb-3 d-flex align-items-center gap-2">
+        <Link 
+          href="/admin/sekolah-terdaftar" 
+          class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-pill px-3 py-1 shadow-xs"
+          title="Kembali ke Halaman Sekolah Terdaftar"
+        >
+          <i class="ri-arrow-left-line"></i>
+          <span>Kembali ke Sekolah Terdaftar</span>
+        </Link>
+        <span class="text-muted fs-12 d-none d-sm-inline">/</span>
+        <span class="text-muted fs-12 d-none d-sm-inline">Data Lembaga</span>
+        <span class="text-muted fs-12 d-none d-sm-inline">/</span>
+        <span class="fw-semibold text-success fs-12 d-none d-sm-inline">Database Master Sekolah & Madrasah</span>
+      </div>
+
+      <!-- ============================================================== -->
       <!-- PAGE HEADER                                                    -->
       <!-- ============================================================== -->
       <div class="row mb-4 align-items-center">
@@ -434,6 +452,16 @@ const allJemberKecamatan = [
           </div>
         </div>
         <div class="col-auto d-flex flex-wrap gap-2">
+          <!-- Button Kembali ke Sekolah Terdaftar -->
+          <Link 
+            href="/admin/sekolah-terdaftar" 
+            class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1.5 shadow-sm"
+            title="Kembali ke Halaman Sekolah Terdaftar"
+          >
+            <i class="ri-arrow-left-line"></i>
+            <span>Kembali</span>
+          </Link>
+
           <!-- Button Export Excel -->
           <a 
             href="/admin/sekolah/export-csv" 

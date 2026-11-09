@@ -321,7 +321,7 @@ const teamFieldConfig = computed(() => {
       label: rf.sub_fields.team_name.label || 'Nama Tim / Skuad',
       placeholder: rf.sub_fields.team_name.placeholder || 'Contoh: Garuda Squad / Tim Voli Utama',
       required: rf.sub_fields.team_name.required !== false,
-      help_text: 'Nama tim / regu resmi yang mewakili sekolah Anda'
+      help_text: 'Nama tim resmi yang mewakili sekolah Anda'
     };
   }
 
@@ -334,7 +334,7 @@ const teamFieldConfig = computed(() => {
         label: found.label || 'Nama Tim / Skuad',
         placeholder: found.placeholder || 'Contoh: Garuda Squad / Tim Voli Utama',
         required: !!found.required,
-        help_text: found.help_text || 'Nama tim / regu resmi yang mewakili sekolah Anda'
+        help_text: found.help_text || 'Nama tim resmi yang mewakili sekolah Anda'
       };
     }
   }
@@ -536,6 +536,15 @@ function removeParticipantPhotoFreestyleItem(pIdx, fIdx) {
 }
 
 const participantsList = ref([createEmptyParticipant()]);
+
+const captainRoleName = computed(() => {
+  const lbl = (repeaterField.value?.sub_fields?.captain_option?.label || '').toLowerCase();
+  if (lbl.includes('ketua')) return 'Ketua';
+  if (lbl.includes('kapten')) return 'Kapten';
+  const title = (props.competition?.title || '').toLowerCase();
+  if (title.includes('voli') || title.includes('mobile legends') || title.includes('esport')) return 'Kapten';
+  return 'Ketua';
+});
 
 function setCaptain(idx) {
   participantsList.value.forEach((p, i) => {
@@ -1970,7 +1979,7 @@ function handleUnifiedSubmit() {
                             Peserta #{{ pIdx }}
                           </span>
                           <span v-if="participantsList[pIdx - 1]?.is_captain" class="badge badge-subtle-warning fs-10 rounded-pill">
-                            <i class="ri-star-fill text-warning me-1"></i> Kapten Tim
+                            <i class="ri-star-fill text-warning me-1"></i> {{ captainRoleName }} Tim
                           </span>
                         </div>
 
@@ -1983,7 +1992,7 @@ function handleUnifiedSubmit() {
                           @click="setCaptain(pIdx - 1)"
                         >
                           <i :class="participantsList[pIdx - 1]?.is_captain ? 'ri-star-fill' : 'ri-star-line'"></i>
-                          <span>{{ participantsList[pIdx - 1]?.is_captain ? 'Kapten Tim' : 'Jadikan Kapten' }}</span>
+                          <span>{{ participantsList[pIdx - 1]?.is_captain ? (captainRoleName + ' Tim') : ('Jadikan ' + captainRoleName) }}</span>
                         </button>
                       </div>
 

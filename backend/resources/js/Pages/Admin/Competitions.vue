@@ -1350,7 +1350,7 @@ function confirmDelete() {
                           :class="comp.participant_type === 'tim' ? 'bg-info text-white' : 'bg-primary text-white'"
                         >
                           <i :class="comp.participant_type === 'tim' ? 'ri-team-line' : 'ri-user-line'" class="me-1"></i>
-                          {{ comp.participant_type === 'tim' ? 'Tim / Regu' : 'Individu' }}
+                          {{ comp.participant_type === 'tim' ? 'Tim' : 'Individu' }}
                         </span>
                         <span v-if="comp.participant_type === 'tim'" class="fw-normal text-dark fs-12">
                           (Maks {{ comp.max_teams || 1 }} Tim) • ({{ comp.min_participants || 5 }} - {{ comp.max_participants || 10 }} Anggota/Tim)
@@ -1550,6 +1550,25 @@ function confirmDelete() {
                           <i class="ri-calendar-todo-line"></i>
                         </Link>
 
+                        <!-- Cetak Formulir & Daftar Peserta Cabang Lomba -->
+                        <a 
+                          :href="`/admin/lomba/${comp.id}/cetak-peserta`" 
+                          target="_blank" 
+                          class="btn btn-sm btn-outline-success"
+                          :title="`Cetak Formulir & Daftar Peserta Cabang Lomba: ${comp.title} (A4)`"
+                        >
+                          <i class="ri-printer-line"></i>
+                        </a>
+
+                        <!-- Download PDF Peserta Cabang Lomba -->
+                        <a 
+                          :href="`/admin/lomba/${comp.id}/download-pdf`" 
+                          class="btn btn-sm btn-outline-danger"
+                          :title="`Download PDF Daftar Peserta: ${comp.title} (A4 Lanskap)`"
+                        >
+                          <i class="ri-file-pdf-2-line"></i>
+                        </a>
+
                         <!-- Form Builder Button -->
                         <Link 
                           :href="`/admin/form-builder/${comp.id}`"
@@ -1740,7 +1759,7 @@ function confirmDelete() {
                                 <span class="avatar-xs rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center">
                                   <i class="ri-team-line fs-14"></i>
                                 </span>
-                                <span class="fw-bold fs-13 text-dark">Format Tim / Regu</span>
+                                <span class="fw-bold fs-13 text-dark">Format Tim</span>
                               </div>
                               <input 
                                 type="radio" 
@@ -1849,7 +1868,7 @@ function confirmDelete() {
                               <span class="input-group-text fs-12 bg-light px-2.5">Tim</span>
                             </div>
                             <div v-if="createForm.errors.max_teams" class="invalid-feedback d-block fs-11">{{ createForm.errors.max_teams }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas regu yang boleh dikirim 1 madrasah.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas tim yang boleh dikirim 1 madrasah.</small>
                           </div>
 
                           <div class="col-6 col-md-3">
@@ -2418,7 +2437,7 @@ function confirmDelete() {
                                 <span class="avatar-xs rounded-circle bg-info-subtle text-info d-flex align-items-center justify-content-center">
                                   <i class="ri-team-line fs-14"></i>
                                 </span>
-                                <span class="fw-bold fs-13 text-dark">Format Tim / Regu</span>
+                                <span class="fw-bold fs-13 text-dark">Format Tim</span>
                               </div>
                               <input 
                                 type="radio" 
@@ -2527,7 +2546,7 @@ function confirmDelete() {
                               <span class="input-group-text fs-12 bg-light px-2.5">Tim</span>
                             </div>
                             <div v-if="editForm.errors.max_teams" class="invalid-feedback d-block fs-11">{{ editForm.errors.max_teams }}</div>
-                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas regu yang boleh dikirim 1 madrasah.</small>
+                            <small class="text-muted fs-11 mt-1 d-block" style="min-height: 32px; line-height: 1.25;">Batas tim yang boleh dikirim 1 madrasah.</small>
                           </div>
 
                           <div class="col-6 col-md-3">

@@ -614,23 +614,33 @@ function sendOfficialNotification(templateKey) {
           <a 
             :href="'/admin/invoice/' + registration.id" 
             target="_blank" 
-            class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 rounded-pill shadow-sm"
+            class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 rounded-pill shadow-sm"
             title="Cetak Nota Tagihan / Kwitansi Pembayaran Resmi"
           >
             <i class="ri-file-paper-2-line"></i>
             <span>Nota / Kwitansi</span>
           </a>
 
-          <!-- Cetak Ringkasan -->
-          <button 
-            type="button" 
-            onclick="window.print()" 
-            class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1.5 rounded-pill"
-            title="Cetak Berkas Ringkasan Verifikasi Pendaftaran"
+          <!-- Cetak Formulir Pendaftaran Peserta Resmi -->
+          <a 
+            :href="'/admin/pendaftar/' + registration.id + '/cetak-formulir'" 
+            target="_blank" 
+            class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5 rounded-pill shadow-sm"
+            title="Cetak Formulir Pendaftaran & Biodata Peserta Resmi (A4)"
           >
             <i class="ri-printer-line"></i>
-            <span>Cetak</span>
-          </button>
+            <span>Cetak Formulir</span>
+          </a>
+
+          <!-- Download PDF Formulir Peserta -->
+          <a 
+            :href="'/admin/pendaftar/' + registration.id + '/download-formulir-pdf'" 
+            class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1.5 rounded-pill shadow-sm"
+            title="Download Berkas PDF Formulir Pendaftaran Peserta (A4 Murni)"
+          >
+            <i class="ri-file-pdf-2-line"></i>
+            <span>PDF</span>
+          </a>
 
           <!-- Hapus Delegasi Pendaftar (Super Admin) -->
           <button 
@@ -697,9 +707,6 @@ function sendOfficialNotification(templateKey) {
                     {{ registration.competition_title || registration.competition_id }}
                   </h6>
                   <div class="d-flex align-items-center gap-1.5 mt-1">
-                    <span class="badge bg-primary-subtle text-primary fs-10">
-                      {{ competition?.category_label || competition?.category || 'Umum' }}
-                    </span>
                     <span class="badge bg-info-subtle text-info fs-10">
                       {{ registration.package_type || 'Paket Satuan' }}
                     </span>

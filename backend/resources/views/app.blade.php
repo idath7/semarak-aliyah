@@ -100,6 +100,7 @@
     <link rel="stylesheet" href="/assets/vendor/remixicon/remixicon.css">
     <link rel="stylesheet" href="/assets/vendor/boxicons/css/boxicons.min.css">
 
+
     @if(request()->is('admin*') || request()->is('operasional*') || request()->is('login*') || request()->is('pendaftar*') || request()->is('formulir*'))
         <!-- Admin, Operasional, Pendaftar & Formulir Pendaftaran Assets (Synchronous Theme Restorer) -->
         <script>

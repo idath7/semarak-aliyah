@@ -286,6 +286,51 @@ class Registration extends Model
             $isCompTeam = in_array(strtolower((string)$comp->participant_type), ['tim', 'beregu', 'team', 'grup', 'group']);
         }
 
+        // Helper resolusi sebutan pemimpin tim secara dinamis dari database Kelola Formulir
+        $resolveLeaderTitle = function () use ($comp): string {
+            if (!$comp) return 'Ketua';
+            
+            // 1. Cek dari skema database Kelola Formulir (competitions.custom_fields)
+            $compCustom = is_array($comp->custom_fields) ? $comp->custom_fields : [];
+            $captainLabel = '';
+            
+            if (isset($compCustom['biodata_peserta']['sub_fields']['captain_option']['label'])) {
+                $captainLabel = $compCustom['biodata_peserta']['sub_fields']['captain_option']['label'];
+            } elseif (isset($compCustom['participants']['sub_fields']['captain_option']['label'])) {
+                $captainLabel = $compCustom['participants']['sub_fields']['captain_option']['label'];
+            } else {
+                foreach ($compCustom as $f) {
+                    if (is_array($f) && isset($f['sub_fields']['captain_option']['label'])) {
+                        $captainLabel = $f['sub_fields']['captain_option']['label'];
+                        break;
+                    }
+                }
+            }
+
+            if (!empty($captainLabel)) {
+                $lower = strtolower($captainLabel);
+                if (str_contains($lower, 'ketua')) return 'Ketua';
+                if (str_contains($lower, 'kapten')) return 'Kapten';
+            }
+
+            // 2. Fallback cerdas berdasarkan cabang lomba (olahraga/esport vs seni/keagamaan/akademik)
+            $compTitle = strtolower($comp->title ?? '');
+            $compId = strtolower($comp->id ?? '');
+            if (
+                str_contains($compTitle, 'voli') || str_contains($compTitle, 'volleyball') ||
+                str_contains($compTitle, 'futsal') || str_contains($compTitle, 'basket') ||
+                str_contains($compTitle, 'mobile legends') || str_contains($compTitle, 'mlbb') ||
+                str_contains($compTitle, 'esport') || str_contains($compId, 'volleyball') ||
+                str_contains($compId, 'mobile-legends')
+            ) {
+                return 'Kapten';
+            }
+
+            return 'Ketua';
+        };
+
+        $leaderTitle = $resolveLeaderTitle();
+
         // Helper untuk memformat URL foto jika ada
         $formatPhotoUrl = function (?string $path): ?string {
             if (empty($path) || $path === '-') return null;
@@ -308,9 +353,17 @@ class Registration extends Model
                 }
 
                 $isCaptain = !empty($st['is_captain']) || ($isCompTeam && $idx === 0 && count($cf['delegates']) > 1);
-                $teamRole = !$isCompTeam 
-                    ? 'Peserta Tunggal' 
-                    : ($isCaptain ? 'Kapten Regu' : 'Anggota Regu #' . ($idx + 1));
+                $customRole = trim($st['team_role'] ?? $st['peran'] ?? $st['role'] ?? '');
+                if (!empty($customRole) && !in_array($customRole, ['Kapten Regu', 'Anggota Regu', 'Peserta'])) {
+                    $teamRole = trim(str_ireplace(['regu', '  '], ['', ' '], $customRole));
+                } else {
+                    $teamRole = !$isCompTeam 
+                        ? 'Peserta Tunggal' 
+                        : ($isCaptain ? $leaderTitle : 'Anggota');
+                }
+
+                $rawWa = $st['wa_number'] ?? ($isCaptain ? ($st['captain_wa'] ?? null) : null) ?? $st['wa'] ?? $st['phone'] ?? null;
+                $cleanWa = trim((string)$rawWa);
 
                 $participants[] = [
                     'index' => $idx + 1,
@@ -319,7 +372,7 @@ class Registration extends Model
                     'gender' => trim($st['gender'] ?? $st['jenis_kelamin'] ?? '-') ?: '-',
                     'grade' => $grade ?: '-',
                     'birth_date' => $st['birth_date'] ?? $st['tanggal_lahir'] ?? null,
-                    'wa_number' => $st['wa_number'] ?? $st['wa'] ?? $st['phone'] ?? null,
+                    'wa_number' => ($cleanWa !== '' && $cleanWa !== '-') ? $cleanWa : null,
                     'is_captain' => (bool)$isCaptain,
                     'team_role' => $teamRole,
                     'photo' => $formatPhotoUrl($st['photo_formal'] ?? ($st['photo'] ?? null)),
@@ -356,9 +409,17 @@ class Registration extends Model
                 }
 
                 $isCaptain = !empty($st['is_captain']) || !empty($st['captain_option']) || ($isCompTeam && $idx === 0 && count($repeater) > 1);
-                $teamRole = !$isCompTeam 
-                    ? 'Peserta Tunggal' 
-                    : ($isCaptain ? 'Kapten Regu' : 'Anggota Regu #' . ($idx + 1));
+                $customRole = trim($st['team_role'] ?? $st['peran'] ?? $st['role'] ?? '');
+                if (!empty($customRole) && !in_array($customRole, ['Kapten Regu', 'Anggota Regu', 'Peserta'])) {
+                    $teamRole = trim(str_ireplace(['regu', '  '], ['', ' '], $customRole));
+                } else {
+                    $teamRole = !$isCompTeam 
+                        ? 'Peserta Tunggal' 
+                        : ($isCaptain ? $leaderTitle : 'Anggota');
+                }
+
+                $rawWa = $st['wa_siswa'] ?? $st['no_wa_siswa'] ?? $st['nomor_wa_siswa'] ?? $st['wa_number'] ?? ($isCaptain ? ($st['captain_wa'] ?? null) : null) ?? $st['wa'] ?? null;
+                $cleanWa = trim((string)$rawWa);
 
                 $participants[] = [
                     'index' => $idx + 1,
@@ -367,7 +428,7 @@ class Registration extends Model
                     'gender' => trim($st['jenis_kelamin'] ?? $st['gender'] ?? '-') ?: '-',
                     'grade' => $grade ?: '-',
                     'birth_date' => $st['tanggal_lahir'] ?? $st['tgl_lahir'] ?? $st['birth_date'] ?? null,
-                    'wa_number' => $st['wa_siswa'] ?? $st['no_wa_siswa'] ?? $st['nomor_wa_siswa'] ?? $st['wa_number'] ?? $st['wa'] ?? null,
+                    'wa_number' => ($cleanWa !== '' && $cleanWa !== '-') ? $cleanWa : null,
                     'is_captain' => (bool)$isCaptain,
                     'team_role' => $teamRole,
                     'photo' => $formatPhotoUrl($st['foto_formal'] ?? ($st['pas_foto'] ?? ($st['foto_siswa'] ?? ($st['photo_formal'] ?? ($st['photo'] ?? null))))),
@@ -497,7 +558,7 @@ class Registration extends Model
                 if ($name !== '') {
                     $teamRole = !$isCompTeam 
                         ? 'Peserta Tunggal' 
-                        : ($isCaptain ? 'Kapten Regu' : 'Anggota Regu #' . ($idx + 1));
+                        : ($isCaptain ? $leaderTitle : 'Anggota');
 
                     $participants[] = [
                         'index' => $idx + 1,
@@ -530,7 +591,7 @@ class Registration extends Model
                 'gender' => '-',
                 'grade' => '-',
                 'birth_date' => null,
-                'wa_number' => $this->mentor_wa ?: null,
+                'wa_number' => null,
                 'is_captain' => false,
                 'team_role' => $isCompTeam ? 'Perwakilan Tim' : 'Peserta Tunggal',
                 'photo' => null,

@@ -51,7 +51,7 @@ const paymentFilterOptions = [
 const competitionFilterOptions = computed(() => {
   const opts = [{ value: 'all', label: 'Semua Cabang Lomba' }];
   props.competitions.forEach(c => {
-    opts.push({ value: String(c.id), label: `${c.title} (${c.category?.name || 'Umum'})` });
+    opts.push({ value: String(c.id), label: c.title });
   });
   return opts;
 });
@@ -1086,6 +1086,15 @@ const activeBuilderRules = computed(() => {
   };
 });
 
+const activeCaptainTitle = computed(() => {
+  const lbl = (activeBuilderRules.value?.sub_fields?.captain_option?.label || '').toLowerCase();
+  if (lbl.includes('ketua')) return 'Ketua';
+  if (lbl.includes('kapten')) return 'Kapten';
+  const compTitle = (activeEditContingent.value?.competition_title || '').toLowerCase();
+  if (compTitle.includes('voli') || compTitle.includes('volleyball') || compTitle.includes('mobile legends') || compTitle.includes('esport')) return 'Kapten';
+  return 'Ketua';
+});
+
 const contingentRegistrations = ref([]);
 
 function openParticipantModal(compReg, schoolContext = null) {
@@ -1795,6 +1804,15 @@ function printReport() {
                 >
                   <i class="ri-add-line"></i> Lomba
                 </button>
+                <!-- Cetak Formulir Kontingen Sekolah -->
+                <a 
+                  :href="'/admin/sekolah-terdaftar/cetak-formulir?school=' + encodeURIComponent(school.school_name)" 
+                  target="_blank" 
+                  class="btn btn-sm btn-soft-info text-info fs-11 px-2"
+                  title="Cetak Formulir Kontingen Sekolah (A4)"
+                >
+                  <i class="ri-printer-line"></i>
+                </a>
                 <button 
                   type="button" 
                   class="btn btn-sm btn-soft-warning text-dark fs-11 px-2"
@@ -1908,6 +1926,15 @@ function printReport() {
                       >
                         <i class="ri-eye-line"></i>
                       </button>
+                      <!-- Cetak Formulir Kontingen Sekolah -->
+                      <a 
+                        :href="'/admin/sekolah-terdaftar/cetak-formulir?school=' + encodeURIComponent(school.school_name)" 
+                        target="_blank" 
+                        class="btn btn-sm btn-outline-info px-2 py-1"
+                        title="Cetak Formulir Kontingen Sekolah (A4)"
+                      >
+                        <i class="ri-printer-line"></i>
+                      </a>
                       <button 
                         type="button" 
                         class="btn btn-sm btn-soft-primary px-2 py-1"
@@ -2027,9 +2054,6 @@ function printReport() {
                       <div class="d-flex align-items-center gap-1.5 mb-0.5">
                         <span class="badge bg-primary-subtle text-primary fs-10 font-monospace">
                           {{ comp.reg_code }}
-                        </span>
-                        <span class="badge bg-secondary-subtle text-secondary fs-10">
-                          {{ comp.category_name }}
                         </span>
                       </div>
                       <h6 class="fw-bold text-dark mb-0">{{ comp.competition_title }}</h6>
@@ -2159,6 +2183,25 @@ function printReport() {
                 <i class="ri-add-line"></i>
                 <span>+ Tambah Cabang Lomba</span>
               </button>
+              <!-- Cetak Formulir Kontingen Sekolah -->
+              <a 
+                :href="'/admin/sekolah-terdaftar/cetak-formulir?school=' + encodeURIComponent(activeSchool.school_name)" 
+                target="_blank" 
+                class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1"
+                title="Cetak Formulir Pendaftaran Kontingen Sekolah (A4)"
+              >
+                <i class="ri-printer-line"></i>
+                <span>Cetak Formulir Kontingen</span>
+              </a>
+              <!-- Download PDF Kontingen -->
+              <a 
+                :href="'/admin/sekolah-terdaftar/download-formulir-pdf?school=' + encodeURIComponent(activeSchool.school_name)" 
+                class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1"
+                title="Download PDF Formulir Kontingen Sekolah (A4 Murni)"
+              >
+                <i class="ri-file-pdf-2-line"></i>
+                <span>PDF Kontingen</span>
+              </a>
               <button 
                 v-if="canDeleteSchool"
                 type="button" 
@@ -2330,7 +2373,7 @@ function printReport() {
                           <div class="d-flex align-items-center gap-2 text-muted fs-11">
                             <span><i class="ri-group-line me-0.5"></i> Kuota: <strong>{{ activeManualFormBuilder?.minItems }} s.d {{ activeManualFormBuilder?.maxItems }} Siswa</strong></span>
                             <span>•</span>
-                            <span>Tipe: <strong>{{ activeManualFormBuilder?.isTeam ? 'Beregu / Tim' : 'Individu' }}</strong></span>
+                            <span>Tipe: <strong>{{ activeManualFormBuilder?.isTeam ? 'Tim' : 'Individu' }}</strong></span>
                           </div>
                         </div>
                       </div>
@@ -2520,7 +2563,7 @@ function printReport() {
                       >
                         <label class="form-label fs-11 fw-bold text-primary mb-1 d-flex align-items-center justify-content-between">
                           <span><i class="ri-shield-star-line me-1"></i> {{ activeManualFormBuilder.teamLabel }} <span class="text-danger">*</span></span>
-                          <span class="badge bg-primary text-white fs-10">Delegasi Beregu / Tim</span>
+                          <span class="badge bg-primary text-white fs-10">Delegasi Tim</span>
                         </label>
                         <input 
                           type="text" 
@@ -2528,7 +2571,7 @@ function printReport() {
                           class="form-control form-control-sm fs-12"
                           :placeholder="activeManualFormBuilder.teamPlaceholder" 
                         />
-                        <span class="fs-10 text-muted mt-1 d-block">Cabang lomba beregu ini mewajibkan penamaan skuad/tim kontingen.</span>
+                        <span class="fs-10 text-muted mt-1 d-block">Cabang lomba tim ini mewajibkan penamaan skuad/tim kontingen.</span>
                       </div>
 
                       <hr class="my-3" />
@@ -2624,7 +2667,7 @@ function printReport() {
                     </span>
                     <div class="fs-10 text-muted mt-0.5">
                       Ketentuan kuota: <strong>{{ activeManualFormBuilder?.minItems }} s.d {{ activeManualFormBuilder?.maxItems }} siswa</strong>
-                      ({{ activeManualFormBuilder?.isTeam ? 'Beregu / Tim' : 'Individu' }})
+                      ({{ activeManualFormBuilder?.isTeam ? 'Tim' : 'Individu' }})
                     </div>
                   </div>
                   <span 
@@ -2867,7 +2910,7 @@ function printReport() {
                       </span>
                       <span class="fs-10 text-muted">
                         Ketentuan Kuota: <strong>{{ getAllInBuilder(activeAllInTab).minItems }} s.d {{ getAllInBuilder(activeAllInTab).maxItems }} Siswa</strong> 
-                        ({{ getAllInBuilder(activeAllInTab).isTeam ? 'Beregu / Tim' : 'Individu' }})
+                        ({{ getAllInBuilder(activeAllInTab).isTeam ? 'Tim' : 'Individu' }})
                       </span>
                     </div>
 
@@ -3457,22 +3500,22 @@ function printReport() {
                       {{ delegate.name }}
                     </span>
                     <span class="badge bg-warning text-dark fs-10 px-2 py-0.5 rounded-pill fw-bold" v-if="delegate.is_captain">
-                      <i class="ri-vip-crown-fill me-0.5"></i> Kapten Tim
+                      <i class="ri-vip-crown-fill me-0.5"></i> {{ activeCaptainTitle }} Tim
                     </span>
                   </div>
 
                   <div class="d-flex align-items-center gap-2">
-                    <!-- Tombol Set Kapten (Jika captain_option aktif) -->
+                    <!-- Tombol Set Kapten/Ketua (Jika captain_option aktif) -->
                     <button 
                       v-if="activeBuilderRules.sub_fields.captain_option?.active"
                       type="button" 
                       class="btn btn-xs rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1"
                       :class="delegate.is_captain ? 'btn-warning text-dark fw-bold shadow-xs' : 'btn-outline-secondary'"
                       @click="setCaptain(dIdx)"
-                      title="Tetapkan siswa ini sebagai kapten tim"
+                      :title="`Tetapkan siswa ini sebagai ${activeCaptainTitle.toLowerCase()} tim`"
                     >
                       <i :class="delegate.is_captain ? 'ri-star-fill text-dark' : 'ri-star-line'"></i>
-                      <span>{{ delegate.is_captain ? 'Kapten Terpilih' : 'Jadikan Kapten' }}</span>
+                      <span>{{ delegate.is_captain ? (activeCaptainTitle + ' Terpilih') : ('Jadikan ' + activeCaptainTitle) }}</span>
                     </button>
 
                     <!-- Tombol Hapus -->
@@ -3609,7 +3652,7 @@ function printReport() {
                     <!-- Nomor WhatsApp Khusus Kapten (Jika ini kapten & captain_option aktif) -->
                     <div class="col-12 col-md-4" v-if="activeBuilderRules.sub_fields.captain_option?.active && delegate.is_captain">
                       <label class="form-label fs-11 fw-bold text-warning-emphasis mb-1">
-                        No. WA Kapten Tim
+                        No. WA {{ activeCaptainTitle }} Tim
                       </label>
                       <div class="input-group input-group-sm">
                         <span class="input-group-text bg-warning-subtle border-end-0 text-warning-emphasis">

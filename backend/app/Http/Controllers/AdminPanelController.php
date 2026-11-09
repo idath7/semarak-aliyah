@@ -426,7 +426,7 @@ class AdminPanelController extends Controller
             'max_quota.required' => 'Kapasitas kuota maksimal delegasi wajib ditentukan.',
             'max_quota.integer' => 'Kapasitas kuota harus berupa angka bilangan bulat.',
             'max_quota.min' => 'Kapasitas kuota minimal adalah 1 delegasi.',
-            'participant_type.in' => 'Aturan peserta harus berupa pilihan Individu atau Tim/Regu.',
+            'participant_type.in' => 'Aturan peserta harus berupa pilihan Individu atau Tim.',
             'max_teams.integer' => 'Jumlah maksimal tim harus berupa bilangan bulat.',
             'max_teams.min' => 'Jumlah maksimal tim minimal 1 tim.',
             'min_participants.integer' => 'Jumlah minimal anggota harus berupa bilangan bulat.',
@@ -657,7 +657,7 @@ class AdminPanelController extends Controller
             'max_quota.required' => 'Kapasitas kuota maksimal delegasi wajib ditentukan.',
             'max_quota.integer' => 'Kapasitas kuota harus berupa angka bilangan bulat.',
             'max_quota.min' => 'Kapasitas kuota minimal adalah 1 delegasi.',
-            'participant_type.in' => 'Aturan peserta harus berupa pilihan Individu atau Tim/Regu.',
+            'participant_type.in' => 'Aturan peserta harus berupa pilihan Individu atau Tim.',
             'max_teams.integer' => 'Jumlah maksimal tim harus berupa bilangan bulat.',
             'max_teams.min' => 'Jumlah maksimal tim minimal 1 tim.',
             'min_participants.integer' => 'Jumlah minimal anggota harus berupa bilangan bulat.',
@@ -1175,12 +1175,12 @@ class AdminPanelController extends Controller
                 'description' => 'Format untuk tim 2 siswa (Ketua tim & Anggota tim) dengan biodata lengkap masing-masing peserta dan berkas persyaratan.',
             ],
             'template_3_siswa' => [
-                'title' => 'Template 3 Siswa (Regu / Trio)',
-                'category' => 'Regu 3 Siswa',
+                'title' => 'Template 3 Siswa (Tim 3 Anggota)',
+                'category' => 'Tim 3 Siswa',
                 'badge' => '3 Siswa',
                 'badge_class' => 'bg-success-subtle text-success',
                 'icon' => 'ri-group-line',
-                'description' => 'Format untuk regu 3 siswa delegasi (Ketua regu & 2 Anggota) dengan biodata lengkap masing-masing peserta.',
+                'description' => 'Format untuk tim 3 siswa delegasi (Ketua tim & 2 Anggota) dengan biodata lengkap masing-masing peserta.',
             ],
             'template_4_siswa' => [
                 'title' => 'Template 4 Siswa (Tim 4 Anggota)',
@@ -4142,8 +4142,8 @@ class AdminPanelController extends Controller
 
     /**
      * Halaman Rincian Peserta (Siswa) - Granular Per Siswa
-     * Mendata setiap peserta siswa secara terpisah, membedakan cabang Individu dan Tim/Regu,
-     * serta peran Kapten Regu vs Anggota.
+     * Mendata setiap peserta siswa secara terpisah, membedakan cabang Individu dan Tim,
+     * serta peran Ketua/Kapten vs Anggota.
      */
     public function participantsIndex(Request $request)
     {
@@ -4202,7 +4202,7 @@ class AdminPanelController extends Controller
                     'birth_date' => $del['birth_date'] ?? null,
                     'wa_number' => $del['wa_number'] ?? null,
                     'is_captain' => (bool)($del['is_captain'] ?? false),
-                    'team_role' => $del['team_role'] ?? ($participantType === 'tim' ? 'Anggota Regu' : 'Peserta Tunggal'),
+                    'team_role' => $del['team_role'] ?? ($participantType === 'tim' ? 'Anggota' : 'Peserta Tunggal'),
                     'photo' => $del['photo'] ?? null,
                     'photo_freestyle' => $del['photo_freestyle'] ?? null,
                     'source' => $del['source'] ?? 'Pendaftaran',
@@ -4215,6 +4215,7 @@ class AdminPanelController extends Controller
                     'package_type' => $reg->package_type,
                     'mentor_name' => $reg->mentor_name ?: '-',
                     'mentor_wa' => $reg->mentor_wa ?: '-',
+                    'draw_number' => $reg->draw_number,
                     'registration_status' => $reg->registration_status ?: 'Menunggu Verifikasi',
                     'payment_status' => $reg->payment_status ?: 'Menunggu Verifikasi',
                     'checkin_status' => $reg->checkin_status ?: 'Belum Hadir',
@@ -4242,7 +4243,330 @@ class AdminPanelController extends Controller
                 'search', 'competition_id', 'participant_type', 'team_role', 
                 'payment_status', 'checkin_status', 'school_name'
             ]),
+            'letterhead' => Setting::getOfficialLetterhead(),
         ]);
+    }
+
+    /**
+     * Cetak Resmi Daftar Nominatif Rincian Peserta (Siswa) - Standalone A4 Landscape
+     */
+    public function printParticipantsRoster(Request $request)
+    {
+        $allCompetitions = Competition::orderBy('id', 'asc')->get();
+        $registrations = Registration::with('competition')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $participantsList = [];
+        $uniqueSchools = [];
+
+        foreach ($registrations as $reg) {
+            $comp = $reg->competition;
+            $rawType = strtolower((string)($comp?->participant_type ?? 'individu'));
+            $isTeam = in_array($rawType, ['tim', 'beregu', 'team', 'grup', 'group']);
+            $participantType = $isTeam ? 'tim' : 'individu';
+
+            $school = trim($reg->school_name ?: 'Tanpa Sekolah / Mandiri');
+            if (!empty($school) && $school !== '-') {
+                $uniqueSchools[$school] = true;
+            }
+
+            $delegates = $reg->detailed_participants;
+
+            foreach ($delegates as $idx => $del) {
+                $cf = is_array($reg->custom_fields) ? $reg->custom_fields : [];
+                $district = $cf['school_district'] ?? ($cf['kecamatan'] ?? ($cf['kecamatan_sekolah'] ?? null));
+
+                $isCapt = (bool)($del['is_captain'] ?? false);
+                $role = $del['team_role'] ?? ($participantType === 'tim' ? ($isCapt ? 'Kapten' : 'Anggota') : 'Peserta Tunggal');
+                $role = trim(str_ireplace(['regu', '  '], ['', ' '], $role));
+
+                $item = [
+                    'id' => $reg->id . '_' . ($idx + 1),
+                    'registration_id' => $reg->id,
+                    'reg_code' => $reg->reg_code,
+                    'student_index' => $idx + 1,
+                    'name' => $del['name'],
+                    'nisn' => $del['nisn'] ?? '-',
+                    'gender' => $del['gender'] ?? '-',
+                    'grade' => $del['grade'] ?? '-',
+                    'birth_date' => $del['birth_date'] ?? null,
+                    'wa_number' => $del['wa_number'] ?? null,
+                    'is_captain' => $isCapt,
+                    'team_role' => $role,
+                    'photo' => $del['photo'] ?? null,
+                    'school_name' => $school,
+                    'school_district' => $district,
+                    'competition_id' => $reg->competition_id,
+                    'competition_title' => $reg->competition_title ?: ($comp?->title ?? '-'),
+                    'competition_category' => $comp?->category ?? 'Umum',
+                    'participant_type' => $participantType,
+                    'mentor_name' => $reg->mentor_name ?: '-',
+                    'mentor_wa' => $reg->mentor_wa ?: '-',
+                    'draw_number' => $reg->draw_number,
+                    'registration_status' => $reg->registration_status ?: 'Menunggu Verifikasi',
+                    'payment_status' => $reg->payment_status ?: 'Menunggu Verifikasi',
+                    'checkin_status' => $reg->checkin_status ?: 'Belum Hadir',
+                ];
+
+                // 1. Search Query
+                if ($request->filled('search')) {
+                    $q = strtolower(trim($request->search));
+                    $matchName = str_contains(strtolower($item['name'] ?? ''), $q);
+                    $matchNisn = str_contains(strtolower($item['nisn'] ?? ''), $q);
+                    $matchSchool = str_contains(strtolower($item['school_name'] ?? ''), $q);
+                    $matchCode = str_contains(strtolower($item['reg_code'] ?? ''), $q);
+                    $matchComp = str_contains(strtolower($item['competition_title'] ?? ''), $q);
+                    if (!$matchName && !$matchNisn && !$matchSchool && !$matchCode && !$matchComp) {
+                        continue;
+                    }
+                }
+
+                // 2. Competition Filter
+                if ($request->filled('competition_id') && $request->competition_id !== 'all') {
+                    if (strval($item['competition_id']) !== strval($request->competition_id)) {
+                        continue;
+                    }
+                }
+
+                // 3. Participant Type Filter
+                if ($request->filled('participant_type') && $request->participant_type !== 'all') {
+                    if ($item['participant_type'] !== $request->participant_type) {
+                        continue;
+                    }
+                }
+
+                // 4. Team Role Filter
+                if ($request->filled('team_role') && $request->team_role !== 'all') {
+                    if ($request->team_role === 'kapten' && !$item['is_captain']) continue;
+                    if ($request->team_role === 'anggota' && ($item['is_captain'] || $item['participant_type'] !== 'tim')) continue;
+                    if ($request->team_role === 'tunggal' && $item['participant_type'] !== 'individu') continue;
+                }
+
+                // 5. Payment Status Filter
+                if ($request->filled('payment_status') && $request->payment_status !== 'all') {
+                    if ($request->payment_status === 'Terverifikasi' && $item['payment_status'] !== 'Terverifikasi') continue;
+                    if ($request->payment_status === 'Menunggu Verifikasi' && $item['payment_status'] !== 'Menunggu Verifikasi') continue;
+                    if ($request->payment_status === 'Belum Lunas' && in_array($item['payment_status'], ['Terverifikasi', 'Menunggu Verifikasi'])) continue;
+                }
+
+                // 6. Checkin Status Filter
+                if ($request->filled('checkin_status') && $request->checkin_status !== 'all') {
+                    $isCheckedIn = str_contains(strtolower($item['checkin_status']), 'sudah');
+                    if ($request->checkin_status === 'hadir' && !$isCheckedIn) continue;
+                    if ($request->checkin_status === 'belum' && $isCheckedIn) continue;
+                }
+
+                // 7. School Filter
+                if ($request->filled('school_name') && $request->school_name !== 'all') {
+                    if ($item['school_name'] !== $request->school_name) {
+                        continue;
+                    }
+                }
+
+                $participantsList[] = $item;
+            }
+        }
+
+        $activeCompetition = null;
+        $activeCompetitionTitle = 'Semua Cabang Lomba';
+        if ($request->filled('competition_id') && $request->competition_id !== 'all') {
+            $c = $allCompetitions->firstWhere('id', $request->competition_id);
+            if ($c) {
+                $activeCompetition = $c;
+                $activeCompetitionTitle = $c->title;
+            }
+        }
+
+        $activeTypeLabel = 'Semua Jenis (Individu & Tim)';
+        if ($request->filled('participant_type')) {
+            if ($request->participant_type === 'individu') $activeTypeLabel = 'Lomba Individu';
+            elseif ($request->participant_type === 'tim') $activeTypeLabel = 'Lomba Tim';
+        }
+
+        $letterhead = Setting::getOfficialLetterhead();
+        $currentDateFormatted = now()->setTimezone('Asia/Jakarta')->translatedFormat('d F Y');
+        $formattedCurrentTime = now()->setTimezone('Asia/Jakarta')->format('d/m/Y H:i') . ' WIB';
+
+        return view('admin.print-participants', [
+            'participants' => $participantsList,
+            'activeCompetition' => $activeCompetition,
+            'activeCompetitionTitle' => $activeCompetitionTitle,
+            'activeTypeLabel' => $activeTypeLabel,
+            'letterhead' => $letterhead,
+            'currentDateFormatted' => $currentDateFormatted,
+            'formattedCurrentTime' => $formattedCurrentTime,
+        ]);
+    }
+
+    /**
+     * Download Berkas PDF A4 Landscape Murni Rincian Peserta (Siswa) - Server-Side Engine
+     */
+    public function downloadParticipantsPdf(Request $request)
+    {
+        $allCompetitions = Competition::orderBy('id', 'asc')->get();
+        $registrations = Registration::with('competition')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $participantsList = [];
+
+        foreach ($registrations as $reg) {
+            $comp = $reg->competition;
+            $rawType = strtolower((string)($comp?->participant_type ?? 'individu'));
+            $isTeam = in_array($rawType, ['tim', 'beregu', 'team', 'grup', 'group']);
+            $participantType = $isTeam ? 'tim' : 'individu';
+
+            $school = trim($reg->school_name ?: 'Tanpa Sekolah / Mandiri');
+            $delegates = $reg->detailed_participants;
+
+            foreach ($delegates as $idx => $del) {
+                $cf = is_array($reg->custom_fields) ? $reg->custom_fields : [];
+                $district = $cf['school_district'] ?? ($cf['kecamatan'] ?? ($cf['kecamatan_sekolah'] ?? null));
+
+                $isCapt = (bool)($del['is_captain'] ?? false);
+                $role = $del['team_role'] ?? ($participantType === 'tim' ? ($isCapt ? 'Kapten' : 'Anggota') : 'Peserta Tunggal');
+                $role = trim(str_ireplace(['regu', '  '], ['', ' '], $role));
+
+                $item = [
+                    'id' => $reg->id . '_' . ($idx + 1),
+                    'registration_id' => $reg->id,
+                    'reg_code' => $reg->reg_code,
+                    'student_index' => $idx + 1,
+                    'name' => $del['name'],
+                    'nisn' => $del['nisn'] ?? '-',
+                    'gender' => $del['gender'] ?? '-',
+                    'grade' => $del['grade'] ?? '-',
+                    'birth_date' => $del['birth_date'] ?? null,
+                    'wa_number' => $del['wa_number'] ?? null,
+                    'is_captain' => $isCapt,
+                    'team_role' => $role,
+                    'photo' => $del['photo'] ?? null,
+                    'school_name' => $school,
+                    'school_district' => $district,
+                    'competition_id' => $reg->competition_id,
+                    'competition_title' => $reg->competition_title ?: ($comp?->title ?? '-'),
+                    'competition_category' => $comp?->category ?? 'Umum',
+                    'participant_type' => $participantType,
+                    'mentor_name' => $reg->mentor_name ?: '-',
+                    'mentor_wa' => $reg->mentor_wa ?: '-',
+                    'draw_number' => $reg->draw_number,
+                    'registration_status' => $reg->registration_status ?: 'Menunggu Verifikasi',
+                    'payment_status' => $reg->payment_status ?: 'Menunggu Verifikasi',
+                    'checkin_status' => $reg->checkin_status ?: 'Belum Hadir',
+                ];
+
+                // 1. Search Query
+                if ($request->filled('search')) {
+                    $q = strtolower(trim($request->search));
+                    $matchName = str_contains(strtolower($item['name'] ?? ''), $q);
+                    $matchNisn = str_contains(strtolower($item['nisn'] ?? ''), $q);
+                    $matchSchool = str_contains(strtolower($item['school_name'] ?? ''), $q);
+                    $matchCode = str_contains(strtolower($item['reg_code'] ?? ''), $q);
+                    $matchComp = str_contains(strtolower($item['competition_title'] ?? ''), $q);
+                    if (!$matchName && !$matchNisn && !$matchSchool && !$matchCode && !$matchComp) {
+                        continue;
+                    }
+                }
+
+                // 2. Competition Filter
+                if ($request->filled('competition_id') && $request->competition_id !== 'all') {
+                    if (strval($item['competition_id']) !== strval($request->competition_id)) {
+                        continue;
+                    }
+                }
+
+                // 3. Participant Type Filter
+                if ($request->filled('participant_type') && $request->participant_type !== 'all') {
+                    if ($item['participant_type'] !== $request->participant_type) {
+                        continue;
+                    }
+                }
+
+                // 4. Team Role Filter
+                if ($request->filled('team_role') && $request->team_role !== 'all') {
+                    if ($request->team_role === 'kapten' && !$item['is_captain']) continue;
+                    if ($request->team_role === 'anggota' && ($item['is_captain'] || $item['participant_type'] !== 'tim')) continue;
+                    if ($request->team_role === 'tunggal' && $item['participant_type'] !== 'individu') continue;
+                }
+
+                // 5. Payment Status Filter
+                if ($request->filled('payment_status') && $request->payment_status !== 'all') {
+                    if ($request->payment_status === 'Terverifikasi' && $item['payment_status'] !== 'Terverifikasi') continue;
+                    if ($request->payment_status === 'Menunggu Verifikasi' && $item['payment_status'] !== 'Menunggu Verifikasi') continue;
+                    if ($request->payment_status === 'Belum Lunas' && in_array($item['payment_status'], ['Terverifikasi', 'Menunggu Verifikasi'])) continue;
+                }
+
+                // 6. Checkin Status Filter
+                if ($request->filled('checkin_status') && $request->checkin_status !== 'all') {
+                    $isCheckedIn = str_contains(strtolower($item['checkin_status']), 'sudah');
+                    if ($request->checkin_status === 'hadir' && !$isCheckedIn) continue;
+                    if ($request->checkin_status === 'belum' && $isCheckedIn) continue;
+                }
+
+                // 7. School Filter
+                if ($request->filled('school_name') && $request->school_name !== 'all') {
+                    if ($item['school_name'] !== $request->school_name) {
+                        continue;
+                    }
+                }
+
+                $participantsList[] = $item;
+            }
+        }
+
+        $activeCompetition = null;
+        $activeCompetitionTitle = 'Semua Cabang Lomba';
+        if ($request->filled('competition_id') && $request->competition_id !== 'all') {
+            $c = $allCompetitions->firstWhere('id', $request->competition_id);
+            if ($c) {
+                $activeCompetition = $c;
+                $activeCompetitionTitle = $c->title;
+            }
+        }
+
+        $activeTypeLabel = 'Semua Jenis (Individu & Tim)';
+        if ($request->filled('participant_type')) {
+            if ($request->participant_type === 'individu') $activeTypeLabel = 'Lomba Individu';
+            elseif ($request->participant_type === 'tim') $activeTypeLabel = 'Lomba Tim';
+        }
+
+        $letterhead = Setting::getOfficialLetterhead();
+        $currentDateFormatted = now()->setTimezone('Asia/Jakarta')->translatedFormat('d F Y');
+        $formattedCurrentTime = now()->setTimezone('Asia/Jakarta')->format('d/m/Y H:i') . ' WIB';
+
+        // Resolusi Logo Base64 untuk performa & reliabilitas Dompdf
+        $logoBase64 = '';
+        $logoUrl = $letterhead['logo_url'] ?? '/assets/img/logo.png';
+        $relativeLogo = ltrim(parse_url($logoUrl, PHP_URL_PATH) ?: '', '/');
+        $fullLogoPath = public_path($relativeLogo);
+        if (file_exists($fullLogoPath) && is_file($fullLogoPath)) {
+            $ext = pathinfo($fullLogoPath, PATHINFO_EXTENSION);
+            $mime = ($ext === 'svg') ? 'image/svg+xml' : 'image/' . $ext;
+            $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fullLogoPath));
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.pdf-participants', [
+            'participants' => $participantsList,
+            'activeCompetition' => $activeCompetition,
+            'activeCompetitionTitle' => $activeCompetitionTitle,
+            'activeTypeLabel' => $activeTypeLabel,
+            'letterhead' => $letterhead,
+            'logoBase64' => $logoBase64,
+            'currentDateFormatted' => $currentDateFormatted,
+            'formattedCurrentTime' => $formattedCurrentTime,
+        ])
+        ->setPaper('a4', 'landscape')
+        ->setOption([
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+            'defaultFont' => 'sans-serif'
+        ]);
+
+        $safeTitle = preg_replace('/[^A-Za-z0-9_-]/', '-', $activeCompetitionTitle);
+        $filename = 'Daftar-Nominatif-Peserta-' . $safeTitle . '-' . now()->format('Ymd') . '.pdf';
+
+        return $pdf->download($filename);
     }
 
     /**
@@ -4266,7 +4590,7 @@ class AdminPanelController extends Controller
             ->setLastModifiedBy('Admin Semarak Aliyah')
             ->setTitle('Rekapitulasi Peserta Siswa Semarak Aliyah XIV')
             ->setSubject('Data Rincian Siswa')
-            ->setDescription('Rekapitulasi lengkap data seluruh peserta (siswa) lomba Semarak Aliyah XIV per delegasi individu dan tim/regu.')
+            ->setDescription('Rekapitulasi lengkap data seluruh peserta (siswa) lomba Semarak Aliyah XIV per delegasi individu dan tim.')
             ->setCategory('Laporan Peserta');
 
         $sheet = $spreadsheet->getActiveSheet();
@@ -4341,7 +4665,7 @@ class AdminPanelController extends Controller
             $comp = $reg->competition;
             $rawType = strtolower((string)($comp?->participant_type ?? 'individu'));
             $isTeam = in_array($rawType, ['tim', 'beregu', 'team', 'grup', 'group']);
-            $participantType = $isTeam ? 'Tim / Regu' : 'Individu';
+            $participantType = $isTeam ? 'Tim' : 'Individu';
 
             $school = trim($reg->school_name ?: 'Tanpa Sekolah / Mandiri');
             $cf = is_array($reg->custom_fields) ? $reg->custom_fields : [];
@@ -4363,8 +4687,10 @@ class AdminPanelController extends Controller
                 $sheet->setCellValue("H{$row}", $district);
                 $sheet->setCellValue("I{$row}", $reg->competition_title ?: ($comp?->title ?? '-'));
                 $sheet->setCellValue("J{$row}", $participantType);
-                $sheet->setCellValue("K{$row}", $del['team_role'] ?? ($participantType === 'Tim / Regu' ? 'Anggota Regu' : 'Peserta Tunggal'));
-                $sheet->setCellValue("L{$row}", !empty($del['is_captain']) ? 'Ya (Kapten)' : 'Bukan');
+                $role = $del['team_role'] ?? ($participantType === 'Tim' ? 'Anggota' : 'Peserta Tunggal');
+                $role = trim(str_ireplace(['regu', '  '], ['', ' '], $role));
+                $sheet->setCellValue("K{$row}", $role);
+                $sheet->setCellValue("L{$row}", !empty($del['is_captain']) ? ('Ya (' . $role . ')') : 'Bukan');
                 
                 // Set WA as string to preserve leading zero or country code
                 $sheet->setCellValueExplicit("M{$row}", (string)($del['wa_number'] ?? '-'), DataType::TYPE_STRING);
@@ -5113,6 +5439,231 @@ class AdminPanelController extends Controller
         }
 
         return redirect()->back()->with('success', "Data kontingen sekolah {$schoolName} beserta {$count} cabang lomba delegasi berhasil dihapus permanen!");
+    }
+
+    /**
+     * Cetak Lembar Formulir Pendaftaran & Biodata Delegasi Peserta Resmi (A4 Portrait)
+     */
+    public function printRegistrationForm(int|string $id, Request $request)
+    {
+        $reg = Registration::with(['competition', 'user'])
+            ->where('id', $id)
+            ->orWhere('reg_code', $id)
+            ->firstOrFail();
+
+        $letterhead = Setting::getOfficialLetterhead();
+        $school = \App\Models\School::where('name', $reg->school_name)->first();
+        $bankAccounts = Setting::getBankAccounts();
+        $currentDateFormatted = now()->setTimezone('Asia/Jakarta')->translatedFormat('d F Y');
+        $formattedCurrentTime = now()->setTimezone('Asia/Jakarta')->format('d/m/Y H:i') . ' WIB';
+
+        return view('admin.print-registration-form', [
+            'registration' => $reg,
+            'participants' => $reg->detailed_participants,
+            'school' => $school,
+            'letterhead' => $letterhead,
+            'bankAccounts' => $bankAccounts,
+            'currentDateFormatted' => $currentDateFormatted,
+            'formattedCurrentTime' => $formattedCurrentTime,
+        ]);
+    }
+
+    /**
+     * Download Berkas PDF A4 Portrait Murni Formulir Pendaftaran Peserta - Server-Side Engine
+     */
+    public function downloadRegistrationFormPdf(int|string $id, Request $request)
+    {
+        $reg = Registration::with(['competition', 'user'])
+            ->where('id', $id)
+            ->orWhere('reg_code', $id)
+            ->firstOrFail();
+
+        $letterhead = Setting::getOfficialLetterhead();
+        $school = \App\Models\School::where('name', $reg->school_name)->first();
+        $bankAccounts = Setting::getBankAccounts();
+        $currentDateFormatted = now()->setTimezone('Asia/Jakarta')->translatedFormat('d F Y');
+        $formattedCurrentTime = now()->setTimezone('Asia/Jakarta')->format('d/m/Y H:i') . ' WIB';
+
+        $logoBase64 = '';
+        $logoUrl = $letterhead['logo_url'] ?? '/assets/img/logo.png';
+        $relativeLogo = ltrim(parse_url($logoUrl, PHP_URL_PATH) ?: '', '/');
+        $fullLogoPath = public_path($relativeLogo);
+        if (file_exists($fullLogoPath) && is_file($fullLogoPath)) {
+            $ext = pathinfo($fullLogoPath, PATHINFO_EXTENSION);
+            $mime = ($ext === 'svg') ? 'image/svg+xml' : 'image/' . $ext;
+            $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fullLogoPath));
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.pdf-registration-form', [
+            'registration' => $reg,
+            'participants' => $reg->detailed_participants,
+            'school' => $school,
+            'letterhead' => $letterhead,
+            'logoBase64' => $logoBase64,
+            'bankAccounts' => $bankAccounts,
+            'currentDateFormatted' => $currentDateFormatted,
+            'formattedCurrentTime' => $formattedCurrentTime,
+        ])
+        ->setPaper('a4', 'portrait')
+        ->setOption([
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+            'defaultFont' => 'sans-serif'
+        ]);
+
+        $safeSchool = preg_replace('/[^A-Za-z0-9_-]/', '-', $reg->school_name ?: 'Mandiri');
+        $filename = 'Formulir-Pendaftaran-' . $reg->reg_code . '-' . $safeSchool . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Cetak Lembar Pendaftaran Kontingen Sekolah / Madrasah (A4)
+     */
+    public function printSchoolContingent(Request $request)
+    {
+        $schoolName = trim($request->query('school') ?? $request->query('school_name', ''));
+        if (empty($schoolName)) {
+            return redirect()->route('admin.sekolah-terdaftar.index')->with('error', 'Nama sekolah tidak ditentukan.');
+        }
+
+        $registrations = Registration::with('competition')
+            ->where('school_name', $schoolName)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        if ($registrations->isEmpty()) {
+            return redirect()->route('admin.sekolah-terdaftar.index')->with('error', "Belum ada pendaftaran untuk sekolah: {$schoolName}");
+        }
+
+        $school = \App\Models\School::where('name', $schoolName)->first();
+        $letterhead = Setting::getOfficialLetterhead();
+        $currentDateFormatted = now()->setTimezone('Asia/Jakarta')->translatedFormat('d F Y');
+        $formattedCurrentTime = now()->setTimezone('Asia/Jakarta')->format('d/m/Y H:i') . ' WIB';
+
+        // Summary stats
+        $totalStudents = 0;
+        $totalFee = 0;
+        $hasAllIn = false;
+        $isPaid = true;
+
+        foreach ($registrations as $r) {
+            $totalStudents += count($r->detailed_participants);
+            $totalFee += $r->total_fee;
+            if ($r->package_type === 'Paket All-In') {
+                $hasAllIn = true;
+            }
+            if (!in_array(strtolower($r->payment_status ?? ''), ['lunas', 'terverifikasi', 'paid'])) {
+                $isPaid = false;
+            }
+        }
+
+        return view('admin.print-school-contingent', [
+            'schoolName' => $schoolName,
+            'school' => $school,
+            'registrations' => $registrations,
+            'letterhead' => $letterhead,
+            'totalStudents' => $totalStudents,
+            'totalFee' => $totalFee,
+            'hasAllIn' => $hasAllIn,
+            'isPaid' => $isPaid,
+            'currentDateFormatted' => $currentDateFormatted,
+            'formattedCurrentTime' => $formattedCurrentTime,
+        ]);
+    }
+
+    /**
+     * Download Berkas PDF A4 Kontingen Persekolah - Server-Side Engine
+     */
+    public function downloadSchoolContingentPdf(Request $request)
+    {
+        $schoolName = trim($request->query('school') ?? $request->query('school_name', ''));
+        if (empty($schoolName)) {
+            return redirect()->route('admin.sekolah-terdaftar.index')->with('error', 'Nama sekolah tidak ditentukan.');
+        }
+
+        $registrations = Registration::with('competition')
+            ->where('school_name', $schoolName)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        if ($registrations->isEmpty()) {
+            return redirect()->route('admin.sekolah-terdaftar.index')->with('error', "Belum ada pendaftaran untuk sekolah: {$schoolName}");
+        }
+
+        $school = \App\Models\School::where('name', $schoolName)->first();
+        $letterhead = Setting::getOfficialLetterhead();
+        $currentDateFormatted = now()->setTimezone('Asia/Jakarta')->translatedFormat('d F Y');
+        $formattedCurrentTime = now()->setTimezone('Asia/Jakarta')->format('d/m/Y H:i') . ' WIB';
+
+        $totalStudents = 0;
+        $totalFee = 0;
+        $hasAllIn = false;
+        $isPaid = true;
+
+        foreach ($registrations as $r) {
+            $totalStudents += count($r->detailed_participants);
+            $totalFee += $r->total_fee;
+            if ($r->package_type === 'Paket All-In') {
+                $hasAllIn = true;
+            }
+            if (!in_array(strtolower($r->payment_status ?? ''), ['lunas', 'terverifikasi', 'paid'])) {
+                $isPaid = false;
+            }
+        }
+
+        $logoBase64 = '';
+        $logoUrl = $letterhead['logo_url'] ?? '/assets/img/logo.png';
+        $relativeLogo = ltrim(parse_url($logoUrl, PHP_URL_PATH) ?: '', '/');
+        $fullLogoPath = public_path($relativeLogo);
+        if (file_exists($fullLogoPath) && is_file($fullLogoPath)) {
+            $ext = pathinfo($fullLogoPath, PATHINFO_EXTENSION);
+            $mime = ($ext === 'svg') ? 'image/svg+xml' : 'image/' . $ext;
+            $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fullLogoPath));
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.pdf-school-contingent', [
+            'schoolName' => $schoolName,
+            'school' => $school,
+            'registrations' => $registrations,
+            'letterhead' => $letterhead,
+            'logoBase64' => $logoBase64,
+            'totalStudents' => $totalStudents,
+            'totalFee' => $totalFee,
+            'hasAllIn' => $hasAllIn,
+            'isPaid' => $isPaid,
+            'currentDateFormatted' => $currentDateFormatted,
+            'formattedCurrentTime' => $formattedCurrentTime,
+        ])
+        ->setPaper('a4', 'portrait')
+        ->setOption([
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+            'defaultFont' => 'sans-serif'
+        ]);
+
+        $safeSchool = preg_replace('/[^A-Za-z0-9_-]/', '-', $schoolName);
+        $filename = 'Formulir-Kontingen-' . $safeSchool . '-' . now()->format('Ymd') . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Pintasan Cetak Peserta Per Cabang Lomba
+     */
+    public function printCompetitionParticipants(int|string $id, Request $request)
+    {
+        $request->merge(['competition_id' => $id]);
+        return $this->printParticipantsRoster($request);
+    }
+
+    /**
+     * Pintasan Download PDF Peserta Per Cabang Lomba
+     */
+    public function downloadCompetitionParticipantsPdf(int|string $id, Request $request)
+    {
+        $request->merge(['competition_id' => $id]);
+        return $this->downloadParticipantsPdf($request);
     }
 }
 

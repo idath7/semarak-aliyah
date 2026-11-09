@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import CustomSelect from '@/Components/CustomSelect.vue';
@@ -13,6 +13,7 @@ const props = defineProps({
   schools_list: { type: Array, default: () => [] },
   stats: { type: Object, default: () => ({}) },
   filters: { type: Object, default: () => ({}) },
+  letterhead: { type: Object, default: () => ({}) },
 });
 
 const toast = useToast();
@@ -56,13 +57,13 @@ const competitionFilterOptions = computed(() => {
 const typeFilterOptions = [
   { value: 'all', label: 'Semua Jenis (Individu & Tim)' },
   { value: 'individu', label: 'Lomba Individu' },
-  { value: 'tim', label: 'Lomba Tim / Regu' },
+  { value: 'tim', label: 'Lomba Tim' },
 ];
 
 const roleFilterOptions = [
   { value: 'all', label: 'Semua Peran Siswa' },
-  { value: 'kapten', label: 'Kapten / Ketua Regu' },
-  { value: 'anggota', label: 'Anggota Regu Saja' },
+  { value: 'kapten', label: 'Ketua / Kapten Tim' },
+  { value: 'anggota', label: 'Anggota Tim' },
   { value: 'tunggal', label: 'Peserta Tunggal (Individu)' },
 ];
 
@@ -207,7 +208,7 @@ const activeCompetitionTitle = computed(() => {
 const activeTypeLabel = computed(() => {
   if (typeFilter.value === 'all') return 'Semua Jenis (Individu & Tim)';
   if (typeFilter.value === 'individu') return 'Lomba Individu';
-  if (typeFilter.value === 'tim') return 'Lomba Tim / Regu';
+  if (typeFilter.value === 'tim') return 'Lomba Tim';
   return typeFilter.value;
 });
 
@@ -231,8 +232,59 @@ const formattedCurrentTime = computed(() => {
 });
 
 function triggerPrint() {
-  window.print();
+  const params = new URLSearchParams();
+  if (searchQuery.value) params.set('search', searchQuery.value);
+  if (competitionFilter.value !== 'all') params.set('competition_id', competitionFilter.value);
+  if (typeFilter.value !== 'all') params.set('participant_type', typeFilter.value);
+  if (roleFilter.value !== 'all') params.set('team_role', roleFilter.value);
+  if (paymentFilter.value !== 'all') params.set('payment_status', paymentFilter.value);
+  if (checkinFilter.value !== 'all') params.set('checkin_status', checkinFilter.value);
+  if (schoolFilter.value !== 'all') params.set('school_name', schoolFilter.value);
+
+  const url = `/admin/peserta/cetak?${params.toString()}`;
+  window.open(url, '_blank');
 }
+
+function downloadPdf() {
+  const params = new URLSearchParams();
+  if (searchQuery.value) params.set('search', searchQuery.value);
+  if (competitionFilter.value !== 'all') params.set('competition_id', competitionFilter.value);
+  if (typeFilter.value !== 'all') params.set('participant_type', typeFilter.value);
+  if (roleFilter.value !== 'all') params.set('team_role', roleFilter.value);
+  if (paymentFilter.value !== 'all') params.set('payment_status', paymentFilter.value);
+  if (checkinFilter.value !== 'all') params.set('checkin_status', checkinFilter.value);
+  if (schoolFilter.value !== 'all') params.set('school_name', schoolFilter.value);
+
+  window.location.href = `/admin/peserta/download-pdf?${params.toString()}`;
+}
+
+function exportExcelWithFilters() {
+  const params = new URLSearchParams();
+  if (searchQuery.value) params.set('search', searchQuery.value);
+  if (competitionFilter.value !== 'all') params.set('competition_id', competitionFilter.value);
+  if (typeFilter.value !== 'all') params.set('participant_type', typeFilter.value);
+  if (roleFilter.value !== 'all') params.set('team_role', roleFilter.value);
+  if (paymentFilter.value !== 'all') params.set('payment_status', paymentFilter.value);
+  if (checkinFilter.value !== 'all') params.set('checkin_status', checkinFilter.value);
+  if (schoolFilter.value !== 'all') params.set('school_name', schoolFilter.value);
+
+  window.location.href = `/admin/peserta/export-excel?${params.toString()}`;
+}
+
+function handleKeyDown(e) {
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+    e.preventDefault();
+    triggerPrint();
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeyDown);
+});
 
 function copyToClipboard(text, label = 'Teks') {
   if (!text || text === '-') return;
@@ -262,7 +314,7 @@ function getInitials(name) {
             <i class="ri-user-star-line me-1"></i> Data Granular Siswa
           </span>
           <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-11">
-            Individu & Tim / Regu
+            Individu & Tim
           </span>
         </div>
         <h4 class="mb-0 fw-bold text-dark fs-20">Rincian Peserta (Siswa)</h4>
@@ -274,19 +326,28 @@ function getInitials(name) {
       <div class="d-flex align-items-center flex-wrap gap-2">
         <button 
           type="button" 
+          @click="downloadPdf" 
+          class="btn btn-sm btn-danger d-inline-flex align-items-center gap-1.5 shadow-sm fs-12 fw-semibold"
+          title="Download dokumen resmi PDF A4 Landscape murni tanpa dialog cetak"
+        >
+          <i class="ri-file-pdf-2-line"></i> Download PDF (A4 Lanskap)
+        </button>
+        <button 
+          type="button" 
           @click="triggerPrint" 
           class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5 shadow-sm fs-12"
-          title="Cetak dokumen resmi data peserta siswa (Ctrl + P)"
+          title="Pratinjau / Cetak dokumen di tab browser (Ctrl + P)"
         >
-          <i class="ri-printer-line"></i> Cetak Data Peserta
+          <i class="ri-printer-line"></i> Cetak Browser
         </button>
-        <a 
-          href="/admin/peserta/export-excel" 
+        <button 
+          type="button"
+          @click="exportExcelWithFilters" 
           class="btn btn-sm btn-success d-inline-flex align-items-center gap-1.5 shadow-sm fs-12"
           title="Download rekapitulasi data siswa dalam format Microsoft Excel (.xlsx)"
         >
           <i class="ri-file-excel-2-line"></i> Export Excel (.xlsx)
-        </a>
+        </button>
       </div>
     </div>
 
@@ -344,13 +405,13 @@ function getInitials(name) {
         </div>
       </div>
 
-      <!-- Card 3: Lomba Tim / Regu -->
+      <!-- Card 3: Lomba Tim -->
       <div class="col-6 col-md-4 col-xl">
         <div class="card card-animate border-0 shadow-sm h-100 mb-0">
           <div class="card-body p-3">
             <div class="d-flex align-items-center justify-content-between">
               <div class="min-w-0">
-                <p class="text-uppercase fw-semibold text-muted fs-11 mb-1 text-truncate">Lomba Tim / Regu</p>
+                <p class="text-uppercase fw-semibold text-muted fs-11 mb-1 text-truncate">Lomba Tim</p>
                 <h4 class="fs-20 fw-bold mb-0 text-purple" style="color: #8b5cf6;">
                   {{ stats.total_team || 0 }}
                   <span class="fs-11 text-muted fw-normal">Siswa</span>
@@ -420,121 +481,7 @@ function getInitials(name) {
       </div>
     </div>
 
-    <!-- ============================================================== -->
-    <!-- DOKUMEN RESMI CETAK DATA PESERTA (Hanya Aktif Saat Print)     -->
-    <!-- ============================================================== -->
-    <div class="print-roster-document d-none d-print-block">
-      <!-- 1. Kop Surat Resmi Madrasah & Kepanitiaan -->
-      <div class="print-kop-wrapper">
-        <div class="print-kop-inner">
-          <div class="print-kop-logo">
-            <img src="/assets/img/logo.png" alt="Logo Madrasah" class="print-logo-img" @error="$event.target.style.display='none'" />
-          </div>
-          <div class="print-kop-text">
-            <h4 class="print-kop-inst">PANITIA PELAKSANA SEMARAK ALIYAH XIV TAHUN 2026</h4>
-            <h2 class="print-kop-school">MADRASAH ALIYAH UNGGULAN WAHID HASYIM BALUNG</h2>
-            <p class="print-kop-meta">Status Akreditasi A | NSM: 131235090004 | NPSN: 20580047</p>
-            <p class="print-kop-addr">Alamat: Jl. Puger No. 20 Balung, Kabupaten Jember, Jawa Timur 68161 | Website: maswahas.sch.id</p>
-          </div>
-        </div>
-        <!-- Garis Ganda Resmi Pembatas Kop Surat -->
-        <div class="print-double-divider"></div>
-      </div>
 
-      <!-- 2. Judul Dokumen Resmi & Rincian Parameter -->
-      <div class="print-doc-header">
-        <h3 class="print-doc-title">DAFTAR NOMINATIF RINCIAN PESERTA (SISWA)</h3>
-        <div class="print-meta-grid">
-          <div class="print-meta-item">
-            <span class="print-meta-label">Cabang Lomba:</span>
-            <span class="print-meta-val">{{ activeCompetitionTitle }}</span>
-          </div>
-          <div class="print-meta-item">
-            <span class="print-meta-label">Jenis Kepesertaan:</span>
-            <span class="print-meta-val">{{ activeTypeLabel }}</span>
-          </div>
-          <div class="print-meta-item">
-            <span class="print-meta-label">Total Nominatif:</span>
-            <span class="print-meta-val">{{ filteredParticipants.length }} Siswa</span>
-          </div>
-          <div class="print-meta-item text-end">
-            <span class="print-meta-label">Waktu Cetak:</span>
-            <span class="print-meta-val">{{ formattedCurrentTime }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. Tabel Nominatif Resmi (Seluruh Peserta yang Terfilter) -->
-      <table class="formal-print-table">
-        <thead>
-          <tr>
-            <th style="width: 28px;" class="text-center">No</th>
-            <th style="width: 175px;">Nama Lengkap Siswa</th>
-            <th style="width: 85px;" class="text-center">NISN</th>
-            <th style="width: 32px;" class="text-center">L/P</th>
-            <th style="width: 55px;" class="text-center">Kelas</th>
-            <th>Asal Sekolah / Madrasah</th>
-            <th>Cabang Lomba</th>
-            <th style="width: 65px;" class="text-center">Jenis</th>
-            <th style="width: 85px;" class="text-center">Peran Tim</th>
-            <th style="width: 75px;" class="text-center">No. Reg</th>
-            <th style="width: 90px;" class="text-center">No. WhatsApp</th>
-            <th style="width: 75px;" class="text-center">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="filteredParticipants.length === 0">
-            <td colspan="12" class="text-center py-4">
-              Tidak ada data peserta siswa yang memenuhi kriteria filter.
-            </td>
-          </tr>
-          <tr v-for="(st, sIdx) in filteredParticipants" :key="'print_' + st.id">
-            <td class="text-center font-monospace">{{ sIdx + 1 }}</td>
-            <td class="fw-bold">{{ st.name }}</td>
-            <td class="text-center font-monospace">{{ st.nisn || '-' }}</td>
-            <td class="text-center">{{ st.gender === 'Perempuan' ? 'P' : (st.gender === 'Laki-laki' ? 'L' : '-') }}</td>
-            <td class="text-center">{{ st.grade || '-' }}</td>
-            <td>
-              <div>{{ st.school_name }}</div>
-              <div v-if="st.school_district" class="print-sub-text">Kec. {{ st.school_district }}</div>
-            </td>
-            <td>
-              <div class="fw-semibold">{{ st.competition_title }}</div>
-              <div class="print-sub-text">{{ st.competition_category }}</div>
-            </td>
-            <td class="text-center">
-              {{ st.participant_type === 'tim' ? 'Tim' : 'Individu' }}
-            </td>
-            <td class="text-center">
-              <span v-if="st.is_captain" class="fw-bold">Kapten Regu</span>
-              <span v-else>{{ st.team_role }}</span>
-            </td>
-            <td class="text-center font-monospace">#{{ st.reg_code }}</td>
-            <td class="text-center font-monospace">{{ st.wa_number || st.mentor_wa || '-' }}</td>
-            <td class="text-center">{{ st.payment_status || 'Menunggu' }}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <!-- 4. Lembar Pengesahan Tanda Tangan Panitia -->
-      <div class="print-signatures-block">
-        <div class="print-sig-col">
-          <p class="print-sig-title">Mengetahui,</p>
-          <p class="print-sig-role">Koordinator Pendaftaran & Administrasi</p>
-          <div class="print-sig-space"></div>
-          <p class="print-sig-name">( ................................................................ )</p>
-          <p class="print-sig-note">Panitia Pelaksana Semarak Aliyah XIV</p>
-        </div>
-
-        <div class="print-sig-col print-sig-right">
-          <p class="print-sig-title">Balung, {{ currentDateFormatted }}</p>
-          <p class="print-sig-role">Ketua Panitia Pelaksana Semarak Aliyah XIV</p>
-          <div class="print-sig-space"></div>
-          <p class="print-sig-name">( ................................................................ )</p>
-          <p class="print-sig-note">Ketua Panitia Pelaksana</p>
-        </div>
-      </div>
-    </div>
 
     <!-- ============================================================== -->
     <!-- MAIN CARD: FILTER TOOLBAR & PARTICIPANTS TABLE (LAYAR UTAMA)   -->
@@ -793,9 +740,6 @@ function getInitials(name) {
               <td>
                 <div class="fw-bold text-dark text-truncate" style="max-width: 200px;" :title="item.competition_title">
                   {{ item.competition_title }}
-                </div>
-                <div class="text-muted fs-11">
-                  {{ item.competition_category }}
                 </div>
               </td>
 
@@ -1166,7 +1110,6 @@ function getInitials(name) {
                     <div class="d-flex align-items-center justify-content-between mb-2">
                       <div>
                         <span class="fw-bold text-dark fs-13 d-block">{{ activeStudent.competition_title }}</span>
-                        <span class="text-muted fs-11">Kategori: {{ activeStudent.competition_category }}</span>
                       </div>
                       <span 
                         class="badge fs-11 px-2 py-1"
@@ -1295,211 +1238,6 @@ function getInitials(name) {
 :deep([data-layout-mode="dark"]) .badge.bg-info-subtle {
   background-color: rgba(14, 165, 233, 0.2) !important;
   color: #7dd3fc !important;
-}
-
-/* Print Styling Formal Kedinasan */
-@media print {
-  @page {
-    size: A4 landscape;
-    margin: 8mm 10mm 10mm 10mm;
-  }
-
-  body, html {
-    background: #ffffff !important;
-    color: #0f172a !important;
-    font-family: 'Poppins', 'Segoe UI', Arial, sans-serif !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* Sembunyikan seluruh elemen dashboard / layout bawaan */
-  .d-print-none,
-  .app-menu,
-  .navbar-header,
-  .page-title-box,
-  footer,
-  .btn,
-  .pagination,
-  .card-footer,
-  .modal {
-    display: none !important;
-  }
-
-  .print-roster-document {
-    display: block !important;
-    width: 100% !important;
-  }
-
-  .print-kop-wrapper {
-    margin-bottom: 12px;
-  }
-
-  .print-kop-inner {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    text-align: center;
-  }
-
-  .print-kop-logo {
-    width: 65px;
-    height: 65px;
-    flex-shrink: 0;
-  }
-
-  .print-logo-img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-
-  .print-kop-text {
-    flex-grow: 1;
-  }
-
-  .print-kop-inst {
-    font-size: 11pt !important;
-    font-weight: 700 !important;
-    color: #0f172a !important;
-    margin: 0 !important;
-    letter-spacing: 0.5px;
-  }
-
-  .print-kop-school {
-    font-size: 13.5pt !important;
-    font-weight: 800 !important;
-    color: #0f172a !important;
-    margin: 2px 0 !important;
-    letter-spacing: 0.5px;
-  }
-
-  .print-kop-meta {
-    font-size: 8pt !important;
-    color: #334155 !important;
-    margin: 0 !important;
-  }
-
-  .print-kop-addr {
-    font-size: 7.5pt !important;
-    color: #475569 !important;
-    margin: 0 !important;
-  }
-
-  .print-double-divider {
-    border-top: 2.5px solid #0f172a !important;
-    border-bottom: 1px solid #0f172a !important;
-    height: 4px !important;
-    margin: 6px 0 10px 0 !important;
-  }
-
-  .print-doc-header {
-    text-align: center;
-    margin-bottom: 10px;
-  }
-
-  .print-doc-title {
-    font-size: 12pt !important;
-    font-weight: 800 !important;
-    color: #0f172a !important;
-    text-transform: uppercase;
-    margin: 0 0 6px 0 !important;
-    letter-spacing: 0.5px;
-  }
-
-  .print-meta-grid {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #f8fafc !important;
-    border: 1px solid #cbd5e1 !important;
-    border-radius: 4px;
-    padding: 5px 10px !important;
-    font-size: 7.5pt !important;
-    color: #334155 !important;
-    margin-bottom: 8px;
-  }
-
-  .print-meta-label {
-    color: #64748b;
-    margin-right: 4px;
-  }
-
-  .print-meta-val {
-    font-weight: 700;
-    color: #0f172a;
-  }
-
-  .formal-print-table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-  }
-
-  .formal-print-table th,
-  .formal-print-table td {
-    border: 1px solid #0f172a !important;
-    padding: 3px 5px !important;
-    font-size: 7.8pt !important;
-    line-height: 1.25 !important;
-    color: #0f172a !important;
-  }
-
-  .formal-print-table th {
-    background-color: #f1f5f9 !important;
-    font-weight: 700 !important;
-    text-align: left;
-    text-transform: uppercase;
-  }
-
-  .formal-print-table tr {
-    page-break-inside: avoid !important;
-  }
-
-  .formal-print-table thead {
-    display: table-header-group !important;
-  }
-
-  .print-sub-text {
-    font-size: 7pt !important;
-    color: #475569 !important;
-  }
-
-  .print-signatures-block {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 18px !important;
-    page-break-inside: avoid !important;
-    font-size: 8.5pt !important;
-  }
-
-  .print-sig-col {
-    width: 280px;
-    text-align: center;
-  }
-
-  .print-sig-title {
-    margin-bottom: 2px !important;
-  }
-
-  .print-sig-role {
-    font-weight: 700;
-    margin-bottom: 0 !important;
-  }
-
-  .print-sig-space {
-    height: 52px;
-  }
-
-  .print-sig-name {
-    font-weight: 700;
-    margin-bottom: 1px !important;
-  }
-
-  .print-sig-note {
-    font-size: 7.5pt;
-    color: #475569;
-    margin: 0 !important;
-  }
 }
 </style>
 

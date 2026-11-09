@@ -992,7 +992,7 @@ onMounted(() => {
               <div class="fw-bold text-dark">{{ activeDetailItem.mentor_name }} ({{ activeDetailItem.mentor_wa }})</div>
             </div>
             <div class="col-12">
-              <label class="text-muted fs-11 fw-semibold mb-0 d-block">Nama Peserta / Anggota Regu:</label>
+              <label class="text-muted fs-11 fw-semibold mb-0 d-block">Nama Peserta / Anggota:</label>
               <div class="p-2 bg-light rounded text-dark fs-12">{{ activeDetailItem.participants_names }}</div>
             </div>
           </div>

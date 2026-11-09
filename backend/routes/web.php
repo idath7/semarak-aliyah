@@ -103,10 +103,14 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
     Route::post('/pendaftar/merge-schools', [AdminPanelController::class, 'mergeSchools'])->name('pendaftar.merge-schools');
     Route::get('/sekolah-terdaftar', [AdminPanelController::class, 'registeredSchoolsIndex'])->name('sekolah-terdaftar.index');
     Route::post('/sekolah-terdaftar/destroy', [AdminPanelController::class, 'destroyRegisteredSchool'])->name('sekolah-terdaftar.destroy');
+    Route::get('/sekolah-terdaftar/cetak-formulir', [AdminPanelController::class, 'printSchoolContingent'])->name('sekolah-terdaftar.print-form');
+    Route::get('/sekolah-terdaftar/download-formulir-pdf', [AdminPanelController::class, 'downloadSchoolContingentPdf'])->name('sekolah-terdaftar.download-form-pdf');
 
     // Rincian Peserta (Siswa) Granular
     Route::get('/peserta', [AdminPanelController::class, 'participantsIndex'])->name('peserta.index');
     Route::get('/peserta/export-excel', [AdminPanelController::class, 'exportParticipantsExcel'])->name('peserta.export-excel');
+    Route::get('/peserta/download-pdf', [AdminPanelController::class, 'downloadParticipantsPdf'])->name('peserta.download-pdf');
+    Route::get('/peserta/cetak', [AdminPanelController::class, 'printParticipantsRoster'])->name('peserta.print');
 
     // Manajemen Akun Pendaftar (Peserta, Pembina, & Koordinator)
     Route::prefix('akun-pendaftar')->name('registrant-accounts.')->group(function () {
@@ -118,12 +122,16 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
         Route::delete('/{id}', [\App\Http\Controllers\Admin\RegistrantAccountController::class, 'destroy'])->name('destroy');
     });
     Route::get('/pendaftar/{id}', [AdminPanelController::class, 'pendaftarDetail'])->name('pendaftar.detail');
+    Route::get('/pendaftar/{id}/cetak-formulir', [AdminPanelController::class, 'printRegistrationForm'])->name('pendaftar.print-form');
+    Route::get('/pendaftar/{id}/download-formulir-pdf', [AdminPanelController::class, 'downloadRegistrationFormPdf'])->name('pendaftar.download-form-pdf');
     Route::delete('/pendaftar/{id}', [AdminPanelController::class, 'destroyRegistration'])->name('pendaftar.destroy');
     Route::post('/pendaftar/bulk-destroy', [AdminPanelController::class, 'bulkDestroyRegistrations'])->name('pendaftar.bulk-destroy');
     Route::post('/pendaftar/{id}/verify', [AdminPanelController::class, 'verify'])->name('pendaftar.verify');
     Route::post('/pendaftar/{id}/update-participants', [AdminPanelController::class, 'updateRegistrationParticipants'])->name('pendaftar.update-participants');
     // Manajemen Cabang Lomba & Kuota Delegasi
     Route::get('/lomba', [AdminPanelController::class, 'competitionsIndex'])->middleware(['permission:competitions.view,competitions.manage'])->name('competitions.index');
+    Route::get('/lomba/{id}/cetak-peserta', [AdminPanelController::class, 'printCompetitionParticipants'])->name('lomba.print-participants');
+    Route::get('/lomba/{id}/download-pdf', [AdminPanelController::class, 'downloadCompetitionParticipantsPdf'])->name('lomba.download-participants-pdf');
     Route::middleware(['permission:competitions.manage'])->group(function () {
         Route::post('/lomba', [AdminPanelController::class, 'storeCompetition'])->name('competitions.store');
         Route::put('/lomba/{id}', [AdminPanelController::class, 'updateCompetition'])->name('competitions.update');

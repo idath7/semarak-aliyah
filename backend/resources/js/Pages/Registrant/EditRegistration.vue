@@ -250,7 +250,7 @@ function submitForm() {
                 <span class="fs-11 text-muted fw-semibold text-uppercase">Terdaftar Pada:</span>
                 <span class="fs-13 fw-bold text-dark-emphasis">{{ registration.created_at }}</span>
                 <span class="fs-11 text-muted">
-                  Tipe: <strong>{{ isTeam ? `Beregu (${minQuota}-${maxQuota} Orang)` : 'Individu (1 Orang)' }}</strong>
+                  Tipe: <strong>{{ isTeam ? `Tim (${minQuota}-${maxQuota} Orang)` : 'Individu (1 Orang)' }}</strong>
                 </span>
               </div>
             </div>
@@ -283,7 +283,7 @@ function submitForm() {
                   </div>
                   <div>
                     <h5 class="fs-15 fw-bold text-dark-emphasis mb-0">
-                      {{ isTeam ? 'Data Anggota Delegasi Tim / Regu' : 'Data Siswa Peserta Lomba' }}
+                      {{ isTeam ? 'Data Anggota Delegasi Tim' : 'Data Siswa Peserta Lomba' }}
                     </h5>
                     <div class="fs-11 text-muted">
                       {{ isTeam ? `Masukkan data ${minQuota === maxQuota ? minQuota : minQuota + '-' + maxQuota} anggota siswa perwakilan.` : 'Masukkan data identitas siswa perwakilan resmi.' }}
@@ -316,7 +316,7 @@ function submitForm() {
                           #{{ pIdx + 1 }}
                         </span>
                         <span class="fs-13 fw-bold text-dark-emphasis">
-                          {{ isTeam ? (pIdx === 0 ? 'Ketua Regu / Delegasi 1' : `Anggota Delegasi #${pIdx + 1}`) : 'Identitas Siswa' }}
+                          {{ isTeam ? (pIdx === 0 ? 'Ketua / Kapten Tim' : `Anggota Delegasi #${pIdx + 1}`) : 'Identitas Siswa' }}
                         </span>
                       </div>
 

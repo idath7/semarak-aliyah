@@ -304,6 +304,32 @@ class Setting extends Model
     }
 
     /**
+     * Dapatkan konfigurasi KOP Surat Resmi Lembaga / Kepanitiaan (Non-Invoice).
+     * Murni diambil dari master profil sekolah & event resmi (admin/pengaturan/profil-sekolah).
+     */
+    public static function getOfficialLetterhead(): array
+    {
+        $schoolName = static::get('school_name', 'MA Unggulan Wahid Hasyim Balung');
+        $edition = static::get('event_edition', 'XIV');
+        $year = static::get('event_year', '2026');
+        $eventName = static::get('event_name', "SEMARAK ALIYAH {$edition} {$year}");
+        $address = static::get('school_address', 'Jl. Puger No. 20 Balung Kulon, Kec. Balung, Kabupaten Jember, Jawa Timur 68161');
+        $city = static::get('school_city', 'Jember');
+
+        return [
+            'committee_name'   => 'PANITIA PELAKSANA ' . strtoupper($eventName),
+            'school_name'      => strtoupper($schoolName),
+            'address'          => $address,
+            'city'             => $city,
+            'phone'            => static::get('contact_phone', ''),
+            'wa'               => static::get('contact_wa', ''),
+            'email'            => static::get('contact_email', ''),
+            'website'          => static::get('school_website', ''),
+            'logo_url'         => static::get('school_logo', '/assets/img/logo.png'),
+        ];
+    }
+
+    /**
      * Resolusi URL Portal Publik (Web Pendaftar) secara dinamis & cerdas.
      * Prioritas:
      * 1. Setting database manual 'public_portal_url' (jika diatur admin)

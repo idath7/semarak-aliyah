@@ -459,6 +459,15 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
             >
               <i class="ri-arrow-left-line"></i> Manajemen Lomba
             </Link>
+            <a 
+              v-if="activeComp"
+              :href="`/admin/lomba/${activeComp.id}/cetak-peserta`" 
+              target="_blank" 
+              class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1 shadow-sm"
+              title="Cetak Formulir & Daftar Nominatif Peserta Cabang Ini (A4)"
+            >
+              <i class="ri-printer-line"></i> Cetak Peserta Lomba
+            </a>
             <button 
               type="button" 
               class="btn btn-sm btn-info text-white d-inline-flex align-items-center gap-1 shadow-sm"
@@ -827,7 +836,7 @@ function hexToRgbaPreview(hex, alpha = 0.15) {
                 {{ activeComp.category_label || activeComp.category }}
               </span>
               <span class="badge bg-info-subtle text-info fs-11">
-                {{ activeComp.participant_type === 'tim' ? 'Tim / Regu' : 'Individu' }}
+                {{ activeComp.participant_type === 'tim' ? 'Tim' : 'Individu' }}
               </span>
             </div>
             <small class="text-muted fs-10 d-block mt-1 truncate" :title="activeComp.participants_rule">

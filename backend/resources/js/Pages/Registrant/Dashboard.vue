@@ -401,7 +401,7 @@ const picForm = useForm({
 
 const picRoleOptions = [
   { value: 'Koordinator Cabang', label: 'Koordinator Cabang (Guru / Pembina Khusus)' },
-  { value: 'Kapten Tim', label: 'Kapten Tim (Ketua Regu / Delegasi Lomba)' },
+  { value: 'Ketua / Kapten Tim', label: 'Ketua / Kapten Tim (Delegasi Lomba)' },
   { value: 'Siswa Peserta', label: 'Siswa Peserta (Peserta Mandiri)' },
 ];
 
@@ -2232,7 +2232,7 @@ const copyInvoiceLink = (item) => {
               <i class="ri-shield-keyhole-line fs-20 text-info flex-shrink-0 mt-0.5"></i>
               <div class="fs-12 modal-alert-text">
                 <strong>Kolaborasi Pengisian Berkas & Login OTP WA:</strong>
-                Petugas yang ditunjuk (koordinator / kapten regu / siswa) dapat langsung login ke portal pendaftar menggunakan <strong>kode OTP yang dikirim ke nomor WhatsApp-nya</strong> untuk membantu melengkapi nama peserta dan berkas cabang lomba ini.
+                Petugas yang ditunjuk (koordinator / ketua/kapten tim / siswa) dapat langsung login ke portal pendaftar menggunakan <strong>kode OTP yang dikirim ke nomor WhatsApp-nya</strong> untuk membantu melengkapi nama peserta dan berkas cabang lomba ini.
               </div>
             </div>
 
@@ -4003,9 +4003,12 @@ const copyInvoiceLink = (item) => {
 /* PRECISE A4 @media print CSS (100% FAITHFUL TO PREVIEW)                    */
 /* ========================================================================= */
 @media print {
-  @page {
+  @page invoice-portrait {
     size: A4 portrait;
     margin: 8mm 10mm;
+  }
+  .modal-backdrop-custom.is-printing-modal {
+    page: invoice-portrait;
   }
   html, body {
     background: #ffffff !important;

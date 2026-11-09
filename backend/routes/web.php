@@ -106,7 +106,7 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
 
     // Rincian Peserta (Siswa) Granular
     Route::get('/peserta', [AdminPanelController::class, 'participantsIndex'])->name('peserta.index');
-    Route::get('/peserta/export-csv', [AdminPanelController::class, 'exportParticipantsCsv'])->name('peserta.export-csv');
+    Route::get('/peserta/export-excel', [AdminPanelController::class, 'exportParticipantsExcel'])->name('peserta.export-excel');
 
     // Manajemen Akun Pendaftar (Peserta, Pembina, & Koordinator)
     Route::prefix('akun-pendaftar')->name('registrant-accounts.')->group(function () {

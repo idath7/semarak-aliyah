@@ -4246,16 +4246,95 @@ class AdminPanelController extends Controller
     }
 
     /**
-     * Ekspor CSV Rincian Seluruh Peserta (Siswa) Granular
+     * Ekspor Resmi Microsoft Excel (.xlsx) Rincian Seluruh Peserta (Siswa) Granular
      */
-    public function exportParticipantsCsv(Request $request)
+    public function exportParticipantsExcel(Request $request)
     {
-        $registrations = Registration::with('competition')
+        $registrationsQuery = Registration::with('competition')
             ->orderBy('school_name', 'asc')
-            ->orderBy('id', 'asc')
-            ->get();
+            ->orderBy('id', 'asc');
 
-        $rows = [];
+        if ($request->filled('competition_id') && $request->competition_id !== 'all') {
+            $registrationsQuery->where('competition_id', $request->competition_id);
+        }
+
+        $registrations = $registrationsQuery->get();
+
+        $spreadsheet = new Spreadsheet();
+        $spreadsheet->getProperties()
+            ->setCreator('Panitia Semarak Aliyah XIV')
+            ->setLastModifiedBy('Admin Semarak Aliyah')
+            ->setTitle('Rekapitulasi Peserta Siswa Semarak Aliyah XIV')
+            ->setSubject('Data Rincian Siswa')
+            ->setDescription('Rekapitulasi lengkap data seluruh peserta (siswa) lomba Semarak Aliyah XIV per delegasi individu dan tim/regu.')
+            ->setCategory('Laporan Peserta');
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Rincian Peserta Siswa');
+        $sheet->setShowGridLines(true);
+
+        // Title Block (Rows 1 - 2)
+        $sheet->setCellValue('A1', 'SEMARAK ALIYAH XIV - REKAPITULASI DATA RINCIAN PESERTA (SISWA)');
+        $sheet->mergeCells('A1:T1');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('0F172A'));
+        $sheet->getStyle('A1')->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getRowDimension(1)->setRowHeight(28);
+
+        $wibTime = now()->setTimezone('Asia/Jakarta')->translatedFormat('l, d F Y - H:i') . ' WIB';
+        $sheet->setCellValue('A2', 'Diekspor pada: ' . $wibTime . ' | Laporan Resmi Kepanitiaan Semarak Aliyah XIV');
+        $sheet->mergeCells('A2:T2');
+        $sheet->getStyle('A2')->getFont()->setItalic(true)->setSize(10)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('64748B'));
+        $sheet->getRowDimension(2)->setRowHeight(18);
+
+        // Header Columns (Row 4)
+        $headers = [
+            'A4' => 'No',
+            'B4' => 'Nama Peserta (Siswa)',
+            'C4' => 'NISN',
+            'D4' => 'L/P',
+            'E4' => 'Kelas',
+            'F4' => 'Tanggal Lahir',
+            'G4' => 'Asal Sekolah / Madrasah',
+            'H4' => 'Kecamatan',
+            'I4' => 'Cabang Lomba',
+            'J4' => 'Jenis Lomba',
+            'K4' => 'Peran di Tim',
+            'L4' => 'Status Kapten',
+            'M4' => 'Nomor WA Siswa',
+            'N4' => 'Guru / Pembina',
+            'O4' => 'Nomor WA Pembina',
+            'P4' => 'Kode Registrasi',
+            'Q4' => 'Tipe Paket',
+            'R4' => 'Status Pendaftaran & Bayar',
+            'S4' => 'Presensi Gate',
+            'T4' => 'Waktu Pendaftaran'
+        ];
+
+        foreach ($headers as $cell => $text) {
+            $sheet->setCellValue($cell, $text);
+        }
+
+        $headerRange = 'A4:T4';
+        $sheet->getStyle($headerRange)->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'color' => ['rgb' => 'FFFFFF'],
+                'size' => 11,
+                'name' => 'Calibri',
+            ],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '1E293B'], // Dark Slate 800
+            ],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
+            ],
+        ]);
+        $sheet->getRowDimension(4)->setRowHeight(28);
+
+        $row = 5;
         $no = 1;
 
         foreach ($registrations as $reg) {
@@ -4265,54 +4344,92 @@ class AdminPanelController extends Controller
             $participantType = $isTeam ? 'Tim / Regu' : 'Individu';
 
             $school = trim($reg->school_name ?: 'Tanpa Sekolah / Mandiri');
+            $cf = is_array($reg->custom_fields) ? $reg->custom_fields : [];
+            $district = $cf['school_district'] ?? ($cf['kecamatan'] ?? ($cf['kecamatan_sekolah'] ?? '-'));
+
             $delegates = $reg->detailed_participants;
 
             foreach ($delegates as $idx => $del) {
-                $rows[] = [
-                    'No' => $no++,
-                    'Nama Siswa' => $del['name'],
-                    'NISN' => $del['nisn'] ?? '-',
-                    'Jenis Kelamin' => $del['gender'] ?? '-',
-                    'Kelas' => $del['grade'] ?? '-',
-                    'Tanggal Lahir' => $del['birth_date'] ?? '-',
-                    'Asal Sekolah' => $school,
-                    'Cabang Lomba' => $reg->competition_title ?: ($comp?->title ?? '-'),
-                    'Jenis Lomba' => $participantType,
-                    'Peran / Posisi' => $del['team_role'] ?? '-',
-                    'Kapten' => !empty($del['is_captain']) ? 'Ya (Kapten)' : 'Bukan',
-                    'Kontak Siswa' => $del['wa_number'] ?? '-',
-                    'Nama Pembina' => $reg->mentor_name ?: '-',
-                    'WA Pembina' => $reg->mentor_wa ?: '-',
-                    'Kode Registrasi' => $reg->reg_code ?: ('#' . $reg->id),
-                    'Tipe Paket' => $reg->package_type ?: 'Paket Satuan',
-                    'Status Verifikasi' => $reg->registration_status ?: 'Menunggu Verifikasi',
-                    'Status Pembayaran' => $reg->payment_status ?: 'Menunggu Verifikasi',
-                    'Status Presensi Gate' => $reg->checkin_status ?: 'Belum Hadir',
-                    'Waktu Daftar' => $reg->created_at?->format('d/m/Y H:i'),
-                ];
+                $sheet->setCellValue("A{$row}", $no);
+                $sheet->setCellValue("B{$row}", $del['name']);
+                
+                // Set NISN as string to preserve leading zeros
+                $sheet->setCellValueExplicit("C{$row}", (string)($del['nisn'] ?? '-'), DataType::TYPE_STRING);
+                
+                $sheet->setCellValue("D{$row}", $del['gender'] ?? '-');
+                $sheet->setCellValue("E{$row}", $del['grade'] ?? '-');
+                $sheet->setCellValue("F{$row}", $del['birth_date'] ?? '-');
+                $sheet->setCellValue("G{$row}", $school);
+                $sheet->setCellValue("H{$row}", $district);
+                $sheet->setCellValue("I{$row}", $reg->competition_title ?: ($comp?->title ?? '-'));
+                $sheet->setCellValue("J{$row}", $participantType);
+                $sheet->setCellValue("K{$row}", $del['team_role'] ?? ($participantType === 'Tim / Regu' ? 'Anggota Regu' : 'Peserta Tunggal'));
+                $sheet->setCellValue("L{$row}", !empty($del['is_captain']) ? 'Ya (Kapten)' : 'Bukan');
+                
+                // Set WA as string to preserve leading zero or country code
+                $sheet->setCellValueExplicit("M{$row}", (string)($del['wa_number'] ?? '-'), DataType::TYPE_STRING);
+                
+                $sheet->setCellValue("N{$row}", $reg->mentor_name ?: '-');
+                $sheet->setCellValueExplicit("O{$row}", (string)($reg->mentor_wa ?: '-'), DataType::TYPE_STRING);
+                
+                $sheet->setCellValue("P{$row}", $reg->reg_code ?: ('#' . $reg->id));
+                $sheet->setCellValue("Q{$row}", $reg->package_type ?: 'Paket Satuan');
+                $sheet->setCellValue("R{$row}", $reg->payment_status ?: 'Menunggu Verifikasi');
+                $sheet->setCellValue("S{$row}", $reg->checkin_status ?: 'Belum Hadir');
+                $sheet->setCellValue("T{$row}", $reg->created_at?->format('d/m/Y H:i') ?: '-');
+
+                // Zebra row styling
+                if ($row % 2 === 0) {
+                    $sheet->getStyle("A{$row}:T{$row}")->getFill()
+                        ->setFillType(Fill::FILL_SOLID)
+                        ->getStartColor()->setRGB('F8FAFC'); // Light subtle slate
+                }
+
+                // Row height
+                $sheet->getRowDimension($row)->setRowHeight(22);
+
+                $no++;
+                $row++;
             }
         }
 
-        $filename = 'Rekap_Peserta_Siswa_Semarak_Aliyah_' . date('Ymd_His') . '.csv';
+        $lastRow = max(5, $row - 1);
 
-        return response()->streamDownload(function () use ($rows) {
-            $output = fopen('php://output', 'w');
-            // Write UTF-8 BOM for Excel compatibility
-            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+        // Alignments
+        $sheet->getStyle("A5:A{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("B5:B{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->getStyle("C5:F{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("G5:I{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->getStyle("J5:M{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle("N5:N{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+        $sheet->getStyle("O5:T{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-            if (!empty($rows)) {
-                // Header
-                fputcsv($output, array_keys($rows[0]));
-                // Rows
-                foreach ($rows as $row) {
-                    fputcsv($output, $row);
-                }
-            }
+        // Vertical center for all data cells
+        $sheet->getStyle("A5:T{$lastRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
 
-            fclose($output);
+        // Borders
+        $sheet->getStyle("A4:T{$lastRow}")->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => Border::BORDER_THIN,
+                    'color' => ['rgb' => 'CBD5E1'],
+                ],
+            ],
+        ]);
+
+        // Auto-fit column widths with safety margin
+        foreach (range('A', 'T') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'Rekap_Peserta_Siswa_Semarak_Aliyah_XIV_' . date('Y-m-d_His') . '.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
         }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'max-age=0, no-cache, no-store, must-revalidate',
         ]);
     }
 

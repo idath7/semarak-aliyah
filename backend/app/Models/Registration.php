@@ -269,6 +269,278 @@ class Registration extends Model
     }
 
     /**
+     * Dapatkan daftar rincian peserta/siswa secara granular dan terstruktur.
+     * Mengidentifikasi nama, NISN, jenis kelamin, kelas, tgl lahir, WA, peran tim (kapten/anggota),
+     * foto, serta jenis perlombaan (individu vs tim/regu).
+     *
+     * @return array<int, array>
+     */
+    public function getDetailedParticipantsAttribute(): array
+    {
+        $participants = [];
+        $cf = is_array($this->custom_fields) ? $this->custom_fields : [];
+        $comp = $this->competition;
+        
+        $isCompTeam = false;
+        if ($comp && !empty($comp->participant_type)) {
+            $isCompTeam = in_array(strtolower((string)$comp->participant_type), ['tim', 'beregu', 'team', 'grup', 'group']);
+        }
+
+        // Helper untuk memformat URL foto jika ada
+        $formatPhotoUrl = function (?string $path): ?string {
+            if (empty($path) || $path === '-') return null;
+            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, '/storage/')) {
+                return $path;
+            }
+            return '/storage/' . ltrim($path, '/');
+        };
+
+        // 1. Cek dari $cf['delegates'] (biasanya diisi panitia / manual)
+        if (!empty($cf['delegates']) && is_array($cf['delegates'])) {
+            foreach ($cf['delegates'] as $idx => $st) {
+                if (!is_array($st)) continue;
+                $name = trim($st['name'] ?? $st['nama'] ?? $st['nama_lengkap'] ?? '');
+                if ($name === '') continue;
+
+                $grade = trim($st['grade'] ?? $st['kelas'] ?? '-');
+                if ($grade !== '-' && $grade !== '' && !preg_match('/^kelas/i', $grade)) {
+                    $grade = 'Kelas ' . $grade;
+                }
+
+                $isCaptain = !empty($st['is_captain']) || ($isCompTeam && $idx === 0 && count($cf['delegates']) > 1);
+                $teamRole = !$isCompTeam 
+                    ? 'Peserta Tunggal' 
+                    : ($isCaptain ? 'Kapten Regu' : 'Anggota Regu #' . ($idx + 1));
+
+                $participants[] = [
+                    'index' => $idx + 1,
+                    'name' => $name,
+                    'nisn' => trim($st['nisn'] ?? '-') ?: '-',
+                    'gender' => trim($st['gender'] ?? $st['jenis_kelamin'] ?? '-') ?: '-',
+                    'grade' => $grade ?: '-',
+                    'birth_date' => $st['birth_date'] ?? $st['tanggal_lahir'] ?? null,
+                    'wa_number' => $st['wa_number'] ?? $st['wa'] ?? $st['phone'] ?? null,
+                    'is_captain' => (bool)$isCaptain,
+                    'team_role' => $teamRole,
+                    'photo' => $formatPhotoUrl($st['photo_formal'] ?? ($st['photo'] ?? null)),
+                    'photo_freestyle' => $formatPhotoUrl($st['photo_freestyle'] ?? null),
+                    'source' => 'Delegasi Terstruktur',
+                ];
+            }
+
+            if (!empty($participants)) {
+                return $participants;
+            }
+        }
+
+        // 2. Cek dari form builder repeater ($cf['biodata_peserta'], $cf['participants'], dll)
+        $repeater = null;
+        foreach ($cf as $k => $val) {
+            if (is_array($val) && count($val) > 0 && isset($val[0]) && is_array($val[0])) {
+                if (isset($val[0]['nama_lengkap']) || isset($val[0]['nama_siswa']) || isset($val[0]['name']) || isset($val[0]['nama_peserta']) || isset($val[0]['nama'])) {
+                    $repeater = $val;
+                    break;
+                }
+            }
+        }
+
+        if (is_array($repeater) && !empty($repeater)) {
+            foreach ($repeater as $idx => $st) {
+                if (!is_array($st)) continue;
+                $name = trim($st['nama_lengkap'] ?? $st['nama_siswa'] ?? $st['nama_peserta'] ?? $st['name'] ?? $st['nama'] ?? '');
+                if ($name === '') continue;
+
+                $grade = trim($st['kelas'] ?? $st['grade'] ?? $st['tingkat'] ?? '-');
+                if ($grade !== '-' && $grade !== '' && !preg_match('/^kelas/i', $grade)) {
+                    $grade = 'Kelas ' . $grade;
+                }
+
+                $isCaptain = !empty($st['is_captain']) || !empty($st['captain_option']) || ($isCompTeam && $idx === 0 && count($repeater) > 1);
+                $teamRole = !$isCompTeam 
+                    ? 'Peserta Tunggal' 
+                    : ($isCaptain ? 'Kapten Regu' : 'Anggota Regu #' . ($idx + 1));
+
+                $participants[] = [
+                    'index' => $idx + 1,
+                    'name' => $name,
+                    'nisn' => trim($st['nisn'] ?? $st['nisn_siswa'] ?? '-') ?: '-',
+                    'gender' => trim($st['jenis_kelamin'] ?? $st['gender'] ?? '-') ?: '-',
+                    'grade' => $grade ?: '-',
+                    'birth_date' => $st['tanggal_lahir'] ?? $st['tgl_lahir'] ?? $st['birth_date'] ?? null,
+                    'wa_number' => $st['wa_siswa'] ?? $st['no_wa_siswa'] ?? $st['nomor_wa_siswa'] ?? $st['wa_number'] ?? $st['wa'] ?? null,
+                    'is_captain' => (bool)$isCaptain,
+                    'team_role' => $teamRole,
+                    'photo' => $formatPhotoUrl($st['foto_formal'] ?? ($st['pas_foto'] ?? ($st['foto_siswa'] ?? ($st['photo_formal'] ?? ($st['photo'] ?? null))))),
+                    'photo_freestyle' => $formatPhotoUrl($st['foto_bebas'] ?? ($st['photo_freestyle'] ?? null)),
+                    'source' => 'Formulir Pendaftaran (Repeater)',
+                ];
+            }
+
+            if (!empty($participants)) {
+                return $participants;
+            }
+        }
+
+        // 3. Cek dari field tunggal Form Builder ($cf['nama_lengkap'], $cf['nama_siswa'], dll)
+        $singleName = trim($cf['nama_lengkap'] ?? $cf['nama_siswa'] ?? $cf['nama_peserta'] ?? $cf['student_name'] ?? '');
+        if ($singleName !== '') {
+            $grade = trim($cf['kelas'] ?? $cf['kelas_siswa'] ?? $cf['grade'] ?? $cf['tingkat'] ?? '-');
+            if ($grade !== '-' && $grade !== '' && !preg_match('/^kelas/i', $grade)) {
+                $grade = 'Kelas ' . $grade;
+            }
+
+            $participants[] = [
+                'index' => 1,
+                'name' => $singleName,
+                'nisn' => trim($cf['nisn'] ?? $cf['nisn_siswa'] ?? '-') ?: '-',
+                'gender' => trim($cf['jenis_kelamin'] ?? $cf['gender'] ?? '-') ?: '-',
+                'grade' => $grade ?: '-',
+                'birth_date' => $cf['tanggal_lahir'] ?? $cf['tgl_lahir'] ?? $cf['birth_date'] ?? null,
+                'wa_number' => $cf['wa_siswa'] ?? $cf['no_wa_siswa'] ?? $cf['nomor_wa_siswa'] ?? $cf['wa_peserta'] ?? null,
+                'is_captain' => false,
+                'team_role' => 'Peserta Tunggal',
+                'photo' => $formatPhotoUrl($cf['foto_formal'] ?? ($cf['pas_foto'] ?? ($cf['foto_siswa'] ?? ($cf['photo_formal'] ?? ($cf['photo'] ?? null))))),
+                'photo_freestyle' => $formatPhotoUrl($cf['foto_bebas'] ?? ($cf['photo_freestyle'] ?? null)),
+                'source' => 'Formulir Pendaftaran (Tunggal)',
+            ];
+
+            return $participants;
+        }
+
+        // 4. Fallback cerdas: Parsing dari raw string participants_names
+        $raw = trim($this->participants_names ?? '');
+        if ($raw !== '') {
+            $lines = preg_split('/[\r\n]+/', $raw);
+            if (count($lines) === 1) {
+                if (preg_match('/[1-9]\d{0,1}\.\s+/u', $raw)) {
+                    $split = preg_split('/(?<=\S)\s+(?=[1-9]\d{0,1}\.\s+)/u', $raw);
+                    if (count($split) > 1) {
+                        $lines = $split;
+                    }
+                } elseif (str_contains($raw, ';')) {
+                    $lines = explode(';', $raw);
+                }
+            }
+
+            $cleanLines = [];
+            foreach ($lines as $line) {
+                $trimmed = trim($line);
+                if ($trimmed !== '') {
+                    $cleanLines[] = $trimmed;
+                }
+            }
+
+            $totalLines = count($cleanLines);
+            // Jika competition type tidak ada, tapi lines > 1, asumsikan tim
+            if (!$comp || empty($comp->participant_type)) {
+                $isCompTeam = $totalLines > 1;
+            }
+
+            foreach ($cleanLines as $idx => $line) {
+                $isCaptainTag = (bool)preg_match('/\[(?:Kapten|Ketua)\]/i', $line);
+                $isCaptain = $isCaptainTag || ($isCompTeam && $idx === 0 && $totalLines > 1);
+
+                $clean = preg_replace('/^(\d+[\.\)]|[-*•])\s*/u', '', $line);
+                $clean = preg_replace('/\[(?:Kapten|Ketua)\]/i', '', $clean);
+                $clean = trim($clean);
+
+                $name = $clean;
+                $nisn = '-';
+                $grade = '-';
+                $gender = '-';
+
+                // Ekstrak dalam kurung (...) atau [...]
+                if (preg_match('/^(.*?)\s*[\(\[](.*?)[\)\]]$/u', $clean, $matches)) {
+                    $potentialName = trim($matches[1]);
+                    $inside = trim($matches[2]);
+
+                    // Cari NISN
+                    if (preg_match('/NISN\s*[:=]?\s*([0-9]+)/i', $inside, $nm)) {
+                        $nisn = $nm[1];
+                    }
+
+                    // Cari Kelas
+                    if (preg_match('/\b(?:Kelas|Kls|Tingkat)\s*[:=]?\s*([0-9A-Za-z\s-]+)\b/i', $inside, $gm)) {
+                        $grade = trim($gm[1]);
+                    } elseif (preg_match('/\b([789]|VII|VIII|IX)[A-Za-z]?\b/i', $inside, $gm2)) {
+                        if (!preg_match('/(?:NISN|NIK|HP|No|Telp)\s*[:=]?\s*' . preg_quote($gm2[0], '/') . '/i', $inside)) {
+                            $grade = trim($gm2[0]);
+                        }
+                    }
+
+                    // Cari Gender L / P
+                    if (preg_match('/\b(Laki-laki|Perempuan|L\/P|L|P)\b/i', $inside, $genderM)) {
+                        $g = strtoupper($genderM[1]);
+                        $gender = str_starts_with($g, 'L') ? 'Laki-laki' : (str_starts_with($g, 'P') ? 'Perempuan' : $genderM[1]);
+                    }
+
+                    if ($potentialName !== '') {
+                        $name = $potentialName;
+                    }
+                }
+
+                // Bersihkan sisa noise pada nama
+                $name = preg_replace('/[\(\[][^\)\]]*[\)\]]/u', '', $name);
+                $name = preg_replace('/\b(NISN|NIK|WA|HP|No|Telp|JK|Jenis Kelamin)\s*[:=]?\s*[0-9A-Za-z+\s-]+\b/i', '', $name);
+                $name = trim($name, " ,;-\t\n\r\0\x0B");
+
+                if ($grade !== '-' && $grade !== '') {
+                    $grade = preg_replace('/\b(NISN|NIK|WA|HP|No|Telp)\b.*$/i', '', $grade);
+                    $grade = trim($grade, " ,;-\t\n\r\0\x0B");
+                    if ($grade !== '' && !preg_match('/^kelas/i', $grade)) {
+                        $grade = 'Kelas ' . $grade;
+                    }
+                } else {
+                    $grade = '-';
+                }
+
+                if ($name !== '') {
+                    $teamRole = !$isCompTeam 
+                        ? 'Peserta Tunggal' 
+                        : ($isCaptain ? 'Kapten Regu' : 'Anggota Regu #' . ($idx + 1));
+
+                    $participants[] = [
+                        'index' => $idx + 1,
+                        'name' => $name,
+                        'nisn' => $nisn,
+                        'gender' => $gender,
+                        'grade' => $grade ?: '-',
+                        'birth_date' => null,
+                        'wa_number' => null,
+                        'is_captain' => (bool)$isCaptain,
+                        'team_role' => $teamRole,
+                        'photo' => null,
+                        'photo_freestyle' => null,
+                        'source' => 'Catatan Delegasi (Teks)',
+                    ];
+                }
+            }
+
+            if (!empty($participants)) {
+                return $participants;
+            }
+        }
+
+        // 5. Terakhir jika benar-benar kosong: 1 placeholder
+        return [
+            [
+                'index' => 1,
+                'name' => 'Delegasi ' . ($this->school_name ?: 'Peserta'),
+                'nisn' => '-',
+                'gender' => '-',
+                'grade' => '-',
+                'birth_date' => null,
+                'wa_number' => $this->mentor_wa ?: null,
+                'is_captain' => false,
+                'team_role' => $isCompTeam ? 'Perwakilan Tim' : 'Peserta Tunggal',
+                'photo' => null,
+                'photo_freestyle' => null,
+                'source' => 'Data Induk Registrasi',
+            ]
+        ];
+    }
+
+    /**
      * Periksa apakah akun pendaftar telah mendaftarkan seluruh cabang lomba aktif.
      * Jika ya, otomatis alihkan status paket menjadi 'Paket All-In' dan konsolidasikan tagihan.
      *

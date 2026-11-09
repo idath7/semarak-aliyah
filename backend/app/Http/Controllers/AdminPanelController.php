@@ -4141,6 +4141,182 @@ class AdminPanelController extends Controller
     }
 
     /**
+     * Halaman Rincian Peserta (Siswa) - Granular Per Siswa
+     * Mendata setiap peserta siswa secara terpisah, membedakan cabang Individu dan Tim/Regu,
+     * serta peran Kapten Regu vs Anggota.
+     */
+    public function participantsIndex(Request $request)
+    {
+        $allCompetitions = Competition::orderBy('id', 'asc')->get();
+        $registrations = Registration::with('competition')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $participantsList = [];
+        $totalStudents = 0;
+        $totalIndividual = 0;
+        $totalTeam = 0;
+        $totalVerified = 0;
+        $uniqueSchools = [];
+
+        foreach ($registrations as $reg) {
+            $comp = $reg->competition;
+            $rawType = strtolower((string)($comp?->participant_type ?? 'individu'));
+            $isTeam = in_array($rawType, ['tim', 'beregu', 'team', 'grup', 'group']);
+            $participantType = $isTeam ? 'tim' : 'individu';
+
+            $school = trim($reg->school_name ?: 'Tanpa Sekolah / Mandiri');
+            if (!empty($school) && $school !== '-') {
+                $uniqueSchools[$school] = true;
+            }
+
+            // Ekstrak detail siswa dari model Registration
+            $delegates = $reg->detailed_participants;
+
+            foreach ($delegates as $idx => $del) {
+                $totalStudents++;
+                if ($participantType === 'tim') {
+                    $totalTeam++;
+                } else {
+                    $totalIndividual++;
+                }
+
+                $isVerified = ($reg->registration_status === 'Terverifikasi' || $reg->payment_status === 'Terverifikasi');
+                if ($isVerified) {
+                    $totalVerified++;
+                }
+
+                // Ambil kecamatan jika ada di custom fields
+                $cf = is_array($reg->custom_fields) ? $reg->custom_fields : [];
+                $district = $cf['school_district'] ?? ($cf['kecamatan'] ?? ($cf['kecamatan_sekolah'] ?? null));
+
+                $participantsList[] = [
+                    'id' => $reg->id . '_' . ($idx + 1),
+                    'registration_id' => $reg->id,
+                    'reg_code' => $reg->reg_code,
+                    'student_index' => $idx + 1,
+                    'name' => $del['name'],
+                    'nisn' => $del['nisn'] ?? '-',
+                    'gender' => $del['gender'] ?? '-',
+                    'grade' => $del['grade'] ?? '-',
+                    'birth_date' => $del['birth_date'] ?? null,
+                    'wa_number' => $del['wa_number'] ?? null,
+                    'is_captain' => (bool)($del['is_captain'] ?? false),
+                    'team_role' => $del['team_role'] ?? ($participantType === 'tim' ? 'Anggota Regu' : 'Peserta Tunggal'),
+                    'photo' => $del['photo'] ?? null,
+                    'photo_freestyle' => $del['photo_freestyle'] ?? null,
+                    'source' => $del['source'] ?? 'Pendaftaran',
+                    'school_name' => $school,
+                    'school_district' => $district,
+                    'competition_id' => $reg->competition_id,
+                    'competition_title' => $reg->competition_title ?: ($comp?->title ?? '-'),
+                    'competition_category' => $comp?->category ?? 'Umum',
+                    'participant_type' => $participantType, // 'individu' | 'tim'
+                    'package_type' => $reg->package_type,
+                    'mentor_name' => $reg->mentor_name ?: '-',
+                    'mentor_wa' => $reg->mentor_wa ?: '-',
+                    'registration_status' => $reg->registration_status ?: 'Menunggu Verifikasi',
+                    'payment_status' => $reg->payment_status ?: 'Menunggu Verifikasi',
+                    'checkin_status' => $reg->checkin_status ?: 'Belum Hadir',
+                    'checkin_at' => $reg->checkin_at?->format('d/m/Y H:i'),
+                    'created_at' => $reg->created_at?->format('d/m/Y H:i'),
+                ];
+            }
+        }
+
+        $schoolsList = array_keys($uniqueSchools);
+        sort($schoolsList);
+
+        return \Inertia\Inertia::render('Admin/Participants', [
+            'participants' => $participantsList,
+            'competitions' => $allCompetitions,
+            'schools_list' => $schoolsList,
+            'stats' => [
+                'total_students' => $totalStudents,
+                'total_individual' => $totalIndividual,
+                'total_team' => $totalTeam,
+                'total_schools' => count($uniqueSchools),
+                'total_verified' => $totalVerified,
+            ],
+            'filters' => $request->only([
+                'search', 'competition_id', 'participant_type', 'team_role', 
+                'payment_status', 'checkin_status', 'school_name'
+            ]),
+        ]);
+    }
+
+    /**
+     * Ekspor CSV Rincian Seluruh Peserta (Siswa) Granular
+     */
+    public function exportParticipantsCsv(Request $request)
+    {
+        $registrations = Registration::with('competition')
+            ->orderBy('school_name', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $rows = [];
+        $no = 1;
+
+        foreach ($registrations as $reg) {
+            $comp = $reg->competition;
+            $rawType = strtolower((string)($comp?->participant_type ?? 'individu'));
+            $isTeam = in_array($rawType, ['tim', 'beregu', 'team', 'grup', 'group']);
+            $participantType = $isTeam ? 'Tim / Regu' : 'Individu';
+
+            $school = trim($reg->school_name ?: 'Tanpa Sekolah / Mandiri');
+            $delegates = $reg->detailed_participants;
+
+            foreach ($delegates as $idx => $del) {
+                $rows[] = [
+                    'No' => $no++,
+                    'Nama Siswa' => $del['name'],
+                    'NISN' => $del['nisn'] ?? '-',
+                    'Jenis Kelamin' => $del['gender'] ?? '-',
+                    'Kelas' => $del['grade'] ?? '-',
+                    'Tanggal Lahir' => $del['birth_date'] ?? '-',
+                    'Asal Sekolah' => $school,
+                    'Cabang Lomba' => $reg->competition_title ?: ($comp?->title ?? '-'),
+                    'Jenis Lomba' => $participantType,
+                    'Peran / Posisi' => $del['team_role'] ?? '-',
+                    'Kapten' => !empty($del['is_captain']) ? 'Ya (Kapten)' : 'Bukan',
+                    'Kontak Siswa' => $del['wa_number'] ?? '-',
+                    'Nama Pembina' => $reg->mentor_name ?: '-',
+                    'WA Pembina' => $reg->mentor_wa ?: '-',
+                    'Kode Registrasi' => $reg->reg_code ?: ('#' . $reg->id),
+                    'Tipe Paket' => $reg->package_type ?: 'Paket Satuan',
+                    'Status Verifikasi' => $reg->registration_status ?: 'Menunggu Verifikasi',
+                    'Status Pembayaran' => $reg->payment_status ?: 'Menunggu Verifikasi',
+                    'Status Presensi Gate' => $reg->checkin_status ?: 'Belum Hadir',
+                    'Waktu Daftar' => $reg->created_at?->format('d/m/Y H:i'),
+                ];
+            }
+        }
+
+        $filename = 'Rekap_Peserta_Siswa_Semarak_Aliyah_' . date('Ymd_His') . '.csv';
+
+        return response()->streamDownload(function () use ($rows) {
+            $output = fopen('php://output', 'w');
+            // Write UTF-8 BOM for Excel compatibility
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            if (!empty($rows)) {
+                // Header
+                fputcsv($output, array_keys($rows[0]));
+                // Rows
+                foreach ($rows as $row) {
+                    fputcsv($output, $row);
+                }
+            }
+
+            fclose($output);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        ]);
+    }
+
+    /**
      * Input Manual Data Pendaftaran dan Delegasi oleh Panitia (On The Spot di Meja Panitia)
      */
     public function storeManualRegistration(Request $request)

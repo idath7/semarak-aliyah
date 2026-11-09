@@ -229,11 +229,21 @@ function logout() {
                   href="/admin/pendaftar" 
                   :class="[
                     'flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all',
-                    $page.url.startsWith('/admin/pendaftar') ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                    $page.url.startsWith('/admin/pendaftar') && !$page.url.startsWith('/admin/peserta') ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                   ]"
                 >
                   <i class="ri-team-line text-base text-cyan-400"></i>
                   <span>Data Pendaftar Masuk</span>
+                </Link>
+                <Link 
+                  href="/admin/peserta" 
+                  :class="[
+                    'flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all',
+                    $page.url.startsWith('/admin/peserta') ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                  ]"
+                >
+                  <i class="ri-user-star-line text-base text-amber-400"></i>
+                  <span>Rincian Peserta (Siswa)</span>
                 </Link>
                 <Link 
                   href="/admin/lomba" 

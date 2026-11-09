@@ -580,6 +580,17 @@ onUnmounted(() => {
 
           <li class="nav-item" v-if="can('registrants.view')">
             <Link 
+              href="/admin/peserta" 
+              class="nav-link menu-link"
+              :class="{ 'active': currentUrl.startsWith('/admin/peserta') }"
+            >
+              <i class="ri-user-star-line text-warning"></i>
+              <span v-show="!isSidebarCollapsed">Rincian Peserta (Siswa)</span>
+            </Link>
+          </li>
+
+          <li class="nav-item" v-if="can('registrants.view')">
+            <Link 
               href="/admin/akun-pendaftar" 
               class="nav-link menu-link"
               :class="{ 'active': currentUrl.startsWith('/admin/akun-pendaftar') }"

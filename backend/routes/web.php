@@ -104,6 +104,10 @@ Route::middleware(['auth:web', 'admin'])->prefix('admin')->name('admin.')->group
     Route::get('/sekolah-terdaftar', [AdminPanelController::class, 'registeredSchoolsIndex'])->name('sekolah-terdaftar.index');
     Route::post('/sekolah-terdaftar/destroy', [AdminPanelController::class, 'destroyRegisteredSchool'])->name('sekolah-terdaftar.destroy');
 
+    // Rincian Peserta (Siswa) Granular
+    Route::get('/peserta', [AdminPanelController::class, 'participantsIndex'])->name('peserta.index');
+    Route::get('/peserta/export-csv', [AdminPanelController::class, 'exportParticipantsCsv'])->name('peserta.export-csv');
+
     // Manajemen Akun Pendaftar (Peserta, Pembina, & Koordinator)
     Route::prefix('akun-pendaftar')->name('registrant-accounts.')->group(function () {
         Route::get('/', [\App\Http\Controllers\Admin\RegistrantAccountController::class, 'index'])->name('index');

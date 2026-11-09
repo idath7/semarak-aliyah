@@ -637,17 +637,6 @@ onUnmounted(() => {
             </Link>
           </li>
 
-          <li class="nav-item" v-if="can('registrants.view')">
-            <Link 
-              href="/admin/akun-pendaftar" 
-              class="nav-link menu-link"
-              :class="{ 'active': currentUrl.startsWith('/admin/akun-pendaftar') }"
-            >
-              <i class="ri-account-circle-line text-warning"></i>
-              <span v-show="!isSidebarCollapsed">Akun Pendaftar</span>
-            </Link>
-          </li>
-
           <li class="nav-item" v-if="can('schools.view')">
             <Link 
               href="/admin/sekolah-terdaftar" 
@@ -656,6 +645,17 @@ onUnmounted(() => {
             >
               <i class="ri-community-line text-info"></i>
               <span v-show="!isSidebarCollapsed">Sekolah Terdaftar</span>
+            </Link>
+          </li>
+
+          <li class="nav-item" v-if="can('registrants.view')">
+            <Link 
+              href="/admin/akun-pendaftar" 
+              class="nav-link menu-link"
+              :class="{ 'active': currentUrl.startsWith('/admin/akun-pendaftar') }"
+            >
+              <i class="ri-account-circle-line text-warning"></i>
+              <span v-show="!isSidebarCollapsed">Akun Pendaftar</span>
             </Link>
           </li>
 

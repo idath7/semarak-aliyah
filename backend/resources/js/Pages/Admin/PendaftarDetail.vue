@@ -108,6 +108,30 @@ function formatRupiah(val) {
   return 'Rp ' + num.toLocaleString('id-ID');
 }
 
+function isFemale(gender) {
+  if (!gender || gender === '-') return false;
+  const g = String(gender).toLowerCase().trim();
+  return g === 'p' || g === 'perempuan' || g === 'putri' || g === 'wanita' || g === 'female' || g === 'akhwat';
+}
+
+function isMale(gender) {
+  if (!gender || gender === '-') return false;
+  const g = String(gender).toLowerCase().trim();
+  return g === 'l' || g === 'laki-laki' || g === 'pria' || g === 'putra' || g === 'male' || g === 'ikhwan';
+}
+
+function formatGenderLabel(gender) {
+  if (isFemale(gender)) return 'P';
+  if (isMale(gender)) return 'L';
+  return '-';
+}
+
+function formatGenderFull(gender) {
+  if (isFemale(gender)) return 'Perempuan';
+  if (isMale(gender)) return 'Laki-laki';
+  return '-';
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   try {
@@ -1042,10 +1066,10 @@ function sendOfficialNotification(templateKey) {
                               <span 
                                 v-if="p.gender && p.gender !== '-'"
                                 class="badge fs-10 px-2 py-0.5"
-                                :class="p.gender.startsWith('L') ? 'bg-info-subtle text-info border border-info-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                                :class="isFemale(p.gender) ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle'"
                               >
-                                <i :class="p.gender.startsWith('L') ? 'ri-men-line' : 'ri-women-line'" class="me-0.5"></i>
-                                {{ p.gender.startsWith('L') ? 'L' : (p.gender.startsWith('P') ? 'P' : p.gender) }}
+                                <i :class="isFemale(p.gender) ? 'ri-women-line' : 'ri-men-line'" class="me-0.5"></i>
+                                {{ formatGenderLabel(p.gender) }}
                               </span>
                               <span v-else class="text-muted fs-11">-</span>
                             </td>
@@ -1161,7 +1185,7 @@ function sendOfficialNotification(templateKey) {
                                   <div class="fs-11 text-muted d-flex flex-column gap-0.5">
                                     <div v-if="member.nisn && member.nisn !== '-'"><span class="fw-semibold text-dark font-monospace">NISN:</span> {{ member.nisn }}</div>
                                     <div class="d-flex align-items-center gap-2">
-                                      <span v-if="member.gender && member.gender !== '-'">{{ member.gender }}</span>
+                                      <span v-if="member.gender && member.gender !== '-'">{{ formatGenderFull(member.gender) }}</span>
                                       <span v-if="member.grade && member.grade !== '-'">• Kls: {{ member.grade }}</span>
                                     </div>
                                     <div v-if="member.birth_date"><i class="ri-cake-2-line text-warning me-0.5"></i> {{ formatDateOnly(member.birth_date) }}</div>

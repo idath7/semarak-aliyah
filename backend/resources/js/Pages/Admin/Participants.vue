@@ -1072,7 +1072,7 @@ function formatGenderFull(gender) {
                   <span 
                     v-if="activeStudent.gender && activeStudent.gender !== '-'" 
                     class="badge px-2 py-1 fs-11"
-                    :class="isFemale(activeStudent.gender) ? 'bg-danger-subtle text-danger' : 'bg-info-subtle text-info'"
+                    :class="isFemale(activeStudent.gender) ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary'"
                   >
                     {{ formatGenderFull(activeStudent.gender) }}
                   </span>

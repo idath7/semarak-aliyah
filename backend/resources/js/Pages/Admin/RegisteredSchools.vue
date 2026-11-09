@@ -90,6 +90,30 @@ function getInitials(name) {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
+function isFemale(gender) {
+  if (!gender || gender === '-') return false;
+  const g = String(gender).toLowerCase().trim();
+  return g === 'p' || g === 'perempuan' || g === 'putri' || g === 'wanita' || g === 'female' || g === 'akhwat';
+}
+
+function isMale(gender) {
+  if (!gender || gender === '-') return false;
+  const g = String(gender).toLowerCase().trim();
+  return g === 'l' || g === 'laki-laki' || g === 'pria' || g === 'putra' || g === 'male' || g === 'ikhwan';
+}
+
+function formatGenderLabel(gender) {
+  if (isFemale(gender)) return 'P';
+  if (isMale(gender)) return 'L';
+  return '-';
+}
+
+function formatGenderFull(gender) {
+  if (isFemale(gender)) return 'Perempuan';
+  if (isMale(gender)) return 'Laki-laki';
+  return '-';
+}
+
 // -----------------------------------------------------------------------------
 // DETAIL MODAL STATE
 // -----------------------------------------------------------------------------
@@ -1163,14 +1187,27 @@ function openParticipantModal(compReg, schoolContext = null) {
     : (Array.isArray(compReg.custom_fields?.delegates) ? JSON.parse(JSON.stringify(compReg.custom_fields.delegates)) : []);
 
   const minReq = activeBuilderRules.value.min_items || 1;
+  const compTitleLower = (compReg.competition_title || '').toLowerCase();
+  const defaultGender = compTitleLower.includes('putri') ? 'Perempuan' : 'Laki-laki';
   
   // Bersihkan dan normalkan delegates
   const normalizedDelegates = [];
   if (existingStudents.length > 0) {
     existingStudents.forEach((st) => {
+      let g = st.gender;
+      if (!g || g === '-') {
+        g = defaultGender;
+      } else if (isFemale(g)) {
+        g = 'Perempuan';
+      } else if (isMale(g)) {
+        g = 'Laki-laki';
+      } else {
+        g = defaultGender;
+      }
+
       normalizedDelegates.push({
         name: st.name || st.nama_lengkap || '',
-        gender: st.gender || 'Laki-laki',
+        gender: g,
         grade: st.grade || '7',
         nisn: st.nisn && st.nisn !== '-' ? st.nisn : '',
         birth_date: st.birth_date || '',
@@ -1189,7 +1226,7 @@ function openParticipantModal(compReg, schoolContext = null) {
   while (normalizedDelegates.length < minReq) {
     normalizedDelegates.push({
       name: '',
-      gender: 'Laki-laki',
+      gender: defaultGender,
       grade: '7',
       nisn: '',
       birth_date: '',
@@ -2009,7 +2046,7 @@ function printReport() {
     <!-- MODAL 1: DETAIL LENGKAP SEKOLAH TERDAFTAR                             -->
     <!-- ===================================================================== -->
     <div v-if="showDetailModal && activeSchool" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.6); z-index: 1055;">
-      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 1360px; width: 95vw;">
         <div class="modal-content shadow-lg border-0">
           <!-- Modal Header -->
           <div class="modal-header py-2.5 px-3 border-bottom d-flex align-items-center justify-content-between">
@@ -2081,7 +2118,7 @@ function printReport() {
               <div 
                 v-for="(comp, idx) in activeSchool.competitions" 
                 :key="idx" 
-                class="col-12 col-lg-6"
+                class="col-12"
               >
                 <div class="card shadow-sm border-0 h-100">
                   <div class="card-header bg-white p-3 border-bottom d-flex align-items-center justify-content-between">
@@ -2116,19 +2153,19 @@ function printReport() {
                       Delegasi Siswa Peserta ({{ comp.students ? comp.students.length : comp.participants_count }} Peserta):
                     </span>
 
-                    <!-- Tabel Delegasi Siswa -->
+                    <!-- Tabel Delegasi Siswa (Full-Width & Luas) -->
                     <div v-if="comp.students && comp.students.length > 0" class="table-responsive">
-                      <table class="table table-sm table-bordered align-middle mb-0 fs-11">
+                      <table class="table table-sm table-hover table-bordered align-middle mb-0 fs-12">
                         <thead class="table-light fs-11 text-muted text-uppercase">
                           <tr>
-                            <th style="width: 28px;" class="text-center">#</th>
-                            <th style="min-width: 150px;">Nama Siswa</th>
-                            <th style="width: 85px;" class="text-center">NISN</th>
-                            <th style="width: 32px;" class="text-center">L/P</th>
-                            <th style="width: 55px;" class="text-center">Kelas</th>
-                            <th style="min-width: 90px;" class="text-center">Peran Tim</th>
-                            <th style="min-width: 100px;">Kontak WA</th>
-                            <th style="width: 40px;" class="text-center">Profil</th>
+                            <th style="width: 38px;" class="text-center">#</th>
+                            <th style="min-width: 240px;">Nama Lengkap Siswa</th>
+                            <th style="width: 120px;" class="text-center">NISN</th>
+                            <th style="width: 55px;" class="text-center">L/P</th>
+                            <th style="width: 85px;" class="text-center">Kelas</th>
+                            <th style="width: 120px;" class="text-center">Peran Tim</th>
+                            <th style="width: 140px;">Kontak WA</th>
+                            <th style="width: 65px;" class="text-center">Profil</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2139,7 +2176,7 @@ function printReport() {
                                 <!-- Avatar / Initial Siswa -->
                                 <div 
                                   class="avatar-2xs flex-shrink-0 position-relative cursor-pointer" 
-                                  style="width: 24px; height: 24px;"
+                                  style="width: 26px; height: 26px;"
                                   @click="openStudentBiodata(st, comp, activeSchool)"
                                   title="Lihat Profil Lengkap Siswa"
                                 >
@@ -2152,8 +2189,8 @@ function printReport() {
                                   />
                                   <span 
                                     v-else 
-                                    class="avatar-title rounded-circle fs-10 fw-bold border"
-                                    :class="st.gender === 'Perempuan' ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary'"
+                                    class="avatar-title rounded-circle fs-11 fw-bold border"
+                                    :class="isFemale(st.gender) ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary'"
                                   >
                                     {{ getInitials(st.name || st.nama_lengkap || 'S') }}
                                   </span>
@@ -2168,9 +2205,9 @@ function printReport() {
                                   </span>
                                 </div>
                                 <div class="min-w-0">
-                                  <div class="d-flex align-items-center gap-1 flex-wrap">
+                                  <div class="d-flex align-items-center gap-1.5 flex-wrap">
                                     <span 
-                                      class="fw-semibold text-dark text-truncate cursor-pointer text-hover-primary" 
+                                      class="fw-bold text-dark text-truncate cursor-pointer text-hover-primary fs-12" 
                                       :title="st.name || st.nama_lengkap"
                                       @click="openStudentBiodata(st, comp, activeSchool)"
                                     >
@@ -2180,19 +2217,19 @@ function printReport() {
                                       ID: {{ st.custom_id }}
                                     </span>
                                   </div>
-                                  <span v-if="st.birth_date" class="text-muted fs-10 d-block">
+                                  <span v-if="st.birth_date" class="text-muted fs-11 d-block mt-0.5">
                                     <i class="ri-calendar-event-line text-primary me-0.5"></i> Lahir: {{ st.birth_date }}
                                   </span>
                                 </div>
                               </div>
                             </td>
-                            <td class="font-monospace text-muted text-center">{{ st.nisn || '-' }}</td>
+                            <td class="font-monospace text-muted text-center fs-11">{{ st.nisn || '-' }}</td>
                             <td class="text-center">
-                              <span v-if="st.gender === 'Perempuan'" class="badge bg-danger-subtle text-danger fs-10 px-1">P</span>
-                              <span v-else-if="st.gender === 'Laki-laki'" class="badge bg-primary-subtle text-primary fs-10 px-1">L</span>
-                              <span v-else class="text-muted">-</span>
+                              <span v-if="isFemale(st.gender)" class="badge bg-danger-subtle text-danger fs-10 px-1.5" title="Perempuan">P</span>
+                              <span v-else-if="isMale(st.gender)" class="badge bg-primary-subtle text-primary fs-10 px-1.5" title="Laki-laki">L</span>
+                              <span v-else class="text-muted fs-11">-</span>
                             </td>
-                            <td class="text-center">{{ st.grade || '-' }}</td>
+                            <td class="text-center fs-11">{{ st.grade || '-' }}</td>
                             <td class="text-center">
                               <span 
                                 v-if="st.is_captain"
@@ -2214,23 +2251,23 @@ function printReport() {
                               </span>
                             </td>
                             <td>
-                              <div v-if="st.wa_number && st.wa_number !== '-'" class="d-flex align-items-center gap-1">
+                              <div v-if="st.wa_number && st.wa_number !== '-'" class="d-flex align-items-center gap-1.5">
                                 <span class="font-monospace text-muted fs-11">{{ st.wa_number }}</span>
                                 <a 
                                   :href="getWaChatUrl(st.wa_number)" 
                                   target="_blank" 
-                                  class="text-success fs-12"
+                                  class="text-success fs-13"
                                   title="Chat WhatsApp"
                                 >
                                   <i class="ri-whatsapp-line"></i>
                                 </a>
                               </div>
-                              <span v-else class="text-muted">-</span>
+                              <span v-else class="text-muted fs-11">-</span>
                             </td>
                             <td class="text-center">
                               <button 
                                 type="button" 
-                                class="btn btn-2xs btn-outline-primary"
+                                class="btn btn-2xs btn-outline-primary d-inline-flex align-items-center gap-0.5"
                                 @click="openStudentBiodata(st, comp, activeSchool)"
                                 title="Lihat Profil & Biodata Lengkap"
                               >
@@ -4247,9 +4284,9 @@ function printReport() {
                   <span 
                     v-if="activeStudentBiodata.gender && activeStudentBiodata.gender !== '-'"
                     class="badge fs-11 px-2.5 py-1"
-                    :class="activeStudentBiodata.gender === 'Perempuan' ? 'bg-danger-subtle text-danger' : 'bg-info-subtle text-info'"
+                    :class="isFemale(activeStudentBiodata.gender) ? 'bg-danger-subtle text-danger' : 'bg-primary-subtle text-primary'"
                   >
-                    {{ activeStudentBiodata.gender }}
+                    {{ formatGenderFull(activeStudentBiodata.gender) }}
                   </span>
                 </div>
 

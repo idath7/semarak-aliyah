@@ -1581,7 +1581,7 @@ function getCompDropdownSuffix(c) {
                     <strong style="color: var(--theme-orange); font-weight: 700;">Rp {{ Number(comp.fee || 50000).toLocaleString('id-ID') }}</strong>
                   </template>
                 </div>
-                <span>Terisi : <strong style="color: var(--text-main); font-weight: 700;">{{ comp.current_quota }} / {{ comp.max_quota }}</strong></span>
+                <span>Kuota : <strong style="color: var(--text-main); font-weight: 700;">{{ comp.max_quota }} Peserta</strong></span>
               </div>
 
               <!-- Button Action -->

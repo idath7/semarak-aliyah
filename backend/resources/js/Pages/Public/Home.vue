@@ -2216,7 +2216,8 @@ function handleLightboxKey(e) {
               </div>
               <div class="meta-item">
                 <span class="meta-label">Kuota :</span>
-                <span class="meta-val">
+                <span class="meta-val d-flex align-items-center gap-1.5 flex-wrap">
+                  <strong style="color: var(--text-main); font-weight: 700;">{{ comp.max_quota }} Peserta</strong>
                   <span 
                     :class="[
                       'comp-status-badge',
@@ -2956,7 +2957,7 @@ function handleLightboxKey(e) {
             </div>
             <div>
               <strong>Kapasitas Kuota :</strong> 
-              {{ selectedComp.current_quota }} / {{ selectedComp.max_quota }} Peserta
+              {{ selectedComp.max_quota }} Peserta
               <span 
                 :class="['comp-status-badge', getCompStatusInfo(selectedComp).badgeClass]"
                 style="margin-left: 8px; vertical-align: middle;"

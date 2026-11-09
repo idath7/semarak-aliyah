@@ -756,8 +756,11 @@ class WhatsAppService
         $loginUrl = $publicUrl . '/pendaftar/login';
         $dashboardUrl = $publicUrl . '/pendaftar/dashboard';
         $regIdentifier = $registration->id ?: ($registration->reg_code ?? '');
-        $invoiceUrl = $publicUrl . '/pendaftar/invoice/' . $regIdentifier;
-        $printInvoiceUrl = $publicUrl . '/invoice/' . $regIdentifier;
+        // URL Nota Invoice resmi bertanda tangan digital (Cryptographic HMAC-SHA256 Signed URL)
+        // Dapat dibuka langsung oleh pendaftar, bendahara, atau kepala sekolah tanpa perlu login akun
+        $signedInvoiceUrl = $registration->getSignedInvoiceUrl();
+        $invoiceUrl = $signedInvoiceUrl;
+        $printInvoiceUrl = $signedInvoiceUrl;
 
         $totalFeeFormatted = 'Rp ' . number_format($registration->total_fee ?? 0, 0, ',', '.');
         if (($registration->total_fee ?? 0) === 0 && ($registration->package_type === 'all-in' || $registration->package_type === 'Paket All-In')) {

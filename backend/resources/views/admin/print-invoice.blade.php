@@ -550,25 +550,30 @@
             position: relative;
             display: inline-flex;
             align-items: center;
-            gap: 7px;
-            padding: 4px 8px;
+            gap: 6px;
+            padding: 3px 6px;
             background: #ffffff;
-            border: 1.5px solid #059669;
-            border-radius: 6px;
-            box-shadow: 0 1px 4px rgba(5, 150, 105, 0.12);
+            border: 1px solid #059669;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(5, 150, 105, 0.1);
             z-index: 2;
             pointer-events: none;
             user-select: none;
             transform: none !important;
-            margin: 6px auto 10px auto;
+            margin: 4px auto 6px auto;
             text-align: left;
+            max-width: 175px;
+            box-sizing: border-box;
         }
 
         .stamp-qr-canvas {
-            width: 44px;
-            height: 44px;
+            width: 40px !important;
+            height: 40px !important;
+            max-width: 40px !important;
+            max-height: 40px !important;
             flex-shrink: 0;
-            border-radius: 3px;
+            border-radius: 2px;
+            display: block !important;
         }
 
         .stamp-qr-details {
@@ -576,31 +581,35 @@
             flex-direction: column;
             text-align: left;
             line-height: 1.15;
+            overflow: hidden;
         }
 
         .stamp-qr-badge {
-            font-size: 5.8pt;
+            font-size: 5.2pt;
             font-weight: 800;
             color: #059669;
-            letter-spacing: 0.3px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             display: flex;
             align-items: center;
             gap: 2px;
+            white-space: nowrap;
         }
 
         .stamp-qr-subtext {
-            font-size: 5.2pt;
+            font-size: 4.8pt;
             font-weight: 600;
             color: #334155;
             text-transform: uppercase;
+            white-space: nowrap;
         }
 
         .stamp-qr-code {
-            font-size: 5.2pt;
+            font-size: 5pt;
             font-weight: 700;
             color: #1e3a8a;
             margin-top: 1px;
+            white-space: nowrap;
         }
 
         .sig-image-layer {
@@ -992,6 +1001,221 @@
             color: #64748b;
         }
 
+        /* Dropdown Unduh Dokumen */
+        .dropdown-download-wrapper {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .download-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            min-width: 250px;
+            z-index: 1000;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .download-menu-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            color: #0f172a;
+            text-decoration: none;
+            transition: background 0.15s ease;
+            cursor: pointer;
+        }
+        .download-menu-item:hover {
+            background-color: #f1f5f9;
+        }
+        .download-menu-item i {
+            font-size: 18px;
+            margin-top: 1px;
+            flex-shrink: 0;
+        }
+        .menu-item-title {
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.25;
+            color: #0f172a;
+        }
+        .menu-item-desc {
+            font-size: 10.5px;
+            color: #64748b;
+            line-height: 1.3;
+            margin-top: 2px;
+        }
+
+        /* Share Modal & Backdrop */
+        .invoice-modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(15, 23, 42, 0.65);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1050;
+            padding: 16px;
+            backdrop-filter: blur(2px);
+        }
+
+        .invoice-modal-dialog {
+            background-color: #ffffff;
+            border-radius: 12px;
+            max-width: 520px;
+            width: 100%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+            border: 1px solid #cbd5e1;
+            overflow: hidden;
+            animation: modalFadeIn 0.2s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .invoice-modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #f8fafc;
+        }
+        .invoice-modal-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .invoice-modal-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #64748b;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .invoice-modal-close:hover {
+            color: #0f172a;
+            background-color: #e2e8f0;
+        }
+        .invoice-modal-body {
+            padding: 20px;
+        }
+        .invoice-modal-desc {
+            font-size: 12px;
+            color: #475569;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+        .link-copy-box {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .link-copy-input {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 12px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 6px;
+            background-color: #f8fafc;
+            color: #0f172a;
+            font-family: monospace;
+            outline: none;
+        }
+        .link-copy-input:focus {
+            border-color: #2563eb;
+            background-color: #ffffff;
+        }
+        .btn-copy-action {
+            background-color: #2563eb;
+            color: #ffffff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.15s ease;
+        }
+        .btn-copy-action:hover {
+            background-color: #1d4ed8;
+        }
+        .share-actions-row {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-wa-share {
+            flex: 1;
+            background-color: #16a34a;
+            color: #ffffff;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+            transition: background 0.15s ease;
+        }
+        .btn-wa-share:hover {
+            background-color: #15803d;
+            color: #ffffff;
+        }
+
+        /* Toast Feedback */
+        .invoice-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #0f172a;
+            color: #ffffff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 1100;
+            animation: toastPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes toastPop {
+            from { opacity: 0; transform: translate(-50%, 15px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+
         /* Print Media Styles */
         @media print {
             body {
@@ -999,7 +1223,7 @@
                 color: #000000 !important;
             }
 
-            .no-print-toolbar {
+            .no-print-toolbar, .invoice-modal-backdrop, .invoice-toast {
                 display: none !important;
             }
 
@@ -1031,11 +1255,43 @@
 <body style="--stamp-color: {{ $invoiceConfig['stamp_color'] ?? '#2563eb' }}; --stamp-rotation: {{ $invoiceConfig['stamp_rotation'] ?? -8 }}deg; --logo-size: {{ $invoiceConfig['logo_size'] ?? 68 }}px;">
 
     @php
+        // Proteksi Ketat Peran Admin: Hanya true jika eksplisit $isAdmin === true ATAU dibuka dari rute admin/* dengan auth web
+        $isAdmin = (bool) (isset($isAdmin) ? $isAdmin : (request()->is('admin/*') && auth()->guard('web')->check()));
+
         $defaultBackUrl = request()->is('pendaftar/*')
             ? (Route::has('pendaftar.dashboard') ? route('pendaftar.dashboard') : url('/pendaftar/dashboard'))
-            : (Route::has('admin.pendaftar') ? route('admin.pendaftar') : url('/admin/pendaftar'));
+            : ($isAdmin
+                ? (Route::has('admin.pendaftar') ? route('admin.pendaftar') : url('/admin/pendaftar'))
+                : url('/'));
         $referer = request()->headers->get('referer');
         $backUrl = (!empty($referer) && !str_contains($referer, '/invoice/')) ? $referer : $defaultBackUrl;
+
+        $isPaid = $isPaid ?? in_array(strtolower($reg->payment_status ?? ''), ['lunas', 'paid', 'verified', 'terverifikasi', 'diterima']);
+
+        // Penguncian Mode Mutlak: Pendaftar dan akses publik selalu terkunci sesuai status pembayaran riil
+        if (!$isAdmin) {
+            $defaultMode = $isPaid ? 'receipt' : 'invoice';
+        }
+
+        $signedUrl = $signedUrl ?? $reg->getSignedInvoiceUrl();
+        $suggestedFilename = $suggestedFilename ?? $reg->getInvoiceFilename($defaultMode);
+
+        $invoicePrintUrl = $signedUrl ?? (request()->is('pendaftar/*')
+            ? (Route::has('pendaftar.invoice.print') ? route('pendaftar.invoice.print', ['id' => $reg->id]) : url('/pendaftar/invoice/' . $reg->id))
+            : (Route::has('admin.invoice.print') ? route('admin.invoice.print', ['id' => $reg->id]) : url('/admin/invoice/' . $reg->id)));
+
+        $clientConfigData = [
+            'defaultTheme' => $defaultTheme ?? 'formal',
+            'defaultMode' => $defaultMode ?? 'invoice',
+            'regCode' => (string) ($reg->reg_code ?? ''),
+            'schoolName' => (string) ($reg->school_name ?? 'Kontingen'),
+            'competitionTitle' => (string) ($reg->competition_title ?? '-'),
+            'invoicePrintUrl' => $invoicePrintUrl,
+            'signedUrl' => $signedUrl,
+            'backUrl' => $backUrl,
+            'slugRegCode' => \Illuminate\Support\Str::slug($reg->reg_code ?: ('ID-' . $reg->id), '_'),
+            'slugSchoolName' => \Illuminate\Support\Str::slug($reg->school_name ?: 'Kontingen', '_'),
+        ];
     @endphp
 
     <!-- Sticky Toolbar (Controls & Print Actions) -->
@@ -1074,44 +1330,92 @@
             </div>
             @endif
             <span style="color: #94a3b8; font-size: 13px;">|</span>
-            <span style="font-weight: 600; font-size: 13px;">
-                Mode:
-            </span>
-            <button 
-                type="button" 
-                class="toolbar-btn {{ $defaultMode === 'invoice' ? 'btn-active' : '' }}" 
-                id="btn-mode-invoice"
-                onclick="setDocumentMode('invoice')"
-            >
-                <i class="ri-file-list-line"></i> Nota Tagihan (Invoice)
-            </button>
-            <button 
-                type="button" 
-                class="toolbar-btn {{ $defaultMode === 'receipt' ? 'btn-active' : '' }}" 
-                id="btn-mode-receipt"
-                onclick="setDocumentMode('receipt')"
-            >
-                <i class="ri-receipt-line"></i> Kwitansi Lunas (Receipt)
-            </button>
+            @if($isAdmin)
+                <span style="font-weight: 600; font-size: 13px;">
+                    Mode:
+                </span>
+                <button 
+                    type="button" 
+                    class="toolbar-btn {{ $defaultMode === 'invoice' ? 'btn-active' : '' }}" 
+                    id="btn-mode-invoice"
+                    onclick="setDocumentMode('invoice')"
+                >
+                    <i class="ri-file-list-line"></i> Nota Tagihan (Invoice)
+                </button>
+                <button 
+                    type="button" 
+                    class="toolbar-btn {{ $defaultMode === 'receipt' ? 'btn-active' : '' }}" 
+                    id="btn-mode-receipt"
+                    onclick="setDocumentMode('receipt')"
+                >
+                    <i class="ri-receipt-line"></i> Kwitansi Lunas (Receipt)
+                </button>
+            @else
+                @if($isPaid)
+                    <div style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; font-size: 12px; font-weight: 700; color: #065f46;">
+                        <i class="ri-checkbox-circle-fill" style="color: #10b981; font-size: 14px;"></i>
+                        <span>Dokumen: <strong style="color: #047857;">Kwitansi Lunas Resmi</strong></span>
+                    </div>
+                @else
+                    <div style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background-color: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; font-size: 12px; font-weight: 700; color: #92400e;">
+                        <i class="ri-time-fill" style="color: #d97706; font-size: 14px;"></i>
+                        <span>Dokumen: <strong style="color: #b45309;">Nota Tagihan (Belum Lunas)</strong></span>
+                    </div>
+                @endif
+            @endif
         </div>
 
         <div class="toolbar-right">
-            <label class="toggle-switch-wrap" title="Tampilkan stempel resmi panitia">
-                <input type="checkbox" id="chk-stamp" checked onchange="toggleStamp(this.checked)">
-                <span>Stempel</span>
-            </label>
-            <label class="toggle-switch-wrap" title="Tampilkan cap tanda lunas">
-                <input type="checkbox" id="chk-lunas-stamp" checked onchange="toggleLunasStamp(this.checked)">
-                <span>Cap LUNAS</span>
-            </label>
-            <span style="color: #94a3b8; font-size: 13px;">|</span>
-            @if(auth()->guard('web')->check())
+            @if($isAdmin)
+                <label class="toggle-switch-wrap" title="Tampilkan stempel resmi panitia">
+                    <input type="checkbox" id="chk-stamp" checked onchange="toggleStamp(this.checked)">
+                    <span>Stempel</span>
+                </label>
+                <label class="toggle-switch-wrap" title="Tampilkan cap tanda lunas">
+                    <input type="checkbox" id="chk-lunas-stamp" checked onchange="toggleLunasStamp(this.checked)">
+                    <span>Cap LUNAS</span>
+                </label>
+                <span style="color: #94a3b8; font-size: 13px;">|</span>
+            @endif
+
+            <!-- Tombol Bagikan / Salin Tautan Resmi -->
+            <button type="button" class="toolbar-btn btn-share" onclick="handleShareInvoice()" title="Salin atau bagikan tautan resmi nota ini (dapat dibuka tanpa login)">
+                <i class="ri-share-forward-line" style="color: #2563eb;"></i> <span>Bagikan</span>
+            </button>
+
+            <!-- Dropdown Unduh Dokumen (PDF Resmi & Dokumen Offline HTML) -->
+            <div class="dropdown-download-wrapper">
+                <button type="button" class="toolbar-btn btn-download" onclick="downloadInvoicePdf()" title="Unduh berkas PDF A4 resmi">
+                    <i class="ri-download-2-line" style="color: #10b981;"></i> <span>Unduh PDF</span>
+                </button>
+                <button type="button" class="toolbar-btn" onclick="toggleDownloadDropdown(event)" title="Opsi unduh dokumen" style="padding-left: 6px; padding-right: 6px; margin-left: -4px;">
+                    <i class="ri-arrow-down-s-line"></i>
+                </button>
+                <div id="download-dropdown-menu" class="download-dropdown-menu d-none">
+                    <div onclick="downloadInvoicePdf(); closeDownloadDropdown();" class="download-menu-item">
+                        <i class="ri-file-pdf-line" style="color: #ef4444;"></i>
+                        <div>
+                            <div class="menu-item-title">Unduh Berkas PDF (.pdf)</div>
+                            <div class="menu-item-desc">Standar dokumen A4 tajam & presisi</div>
+                        </div>
+                    </div>
+                    <div onclick="downloadInvoiceHtml(); closeDownloadDropdown();" class="download-menu-item">
+                        <i class="ri-html5-line" style="color: #2563eb;"></i>
+                        <div>
+                            <div class="menu-item-title">Unduh Berkas Mandiri (.html)</div>
+                            <div class="menu-item-desc">Arsip offline, buka tanpa internet</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if($isAdmin)
                 <a href="{{ route('admin.settings.kop-invoice') }}" target="_blank" class="toolbar-btn" title="Sesuaikan KOP Surat, Logo, & Stempel">
                     <i class="ri-settings-3-line"></i> Kustomisasi
                 </a>
             @endif
-            <button type="button" class="toolbar-btn btn-print" onclick="window.print()">
-                <i class="ri-printer-line"></i> Cetak / Simpan PDF
+            <button type="button" class="toolbar-btn btn-print" onclick="window.print()" title="Cetak langsung menggunakan printer">
+                <i class="ri-printer-line"></i> <span>Cetak</span>
             </button>
         </div>
     </div>
@@ -1689,10 +1993,16 @@
         </div>
     </div>
 
+    <!-- Konfigurasi Data Klien (Aman dari Linter JS) -->
+    <script type="application/json" id="invoiceClientConfig">
+        {!! json_encode($clientConfigData, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!}
+    </script>
+
     <!-- Script to render crisp QR Codes & handle mode/theme switches -->
     <script>
-        let currentTheme = "{{ $defaultTheme ?? 'formal' }}";
-        let currentMode = "{{ $defaultMode ?? 'invoice' }}";
+        const invoiceClientData = JSON.parse(document.getElementById('invoiceClientConfig') ? document.getElementById('invoiceClientConfig').textContent : '{}');
+        let currentTheme = invoiceClientData.defaultTheme || 'formal';
+        let currentMode = invoiceClientData.defaultMode || 'invoice';
 
         document.addEventListener('DOMContentLoaded', function () {
             // Render Crisp Vector QR Code for both templates
@@ -1704,7 +2014,7 @@
                 if (window.QRCode) {
                     const qrFormal = document.getElementById('qrcode-element-formal');
                     if (qrFormal) {
-                        window.QRCode.toCanvas(qrFormal, "{{ $reg->reg_code }}", {
+                        window.QRCode.toCanvas(qrFormal, invoiceClientData.regCode, {
                             width: 72,
                             margin: 0,
                             color: { dark: '#0f172a', light: '#ffffff' },
@@ -1714,7 +2024,7 @@
 
                     const qrPro = document.getElementById('qrcode-element-pro');
                     if (qrPro) {
-                        window.QRCode.toCanvas(qrPro, "{{ $reg->reg_code }}", {
+                        window.QRCode.toCanvas(qrPro, invoiceClientData.regCode, {
                             width: 68,
                             margin: 0,
                             color: { dark: '#0f172a', light: '#ffffff' },
@@ -1722,30 +2032,34 @@
                         });
                     }
 
-                    @php
-                        $invoicePrintUrl = request()->is('pendaftar/*')
-                            ? (Route::has('pendaftar.invoice.print') ? route('pendaftar.invoice.print', ['id' => $reg->id]) : url('/pendaftar/invoice/' . $reg->id))
-                            : (Route::has('admin.invoice.print') ? route('admin.invoice.print', ['id' => $reg->id]) : url('/admin/invoice/' . $reg->id));
-                    @endphp
-
                     // Render Stempel QR Code Terverifikasi (Digital Official Seal)
                     const qrStampFormal = document.getElementById('stamp-qrcode-canvas-formal');
                     if (qrStampFormal) {
-                        window.QRCode.toCanvas(qrStampFormal, @json($invoicePrintUrl), {
-                            width: 44,
+                        window.QRCode.toCanvas(qrStampFormal, invoiceClientData.invoicePrintUrl, {
+                            width: 40,
                             margin: 0,
                             color: { dark: '#047857', light: '#ffffff' },
-                            errorCorrectionLevel: 'M'
+                            errorCorrectionLevel: 'L'
+                        }, function (err) {
+                            if (!err && qrStampFormal) {
+                                qrStampFormal.style.width = '40px';
+                                qrStampFormal.style.height = '40px';
+                            }
                         });
                     }
 
                     const qrStampPro = document.getElementById('stamp-qrcode-canvas-pro');
                     if (qrStampPro) {
-                        window.QRCode.toCanvas(qrStampPro, @json($invoicePrintUrl), {
-                            width: 44,
+                        window.QRCode.toCanvas(qrStampPro, invoiceClientData.invoicePrintUrl, {
+                            width: 40,
                             margin: 0,
                             color: { dark: '#047857', light: '#ffffff' },
-                            errorCorrectionLevel: 'M'
+                            errorCorrectionLevel: 'L'
+                        }, function (err) {
+                            if (!err && qrStampPro) {
+                                qrStampPro.style.width = '40px';
+                                qrStampPro.style.height = '40px';
+                            }
                         });
                     }
                 }
@@ -1769,7 +2083,7 @@
                     if (window.history.length > 1 && document.referrer && document.referrer !== window.location.href) {
                         window.history.back();
                     } else {
-                        window.location.href = @json($backUrl);
+                        window.location.href = invoiceClientData.backUrl || '/';
                     }
                 }
             }, 250);
@@ -1825,12 +2139,12 @@
             const lunasStamps = document.querySelectorAll('.lunas-stamp-all');
 
             if (mode === 'receipt') {
-                btnReceipt.classList.add('btn-active');
-                btnInvoice.classList.remove('btn-active');
+                if (btnReceipt) btnReceipt.classList.add('btn-active');
+                if (btnInvoice) btnInvoice.classList.remove('btn-active');
 
                 // Formal updates
                 if (titleEl) titleEl.textContent = 'KWITANSI TANDA TERIMA PEMBAYARAN RESMI';
-                if (numEl) numEl.textContent = 'Nomor Kwitansi: KW/SA-XIV/2026/{{ $reg->reg_code }}';
+                if (numEl) numEl.textContent = 'Nomor Kwitansi: KW/SA-XIV/2026/' + invoiceClientData.regCode;
                 if (targetLabel) targetLabel.textContent = 'Telah Diterima Dari';
                 if (sigTitlePayer) sigTitlePayer.innerHTML = 'Penyetor / Pembina Kontingen,';
                 if (paymentBox) paymentBox.classList.add('d-none');
@@ -1838,7 +2152,7 @@
 
                 // Professional updates
                 if (proTitleEl) proTitleEl.textContent = 'KWITANSI';
-                if (proNumEl) proNumEl.innerHTML = '<i class="ri-hashtag text-primary"></i> KW/SA-XIV/2026/{{ $reg->reg_code }}';
+                if (proNumEl) proNumEl.innerHTML = '<i class="ri-hashtag text-primary"></i> KW/SA-XIV/2026/' + invoiceClientData.regCode;
                 if (proTargetLabel) proTargetLabel.textContent = 'TELAH DITERIMA DARI';
                 if (proSigTitlePayer) proSigTitlePayer.innerHTML = 'Penyetor / Pembina Kontingen,';
                 if (proPaymentBox) proPaymentBox.classList.add('d-none');
@@ -1847,21 +2161,21 @@
                 // Lunas stamp display
                 const chkLunas = document.getElementById('chk-lunas-stamp');
                 lunasStamps.forEach(el => {
-                    if (chkLunas && chkLunas.checked) {
+                    if (chkLunas ? chkLunas.checked : true) {
                         el.classList.remove('d-none');
                     } else {
                         el.classList.add('d-none');
                     }
                 });
 
-                document.title = 'Kwitansi Pembayaran - {{ $reg->reg_code }} | Semarak Aliyah XIV';
+                document.title = 'Kwitansi Pembayaran - ' + invoiceClientData.regCode + ' | Semarak Aliyah XIV';
             } else {
-                btnInvoice.classList.add('btn-active');
-                btnReceipt.classList.remove('btn-active');
+                if (btnInvoice) btnInvoice.classList.add('btn-active');
+                if (btnReceipt) btnReceipt.classList.remove('btn-active');
 
                 // Formal updates
                 if (titleEl) titleEl.textContent = 'NOTA TAGIHAN BIAYA PENDAFTARAN';
-                if (numEl) numEl.textContent = 'Nomor Invoice: INV/SA-XIV/2026/{{ $reg->reg_code }}';
+                if (numEl) numEl.textContent = 'Nomor Invoice: INV/SA-XIV/2026/' + invoiceClientData.regCode;
                 if (targetLabel) targetLabel.textContent = 'Ditagihkan Kepada';
                 if (sigTitlePayer) sigTitlePayer.innerHTML = 'Penerima Tagihan,';
                 if (paymentBox) paymentBox.classList.remove('d-none');
@@ -1869,7 +2183,7 @@
 
                 // Professional updates
                 if (proTitleEl) proTitleEl.textContent = 'INVOICE';
-                if (proNumEl) proNumEl.innerHTML = '<i class="ri-hashtag text-primary"></i> INV/SA-XIV/2026/{{ $reg->reg_code }}';
+                if (proNumEl) proNumEl.innerHTML = '<i class="ri-hashtag text-primary"></i> INV/SA-XIV/2026/' + invoiceClientData.regCode;
                 if (proTargetLabel) proTargetLabel.textContent = 'DITAGIHKAN KEPADA';
                 if (proSigTitlePayer) proSigTitlePayer.innerHTML = 'Penerima Tagihan,';
                 if (proPaymentBox) proPaymentBox.classList.remove('d-none');
@@ -1878,7 +2192,7 @@
                 // Hide lunas stamps in invoice mode
                 lunasStamps.forEach(el => el.classList.add('d-none'));
 
-                document.title = 'Nota Invoice - {{ $reg->reg_code }} | Semarak Aliyah XIV';
+                document.title = 'Nota Invoice - ' + invoiceClientData.regCode + ' | Semarak Aliyah XIV';
             }
         }
 
@@ -1899,6 +2213,193 @@
                 }
             });
         }
+
+        // Download Dropdown Handler
+        function toggleDownloadDropdown(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('download-dropdown-menu');
+            if (menu) menu.classList.toggle('d-none');
+        }
+
+        function closeDownloadDropdown() {
+            const menu = document.getElementById('download-dropdown-menu');
+            if (menu) menu.classList.add('d-none');
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown-download-wrapper')) {
+                closeDownloadDropdown();
+            }
+        });
+
+        // Dynamic Document Filename Generator
+        function getDocumentFilename(extension = 'pdf') {
+            const isReceipt = (currentMode === 'receipt');
+            const prefix = isReceipt ? 'Kwitansi_Resmi' : 'Nota_Invoice';
+            const regCode = invoiceClientData.slugRegCode || 'REG';
+            const school = invoiceClientData.slugSchoolName || 'KONTINGEN';
+            return prefix + '_' + regCode + '_' + school + '.' + extension;
+        }
+
+        // Action: Unduh PDF Resmi
+        function downloadInvoicePdf() {
+            const originalTitle = document.title;
+            const cleanFilename = getDocumentFilename('pdf').replace('.pdf', '');
+            document.title = cleanFilename;
+
+            showInvoiceToast("Membuka dialog cetak PDF. Pilih 'Simpan sebagai PDF' (Save as PDF) untuk mengunduh.", 4000);
+
+            setTimeout(function() {
+                window.print();
+                setTimeout(function() {
+                    document.title = originalTitle;
+                }, 1500);
+            }, 300);
+        }
+
+        // Action: Unduh Berkas Mandiri Offline (.html)
+        function downloadInvoiceHtml() {
+            try {
+                const clone = document.documentElement.cloneNode(true);
+                // Bersihkan toolbar dan elemen interaktif yang tidak perlu di berkas offline
+                const toolbar = clone.querySelector('.no-print-toolbar');
+                if (toolbar) toolbar.remove();
+                const shareModal = clone.querySelector('#shareInvoiceModal');
+                if (shareModal) shareModal.remove();
+                const toast = clone.querySelector('#invoiceToast');
+                if (toast) toast.remove();
+
+                const htmlContent = "<!doctype html>\n" + clone.outerHTML;
+                const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = getDocumentFilename('html');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+
+                showInvoiceToast("Berkas dokumen mandiri offline (.html) berhasil diunduh.", 3000);
+            } catch (err) {
+                console.error("Gagal mengunduh berkas offline:", err);
+                showInvoiceToast("Gagal mengunduh berkas offline.", 3000);
+            }
+        }
+
+        // Handle Share / Salin Tautan
+        function handleShareInvoice() {
+            const shareUrl = invoiceClientData.signedUrl || window.location.href;
+            const isReceipt = (currentMode === 'receipt');
+            const shareTitle = (isReceipt ? 'Kwitansi Pembayaran' : 'Nota Tagihan') + ' - ' + (invoiceClientData.regCode || '');
+            const shareText = "Assalamu'alaikum Wr. Wb. Berikut tautan resmi " + (isReceipt ? 'Kwitansi Pembayaran' : 'Nota Tagihan') + " Semarak Aliyah XIV untuk kontingen " + (invoiceClientData.schoolName || 'Sekolah') + " (Cabang " + (invoiceClientData.competitionTitle || '-') + "). Tautan dapat langsung dibuka dan dicetak tanpa login:\n" + shareUrl;
+
+            // Jika peramban mendukung Web Share API (perangkat ponsel)
+            if (navigator.share && /mobile|android|iphone|ipad/i.test(navigator.userAgent)) {
+                navigator.share({
+                    title: shareTitle,
+                    text: shareText,
+                    url: shareUrl
+                }).catch(function(err) {
+                    if (err.name !== 'AbortError') {
+                        openShareModal();
+                    }
+                });
+            } else {
+                openShareModal();
+            }
+        }
+
+        function openShareModal() {
+            const modal = document.getElementById('shareInvoiceModal');
+            if (modal) {
+                modal.classList.remove('d-none');
+                const input = document.getElementById('shareUrlInput');
+                if (input) {
+                    input.select();
+                }
+            }
+        }
+
+        function closeShareModal() {
+            const modal = document.getElementById('shareInvoiceModal');
+            if (modal) modal.classList.add('d-none');
+        }
+
+        function copySignedUrlInput() {
+            const input = document.getElementById('shareUrlInput');
+            if (input) {
+                input.select();
+                input.setSelectionRange(0, 99999);
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(input.value).then(function() {
+                        showInvoiceToast("Tautan nota resmi berhasil disalin ke clipboard!");
+                    }).catch(function() {
+                        document.execCommand('copy');
+                        showInvoiceToast("Tautan nota resmi berhasil disalin!");
+                    });
+                } else {
+                    document.execCommand('copy');
+                    showInvoiceToast("Tautan nota resmi berhasil disalin!");
+                }
+            }
+        }
+
+        // Feedback Toast
+        let toastTimer = null;
+        function showInvoiceToast(msg, duration = 2500) {
+            const toast = document.getElementById('invoiceToast');
+            const toastMsg = document.getElementById('invoiceToastMsg');
+            if (!toast || !toastMsg) return;
+
+            toastMsg.textContent = msg;
+            toast.classList.remove('d-none');
+
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(function() {
+                toast.classList.add('d-none');
+            }, duration);
+        }
     </script>
+
+    <!-- Modal Bagikan Tautan Resmi -->
+    <div id="shareInvoiceModal" class="invoice-modal-backdrop d-none" onclick="if(event.target === this) closeShareModal()">
+        <div class="invoice-modal-dialog">
+            <div class="invoice-modal-header">
+                <div class="invoice-modal-title">
+                    <i class="ri-share-forward-line" style="color: #2563eb; font-size: 18px;"></i>
+                    <span>Bagikan Nota / Kwitansi Resmi</span>
+                </div>
+                <button type="button" class="invoice-modal-close" onclick="closeShareModal()" title="Tutup">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <div class="invoice-modal-body">
+                <p class="invoice-modal-desc">
+                    Tautan di bawah ini diamankan dengan <strong>tanda tangan digital kriptografis (HMAC-SHA256)</strong>. Siapapun yang menerima tautan ini (bendahara madrasah, kepala sekolah, atau panitia) dapat langsung membuka, melihat, dan mencetak dokumen resmi tanpa perlu login ke akun pendaftar.
+                </p>
+                <div class="link-copy-box">
+                    <input type="text" id="shareUrlInput" class="link-copy-input" value="{{ $signedUrl }}" readonly onclick="this.select()">
+                    <button type="button" class="btn-copy-action" onclick="copySignedUrlInput()">
+                        <i class="ri-file-copy-line"></i> Salin
+                    </button>
+                </div>
+                <div class="share-actions-row">
+                    @php
+                        $waText = "Assalamu'alaikum Wr. Wb. Berikut tautan resmi " . ($defaultMode === 'receipt' ? 'Kwitansi Pembayaran' : 'Nota Tagihan') . " Semarak Aliyah XIV untuk kontingen " . ($reg->school_name ?? 'Sekolah') . " (Cabang " . ($reg->competition_title ?? '-') . "). Dokumen resmi ini dapat langsung dibuka dan dicetak tanpa login:\n\n" . $signedUrl;
+                        $waShareUrl = "https://api.whatsapp.com/send?text=" . urlencode($waText);
+                    @endphp
+                    <a href="{{ $waShareUrl }}" target="_blank" class="btn-wa-share" id="btnWaShare">
+                        <i class="ri-whatsapp-line" style="font-size: 17px;"></i> Bagikan ke WhatsApp
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="invoiceToast" class="invoice-toast d-none">
+        <i class="ri-checkbox-circle-fill" style="color: #10b981; font-size: 16px;"></i>
+        <span id="invoiceToastMsg">Pesan</span>
+    </div>
 </body>
 </html>

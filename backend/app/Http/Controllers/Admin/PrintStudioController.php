@@ -49,7 +49,7 @@ class PrintStudioController extends Controller
      */
     public function printCertificate(int|string $id, Request $request)
     {
-        $reg = Registration::with('competition')->findOrFail($id);
+        $reg = Registration::findByIdOrCodeOrFail($id, ['competition']);
         $rank = $request->input('rank', 'Peserta'); // Peserta, Juara 1, Juara 2, dll.
 
         return view('admin.print-certificate', compact('reg', 'rank'));
@@ -60,7 +60,7 @@ class PrintStudioController extends Controller
      */
     public function printInvoice(int|string $id, Request $request)
     {
-        $reg = Registration::with('competition')->findOrFail($id);
+        $reg = Registration::findByIdOrCodeOrFail($id, ['competition']);
 
         $isPaid = in_array(strtolower($reg->payment_status ?? ''), ['lunas', 'paid', 'verified', 'terverifikasi', 'diterima']);
         $mode = $request->input('mode');
@@ -91,6 +91,7 @@ class PrintStudioController extends Controller
             'defaultTheme' => $theme,
             'isThemeLocked' => $isThemeLocked,
             'isPaid' => $isPaid,
+            'isAdmin' => true,
             'terbilang' => $terbilang,
             'bankAccounts' => $bankAccounts,
             'treasurerName' => $invoiceConfig['treasurer_name'],

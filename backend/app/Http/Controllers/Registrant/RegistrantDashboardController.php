@@ -189,6 +189,7 @@ class RegistrantDashboardController extends Controller
                 'custom_fields' => $reg->custom_fields ?: [],
                 'file_documents' => $reg->file_documents ?: [],
                 'payment_proof_url' => $paymentProofUrl,
+                'signed_invoice_url' => $reg->getSignedInvoiceUrl(),
                 'assigned_name' => $reg->assigned_name,
                 'assigned_phone' => $reg->assigned_phone,
                 'assigned_role' => $reg->assigned_role ?: 'Koordinator Cabang',
@@ -1753,10 +1754,7 @@ class RegistrantDashboardController extends Controller
 
         $cleanPhone = Setting::formatWaNumber($user->phone);
 
-        $reg = Registration::with('competition')->where(function ($q) use ($id) {
-            $q->where('id', $id)
-              ->orWhere('reg_code', $id);
-        })->firstOrFail();
+        $reg = Registration::findByIdOrCodeOrFail($id, ['competition']);
 
         // Check ownership or assigned PIC
         $isOwner = ($reg->registrant_id === $user->id || $reg->user_id === $user->id || Setting::formatWaNumber($reg->mentor_wa) === $cleanPhone);
@@ -1767,10 +1765,8 @@ class RegistrantDashboardController extends Controller
         }
 
         $isPaid = in_array(strtolower($reg->payment_status ?? ''), ['lunas', 'paid', 'verified', 'terverifikasi', 'diterima']);
-        $mode = $request->input('mode');
-        if (!$mode) {
-            $mode = $isPaid ? 'receipt' : 'invoice';
-        }
+        // Penguncian Mode Mutlak: Pendaftar selalu terkunci sesuai status pembayaran riil (Belum lunas = invoice, Lunas = receipt)
+        $mode = $isPaid ? 'receipt' : 'invoice';
 
         $totalFee = (int) ($reg->total_fee ?? 0);
         $terbilang = Setting::terbilang($totalFee);
@@ -1789,17 +1785,23 @@ class RegistrantDashboardController extends Controller
             $theme = $invoiceConfig['theme'] ?? 'formal';
         }
 
+        $signedUrl = $reg->getSignedInvoiceUrl();
+        $suggestedFilename = $reg->getInvoiceFilename($mode);
+
         return view('admin.print-invoice', [
             'reg' => $reg,
             'defaultMode' => $mode,
             'defaultTheme' => $theme,
             'isThemeLocked' => $isThemeLocked,
             'isPaid' => $isPaid,
+            'isAdmin' => false,
             'terbilang' => $terbilang,
             'bankAccounts' => $bankAccounts,
             'treasurerName' => $invoiceConfig['treasurer_name'],
             'treasurerRole' => $invoiceConfig['treasurer_role'],
             'invoiceConfig' => $invoiceConfig,
+            'signedUrl' => $signedUrl,
+            'suggestedFilename' => $suggestedFilename,
         ]);
     }
 }

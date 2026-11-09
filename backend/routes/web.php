@@ -24,16 +24,8 @@ Route::post('/formulir-pendaftaran', [PublicPortalController::class, 'storeRegis
 Route::get('/scoreboard', [LiveScoreboardController::class, 'index'])->name('public.scoreboard');
 Route::get('/portal/live-scoreboard', [LiveScoreboardController::class, 'index'])->name('portal.scoreboard');
 
-// Universal Shortcut & Alias Nota / Invoice Resmi
-Route::get('/invoice/{id}', function ($id) {
-    if (auth('pendaftar')->check()) {
-        return redirect()->route('pendaftar.invoice.print', ['id' => $id]);
-    }
-    if (auth('web')->check()) {
-        return redirect()->route('admin.invoice.print', ['id' => $id]);
-    }
-    return redirect()->route('pendaftar.invoice.print', ['id' => $id]);
-})->name('invoice.print');
+// Universal Shortcut & Alias Nota / Invoice Resmi (Mendukung Cryptographic Signed URL & Otentikasi)
+Route::get('/invoice/{id}', [\App\Http\Controllers\PublicInvoiceController::class, 'show'])->name('invoice.print');
 
 // Operational Command Center (Pusat Komando Lapangan Hari-H - Dark UI) - Protected with Auth & Admin Role
 Route::middleware(['auth:web', 'admin'])->group(function () {

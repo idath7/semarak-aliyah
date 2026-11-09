@@ -506,6 +506,19 @@ function submitPackageProof() {
     }
   });
 }
+
+const copyInvoiceLink = (item) => {
+  const url = item?.signed_invoice_url || (window.location.origin + '/invoice/' + (item?.reg_code || item?.id));
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success('Tautan resmi nota berhasil disalin! Siap dibagikan dan dapat dibuka tanpa login.');
+    }).catch(() => {
+      prompt('Salin tautan resmi nota berikut:', url);
+    });
+  } else {
+    prompt('Salin tautan resmi nota berikut:', url);
+  }
+};
 </script>
 
 <template>
@@ -1175,13 +1188,13 @@ function submitPackageProof() {
 
                       <!-- Cetak Nota / Kwitansi Resmi Button -->
                       <a
-                        :href="'/pendaftar/invoice/' + reg.id"
+                        :href="reg.signed_invoice_url || ('/invoice/' + reg.id)"
                         target="_blank"
                         class="btn btn-sm rounded-3 px-2 py-1 fs-12 fw-bold d-inline-flex align-items-center gap-1 table-action-invoice-btn text-decoration-none"
-                        title="Cetak Nota Invoice / Kwitansi Pembayaran Resmi (A4)"
+                        :title="(reg.payment_status === 'Terverifikasi' || reg.payment_status === 'Lunas') ? 'Buka & Cetak Kwitansi Pembayaran Resmi (A4)' : 'Buka & Cetak Nota Tagihan Biaya Pendaftaran (A4)'"
                       >
-                        <i class="ri-file-paper-2-line"></i>
-                        <span class="d-none d-xl-inline">Nota</span>
+                        <i :class="(reg.payment_status === 'Terverifikasi' || reg.payment_status === 'Lunas') ? 'ri-receipt-line' : 'ri-file-list-line'"></i>
+                        <span class="d-none d-xl-inline">{{ (reg.payment_status === 'Terverifikasi' || reg.payment_status === 'Lunas') ? 'Kwitansi' : 'Nota Tagihan' }}</span>
                       </a>
 
                       <!-- Cetak Bukti Resmi Button -->
@@ -1513,14 +1526,24 @@ function submitPackageProof() {
             </Link>
 
             <a
-              :href="'/pendaftar/invoice/' + detailReg.id"
+              :href="detailReg.signed_invoice_url || ('/invoice/' + detailReg.id)"
               target="_blank"
               class="btn btn-outline-info btn-sm px-3 py-2 fs-12 fw-bold d-flex align-items-center gap-1.5 text-decoration-none"
-              title="Cetak Nota Invoice / Kwitansi Pembayaran Resmi (A4)"
+              :title="(detailReg.payment_status === 'Terverifikasi' || detailReg.payment_status === 'Lunas') ? 'Buka & Cetak Kwitansi Pembayaran Resmi (A4)' : 'Buka & Cetak Nota Tagihan Biaya Pendaftaran (A4)'"
             >
-              <i class="ri-file-paper-2-line"></i>
-              <span>Cetak Nota / Kwitansi</span>
+              <i :class="(detailReg.payment_status === 'Terverifikasi' || detailReg.payment_status === 'Lunas') ? 'ri-receipt-line' : 'ri-file-list-line'"></i>
+              <span>{{ (detailReg.payment_status === 'Terverifikasi' || detailReg.payment_status === 'Lunas') ? 'Kwitansi Lunas' : 'Nota Tagihan' }}</span>
             </a>
+
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm px-2.5 py-2 fs-12 fw-bold d-flex align-items-center gap-1.5"
+              @click="copyInvoiceLink(detailReg)"
+              title="Salin Tautan Resmi Nota untuk Dibagikan Tanpa Login"
+            >
+              <i class="ri-share-forward-line"></i>
+              <span>Salin Tautan</span>
+            </button>
 
             <button
               type="button"
@@ -1567,14 +1590,25 @@ function submitPackageProof() {
 
             <!-- Link Cetak Invoice / Kwitansi Resmi -->
             <a
-              :href="'/pendaftar/invoice/' + printReg.id"
+              :href="printReg.signed_invoice_url || ('/invoice/' + printReg.id)"
               target="_blank"
               class="btn btn-outline-info btn-sm px-2.5 py-1 rounded-pill fs-11.5 fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm text-decoration-none"
-              title="Cetak Nota Invoice / Kwitansi Pembayaran Resmi (A4)"
+              :title="(printReg.payment_status === 'Terverifikasi' || printReg.payment_status === 'Lunas') ? 'Buka & Cetak Kwitansi Pembayaran Resmi (A4)' : 'Buka & Cetak Nota Tagihan Biaya Pendaftaran (A4)'"
             >
-              <i class="ri-file-paper-2-line"></i>
-              <span>Nota / Kwitansi</span>
+              <i :class="(printReg.payment_status === 'Terverifikasi' || printReg.payment_status === 'Lunas') ? 'ri-receipt-line' : 'ri-file-list-line'"></i>
+              <span>{{ (printReg.payment_status === 'Terverifikasi' || printReg.payment_status === 'Lunas') ? 'Kwitansi Lunas' : 'Nota Tagihan' }}</span>
             </a>
+
+            <!-- Salin Tautan Nota Resmi -->
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm px-2.5 py-1 rounded-pill fs-11.5 fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm"
+              @click="copyInvoiceLink(printReg)"
+              title="Salin Tautan Resmi Nota untuk Dibagikan Tanpa Login"
+            >
+              <i class="ri-share-forward-line"></i>
+              <span>Salin Tautan</span>
+            </button>
 
             <!-- Quick Print Button -->
             <button

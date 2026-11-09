@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class Registration extends Model
 {
@@ -45,6 +47,15 @@ class Registration extends Model
         'file_documents' => 'array',
         'custom_fields' => 'array'
     ];
+
+    protected $appends = [
+        'signed_invoice_url',
+    ];
+
+    public function getSignedInvoiceUrlAttribute(): string
+    {
+        return $this->getSignedInvoiceUrl();
+    }
 
     /**
      * The "booted" method of the model.
@@ -384,5 +395,74 @@ class Registration extends Model
         }
 
         return true;
+    }
+
+    /**
+     * Dapatkan URL tanda tangan kriptografis (HMAC-SHA256 Signed URL) untuk nota invoice publik.
+     *
+     * @return string
+     */
+    public function getSignedInvoiceUrl(): string
+    {
+        $publicUrl = Setting::getPublicPortalUrl();
+        $previousRoot = URL::to('/');
+
+        URL::forceRootUrl($publicUrl);
+        if (str_starts_with($publicUrl, 'https://')) {
+            URL::forceScheme('https');
+        }
+
+        $identifier = $this->reg_code ?: $this->id;
+
+        $signedUrl = URL::signedRoute('invoice.print', [
+            'id' => $identifier
+        ]);
+
+        URL::forceRootUrl($previousRoot);
+
+        return $signedUrl;
+    }
+
+    /**
+     * Dapatkan nama berkas unduhan standar untuk nota invoice / kwitansi.
+     *
+     * @param string $mode 'invoice' atau 'receipt'
+     * @return string
+     */
+    public function getInvoiceFilename(string $mode = 'invoice'): string
+    {
+        $prefix = ($mode === 'receipt') ? 'Kwitansi_Resmi' : 'Nota_Invoice';
+        $code = Str::slug($this->reg_code ?: ('ID-' . $this->id), '_');
+        $school = Str::slug($this->school_name ?: 'Kontingen', '_');
+
+        return "{$prefix}_{$code}_{$school}.pdf";
+    }
+
+    /**
+     * Temukan data pendaftaran berdasarkan ID numerik atau reg_code alfanumerik.
+     * Aman dari error casting PostgreSQL 22P02.
+     *
+     * @param int|string $id
+     * @param array $with
+     * @return \App\Models\Registration
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
+    public static function findByIdOrCodeOrFail(int|string $id, array $with = ['competition']): self
+    {
+        $query = static::with($with);
+
+        if (is_numeric($id)) {
+            /** @var self $model */
+            $model = $query->where(function ($q) use ($id) {
+                $q->where('id', (int) $id)
+                  ->orWhere('reg_code', (string) $id);
+            })->firstOrFail();
+            return $model;
+        }
+
+        /** @var self $model */
+        $model = $query->where('reg_code', (string) $id)->firstOrFail();
+        return $model;
     }
 }

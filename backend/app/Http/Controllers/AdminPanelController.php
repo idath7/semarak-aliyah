@@ -5158,6 +5158,44 @@ class AdminPanelController extends Controller
     }
 
     /**
+     * Update asal sekolah pendaftar secara langsung oleh admin.
+     */
+    public function updateRegistrationSchool(Request $request, string|int $id)
+    {
+        $registration = Registration::findOrFail($id);
+
+        $validated = $request->validate([
+            'school_name' => 'required|string|max:255',
+            'cascade_all' => 'nullable|boolean',
+        ]);
+
+        $oldSchool = $registration->school_name;
+        $newSchool = trim($validated['school_name']);
+
+        $registration->school_name = $newSchool;
+
+        // Update custom fields if exists
+        $cf = is_array($registration->custom_fields) ? $registration->custom_fields : [];
+        if (isset($cf['school_name'])) {
+            $cf['school_name'] = $newSchool;
+            $registration->custom_fields = $cf;
+        }
+
+        $registration->save();
+
+        // Jika opsi cascade_all dipilih atau pendaftar punya akun registrant, update juga
+        if ($request->boolean('cascade_all') && !empty($oldSchool)) {
+            Registration::where('school_name', $oldSchool)->update(['school_name' => $newSchool]);
+        }
+
+        if ($registration->registrant_id) {
+            \App\Models\Registrant::where('id', $registration->registrant_id)->update(['school_name' => $newSchool]);
+        }
+
+        return redirect()->back()->with('success', "Asal sekolah pendaftar #{$registration->reg_code} berhasil diperbarui menjadi \"{$newSchool}\".");
+    }
+
+    /**
      * Fitur Merge Sekolah yang Sama (Menyatukan variasi penulisan nama sekolah pendaftar)
      */
     public function mergeSchools(Request $request)

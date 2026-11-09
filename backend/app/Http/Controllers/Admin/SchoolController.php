@@ -185,12 +185,15 @@ class SchoolController extends Controller
         $school->update($validated);
         $newName = $school->name;
 
-        $msg = "Data {$school->name} berhasil diperbarui.";
+        // Direct cascade call to guarantee execution across all environments
+        $syncedCount = 0;
         if (strcasecmp($oldName, $newName) !== 0) {
-            $regCount = \App\Models\Registration::where('school_name', $newName)->count();
-            if ($regCount > 0) {
-                $msg .= " Nama sekolah otomatis disinkronkan ke {$regCount} data pendaftar terkait.";
-            }
+            $syncedCount = School::cascadeSchoolNameToRelations($oldName, $newName);
+        }
+
+        $msg = "Data sekolah \"{$school->name}\" berhasil diperbarui.";
+        if ($syncedCount > 0) {
+            $msg .= " Otomatis disinkronkan ke {$syncedCount} data pendaftar/peserta terkait.";
         }
 
         return redirect()->back()->with('success', $msg);

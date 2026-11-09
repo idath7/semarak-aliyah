@@ -55,7 +55,7 @@ class School extends Model
      */
     protected static function booted()
     {
-        static::updated(function (self $school) {
+        static::updating(function (self $school) {
             if ($school->isDirty('name')) {
                 $oldName = $school->getOriginal('name');
                 $newName = $school->name;
@@ -76,18 +76,57 @@ class School extends Model
         $oldName = trim($oldName);
         $newName = trim($newName);
         $oldLower = mb_strtolower($oldName);
+        $oldNorm = self::normalizeSchoolName($oldName);
 
         $affected = 0;
 
-        // 1. Update registrations
+        // 1. Direct lowercase match on registrations
         $affected += \App\Models\Registration::whereRaw('LOWER(TRIM(school_name)) = ?', [$oldLower])
             ->update(['school_name' => $newName]);
 
-        // 2. Update registrants (portal accounts)
+        // 2. Scan all registrations to catch normalized matches, slight variations, and participants_names
+        $allRegs = \App\Models\Registration::whereNotNull('school_name')->get();
+        foreach ($allRegs as $r) {
+            $rNorm = self::normalizeSchoolName($r->school_name);
+            $changed = false;
+
+            if ($r->school_name !== $newName && ($rNorm === $oldNorm || strcasecmp(trim($r->school_name), $oldName) === 0)) {
+                $r->school_name = $newName;
+                $changed = true;
+                $affected++;
+            }
+
+            // If custom_fields has school_name, update it
+            if (is_array($r->custom_fields) && isset($r->custom_fields['school_name']) && $r->custom_fields['school_name'] !== $newName) {
+                $cf = $r->custom_fields;
+                $cf['school_name'] = $newName;
+                $r->custom_fields = $cf;
+                $changed = true;
+            }
+
+            // If participants_names contains old school name, replace it
+            if (!empty($r->participants_names) && stripos($r->participants_names, $oldName) !== false) {
+                $r->participants_names = str_ireplace($oldName, $newName, $r->participants_names);
+                $changed = true;
+            }
+
+            if ($changed) {
+                $r->saveQuietly();
+            }
+        }
+
+        // 3. Update registrants (portal accounts)
         \App\Models\Registrant::whereRaw('LOWER(TRIM(school_name)) = ?', [$oldLower])
             ->update(['school_name' => $newName]);
 
-        // 3. Update users (admin/jury)
+        foreach (\App\Models\Registrant::whereNotNull('school_name')->get() as $rt) {
+            if ($rt->school_name !== $newName && self::normalizeSchoolName($rt->school_name) === $oldNorm) {
+                $rt->school_name = $newName;
+                $rt->saveQuietly();
+            }
+        }
+
+        // 4. Update users (admin/jury)
         \App\Models\User::whereRaw('LOWER(TRIM(school_name)) = ?', [$oldLower])
             ->update(['school_name' => $newName]);
 

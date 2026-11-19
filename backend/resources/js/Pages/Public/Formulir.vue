@@ -3589,11 +3589,11 @@ onMounted(() => {
           <img alt="Logo MAS Wahid Hasyim" class="h-7 w-7 sm:h-8 sm:w-8 object-contain shrink-0" src="/assets/img/logo.webp">
           <div>
             <p class="font-headline font-bold text-xs sm:text-sm text-on-surface m-0">SEMARAK ALIYAH XIV 2026</p>
-            <p class="text-[11px] sm:text-xs text-on-surface-variant m-0">Madrasah Aliyah Unggulan Wahid Hasyim Balung, Jember</p>
+            <p class="text-[11px] sm:text-xs text-on-surface-variant m-0">MAS Wahid Hasyim Balung, Jember</p>
           </div>
         </div>
         <p class="text-[11px] sm:text-xs text-on-surface-variant m-0">
-          © 2026 MAS Wahid Hasyim Balung. Hak Cipta Dilindungi.
+          © 2026 maswahasLabs. Hak Cipta Dilindungi.
         </p>
       </div>
     </footer>

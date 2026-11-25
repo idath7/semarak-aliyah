@@ -297,7 +297,8 @@ const competitionSelectOptions = computed(() => {
   return props.competitions.map(c => {
     const isCurrent = String(c.id) === String(props.registration.competition_id);
     const pType = (c.participant_type === 'tim' || c.participant_type === 'beregu') ? 'Tim' : 'Individu';
-    const feeStr = c.registration_fee ? `Rp ${new Intl.NumberFormat('id-ID').format(c.registration_fee)}` : 'Gratis';
+    const numFee = c.fee ?? c.registration_fee ?? 0;
+    const feeStr = numFee ? `Rp ${new Intl.NumberFormat('id-ID').format(numFee)}` : 'Gratis';
     return {
       value: String(c.id),
       label: `${c.title} (${pType} • ${feeStr})${isCurrent ? ' - [Saat Ini]' : ''}`,
@@ -2360,7 +2361,7 @@ function sendOfficialNotification(templateKey) {
                     </label>
                   </div>
                   <div class="fs-11 text-muted ps-4">
-                    Biaya akan diubah dari <strong>{{ formatRupiah(registration.total_fee) }}</strong> menjadi <strong>{{ formatRupiah(selectedNewComp.registration_fee) }}</strong>.
+                    Biaya akan diubah dari <strong>{{ formatRupiah(registration.total_fee) }}</strong> menjadi <strong>{{ formatRupiah(selectedNewComp.fee ?? selectedNewComp.registration_fee) }}</strong>.
                   </div>
                 </div>
               </div>

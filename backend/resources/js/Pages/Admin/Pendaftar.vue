@@ -59,7 +59,8 @@ const switchCompetitionOptions = computed(() => {
   return competitionsList.value.map(c => {
     const isCurrent = activeSwitchReg.value && String(c.id) === String(activeSwitchReg.value.competition_id);
     const pType = (c.participant_type === 'tim' || c.participant_type === 'beregu') ? 'Tim' : 'Individu';
-    const feeStr = c.registration_fee ? `Rp ${new Intl.NumberFormat('id-ID').format(c.registration_fee)}` : 'Gratis';
+    const numFee = c.fee ?? c.registration_fee ?? 0;
+    const feeStr = numFee ? `Rp ${new Intl.NumberFormat('id-ID').format(numFee)}` : 'Gratis';
     return {
       value: String(c.id),
       label: `${c.title} (${pType} • ${feeStr})${isCurrent ? ' - [Saat Ini]' : ''}`,
@@ -110,7 +111,7 @@ function submitSwitchCompetition() {
         activeSwitchReg.value.competition_id = newComp.id;
         activeSwitchReg.value.competition_title = newComp.title;
         if (activeSwitchReg.value.package_type !== 'Paket All-In' && switchForm.value.adjust_fee) {
-          activeSwitchReg.value.total_fee = newComp.registration_fee;
+          activeSwitchReg.value.total_fee = newComp.fee ?? newComp.registration_fee ?? 0;
         }
       }
       toast.success('Cabang lomba berhasil dipindahkan!', 'Berhasil');
@@ -1460,7 +1461,7 @@ onMounted(() => {
                     </label>
                   </div>
                   <div class="fs-11 text-muted ps-4">
-                    Biaya akan diubah dari <strong>{{ formatRupiah(activeSwitchReg.total_fee) }}</strong> menjadi <strong>{{ formatRupiah(selectedNewComp.registration_fee) }}</strong>.
+                    Biaya akan diubah dari <strong>{{ formatRupiah(activeSwitchReg.total_fee) }}</strong> menjadi <strong>{{ formatRupiah(selectedNewComp.fee ?? selectedNewComp.registration_fee) }}</strong>.
                   </div>
                 </div>
               </div>

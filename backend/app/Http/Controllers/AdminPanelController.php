@@ -283,7 +283,7 @@ class AdminPanelController extends Controller
         return \Inertia\Inertia::render('Admin/PendaftarDetail', [
             'registration' => $registration,
             'competition' => $competition,
-            'competitions' => Competition::orderBy('title', 'asc')->get(['id', 'title', 'category', 'participant_type', 'registration_fee', 'max_participants']),
+            'competitions' => Competition::orderBy('title', 'asc')->get(['id', 'title', 'category', 'category_label', 'participant_type', 'fee', 'max_participants']),
             'formFields' => $formFields,
             'formSettings' => $formSettings,
             'prevRegistration' => $prevReg,
@@ -5368,7 +5368,7 @@ class AdminPanelController extends Controller
         // Jika Paket Satuan dan adjust_fee dicentang, update total_fee ke biaya pendaftaran lomba baru
         if ($registration->package_type !== 'Paket All-In') {
             if ($request->boolean('adjust_fee', true)) {
-                $registration->total_fee = $newComp->registration_fee;
+                $registration->total_fee = $newComp->fee;
             }
         } else {
             $registration->total_fee = 0;

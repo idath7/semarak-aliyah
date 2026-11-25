@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import CustomSelect from '@/Components/CustomSelect.vue';
+import IndoDatePicker from '@/Components/IndoDatePicker.vue';
 import { useToast } from '@/Composables/useToast';
 import { useConfirmDialog } from '@/Composables/useConfirmDialog';
 import { usePermission } from '@/Composables/usePermission';
@@ -15,6 +16,10 @@ const props = defineProps({
   competition: {
     type: Object,
     default: () => ({}),
+  },
+  competitions: {
+    type: Array,
+    default: () => [],
   },
   formFields: {
     type: Array,
@@ -162,6 +167,188 @@ function formatDateOnly(dateStr) {
   } catch (e) {
     return dateStr;
   }
+}
+
+// -----------------------------------------------------------------------------
+// EDIT BIODATA PESERTA DELEGASI (INDIVIDUAL STUDENT EDIT)
+// -----------------------------------------------------------------------------
+const showEditStudentModal = ref(false);
+const editingStudentData = ref(null);
+const isSavingStudent = ref(false);
+const studentEditForm = ref({
+  student_index: 1,
+  name: '',
+  nisn: '',
+  gender: 'Laki-laki',
+  grade: 'Kelas 7',
+  birth_date: '',
+  wa_number: '',
+  is_captain: false,
+  team_role: '',
+  custom_id: '',
+});
+
+const genderOptions = [
+  { value: 'Laki-laki', label: 'Laki-laki (L)' },
+  { value: 'Perempuan', label: 'Perempuan (P)' },
+];
+
+const gradeOptions = [
+  { value: 'Kelas 7', label: 'Kelas 7 (Tujuh)' },
+  { value: 'Kelas 8', label: 'Kelas 8 (Delapan)' },
+  { value: 'Kelas 9', label: 'Kelas 9 (Sembilan)' },
+  { value: 'Umum / Lainnya', label: 'Umum / Lainnya' },
+];
+
+const teamRoleOptions = [
+  { value: 'Peserta Tunggal', label: 'Peserta Tunggal (Individu)' },
+  { value: 'Ketua / Kapten', label: 'Ketua / Kapten Tim' },
+  { value: 'Anggota', label: 'Anggota Regu' },
+];
+
+function openEditStudent(student, index) {
+  editingStudentData.value = student;
+  
+  let g = student.gender || 'Laki-laki';
+  if (isFemale(g)) g = 'Perempuan';
+  else if (g === '-' || !g) g = 'Laki-laki';
+  else g = 'Laki-laki';
+
+  let gr = student.grade || 'Kelas 7';
+  if (gr && !gr.toLowerCase().startsWith('kelas') && gr !== '-') {
+    gr = 'Kelas ' + gr;
+  }
+
+  const sIdx = student.no || (index + 1);
+
+  studentEditForm.value = {
+    student_index: sIdx,
+    name: student.name || '',
+    nisn: (student.nisn && student.nisn !== '-') ? student.nisn : '',
+    gender: g,
+    grade: gr || 'Kelas 7',
+    birth_date: student.birth_date || '',
+    wa_number: (student.wa && student.wa !== '-') ? student.wa : '',
+    is_captain: Boolean(student.is_captain),
+    team_role: student.team_role || (student.is_captain ? 'Ketua / Kapten' : (isTeamComp.value ? 'Anggota' : 'Peserta Tunggal')),
+    custom_id: student.custom_id || '',
+  };
+
+  showEditStudentModal.value = true;
+}
+
+function closeEditStudentModal() {
+  showEditStudentModal.value = false;
+  editingStudentData.value = null;
+}
+
+function saveStudentData() {
+  if (!studentEditForm.value.name.trim()) {
+    toast.error('Nama lengkap peserta tidak boleh kosong!', 'Validasi Gagal');
+    return;
+  }
+
+  isSavingStudent.value = true;
+
+  router.post(`/admin/pendaftar/${props.registration.id}/update-participant-single`, {
+    student_index: studentEditForm.value.student_index,
+    name: studentEditForm.value.name,
+    nisn: studentEditForm.value.nisn,
+    gender: studentEditForm.value.gender,
+    grade: studentEditForm.value.grade,
+    birth_date: studentEditForm.value.birth_date,
+    wa_number: studentEditForm.value.wa_number,
+    is_captain: studentEditForm.value.is_captain,
+    team_role: studentEditForm.value.team_role,
+    custom_id: studentEditForm.value.custom_id,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSavingStudent.value = false;
+      toast.success(`Data peserta "${studentEditForm.value.name}" berhasil diperbarui!`, 'Berhasil Disimpan');
+      closeEditStudentModal();
+    },
+    onError: (errs) => {
+      isSavingStudent.value = false;
+      const msg = typeof errs === 'object' ? Object.values(errs)[0] : 'Gagal memperbarui data peserta.';
+      toast.error(msg, 'Terjadi Kesalahan');
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
+// GANTI CABANG PERLOMBAAN (SWITCH REGISTRATION COMPETITION)
+// -----------------------------------------------------------------------------
+const showSwitchCompModal = ref(false);
+const isSwitchingComp = ref(false);
+const switchCompForm = ref({
+  new_competition_id: '',
+  adjust_fee: true,
+  reason: '',
+});
+
+const isTeamComp = computed(() => {
+  const pType = String(props.competition?.participant_type || '').toLowerCase();
+  return ['tim', 'beregu', 'team', 'grup', 'group'].includes(pType);
+});
+
+const competitionSelectOptions = computed(() => {
+  if (!props.competitions || !props.competitions.length) return [];
+  return props.competitions.map(c => {
+    const isCurrent = String(c.id) === String(props.registration.competition_id);
+    const pType = (c.participant_type === 'tim' || c.participant_type === 'beregu') ? 'Tim' : 'Individu';
+    const feeStr = c.registration_fee ? `Rp ${new Intl.NumberFormat('id-ID').format(c.registration_fee)}` : 'Gratis';
+    return {
+      value: String(c.id),
+      label: `${c.title} (${pType} • ${feeStr})${isCurrent ? ' - [Saat Ini]' : ''}`,
+      disabled: isCurrent,
+    };
+  });
+});
+
+const selectedNewComp = computed(() => {
+  if (!switchCompForm.value.new_competition_id) return null;
+  return props.competitions.find(c => String(c.id) === String(switchCompForm.value.new_competition_id)) || null;
+});
+
+function openSwitchCompModal() {
+  switchCompForm.value = {
+    new_competition_id: '',
+    adjust_fee: props.registration.package_type !== 'Paket All-In',
+    reason: '',
+  };
+  showSwitchCompModal.value = true;
+}
+
+function closeSwitchCompModal() {
+  showSwitchCompModal.value = false;
+}
+
+function submitSwitchCompetition() {
+  if (!switchCompForm.value.new_competition_id) {
+    toast.error('Silakan pilih cabang lomba tujuan terlebih dahulu!', 'Validasi Gagal');
+    return;
+  }
+
+  isSwitchingComp.value = true;
+
+  router.post(`/admin/pendaftar/${props.registration.id}/switch-competition`, {
+    new_competition_id: switchCompForm.value.new_competition_id,
+    adjust_fee: switchCompForm.value.adjust_fee,
+    reason: switchCompForm.value.reason,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSwitchingComp.value = false;
+      toast.success('Cabang lomba berhasil dipindahkan!', 'Berhasil');
+      closeSwitchCompModal();
+    },
+    onError: (errs) => {
+      isSwitchingComp.value = false;
+      const msg = typeof errs === 'object' ? Object.values(errs)[0] : 'Gagal memindahkan cabang lomba.';
+      toast.error(msg, 'Terjadi Kesalahan');
+    }
+  });
 }
 
 function getWaChatUrl(phone, msg = '') {
@@ -690,6 +877,17 @@ function sendOfficialNotification(templateKey) {
             <span>PDF</span>
           </a>
 
+          <!-- Ganti Cabang Lomba -->
+          <button 
+            type="button" 
+            class="btn btn-sm btn-outline-warning text-dark fw-bold d-inline-flex align-items-center gap-1.5 rounded-pill shadow-sm"
+            @click="openSwitchCompModal"
+            title="Ganti Cabang Perlombaan Pendaftar Ini"
+          >
+            <i class="ri-exchange-line"></i>
+            <span>Ganti Cabang</span>
+          </button>
+
           <!-- Hapus Delegasi Pendaftar (Super Admin) -->
           <button 
             v-if="canDelete"
@@ -749,8 +947,18 @@ function sendOfficialNotification(templateKey) {
                 <div class="avatar-sm rounded-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
                   <i class="ri-trophy-line fs-22"></i>
                 </div>
-                <div class="min-w-0">
-                  <div class="text-muted fs-11 text-uppercase fw-bold" style="letter-spacing: 0.5px;">Cabang Perlombaan</div>
+                <div class="min-w-0 flex-grow-1">
+                  <div class="d-flex align-items-center justify-content-between gap-1">
+                    <div class="text-muted fs-11 text-uppercase fw-bold" style="letter-spacing: 0.5px;">Cabang Perlombaan</div>
+                    <button 
+                      type="button" 
+                      class="btn btn-xs btn-outline-warning text-dark fw-bold d-inline-flex align-items-center gap-1 py-0 px-1.5 fs-10"
+                      @click="openSwitchCompModal"
+                      title="Ganti Cabang Perlombaan"
+                    >
+                      <i class="ri-exchange-line"></i> Ganti
+                    </button>
+                  </div>
                   <h6 class="fs-14 fw-bold text-dark text-truncate mb-0" :title="registration.competition_title">
                     {{ registration.competition_title || registration.competition_id }}
                   </h6>
@@ -1119,6 +1327,15 @@ function sendOfficialNotification(templateKey) {
                             <!-- Aksi -->
                             <td class="text-center">
                               <div class="d-flex align-items-center justify-content-center gap-1">
+                                <!-- Edit Siswa -->
+                                <button 
+                                  type="button" 
+                                  class="btn btn-xs btn-outline-warning text-dark fw-bold"
+                                  @click="openEditStudent(p, p.no - 1)"
+                                  title="Edit Biodata Siswa Ini"
+                                >
+                                  <i class="ri-edit-line"></i>
+                                </button>
                                 <button 
                                   v-if="p.photo || p.photo_freestyle"
                                   type="button" 
@@ -1177,10 +1394,20 @@ function sendOfficialNotification(templateKey) {
                                 </div>
 
                                 <div class="min-w-0 flex-grow-1">
-                                  <div class="d-flex align-items-center gap-1.5 mb-1 flex-wrap">
-                                    <h6 class="fs-13 fw-bold text-dark mb-0 text-truncate">{{ member.name }}</h6>
-                                    <span v-if="member.is_captain" class="badge bg-warning text-dark fs-10 fw-bold"><i class="ri-shield-user-fill"></i> Kapten</span>
-                                    <span v-if="member.custom_id" class="badge bg-light text-muted border fs-10 font-monospace">ID: {{ member.custom_id }}</span>
+                                  <div class="d-flex align-items-center justify-content-between gap-1 mb-1">
+                                    <div class="d-flex align-items-center gap-1.5 flex-wrap min-w-0">
+                                      <h6 class="fs-13 fw-bold text-dark mb-0 text-truncate">{{ member.name }}</h6>
+                                      <span v-if="member.is_captain" class="badge bg-warning text-dark fs-10 fw-bold"><i class="ri-shield-user-fill"></i> Kapten</span>
+                                      <span v-if="member.custom_id" class="badge bg-light text-muted border fs-10 font-monospace">ID: {{ member.custom_id }}</span>
+                                    </div>
+                                    <button 
+                                      type="button" 
+                                      class="btn btn-xs btn-outline-warning text-dark p-1 fs-11 flex-shrink-0"
+                                      @click="openEditStudent(member, member.no - 1)"
+                                      title="Edit Biodata Siswa Ini"
+                                    >
+                                      <i class="ri-edit-line"></i>
+                                    </button>
                                   </div>
                                   <div class="fs-11 text-muted d-flex flex-column gap-0.5">
                                     <div v-if="member.nisn && member.nisn !== '-'"><span class="fw-semibold text-dark font-monospace">NISN:</span> {{ member.nisn }}</div>
@@ -1836,6 +2063,344 @@ function sendOfficialNotification(templateKey) {
                 Tutup
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL EDIT BIODATA PESERTA DELEGASI (FORMULIR ONLINE & MANUAL) -->
+    <!-- ============================================================== -->
+    <div 
+      v-if="showEditStudentModal && editingStudentData" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      style="background: rgba(0,0,0,0.65); z-index: 1065;"
+      @click.self="closeEditStudentModal"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+          <!-- Modal Header -->
+          <div class="modal-header bg-warning-subtle text-dark border-bottom border-warning-subtle py-3 px-4">
+            <div class="d-flex align-items-center gap-2.5">
+              <div class="avatar-xs rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold fs-13">
+                <i class="ri-edit-2-line"></i>
+              </div>
+              <div>
+                <h5 class="modal-title fs-15 fw-bold text-dark mb-0">
+                  Edit Biodata Peserta Delegasi
+                </h5>
+                <span class="fs-11 text-muted">
+                  Peserta ke-{{ studentEditForm.student_index }} • #{{ registration.reg_code }} ({{ registration.school_name }})
+                </span>
+              </div>
+            </div>
+            <button type="button" class="btn-close" @click="closeEditStudentModal" :disabled="isSavingStudent"></button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body p-4">
+            <!-- Info Bar Lomba -->
+            <div class="p-2.5 rounded-3 bg-light border mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <i class="ri-medal-line text-primary fs-18"></i>
+                <span class="fs-12 text-dark fw-semibold">{{ registration.competition_title || registration.competition_id }}</span>
+              </div>
+              <span class="badge bg-primary-subtle text-primary fs-11">
+                {{ isTeamComp ? 'Lomba Tim / Beregu' : 'Lomba Individu' }}
+              </span>
+            </div>
+
+            <form @submit.prevent="saveStudentData">
+              <div class="row g-3">
+                <!-- Nama Lengkap Siswa -->
+                <div class="col-12 col-md-7">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    Nama Lengkap Siswa <span class="text-danger">*</span>
+                  </label>
+                  <input 
+                    v-model="studentEditForm.name" 
+                    type="text" 
+                    class="form-control form-control-sm fs-12"
+                    placeholder="Masukkan nama lengkap siswa..."
+                    required
+                  />
+                </div>
+
+                <!-- NISN Siswa -->
+                <div class="col-12 col-md-5">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    NISN (Nomor Induk Siswa Nasional)
+                  </label>
+                  <input 
+                    v-model="studentEditForm.nisn" 
+                    type="text" 
+                    maxlength="20"
+                    class="form-control form-control-sm font-monospace fs-12"
+                    placeholder="Contoh: 0081234567"
+                  />
+                </div>
+
+                <!-- Jenis Kelamin (CustomSelect) -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    Jenis Kelamin <span class="text-danger">*</span>
+                  </label>
+                  <CustomSelect
+                    v-model="studentEditForm.gender"
+                    :options="genderOptions"
+                    size="sm"
+                    prefix-icon="ri-genderless-line"
+                  />
+                </div>
+
+                <!-- Kelas / Tingkat (CustomSelect) -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    Kelas / Tingkat
+                  </label>
+                  <CustomSelect
+                    v-model="studentEditForm.grade"
+                    :options="gradeOptions"
+                    size="sm"
+                    prefix-icon="ri-graduation-cap-line"
+                  />
+                </div>
+
+                <!-- Tanggal Lahir (IndoDatePicker) -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    Tanggal Lahir (dd/mm/yyyy)
+                  </label>
+                  <IndoDatePicker
+                    v-model="studentEditForm.birth_date"
+                    placeholder="dd/mm/yyyy"
+                  />
+                </div>
+
+                <!-- Nomor WhatsApp Siswa -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    Nomor WhatsApp Siswa / Wali
+                  </label>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-success border-end-0">
+                      <i class="ri-whatsapp-line"></i>
+                    </span>
+                    <input 
+                      v-model="studentEditForm.wa_number" 
+                      type="text" 
+                      class="form-control font-monospace fs-12 border-start-0"
+                      placeholder="Contoh: 081234567890"
+                    />
+                  </div>
+                </div>
+
+                <!-- Peran Tim & Status Kapten -->
+                <div class="col-12 col-md-6" v-if="isTeamComp">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    Peran dalam Tim
+                  </label>
+                  <CustomSelect
+                    v-model="studentEditForm.team_role"
+                    :options="teamRoleOptions"
+                    size="sm"
+                    prefix-icon="ri-team-line"
+                  />
+                </div>
+
+                <!-- ID Khusus / No Dada / ID Game -->
+                <div :class="isTeamComp ? 'col-12 col-md-6' : 'col-12'">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    ID Khusus / No. Dada / ID Game (Opsional)
+                  </label>
+                  <input 
+                    v-model="studentEditForm.custom_id" 
+                    type="text" 
+                    class="form-control form-control-sm font-monospace fs-12"
+                    placeholder="Nomor punggung / ID khusus peserta..."
+                  />
+                </div>
+
+                <!-- Switch Kapten Tim jika lomba Tim -->
+                <div class="col-12" v-if="isTeamComp">
+                  <div class="form-check form-switch p-2 ps-5 rounded bg-light border">
+                    <input 
+                      v-model="studentEditForm.is_captain" 
+                      class="form-check-input" 
+                      type="checkbox" 
+                      role="switch" 
+                      id="isCaptainSwitchDetail"
+                    />
+                    <label class="form-check-label fs-12 fw-bold text-dark cursor-pointer" for="isCaptainSwitchDetail">
+                      <i class="ri-vip-crown-fill text-warning me-1"></i> Jadikan sebagai Ketua / Kapten Tim
+                    </label>
+                    <div class="fs-11 text-muted">
+                      Menandai siswa ini sebagai kontak utama regu dan koordinator lapangan.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="modal-footer bg-light border-top py-2.5 px-4 d-flex justify-content-between">
+            <button 
+              type="button" 
+              class="btn btn-sm btn-secondary" 
+              @click="closeEditStudentModal" 
+              :disabled="isSavingStudent"
+            >
+              Batal
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5"
+              @click="saveStudentData"
+              :disabled="isSavingStudent"
+            >
+              <span v-if="isSavingStudent" class="spinner-border spinner-border-sm"></span>
+              <i v-else class="ri-save-line"></i>
+              <span>{{ isSavingStudent ? 'Menyimpan...' : 'Simpan Perubahan' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL GANTI CABANG PERLOMBAAN                                  -->
+    <!-- ============================================================== -->
+    <div 
+      v-if="showSwitchCompModal" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      style="background: rgba(0,0,0,0.65); z-index: 1065;"
+      @click.self="closeSwitchCompModal"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+          <!-- Modal Header -->
+          <div class="modal-header bg-warning-subtle text-dark border-bottom border-warning-subtle py-3 px-4">
+            <div class="d-flex align-items-center gap-2.5">
+              <div class="avatar-xs rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold fs-13">
+                <i class="ri-exchange-line"></i>
+              </div>
+              <div>
+                <h5 class="modal-title fs-15 fw-bold text-dark mb-0">
+                  Ganti Cabang Perlombaan
+                </h5>
+                <span class="fs-11 text-muted">
+                  #{{ registration.reg_code }} • {{ registration.school_name }}
+                </span>
+              </div>
+            </div>
+            <button type="button" class="btn-close" @click="closeSwitchCompModal" :disabled="isSwitchingComp"></button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body p-4">
+            <!-- Informasi Cabang Saat Ini -->
+            <div class="p-3 rounded-3 bg-light border mb-3.5">
+              <div class="text-muted fs-11 text-uppercase fw-bold mb-1" style="letter-spacing: 0.5px;">
+                Cabang Perlombaan Saat Ini:
+              </div>
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="fw-bold fs-13 text-dark d-flex align-items-center gap-1.5">
+                  <i class="ri-trophy-line text-warning"></i>
+                  <span>{{ registration.competition_title || registration.competition_id }}</span>
+                </div>
+                <span class="badge bg-primary-subtle text-primary fs-11">
+                  {{ isTeamComp ? 'Tim / Beregu' : 'Individu' }}
+                </span>
+              </div>
+              <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top fs-11 text-muted">
+                <span>Total Biaya Saat Ini:</span>
+                <span class="fw-bold font-monospace text-dark">{{ formatRupiah(registration.total_fee) }}</span>
+              </div>
+            </div>
+
+            <form @submit.prevent="submitSwitchCompetition">
+              <!-- Pilih Cabang Lomba Baru -->
+              <div class="mb-3">
+                <label class="form-label fs-12 fw-bold text-dark mb-1 d-flex justify-content-between">
+                  <span>Pilih Cabang Lomba Tujuan <span class="text-danger">*</span></span>
+                  <span v-if="selectedNewComp" class="badge bg-success-subtle text-success fs-10">
+                    {{ selectedNewComp.category || 'Umum' }}
+                  </span>
+                </label>
+                <CustomSelect
+                  v-model="switchCompForm.new_competition_id"
+                  :options="competitionSelectOptions"
+                  placeholder="-- Pilih Cabang Perlombaan Baru --"
+                  size="md"
+                  searchable
+                  search-placeholder="Cari cabang lomba tujuan..."
+                />
+              </div>
+
+              <!-- Pratinjau Perubahan Biaya -->
+              <div v-if="selectedNewComp" class="p-2.5 rounded-3 border mb-3" :class="registration.package_type === 'Paket All-In' ? 'bg-warning-subtle text-dark border-warning-subtle' : 'bg-light text-dark'">
+                <div v-if="registration.package_type === 'Paket All-In'" class="fs-11">
+                  <i class="ri-vip-crown-fill text-warning me-1"></i>
+                  <strong>Paket All-In Komplit:</strong> Biaya pendaftaran cabang baru tetap <strong>Rp 0</strong> (terikat paket kontingen sekolah).
+                </div>
+                <div v-else>
+                  <div class="form-check form-switch mb-1">
+                    <input 
+                      v-model="switchCompForm.adjust_fee" 
+                      class="form-check-input" 
+                      type="checkbox" 
+                      role="switch" 
+                      id="adjustFeeSwitch"
+                    />
+                    <label class="form-check-label fs-12 fw-bold text-dark cursor-pointer" for="adjustFeeSwitch">
+                      Sesuaikan Biaya Pendaftaran dengan Lomba Baru
+                    </label>
+                  </div>
+                  <div class="fs-11 text-muted ps-4">
+                    Biaya akan diubah dari <strong>{{ formatRupiah(registration.total_fee) }}</strong> menjadi <strong>{{ formatRupiah(selectedNewComp.registration_fee) }}</strong>.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Catatan Alasan Perubahan -->
+              <div class="mb-2">
+                <label class="form-label fs-12 fw-bold text-dark mb-1">
+                  Alasan / Keterangan Pergantian Cabang Lomba
+                </label>
+                <textarea
+                  v-model="switchCompForm.reason"
+                  class="form-control fs-12"
+                  rows="2"
+                  placeholder="Contoh: Salah pilih cabang saat pengisian formulir online..."
+                ></textarea>
+                <small class="text-muted fs-11">Catatan ini akan dicatat dalam riwayat verifikasi.</small>
+              </div>
+            </form>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="modal-footer bg-light border-top py-2.5 px-4 d-flex justify-content-between">
+            <button 
+              type="button" 
+              class="btn btn-sm btn-secondary" 
+              @click="closeSwitchCompModal" 
+              :disabled="isSwitchingComp"
+            >
+              Batal
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5"
+              @click="submitSwitchCompetition"
+              :disabled="isSwitchingComp"
+            >
+              <span v-if="isSwitchingComp" class="spinner-border spinner-border-sm"></span>
+              <i v-else class="ri-check-line"></i>
+              <span>{{ isSwitchingComp ? 'Menyimpan...' : 'Simpan & Pindahkan Lomba' }}</span>
+            </button>
           </div>
         </div>
       </div>

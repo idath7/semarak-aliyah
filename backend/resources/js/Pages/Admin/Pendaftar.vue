@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
+import CustomSelect from '@/Components/CustomSelect.vue';
 import ManualRegistrationModal from '@/Components/ManualRegistrationModal.vue';
 import { initEcho } from '@/echo';
 import { useToast } from '@/Composables/useToast';
@@ -41,6 +42,87 @@ const detailRegistrationStatus = ref('Menunggu Verifikasi');
 const detailPaymentStatus = ref('Menunggu Verifikasi');
 const verificationNotes = ref('');
 const isProcessingVerification = ref(false);
+
+// -----------------------------------------------------------------------------
+// GANTI CABANG LOMBA STATE & HANDLERS
+// -----------------------------------------------------------------------------
+const showSwitchModal = ref(false);
+const activeSwitchReg = ref(null);
+const isSwitchingComp = ref(false);
+const switchForm = ref({
+  new_competition_id: '',
+  adjust_fee: true,
+  reason: '',
+});
+
+const switchCompetitionOptions = computed(() => {
+  return competitionsList.value.map(c => {
+    const isCurrent = activeSwitchReg.value && String(c.id) === String(activeSwitchReg.value.competition_id);
+    const pType = (c.participant_type === 'tim' || c.participant_type === 'beregu') ? 'Tim' : 'Individu';
+    const feeStr = c.registration_fee ? `Rp ${new Intl.NumberFormat('id-ID').format(c.registration_fee)}` : 'Gratis';
+    return {
+      value: String(c.id),
+      label: `${c.title} (${pType} • ${feeStr})${isCurrent ? ' - [Saat Ini]' : ''}`,
+      disabled: isCurrent,
+    };
+  });
+});
+
+const selectedNewComp = computed(() => {
+  if (!switchForm.value.new_competition_id) return null;
+  return competitionsList.value.find(c => String(c.id) === String(switchForm.value.new_competition_id)) || null;
+});
+
+function openSwitchCompModal(reg) {
+  activeSwitchReg.value = reg;
+  switchForm.value = {
+    new_competition_id: '',
+    adjust_fee: reg.package_type !== 'Paket All-In',
+    reason: '',
+  };
+  showSwitchModal.value = true;
+}
+
+function closeSwitchCompModal() {
+  showSwitchModal.value = false;
+  activeSwitchReg.value = null;
+}
+
+function submitSwitchCompetition() {
+  if (!activeSwitchReg.value || !switchForm.value.new_competition_id) {
+    toast.error('Silakan pilih cabang lomba tujuan terlebih dahulu!', 'Validasi Gagal');
+    return;
+  }
+
+  isSwitchingComp.value = true;
+  const regId = activeSwitchReg.value.id;
+
+  router.post(`/admin/pendaftar/${regId}/switch-competition`, {
+    new_competition_id: switchForm.value.new_competition_id,
+    adjust_fee: switchForm.value.adjust_fee,
+    reason: switchForm.value.reason,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSwitchingComp.value = false;
+      const newComp = selectedNewComp.value;
+      if (newComp && activeSwitchReg.value) {
+        activeSwitchReg.value.competition_id = newComp.id;
+        activeSwitchReg.value.competition_title = newComp.title;
+        if (activeSwitchReg.value.package_type !== 'Paket All-In' && switchForm.value.adjust_fee) {
+          activeSwitchReg.value.total_fee = newComp.registration_fee;
+        }
+      }
+      toast.success('Cabang lomba berhasil dipindahkan!', 'Berhasil');
+      closeSwitchCompModal();
+    },
+    onError: (errs) => {
+      isSwitchingComp.value = false;
+      const msg = typeof errs === 'object' ? Object.values(errs)[0] : 'Gagal memindahkan cabang lomba.';
+      toast.error(msg, 'Terjadi Kesalahan');
+    }
+  });
+}
 
 // Filtered registrations
 const filteredRegistrations = computed(() => {
@@ -621,6 +703,16 @@ onMounted(() => {
                           <i class="ri-eye-line"></i>
                         </button>
 
+                        <!-- Ganti Cabang Perlombaan -->
+                        <button 
+                          type="button" 
+                          class="btn btn-sm btn-outline-warning text-dark fw-bold"
+                          @click="openSwitchCompModal(reg)"
+                          title="Ganti Cabang Perlombaan Pendaftar Ini"
+                        >
+                          <i class="ri-exchange-line"></i>
+                        </button>
+
                         <!-- Cetak Nota Invoice / Kwitansi Resmi -->
                         <a 
                           :href="'/admin/invoice/' + reg.id" 
@@ -879,6 +971,16 @@ onMounted(() => {
                   >
                     <i class="ri-file-pdf-2-line fs-14"></i>
                   </a>
+
+                  <!-- Ganti Cabang Lomba -->
+                  <button 
+                    type="button" 
+                    class="btn btn-xs btn-outline-warning text-dark px-2.5 py-1.5 rounded-2 flex-shrink-0"
+                    @click="openSwitchCompModal(reg)"
+                    title="Ganti Cabang Perlombaan"
+                  >
+                    <i class="ri-exchange-line fs-14"></i>
+                  </button>
 
                   <!-- Halaman Penuh: Verifikasi Detail & Formulir Cabang -->
                   <Link 
@@ -1244,6 +1346,15 @@ onMounted(() => {
                 <span>Buka Verifikasi Detail &rarr;</span>
               </Link>
               <button 
+                type="button" 
+                class="btn btn-sm btn-outline-warning text-dark fw-bold d-inline-flex align-items-center justify-content-center gap-1.5 flex-grow-1 flex-sm-grow-0"
+                @click="openSwitchCompModal(activeDetailItem)"
+                title="Ganti Cabang Perlombaan Pendaftar Ini"
+              >
+                <i class="ri-exchange-line"></i>
+                <span>Ganti Cabang</span>
+              </button>
+              <button 
                 v-if="canDelete"
                 type="button" 
                 class="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center gap-1.5 flex-grow-1 flex-sm-grow-0"
@@ -1255,6 +1366,141 @@ onMounted(() => {
               </button>
             </div>
             <button type="button" class="btn btn-sm btn-secondary" @click="showDetailModal = false">Tutup Modal</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: GANTI CABANG PERLOMBAAN -->
+    <div 
+      v-if="showSwitchModal && activeSwitchReg" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      style="background: rgba(0,0,0,0.65); z-index: 1065;"
+      @click.self="closeSwitchCompModal"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+          <!-- Modal Header -->
+          <div class="modal-header bg-warning-subtle text-dark border-bottom border-warning-subtle py-3 px-4">
+            <div class="d-flex align-items-center gap-2.5">
+              <div class="avatar-xs rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold fs-13">
+                <i class="ri-exchange-line"></i>
+              </div>
+              <div>
+                <h5 class="modal-title fs-15 fw-bold text-dark mb-0">
+                  Ganti Cabang Perlombaan
+                </h5>
+                <span class="fs-11 text-muted">
+                  #{{ activeSwitchReg.reg_code }} • {{ activeSwitchReg.school_name }}
+                </span>
+              </div>
+            </div>
+            <button type="button" class="btn-close" @click="closeSwitchCompModal" :disabled="isSwitchingComp"></button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body p-4">
+            <!-- Informasi Cabang Saat Ini -->
+            <div class="p-3 rounded-3 bg-light border mb-3.5">
+              <div class="text-muted fs-11 text-uppercase fw-bold mb-1" style="letter-spacing: 0.5px;">
+                Cabang Perlombaan Saat Ini:
+              </div>
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="fw-bold fs-13 text-dark d-flex align-items-center gap-1.5">
+                  <i class="ri-trophy-line text-warning"></i>
+                  <span>{{ activeSwitchReg.competition_title || activeSwitchReg.competition_id }}</span>
+                </div>
+                <span class="badge bg-light text-muted border fs-11">
+                  {{ activeSwitchReg.package_type || 'Satuan' }}
+                </span>
+              </div>
+              <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top fs-11 text-muted">
+                <span>Total Biaya Saat Ini:</span>
+                <span class="fw-bold font-monospace text-dark">{{ formatRupiah(activeSwitchReg.total_fee) }}</span>
+              </div>
+            </div>
+
+            <form @submit.prevent="submitSwitchCompetition">
+              <!-- Pilih Cabang Lomba Baru -->
+              <div class="mb-3">
+                <label class="form-label fs-12 fw-bold text-dark mb-1 d-flex justify-content-between">
+                  <span>Pilih Cabang Lomba Tujuan <span class="text-danger">*</span></span>
+                  <span v-if="selectedNewComp" class="badge bg-success-subtle text-success fs-10">
+                    {{ selectedNewComp.category || 'Umum' }}
+                  </span>
+                </label>
+                <CustomSelect
+                  v-model="switchForm.new_competition_id"
+                  :options="switchCompetitionOptions"
+                  placeholder="-- Pilih Cabang Perlombaan Baru --"
+                  size="md"
+                  searchable
+                  search-placeholder="Cari cabang lomba tujuan..."
+                />
+              </div>
+
+              <!-- Pratinjau Perubahan Biaya -->
+              <div v-if="selectedNewComp" class="p-2.5 rounded-3 border mb-3" :class="activeSwitchReg.package_type === 'Paket All-In' ? 'bg-warning-subtle text-dark border-warning-subtle' : 'bg-light text-dark'">
+                <div v-if="activeSwitchReg.package_type === 'Paket All-In'" class="fs-11">
+                  <i class="ri-vip-crown-fill text-warning me-1"></i>
+                  <strong>Paket All-In Komplit:</strong> Biaya pendaftaran cabang baru tetap <strong>Rp 0</strong> (terikat paket kontingen sekolah).
+                </div>
+                <div v-else>
+                  <div class="form-check form-switch mb-1">
+                    <input 
+                      v-model="switchForm.adjust_fee" 
+                      class="form-check-input" 
+                      type="checkbox" 
+                      role="switch" 
+                      id="adjustFeeSwitchPendaftar"
+                    />
+                    <label class="form-check-label fs-12 fw-bold text-dark cursor-pointer" for="adjustFeeSwitchPendaftar">
+                      Sesuaikan Biaya Pendaftaran dengan Lomba Baru
+                    </label>
+                  </div>
+                  <div class="fs-11 text-muted ps-4">
+                    Biaya akan diubah dari <strong>{{ formatRupiah(activeSwitchReg.total_fee) }}</strong> menjadi <strong>{{ formatRupiah(selectedNewComp.registration_fee) }}</strong>.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Catatan Alasan Perubahan -->
+              <div class="mb-2">
+                <label class="form-label fs-12 fw-bold text-dark mb-1">
+                  Alasan / Keterangan Pergantian Cabang Lomba
+                </label>
+                <textarea
+                  v-model="switchForm.reason"
+                  class="form-control fs-12"
+                  rows="2"
+                  placeholder="Contoh: Salah pilih cabang saat pengisian formulir online..."
+                ></textarea>
+                <small class="text-muted fs-11">Catatan ini akan dicatat dalam riwayat verifikasi.</small>
+              </div>
+            </form>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="modal-footer bg-light border-top py-2.5 px-4 d-flex justify-content-between">
+            <button 
+              type="button" 
+              class="btn btn-sm btn-secondary" 
+              @click="closeSwitchCompModal" 
+              :disabled="isSwitchingComp"
+            >
+              Batal
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5"
+              @click="submitSwitchCompetition"
+              :disabled="isSwitchingComp"
+            >
+              <span v-if="isSwitchingComp" class="spinner-border spinner-border-sm"></span>
+              <i v-else class="ri-check-line"></i>
+              <span>{{ isSwitchingComp ? 'Menyimpan...' : 'Simpan & Pindahkan Lomba' }}</span>
+            </button>
           </div>
         </div>
       </div>

@@ -1,8 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import VelzonLayout from '@/Layouts/VelzonLayout.vue';
 import CustomSelect from '@/Components/CustomSelect.vue';
+import IndoDatePicker from '@/Components/IndoDatePicker.vue';
 import { useToast } from '@/Composables/useToast';
 import { usePermission } from '@/Composables/usePermission';
 import { getWaChatUrl } from '@/Utils/whatsapp';
@@ -194,6 +195,133 @@ function openStudentDetail(student) {
 function closeStudentDetail() {
   showDetailModal.value = false;
   activeStudent.value = null;
+}
+
+// -----------------------------------------------------------------------------
+// EDIT STUDENT MODAL STATE & HANDLERS
+// -----------------------------------------------------------------------------
+const showEditModal = ref(false);
+const editingStudent = ref(null);
+const isSavingStudent = ref(false);
+const editForm = ref({
+  registration_id: null,
+  student_index: 1,
+  name: '',
+  nisn: '',
+  gender: 'Laki-laki',
+  grade: 'Kelas 7',
+  birth_date: '',
+  wa_number: '',
+  is_captain: false,
+  team_role: '',
+  custom_id: '',
+});
+
+const genderOptions = [
+  { value: 'Laki-laki', label: 'Laki-laki (L)' },
+  { value: 'Perempuan', label: 'Perempuan (P)' },
+];
+
+const gradeOptions = [
+  { value: 'Kelas 7', label: 'Kelas 7 (Tujuh)' },
+  { value: 'Kelas 8', label: 'Kelas 8 (Delapan)' },
+  { value: 'Kelas 9', label: 'Kelas 9 (Sembilan)' },
+  { value: 'Umum / Lainnya', label: 'Umum / Lainnya' },
+];
+
+const teamRoleOptions = [
+  { value: 'Peserta Tunggal', label: 'Peserta Tunggal (Individu)' },
+  { value: 'Ketua / Kapten', label: 'Ketua / Kapten Tim' },
+  { value: 'Anggota', label: 'Anggota Regu' },
+];
+
+function openEditStudent(student) {
+  editingStudent.value = student;
+  
+  // Normalisasi gender
+  let g = student.gender || 'Laki-laki';
+  if (isFemale(g)) g = 'Perempuan';
+  else if (g === '-' || !g) g = 'Laki-laki';
+  else g = 'Laki-laki';
+
+  // Normalisasi grade
+  let gr = student.grade || 'Kelas 7';
+  if (gr && !gr.toLowerCase().startsWith('kelas') && gr !== '-') {
+    gr = 'Kelas ' + gr;
+  }
+
+  editForm.value = {
+    registration_id: student.registration_id,
+    student_index: student.student_index || 1,
+    name: student.name || '',
+    nisn: (student.nisn && student.nisn !== '-') ? student.nisn : '',
+    gender: g,
+    grade: gr || 'Kelas 7',
+    birth_date: student.birth_date || '',
+    wa_number: (student.wa_number && student.wa_number !== '-') ? student.wa_number : '',
+    is_captain: Boolean(student.is_captain),
+    team_role: student.team_role || (student.is_captain ? 'Ketua / Kapten' : (student.participant_type === 'tim' ? 'Anggota' : 'Peserta Tunggal')),
+    custom_id: student.custom_id || '',
+  };
+
+  showEditModal.value = true;
+}
+
+function closeEditModal() {
+  showEditModal.value = false;
+  editingStudent.value = null;
+}
+
+function saveStudent() {
+  if (!editForm.value.name.trim()) {
+    toast.error('Nama lengkap peserta tidak boleh kosong!', 'Validasi Gagal');
+    return;
+  }
+
+  isSavingStudent.value = true;
+
+  router.post(`/admin/pendaftar/${editForm.value.registration_id}/update-participant-single`, {
+    student_index: editForm.value.student_index,
+    name: editForm.value.name,
+    nisn: editForm.value.nisn,
+    gender: editForm.value.gender,
+    grade: editForm.value.grade,
+    birth_date: editForm.value.birth_date,
+    wa_number: editForm.value.wa_number,
+    is_captain: editForm.value.is_captain,
+    team_role: editForm.value.team_role,
+    custom_id: editForm.value.custom_id,
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      isSavingStudent.value = false;
+      toast.success(`Data peserta "${editForm.value.name}" berhasil diperbarui!`, 'Berhasil Disimpan');
+      
+      // Update data di objek peserta lokal secara reaktif
+      if (editingStudent.value) {
+        editingStudent.value.name = editForm.value.name;
+        editingStudent.value.nisn = editForm.value.nisn || '-';
+        editingStudent.value.gender = editForm.value.gender;
+        editingStudent.value.grade = editForm.value.grade;
+        editingStudent.value.birth_date = editForm.value.birth_date;
+        editingStudent.value.wa_number = editForm.value.wa_number;
+        editingStudent.value.is_captain = editForm.value.is_captain;
+        editingStudent.value.team_role = editForm.value.team_role;
+        editingStudent.value.custom_id = editForm.value.custom_id;
+      }
+      
+      if (showDetailModal.value && activeStudent.value && activeStudent.value.id === editingStudent.value?.id) {
+        Object.assign(activeStudent.value, editingStudent.value);
+      }
+
+      closeEditModal();
+    },
+    onError: (errs) => {
+      isSavingStudent.value = false;
+      const msg = typeof errs === 'object' ? Object.values(errs)[0] : 'Gagal memperbarui data peserta.';
+      toast.error(msg, 'Terjadi Kesalahan');
+    }
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -905,6 +1033,16 @@ function formatGenderFull(gender) {
               <!-- Aksi -->
               <td class="text-center d-print-none">
                 <div class="d-flex align-items-center justify-content-center gap-1">
+                  <!-- Edit Student Button -->
+                  <button 
+                    type="button" 
+                    @click="openEditStudent(item)"
+                    class="btn btn-sm btn-ghost-warning btn-icon fs-14"
+                    title="Edit Biodata Siswa"
+                  >
+                    <i class="ri-edit-line"></i>
+                  </button>
+
                   <!-- View Profile Modal -->
                   <button 
                     type="button" 
@@ -1209,15 +1347,226 @@ function formatGenderFull(gender) {
           </div>
 
           <!-- Modal Footer -->
-          <div class="modal-footer bg-light border-top py-2.5 px-4 d-flex justify-content-between">
-            <Link 
-              :href="`/admin/pendaftar/${activeStudent.registration_id}`" 
-              class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5"
-            >
-              <i class="ri-external-link-line"></i> Buka Data Registrasi Induk (#{{ activeStudent.reg_code }})
-            </Link>
+          <div class="modal-footer bg-light border-top py-2.5 px-4 d-flex justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <Link 
+                :href="`/admin/pendaftar/${activeStudent.registration_id}`" 
+                class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5"
+              >
+                <i class="ri-external-link-line"></i> Buka Data Registrasi Induk (#{{ activeStudent.reg_code }})
+              </Link>
+              <button 
+                type="button" 
+                class="btn btn-sm btn-warning text-dark fw-bold d-inline-flex align-items-center gap-1"
+                @click="openEditStudent(activeStudent)"
+                title="Edit Biodata Siswa Ini"
+              >
+                <i class="ri-edit-line"></i> Edit Siswa
+              </button>
+            </div>
             <button type="button" class="btn btn-sm btn-secondary" @click="closeStudentDetail">
               Tutup
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- MODAL EDIT BIODATA PESERTA DELEGASI (FORMULIR ONLINE & MANUAL) -->
+    <!-- ============================================================== -->
+    <div 
+      v-if="showEditModal && editingStudent" 
+      class="modal fade show d-block" 
+      tabindex="-1" 
+      style="background: rgba(0,0,0,0.65); z-index: 1065;"
+      @click.self="closeEditModal"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+          <!-- Modal Header -->
+          <div class="modal-header bg-warning-subtle text-dark border-bottom border-warning-subtle py-3 px-4">
+            <div class="d-flex align-items-center gap-2.5">
+              <div class="avatar-xs rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold fs-13">
+                <i class="ri-edit-2-line"></i>
+              </div>
+              <div>
+                <h5 class="modal-title fs-15 fw-bold text-dark mb-0">
+                  Edit Biodata Peserta Delegasi
+                </h5>
+                <span class="fs-11 text-muted">
+                  Peserta ke-{{ editForm.student_index }} • #{{ editingStudent.reg_code }} ({{ editingStudent.school_name }})
+                </span>
+              </div>
+            </div>
+            <button type="button" class="btn-close" @click="closeEditModal" :disabled="isSavingStudent"></button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body p-4">
+            <!-- Info Bar Lomba -->
+            <div class="p-2.5 rounded-3 bg-light border mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <i class="ri-medal-line text-primary fs-18"></i>
+                <span class="fs-12 text-dark fw-semibold">{{ editingStudent.competition_title }}</span>
+              </div>
+              <span class="badge bg-primary-subtle text-primary fs-11">
+                {{ editingStudent.participant_type === 'tim' ? 'Lomba Tim / Beregu' : 'Lomba Individu' }}
+              </span>
+            </div>
+
+            <form @submit.prevent="saveStudent">
+              <div class="row g-3">
+                <!-- Nama Lengkap Siswa -->
+                <div class="col-12 col-md-7">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    Nama Lengkap Siswa <span class="text-danger">*</span>
+                  </label>
+                  <input 
+                    v-model="editForm.name" 
+                    type="text" 
+                    class="form-control form-control-sm fs-12"
+                    placeholder="Masukkan nama lengkap siswa..."
+                    required
+                  />
+                </div>
+
+                <!-- NISN Siswa -->
+                <div class="col-12 col-md-5">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    NISN (Nomor Induk Siswa Nasional)
+                  </label>
+                  <input 
+                    v-model="editForm.nisn" 
+                    type="text" 
+                    maxlength="20"
+                    class="form-control form-control-sm font-monospace fs-12"
+                    placeholder="Contoh: 0081234567"
+                  />
+                </div>
+
+                <!-- Jenis Kelamin (CustomSelect) -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    Jenis Kelamin <span class="text-danger">*</span>
+                  </label>
+                  <CustomSelect
+                    v-model="editForm.gender"
+                    :options="genderOptions"
+                    size="sm"
+                    prefix-icon="ri-genderless-line"
+                  />
+                </div>
+
+                <!-- Kelas / Tingkat (CustomSelect) -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    Kelas / Tingkat
+                  </label>
+                  <CustomSelect
+                    v-model="editForm.grade"
+                    :options="gradeOptions"
+                    size="sm"
+                    prefix-icon="ri-graduation-cap-line"
+                  />
+                </div>
+
+                <!-- Tanggal Lahir (IndoDatePicker) -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    Tanggal Lahir (dd/mm/yyyy)
+                  </label>
+                  <IndoDatePicker
+                    v-model="editForm.birth_date"
+                    placeholder="dd/mm/yyyy"
+                  />
+                </div>
+
+                <!-- Nomor WhatsApp Siswa -->
+                <div class="col-12 col-md-6">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    Nomor WhatsApp Siswa / Wali
+                  </label>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light text-success border-end-0">
+                      <i class="ri-whatsapp-line"></i>
+                    </span>
+                    <input 
+                      v-model="editForm.wa_number" 
+                      type="text" 
+                      class="form-control font-monospace fs-12 border-start-0"
+                      placeholder="Contoh: 081234567890"
+                    />
+                  </div>
+                </div>
+
+                <!-- Peran Tim & Status Kapten -->
+                <div class="col-12 col-md-6" v-if="editingStudent.participant_type === 'tim'">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    Peran dalam Tim
+                  </label>
+                  <CustomSelect
+                    v-model="editForm.team_role"
+                    :options="teamRoleOptions"
+                    size="sm"
+                    prefix-icon="ri-team-line"
+                  />
+                </div>
+
+                <!-- ID Khusus / No Dada / ID Game -->
+                <div :class="editingStudent.participant_type === 'tim' ? 'col-12 col-md-6' : 'col-12'">
+                  <label class="form-label fs-12 fw-bold text-dark mb-1">
+                    ID Khusus / No. Dada / ID Game (Opsional)
+                  </label>
+                  <input 
+                    v-model="editForm.custom_id" 
+                    type="text" 
+                    class="form-control form-control-sm font-monospace fs-12"
+                    placeholder="Nomor punggung / ID khusus peserta..."
+                  />
+                </div>
+
+                <!-- Switch Kapten Tim jika lomba Tim -->
+                <div class="col-12" v-if="editingStudent.participant_type === 'tim'">
+                  <div class="form-check form-switch p-2 ps-5 rounded bg-light border">
+                    <input 
+                      v-model="editForm.is_captain" 
+                      class="form-check-input" 
+                      type="checkbox" 
+                      role="switch" 
+                      id="isCaptainSwitch"
+                    />
+                    <label class="form-check-label fs-12 fw-bold text-dark cursor-pointer" for="isCaptainSwitch">
+                      <i class="ri-vip-crown-fill text-warning me-1"></i> Jadikan sebagai Ketua / Kapten Tim
+                    </label>
+                    <div class="fs-11 text-muted">
+                      Menandai siswa ini sebagai kontak utama regu dan koordinator lapangan.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="modal-footer bg-light border-top py-2.5 px-4 d-flex justify-content-between">
+            <button 
+              type="button" 
+              class="btn btn-sm btn-secondary" 
+              @click="closeEditModal" 
+              :disabled="isSavingStudent"
+            >
+              Batal
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1.5"
+              @click="saveStudent"
+              :disabled="isSavingStudent"
+            >
+              <span v-if="isSavingStudent" class="spinner-border spinner-border-sm"></span>
+              <i v-else class="ri-save-line"></i>
+              <span>{{ isSavingStudent ? 'Menyimpan...' : 'Simpan Perubahan' }}</span>
             </button>
           </div>
         </div>

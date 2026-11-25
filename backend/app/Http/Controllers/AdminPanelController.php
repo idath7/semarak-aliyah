@@ -283,6 +283,7 @@ class AdminPanelController extends Controller
         return \Inertia\Inertia::render('Admin/PendaftarDetail', [
             'registration' => $registration,
             'competition' => $competition,
+            'competitions' => Competition::orderBy('title', 'asc')->get(['id', 'title', 'category', 'participant_type', 'registration_fee', 'max_participants']),
             'formFields' => $formFields,
             'formSettings' => $formSettings,
             'prevRegistration' => $prevReg,
@@ -5193,6 +5194,216 @@ class AdminPanelController extends Controller
         }
 
         return redirect()->back()->with('success', "Asal sekolah pendaftar #{$registration->reg_code} berhasil diperbarui menjadi \"{$newSchool}\".");
+    }
+
+    /**
+     * Update data biodata seorang peserta/siswa tertentu di dalam pendaftaran (online maupun manual panitia)
+     */
+    public function updateSingleParticipant(Request $request, string|int $id)
+    {
+        $registration = Registration::with('competition')->findOrFail($id);
+
+        $validated = $request->validate([
+            'student_index' => 'required|integer|min:1',
+            'name'          => 'required|string|max:255',
+            'nisn'          => 'nullable|string|max:50',
+            'gender'        => 'nullable|string|max:50',
+            'grade'         => 'nullable|string|max:50',
+            'birth_date'    => 'nullable|string|max:50',
+            'wa_number'     => 'nullable|string|max:50',
+            'is_captain'    => 'nullable|boolean',
+            'team_role'     => 'nullable|string|max:50',
+            'custom_id'     => 'nullable|string|max:100',
+        ]);
+
+        $customFields = is_array($registration->custom_fields) ? $registration->custom_fields : [];
+
+        // Ambil daftar delegates eksisting
+        $delegates = $customFields['delegates'] ?? ($customFields['biodata_peserta'] ?? []);
+        
+        // Jika belum ada dalam format array (misal pendaftaran lama/online single atau hanya string),
+        // gunakan data dari detailed_participants sebagai baseline awal
+        if (!is_array($delegates) || empty($delegates)) {
+            $detailed = $registration->detailed_participants;
+            $delegates = [];
+            foreach ($detailed as $idx => $d) {
+                $delegates[] = [
+                    'name' => $d['name'] ?? '',
+                    'gender' => $d['gender'] ?? 'Laki-laki',
+                    'grade' => $d['grade'] ?? 'Kelas 7',
+                    'nisn' => $d['nisn'] ?? '',
+                    'birth_date' => $d['birth_date'] ?? '',
+                    'custom_id' => $d['custom_id'] ?? '',
+                    'wa_number' => $d['wa_number'] ?? '',
+                    'is_captain' => !empty($d['is_captain']),
+                    'team_role' => $d['team_role'] ?? '',
+                    'photo_formal' => $d['photo'] ?? null,
+                    'photo' => $d['photo'] ?? null,
+                    'photo_freestyle' => $d['photo_freestyle'] ?? null,
+                    'custom_columns' => $d['custom_columns'] ?? [],
+                ];
+            }
+        }
+
+        $targetIdx = $validated['student_index'] - 1;
+
+        if (!isset($delegates[$targetIdx])) {
+            $delegates[$targetIdx] = [];
+        }
+
+        $existing = $delegates[$targetIdx] ?? [];
+
+        // Normalisasi grade
+        $grade = trim($validated['grade'] ?? ($existing['grade'] ?? ''));
+        if (!empty($grade) && $grade !== '-' && !preg_match('/^kelas/i', $grade)) {
+            $grade = 'Kelas ' . $grade;
+        }
+
+        $updatedStudent = [
+            'name' => trim($validated['name']),
+            'gender' => $validated['gender'] ?? ($existing['gender'] ?? 'Laki-laki'),
+            'grade' => $grade ?: ($existing['grade'] ?? 'Kelas 7'),
+            'nisn' => trim($validated['nisn'] ?? ($existing['nisn'] ?? '')),
+            'birth_date' => trim($validated['birth_date'] ?? ($existing['birth_date'] ?? '')),
+            'custom_id' => trim($validated['custom_id'] ?? ($existing['custom_id'] ?? '')),
+            'wa_number' => trim($validated['wa_number'] ?? ($existing['wa_number'] ?? '')),
+            'is_captain' => !empty($validated['is_captain']),
+            'team_role' => trim($validated['team_role'] ?? ($existing['team_role'] ?? '')),
+            'captain_wa' => !empty($validated['is_captain']) ? trim($validated['wa_number'] ?? ($existing['captain_wa'] ?? '')) : ($existing['captain_wa'] ?? ''),
+            'photo_formal' => $existing['photo_formal'] ?? ($existing['photo'] ?? null),
+            'photo' => $existing['photo'] ?? ($existing['photo_formal'] ?? null),
+            'photo_freestyle' => $existing['photo_freestyle'] ?? null,
+            'custom_columns' => $existing['custom_columns'] ?? [],
+        ];
+
+        // Jika is_captain diubah jadi true, nonaktifkan is_captain siswa lain jika satu tim hanya 1 kapten
+        if (!empty($validated['is_captain'])) {
+            foreach ($delegates as $i => $del) {
+                if ($i !== $targetIdx) {
+                    $delegates[$i]['is_captain'] = false;
+                }
+            }
+        }
+
+        $delegates[$targetIdx] = $updatedStudent;
+
+        // Simpan ke custom_fields
+        $customFields['delegates'] = array_values($delegates);
+        if (isset($customFields['biodata_peserta']) || empty($customFields['delegates'])) {
+            $customFields['biodata_peserta'] = array_values($delegates);
+        }
+
+        // Jika pendaftaran ini memiliki single field di custom_fields (misal online individual)
+        if ($targetIdx === 0) {
+            if (isset($customFields['nama_siswa'])) $customFields['nama_siswa'] = $updatedStudent['name'];
+            if (isset($customFields['nama_lengkap'])) $customFields['nama_lengkap'] = $updatedStudent['name'];
+            if (isset($customFields['nama_peserta'])) $customFields['nama_peserta'] = $updatedStudent['name'];
+            if (isset($customFields['nisn'])) $customFields['nisn'] = $updatedStudent['nisn'];
+            if (isset($customFields['jenis_kelamin'])) $customFields['jenis_kelamin'] = $updatedStudent['gender'];
+            if (isset($customFields['gender'])) $customFields['gender'] = $updatedStudent['gender'];
+            if (isset($customFields['kelas'])) $customFields['kelas'] = $updatedStudent['grade'];
+            if (isset($customFields['tanggal_lahir'])) $customFields['tanggal_lahir'] = $updatedStudent['birth_date'];
+            if (isset($customFields['tgl_lahir'])) $customFields['tgl_lahir'] = $updatedStudent['birth_date'];
+            if (isset($customFields['wa_siswa'])) $customFields['wa_siswa'] = $updatedStudent['wa_number'];
+            if (isset($customFields['no_wa_siswa'])) $customFields['no_wa_siswa'] = $updatedStudent['wa_number'];
+        }
+
+        // Susun kembali string multiline participants_names
+        $namesList = [];
+        foreach ($delegates as $idx => $st) {
+            $name = trim($st['name'] ?? '');
+            if (empty($name)) continue;
+            $nisn = !empty($st['nisn']) && $st['nisn'] !== '-' ? " (NISN: {$st['nisn']})" : "";
+            $role = !empty($st['is_captain']) ? " [Kapten]" : "";
+            $namesList[] = ($idx + 1) . ". " . $name . $role . $nisn;
+        }
+
+        $customFields['participants_updated_by'] = Auth::guard('web')->user()?->name ?? 'Panitia Admin';
+        $customFields['participants_updated_at'] = now()->toIso8601String();
+
+        $updatePayload = [
+            'participants_names' => implode("\n", $namesList),
+            'custom_fields' => $customFields,
+        ];
+
+        // Jika sebelumnya berstatus "Menunggu Pengisian Peserta", ubah ke status verifikasi
+        if ($registration->registration_status === 'Menunggu Pengisian Peserta') {
+            $updatePayload['registration_status'] = ($registration->payment_status === 'Terverifikasi')
+                ? 'Terverifikasi'
+                : 'Menunggu Verifikasi';
+        }
+
+        $registration->update($updatePayload);
+
+        return redirect()->back()->with('success', "Biodata peserta #{$validated['student_index']} ({$updatedStudent['name']}) berhasil diperbarui!");
+    }
+
+    /**
+     * Ganti cabang perlombaan untuk sebuah pendaftaran (misal salah pilih cabang lomba saat isi formulir).
+     */
+    public function switchRegistrationCompetition(Request $request, string|int $id)
+    {
+        $registration = Registration::with('competition')->findOrFail($id);
+
+        $validated = $request->validate([
+            'new_competition_id' => 'required|exists:competitions,id',
+            'adjust_fee'         => 'nullable|boolean',
+            'reason'             => 'nullable|string|max:500',
+        ]);
+
+        $newComp = Competition::findOrFail($validated['new_competition_id']);
+
+        if ((string)$newComp->id === (string)$registration->competition_id) {
+            return redirect()->back()->with('info', "Pendaftaran sudah berada pada cabang lomba {$newComp->title}.");
+        }
+
+        $oldTitle = $registration->competition_title ?: ($registration->competition?->title ?? "ID #{$registration->competition_id}");
+        $newTitle = $newComp->title;
+
+        $registration->competition_id = $newComp->id;
+        $registration->competition_title = $newComp->title;
+
+        // Penyesuaian biaya pendaftaran
+        // Jika Paket All-In, biaya selalu 0 (terikat kontingen sekolah).
+        // Jika Paket Satuan dan adjust_fee dicentang, update total_fee ke biaya pendaftaran lomba baru
+        if ($registration->package_type !== 'Paket All-In') {
+            if ($request->boolean('adjust_fee', true)) {
+                $registration->total_fee = $newComp->registration_fee;
+            }
+        } else {
+            $registration->total_fee = 0;
+        }
+
+        // Catat jejak pergantian lomba pada verification_notes
+        $nowStr = now()->translatedFormat('d/m/Y H:i') . ' WIB';
+        $userName = Auth::guard('web')->user()?->name ?? 'Panitia Admin';
+        $reasonStr = !empty($validated['reason']) ? " Alasan: {$validated['reason']}." : "";
+        $auditLog = "[{$nowStr}] Cabang lomba diubah oleh {$userName} dari \"{$oldTitle}\" ke \"{$newTitle}\".{$reasonStr}";
+
+        $existingNotes = trim((string)$registration->verification_notes);
+        $registration->verification_notes = $existingNotes ? ($existingNotes . "\n" . $auditLog) : $auditLog;
+
+        // Simpan juga histori di custom_fields
+        $cf = is_array($registration->custom_fields) ? $registration->custom_fields : [];
+        if (!isset($cf['competition_switch_history']) || !is_array($cf['competition_switch_history'])) {
+            $cf['competition_switch_history'] = [];
+        }
+        $cf['competition_switch_history'][] = [
+            'switched_at' => now()->toIso8601String(),
+            'switched_by' => $userName,
+            'old_competition_id' => $registration->getOriginal('competition_id'),
+            'old_competition_title' => $oldTitle,
+            'new_competition_id' => $newComp->id,
+            'new_competition_title' => $newTitle,
+            'reason' => $validated['reason'] ?? null,
+            'fee_adjusted' => ($registration->package_type !== 'Paket All-In' && $request->boolean('adjust_fee', true)),
+            'new_fee' => $registration->total_fee,
+        ];
+        $registration->custom_fields = $cf;
+
+        $registration->save();
+
+        return redirect()->back()->with('success', "Cabang lomba pendaftar #{$registration->reg_code} ({$registration->school_name}) berhasil dipindahkan ke \"{$newTitle}\"!");
     }
 
     /**
